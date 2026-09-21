@@ -28,11 +28,25 @@ tbody tr:hover {
   background: var(--social-bg);
 }
 
-#add-learner {
+#add-learner,
+#edit-learner,
+#mark-completed {
   padding: 32px 20px 48px;
   max-width: 1100px;
   margin: 0 auto;
   text-align: left;
+}
+
+.actions-cell {
+  white-space: nowrap;
+  display: flex;
+  gap: 8px;
+}
+
+.field-hint {
+  color: var(--text-h);
+  opacity: 0.7;
+  font-size: 13px;
 }
 
 .warning-banner,
@@ -116,4 +130,23 @@ button[type='submit'] {
 button[type='submit']:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+button.secondary {
+  font: inherit;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+button.secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+form button.secondary {
+  margin-left: 8px;
 }

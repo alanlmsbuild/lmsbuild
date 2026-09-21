@@ -1,24 +1,28 @@
 import { useState } from 'react'
 import { SEX_OPTIONS, LLDD_HEALTH_PROBLEM_OPTIONS, ETHNICITY_OPTIONS, STANDARD_OPTIONS } from './ilrCodes'
-import { validateLearnerForm } from './validation'
+import { validateLearnerEditForm } from './validation'
 
-const EMPTY_FORM = {
-  uln: '',
-  ethnicity: '',
-  sex: '',
-  lldd: '',
-  postcodePrior: '',
-  postcode: '',
-  familyName: '',
-  givenNames: '',
-  dateOfBirth: '',
-  niNumber: '',
-  phone: '',
-  email: '',
-  startDate: '',
-  plannedEndDate: '',
-  stdCode: '',
-  dellocPostcode: 'ZZ3 3DA',
+// Turns a learner+aim row from GET /api/learners into the shape this form's
+// fields use, the same shape AddLearnerForm's EMPTY_FORM uses.
+function toFormState(learner) {
+  return {
+    uln: String(learner.ULN ?? ''),
+    ethnicity: String(learner.ETHNICITY ?? ''),
+    sex: learner.SEX ?? '',
+    lldd: String(learner.LLDDHEALTHPROB ?? ''),
+    postcodePrior: learner.POSTCODEPRIOR ?? '',
+    postcode: learner.POSTCODE ?? '',
+    familyName: learner.FAMILYNAME ?? '',
+    givenNames: learner.GIVENNAMES ?? '',
+    dateOfBirth: learner.DATEOFBIRTH ? String(learner.DATEOFBIRTH).slice(0, 10) : '',
+    niNumber: learner.NINUMBER ?? '',
+    phone: learner.TELNO ?? '',
+    email: learner.EMAIL ?? '',
+    startDate: learner.LEARNSTARTDATE ? String(learner.LEARNSTARTDATE).slice(0, 10) : '',
+    plannedEndDate: learner.LEARNPLANENDDATE ? String(learner.LEARNPLANENDDATE).slice(0, 10) : '',
+    stdCode: String(learner.STDCODE ?? ''),
+    dellocPostcode: learner.DELLOCPOSTCODE ?? '',
+  }
 }
 
 function Field({ label, error, required, children }) {
@@ -34,12 +38,16 @@ function Field({ label, error, required, children }) {
   )
 }
 
-function AddLearnerForm({ onLearnerAdded }) {
-  const [form, setForm] = useState(EMPTY_FORM)
+function EditLearnerForm({ learner, onSaved, onCancel }) {
+  const [form, setForm] = useState(() => toFormState(learner))
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState(null)
-  const [successRef, setSuccessRef] = useState(null)
+
+  // The aim's start date can only be changed while it's still continuing
+  // (COMPSTATUS 1). Once it's completed or withdrawn, the field is shown
+  // but disabled, and the server would reject a change to it anyway.
+  const startDateEditable = learner.COMPSTATUS === 1
 
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -47,17 +55,16 @@ function AddLearnerForm({ onLearnerAdded }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setSuccessRef(null)
     setServerError(null)
 
-    const fieldErrors = validateLearnerForm(form)
+    const fieldErrors = validateLearnerEditForm(form)
     setErrors(fieldErrors)
     if (Object.keys(fieldErrors).length > 0) return
 
     setSaving(true)
     try {
-      const res = await fetch('/api/learners', {
-        method: 'POST',
+      const res = await fetch(`/api/learners/${learner.LEARNREFNUMBER}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
@@ -65,13 +72,11 @@ function AddLearnerForm({ onLearnerAdded }) {
 
       if (!res.ok) {
         setErrors(data.fields || {})
-        setServerError(data.error || 'Could not save the new learner.')
+        setServerError(data.error || 'Could not save these changes.')
         return
       }
 
-      setSuccessRef(data.learnRefNumber)
-      setForm(EMPTY_FORM)
-      onLearnerAdded?.(data.learnRefNumber)
+      onSaved?.()
     } catch {
       setServerError('Could not reach the server. Please try again.')
     } finally {
@@ -80,17 +85,12 @@ function AddLearnerForm({ onLearnerAdded }) {
   }
 
   return (
-    <section id="add-learner">
-      <h2>Add a learner</h2>
+    <section id="edit-learner">
+      <h2>Edit learner</h2>
       <p className="warning-banner" role="alert">
         Dummy data only. Do not enter real people's details.
       </p>
 
-      {successRef && (
-        <p className="success-banner" role="status">
-          Saved. New learner reference: <strong>{successRef}</strong>
-        </p>
-      )}
       {serverError && (
         <p className="error-banner" role="alert">
           {serverError}
@@ -100,6 +100,10 @@ function AddLearnerForm({ onLearnerAdded }) {
       <form onSubmit={handleSubmit} noValidate>
         <fieldset>
           <legend>Learner details</legend>
+
+          <Field label="Learner reference">
+            <input type="text" value={learner.LEARNREFNUMBER} disabled />
+          </Field>
 
           <Field label="ULN" error={errors.uln} required>
             <input
@@ -193,7 +197,15 @@ function AddLearnerForm({ onLearnerAdded }) {
           <legend>Apprenticeship aim</legend>
 
           <Field label="Start date" error={errors.startDate} required>
-            <input type="date" value={form.startDate} onChange={(e) => updateField('startDate', e.target.value)} />
+            <input
+              type="date"
+              value={form.startDate}
+              disabled={!startDateEditable}
+              onChange={(e) => updateField('startDate', e.target.value)}
+            />
+            {!startDateEditable && (
+              <span className="field-hint">This aim is no longer continuing, so its start date is locked.</span>
+            )}
           </Field>
 
           <Field label="Planned end date" error={errors.plannedEndDate} required>
@@ -225,11 +237,14 @@ function AddLearnerForm({ onLearnerAdded }) {
         </fieldset>
 
         <button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Add learner'}
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+        <button type="button" className="secondary" onClick={onCancel} disabled={saving}>
+          Cancel
         </button>
       </form>
     </section>
   )
 }
 
-export default AddLearnerForm
+export default EditLearnerForm

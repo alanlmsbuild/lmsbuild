@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 import AddLearnerForm from './AddLearnerForm'
+import EditLearnerForm from './EditLearnerForm'
+import MarkCompletedForm from './MarkCompletedForm'
 import {
   AIM_TYPE_LABELS,
   COMPLETION_STATUS_LABELS,
@@ -14,8 +16,13 @@ function App() {
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
 
-  // Also used to refresh the list after a new learner is saved, so the
-  // table stays in place instead of flashing back to "Loading…".
+  // What the panel below the table is showing: adding a new learner
+  // (the default), editing an existing one, or marking an aim completed.
+  const [panel, setPanel] = useState({ mode: 'add' })
+
+  // Also used to refresh the list after a learner is added, edited, or an
+  // aim is marked completed, so the table stays in place instead of
+  // flashing back to "Loading…".
   const loadLearners = useCallback(async () => {
     try {
       const res = await fetch('/api/learners')
@@ -33,6 +40,11 @@ function App() {
   useEffect(() => {
     loadLearners()
   }, [loadLearners])
+
+  function handleSaved() {
+    setPanel({ mode: 'add' })
+    loadLearners()
+  }
 
   return (
     <>
@@ -59,6 +71,7 @@ function App() {
                 <th>Planned end</th>
                 <th>Status</th>
                 <th>Outcome</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -76,13 +89,42 @@ function App() {
                   <td>{formatDate(learner.LEARNPLANENDDATE)}</td>
                   <td>{describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}</td>
                   <td>{describe(OUTCOME_LABELS, learner.OUTCOME)}</td>
+                  <td className="actions-cell">
+                    <button type="button" className="secondary" onClick={() => setPanel({ mode: 'edit', learner })}>
+                      Edit
+                    </button>
+                    {learner.COMPSTATUS === 1 && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setPanel({ mode: 'complete', learner })}
+                      >
+                        Mark completed
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </section>
-      <AddLearnerForm onLearnerAdded={loadLearners} />
+
+      {panel.mode === 'edit' && (
+        <EditLearnerForm
+          learner={panel.learner}
+          onSaved={handleSaved}
+          onCancel={() => setPanel({ mode: 'add' })}
+        />
+      )}
+      {panel.mode === 'complete' && (
+        <MarkCompletedForm
+          learner={panel.learner}
+          onSaved={handleSaved}
+          onCancel={() => setPanel({ mode: 'add' })}
+        />
+      )}
+      {panel.mode === 'add' && <AddLearnerForm onLearnerAdded={loadLearners} />}
     </>
   )
 }
