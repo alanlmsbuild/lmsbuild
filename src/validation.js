@@ -11,6 +11,8 @@ import {
   ETHNICITY_OPTIONS,
   STANDARD_OPTIONS,
   WITHDRAW_REASON_OPTIONS,
+  CONTACT_METHOD_OPTIONS,
+  CONTRACT_TYPE_OPTIONS,
 } from './ilrCodes.js'
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
@@ -24,6 +26,8 @@ const LLDD_CODES = new Set(LLDD_HEALTH_PROBLEM_OPTIONS.map((o) => o.code))
 const ETHNICITY_CODES = new Set(ETHNICITY_OPTIONS.map((o) => o.code))
 const STANDARD_CODES = new Set(STANDARD_OPTIONS.map((o) => o.code))
 const WITHDRAW_REASON_CODES = new Set(WITHDRAW_REASON_OPTIONS.map((o) => o.code))
+const CONTACT_METHOD_CODES = new Set(CONTACT_METHOD_OPTIONS.map((o) => o.code))
+const CONTRACT_TYPE_CODES = new Set(CONTRACT_TYPE_OPTIONS.map((o) => o.code))
 
 function isUln(value) {
   const text = String(value ?? '').trim()
@@ -81,6 +85,53 @@ function validateLearnerFields(v, errors) {
   }
   if (v.email && !EMAIL.test(String(v.email).trim())) {
     errors.email = 'Enter a valid email address.'
+  }
+
+  if (v.title && String(v.title).trim().length > 10) {
+    errors.title = 'Title must be 10 characters or fewer.'
+  }
+  if (v.addressLine1 && String(v.addressLine1).trim().length > 100) {
+    errors.addressLine1 = 'Address line 1 must be 100 characters or fewer.'
+  }
+  if (v.addressLine2 && String(v.addressLine2).trim().length > 100) {
+    errors.addressLine2 = 'Address line 2 must be 100 characters or fewer.'
+  }
+  if (v.addressLine3 && String(v.addressLine3).trim().length > 100) {
+    errors.addressLine3 = 'Address line 3 must be 100 characters or fewer.'
+  }
+  if (v.wardOrCounty && String(v.wardOrCounty).trim().length > 100) {
+    errors.wardOrCounty = 'Ward or county must be 100 characters or fewer.'
+  }
+  if (v.mobile && !PHONE.test(String(v.mobile).trim())) {
+    errors.mobile = 'Enter a valid mobile number.'
+  }
+
+  const contactMethodsAllowed = Array.isArray(v.contactMethodsAllowed) ? v.contactMethodsAllowed : []
+  if (contactMethodsAllowed.some((code) => !CONTACT_METHOD_CODES.has(code))) {
+    errors.contactMethodsAllowed = 'Choose contact methods from the list.'
+  }
+  if (v.preferredContactMethod && !CONTACT_METHOD_CODES.has(v.preferredContactMethod)) {
+    errors.preferredContactMethod = 'Choose a preferred contact method from the list.'
+  } else if (
+    v.preferredContactMethod &&
+    contactMethodsAllowed.length > 0 &&
+    !contactMethodsAllowed.includes(v.preferredContactMethod)
+  ) {
+    errors.preferredContactMethod = 'Preferred contact method must be one of the allowed contact methods.'
+  }
+
+  if (v.nextOfKinName && String(v.nextOfKinName).trim().length > 160) {
+    errors.nextOfKinName = 'Next of kin name must be 160 characters or fewer.'
+  }
+  if (v.nextOfKinRelationship && String(v.nextOfKinRelationship).trim().length > 50) {
+    errors.nextOfKinRelationship = 'Next of kin relationship must be 50 characters or fewer.'
+  }
+  if (v.nextOfKinPhone && !PHONE.test(String(v.nextOfKinPhone).trim())) {
+    errors.nextOfKinPhone = 'Enter a valid next of kin phone number.'
+  }
+
+  if (v.contractType && !CONTRACT_TYPE_CODES.has(v.contractType)) {
+    errors.contractType = 'Choose a contract type from the list.'
   }
 }
 

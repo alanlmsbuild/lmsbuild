@@ -50,3 +50,13 @@ export function labelFromOptions(options, code) {
   const match = options.find((o) => String(o.code) === String(code))
   return match ? match.label : `Code ${code}`
 }
+
+// Looks up labels for a comma-separated list of codes (e.g. a learner's
+// CONTACTMETHODSALLOWED column) and joins them back together for display.
+export function labelsFromCommaList(options, commaSeparated) {
+  if (!commaSeparated) return '—'
+  return commaSeparated
+    .split(',')
+    .map((code) => labelFromOptions(options, code))
+    .join(', ')
+}

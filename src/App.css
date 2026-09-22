@@ -415,6 +415,24 @@ legend {
   color: var(--text-muted);
 }
 
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 8px 0 2px;
+}
+
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.checkbox-option input {
+  width: auto;
+}
+
 .required-mark {
   color: var(--error);
 }

@@ -65,3 +65,24 @@ export const WITHDRAW_REASON_OPTIONS = [
   { code: 97, label: 'Other' },
   { code: 98, label: 'Reason not known' },
 ]
+
+// These are not ILR fields - they're local contact-preference options for
+// the "contact methods allowed" checklist and "preferred contact method"
+// dropdown. CONTACTMETHODSALLOWED stores a comma-separated list of these
+// codes; PREFERREDCONTACTMETHOD stores a single one.
+export const CONTACT_METHOD_OPTIONS = [
+  { code: 'PHONE', label: 'Phone' },
+  { code: 'MOBILE', label: 'Mobile' },
+  { code: 'EMAIL', label: 'Email' },
+  { code: 'POST', label: 'Post' },
+  { code: 'SMS', label: 'SMS' },
+]
+
+// PLACEHOLDER: these contract type options are placeholders only, and will
+// be replaced with the real contract types later.
+export const CONTRACT_TYPE_OPTIONS = [
+  { code: 'LEVY', label: 'Levy funded' },
+  { code: 'CO_INVEST', label: 'Co-investment (non-levy)' },
+  { code: 'FULLY_FUNDED', label: 'Fully funded' },
+  { code: 'OTHER', label: 'Other' },
+]

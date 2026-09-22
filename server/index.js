@@ -37,6 +37,18 @@ const LEARNERS_QUERY = `
     l.POSTCODE,
     l.TELNO,
     l.EMAIL,
+    l.TITLE,
+    l.ADDRESSLINE1,
+    l.ADDRESSLINE2,
+    l.ADDRESSLINE3,
+    l.WARDORCOUNTY,
+    l.MOBILENO,
+    l.CONTACTMETHODSALLOWED,
+    l.PREFERREDCONTACTMETHOD,
+    l.NEXTOFKINNAME,
+    l.NEXTOFKINRELATIONSHIP,
+    l.NEXTOFKINPHONE,
+    l.CONTRACTTYPE,
     ld.LEARNAIMREF,
     ld.AIMTYPE,
     ld.PROGTYPE,
@@ -133,11 +145,21 @@ function toIsoDateString(value) {
   return String(value).slice(0, 10)
 }
 
+// CONTACTMETHODSALLOWED is stored as a single comma-separated column, but
+// the browser sends/receives it as an array of codes.
+function joinContactMethods(value) {
+  if (!Array.isArray(value) || value.length === 0) return null
+  return value.join(',')
+}
+
 const INSERT_LEARNER = `
   insert into LEARNER (
     LEARNREFNUMBER, ULN, FAMILYNAME, GIVENNAMES, DATEOFBIRTH,
-    ETHNICITY, SEX, LLDDHEALTHPROB, NINUMBER, POSTCODEPRIOR, POSTCODE, TELNO, EMAIL
-  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ETHNICITY, SEX, LLDDHEALTHPROB, NINUMBER, POSTCODEPRIOR, POSTCODE, TELNO, EMAIL,
+    TITLE, ADDRESSLINE1, ADDRESSLINE2, ADDRESSLINE3, WARDORCOUNTY, MOBILENO,
+    CONTACTMETHODSALLOWED, PREFERREDCONTACTMETHOD,
+    NEXTOFKINNAME, NEXTOFKINRELATIONSHIP, NEXTOFKINPHONE, CONTRACTTYPE
+  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 // The aim fields fixed by the milestone spec (LEARNAIMREF, AIMTYPE,
@@ -190,6 +212,18 @@ app.post('/api/learners', async (req, res) => {
       v.postcode.trim().toUpperCase(),
       v.phone?.trim() || null,
       v.email?.trim() || null,
+      v.title?.trim() || null,
+      v.addressLine1?.trim() || null,
+      v.addressLine2?.trim() || null,
+      v.addressLine3?.trim() || null,
+      v.wardOrCounty?.trim() || null,
+      v.mobile?.trim() || null,
+      joinContactMethods(v.contactMethodsAllowed),
+      v.preferredContactMethod?.trim() || null,
+      v.nextOfKinName?.trim() || null,
+      v.nextOfKinRelationship?.trim() || null,
+      v.nextOfKinPhone?.trim() || null,
+      v.contractType?.trim() || null,
     ])
 
     await execute(connection, INSERT_LEARNING_DELIVERY, [
@@ -224,7 +258,10 @@ const UPDATE_LEARNER = `
   update LEARNER set
     ULN = ?, FAMILYNAME = ?, GIVENNAMES = ?, DATEOFBIRTH = ?,
     ETHNICITY = ?, SEX = ?, LLDDHEALTHPROB = ?, NINUMBER = ?,
-    POSTCODEPRIOR = ?, POSTCODE = ?, TELNO = ?, EMAIL = ?
+    POSTCODEPRIOR = ?, POSTCODE = ?, TELNO = ?, EMAIL = ?,
+    TITLE = ?, ADDRESSLINE1 = ?, ADDRESSLINE2 = ?, ADDRESSLINE3 = ?,
+    WARDORCOUNTY = ?, MOBILENO = ?, CONTACTMETHODSALLOWED = ?, PREFERREDCONTACTMETHOD = ?,
+    NEXTOFKINNAME = ?, NEXTOFKINRELATIONSHIP = ?, NEXTOFKINPHONE = ?, CONTRACTTYPE = ?
   where LEARNREFNUMBER = ?
 `
 
@@ -293,6 +330,18 @@ app.put('/api/learners/:learnRefNumber', async (req, res) => {
       v.postcode.trim().toUpperCase(),
       v.phone?.trim() || null,
       v.email?.trim() || null,
+      v.title?.trim() || null,
+      v.addressLine1?.trim() || null,
+      v.addressLine2?.trim() || null,
+      v.addressLine3?.trim() || null,
+      v.wardOrCounty?.trim() || null,
+      v.mobile?.trim() || null,
+      joinContactMethods(v.contactMethodsAllowed),
+      v.preferredContactMethod?.trim() || null,
+      v.nextOfKinName?.trim() || null,
+      v.nextOfKinRelationship?.trim() || null,
+      v.nextOfKinPhone?.trim() || null,
+      v.contractType?.trim() || null,
       learnRefNumber,
     ])
 

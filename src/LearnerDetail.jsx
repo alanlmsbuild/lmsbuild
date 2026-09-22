@@ -5,12 +5,15 @@ import {
   ETHNICITY_OPTIONS,
   STANDARD_OPTIONS,
   WITHDRAW_REASON_OPTIONS,
+  CONTACT_METHOD_OPTIONS,
+  CONTRACT_TYPE_OPTIONS,
 } from './ilrCodes'
 import {
   COMPLETION_STATUS_LABELS,
   OUTCOME_LABELS,
   describe,
   labelFromOptions,
+  labelsFromCommaList,
   formatDate,
   statusClassName,
 } from './lookups'
@@ -120,6 +123,28 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
           <Row label="Current postcode" value={learner.POSTCODE || '—'} />
           <Row label="Phone" value={learner.TELNO || '—'} />
           <Row label="Email" value={learner.EMAIL || '—'} />
+        </section>
+
+        <section className="detail-section">
+          <h3>Contact details</h3>
+          <Row label="Title" value={learner.TITLE || '—'} />
+          <Row label="Address line 1" value={learner.ADDRESSLINE1 || '—'} />
+          <Row label="Address line 2" value={learner.ADDRESSLINE2 || '—'} />
+          <Row label="Address line 3" value={learner.ADDRESSLINE3 || '—'} />
+          <Row label="Ward or county" value={learner.WARDORCOUNTY || '—'} />
+          <Row label="Mobile number" value={learner.MOBILENO || '—'} />
+          <Row
+            label="Contact methods allowed"
+            value={labelsFromCommaList(CONTACT_METHOD_OPTIONS, learner.CONTACTMETHODSALLOWED)}
+          />
+          <Row
+            label="Preferred contact method"
+            value={labelFromOptions(CONTACT_METHOD_OPTIONS, learner.PREFERREDCONTACTMETHOD)}
+          />
+          <Row label="Next of kin name" value={learner.NEXTOFKINNAME || '—'} />
+          <Row label="Next of kin relationship" value={learner.NEXTOFKINRELATIONSHIP || '—'} />
+          <Row label="Next of kin phone" value={learner.NEXTOFKINPHONE || '—'} />
+          <Row label="Contract type" value={labelFromOptions(CONTRACT_TYPE_OPTIONS, learner.CONTRACTTYPE)} />
         </section>
 
         <section className="detail-section">
