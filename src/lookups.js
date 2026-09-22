@@ -27,6 +27,15 @@ export function describe(map, code) {
   return map[code] ?? `Code ${code}`
 }
 
+// The colour used to mark a completion status, shared by the learner table
+// and the dashboard so the same status always reads the same way. Continuing
+// deliberately gets no colour, since it's the ordinary, unremarkable state.
+export function statusClassName(compstatus) {
+  if (compstatus === 2) return 'status-completed'
+  if (compstatus === 3) return 'status-withdrawn'
+  return ''
+}
+
 export function formatDate(value) {
   if (!value) return '—'
   return new Date(value).toLocaleDateString('en-GB')

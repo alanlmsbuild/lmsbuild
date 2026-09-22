@@ -4,18 +4,22 @@ import AddLearnerForm from './AddLearnerForm'
 import EditLearnerForm from './EditLearnerForm'
 import MarkCompletedForm from './MarkCompletedForm'
 import WithdrawAimForm from './WithdrawAimForm'
+import Dashboard from './Dashboard'
 import {
   AIM_TYPE_LABELS,
   COMPLETION_STATUS_LABELS,
   OUTCOME_LABELS,
   describe,
   formatDate,
+  statusClassName,
 } from './lookups'
 
 function App() {
   const [learners, setLearners] = useState([])
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
+
+  const [view, setView] = useState('learners') // 'learners' | 'dashboard'
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
@@ -74,8 +78,30 @@ function App() {
 
   return (
     <>
+      <header className="app-header">
+        <h1>ILR Learner Tracker</h1>
+        <nav className="app-tabs" aria-label="Views">
+          <button
+            type="button"
+            className={view === 'learners' ? 'tab active' : 'tab'}
+            onClick={() => setView('learners')}
+          >
+            Learners
+          </button>
+          <button
+            type="button"
+            className={view === 'dashboard' ? 'tab active' : 'tab'}
+            onClick={() => setView('dashboard')}
+          >
+            Dashboard
+          </button>
+        </nav>
+      </header>
+
+      <main className="app-main">
+      {view === 'learners' && (
+      <>
       <section id="learners">
-        <h1>Learners</h1>
         <p>Dummy ILR apprenticeship learners and their programme aim details.</p>
 
         {status === 'loading' && <p>Loading learners…</p>}
@@ -119,6 +145,7 @@ function App() {
         )}
 
         {status === 'ready' && filteredLearners.length > 0 && (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -148,7 +175,11 @@ function App() {
                   <td>{learner.STDCODE ?? '—'}</td>
                   <td>{formatDate(learner.LEARNSTARTDATE)}</td>
                   <td>{formatDate(learner.LEARNPLANENDDATE)}</td>
-                  <td>{describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}</td>
+                  <td>
+                    <span className={statusClassName(learner.COMPSTATUS)}>
+                      {describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}
+                    </span>
+                  </td>
                   <td>{describe(OUTCOME_LABELS, learner.OUTCOME)}</td>
                   <td className="actions-cell">
                     <button type="button" className="secondary" onClick={() => setPanel({ mode: 'edit', learner })}>
@@ -177,6 +208,7 @@ function App() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -202,6 +234,21 @@ function App() {
         />
       )}
       {panel.mode === 'add' && <AddLearnerForm onLearnerAdded={loadLearners} />}
+      </>
+      )}
+
+      {view === 'dashboard' && (
+        <>
+          {status === 'loading' && <p className="status-message">Loading dashboard…</p>}
+          {status === 'error' && (
+            <p className="status-message" role="alert">
+              Couldn't load dashboard data: {error}
+            </p>
+          )}
+          {status === 'ready' && <Dashboard learners={learners} />}
+        </>
+      )}
+      </main>
     </>
   )
 }
