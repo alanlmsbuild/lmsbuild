@@ -40,3 +40,13 @@ export function formatDate(value) {
   if (!value) return '—'
   return new Date(value).toLocaleDateString('en-GB')
 }
+
+// Looks up a label from one of the {code, label} option lists in
+// ilrCodes.js (e.g. SEX_OPTIONS, ETHNICITY_OPTIONS) by code. Codes are
+// compared as strings so this works whether the value passed in is a
+// number (as stored in the database) or a string (as held in form state).
+export function labelFromOptions(options, code) {
+  if (code === null || code === undefined || code === '') return '—'
+  const match = options.find((o) => String(o.code) === String(code))
+  return match ? match.label : `Code ${code}`
+}

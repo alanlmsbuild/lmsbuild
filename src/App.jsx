@@ -5,14 +5,9 @@ import EditLearnerForm from './EditLearnerForm'
 import MarkCompletedForm from './MarkCompletedForm'
 import WithdrawAimForm from './WithdrawAimForm'
 import Dashboard from './Dashboard'
-import {
-  AIM_TYPE_LABELS,
-  COMPLETION_STATUS_LABELS,
-  OUTCOME_LABELS,
-  describe,
-  formatDate,
-  statusClassName,
-} from './lookups'
+import LearnerDetail from './LearnerDetail'
+import { STANDARD_OPTIONS } from './ilrCodes'
+import { COMPLETION_STATUS_LABELS, describe, labelFromOptions, statusClassName } from './lookups'
 
 function App() {
   const [learners, setLearners] = useState([])
@@ -23,6 +18,11 @@ function App() {
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
+
+  // The learner currently shown in the detail side panel, or null if it's
+  // closed. Kept separate from `panel` below since the detail view is an
+  // overlay on top of the list, not something that replaces it.
+  const [detailLearner, setDetailLearner] = useState(null)
 
   // What the panel below the table is showing: adding a new learner
   // (the default), editing an existing one, marking an aim completed, or
@@ -151,14 +151,8 @@ function App() {
               <tr>
                 <th>Learner ref</th>
                 <th>Name</th>
-                <th>Date of birth</th>
-                <th>Aim ref</th>
-                <th>Aim type</th>
-                <th>Std code</th>
-                <th>Start date</th>
-                <th>Planned end</th>
+                <th>Standard</th>
                 <th>Status</th>
-                <th>Outcome</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -167,20 +161,20 @@ function App() {
                 <tr key={`${learner.LEARNREFNUMBER}-${learner.LEARNAIMREF}`}>
                   <td>{learner.LEARNREFNUMBER}</td>
                   <td>
-                    {learner.GIVENNAMES} {learner.FAMILYNAME}
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => setDetailLearner(learner)}
+                    >
+                      {learner.GIVENNAMES} {learner.FAMILYNAME}
+                    </button>
                   </td>
-                  <td>{formatDate(learner.DATEOFBIRTH)}</td>
-                  <td>{learner.LEARNAIMREF}</td>
-                  <td>{describe(AIM_TYPE_LABELS, learner.AIMTYPE)}</td>
-                  <td>{learner.STDCODE ?? '—'}</td>
-                  <td>{formatDate(learner.LEARNSTARTDATE)}</td>
-                  <td>{formatDate(learner.LEARNPLANENDDATE)}</td>
+                  <td>{labelFromOptions(STANDARD_OPTIONS, learner.STDCODE)}</td>
                   <td>
                     <span className={statusClassName(learner.COMPSTATUS)}>
                       {describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}
                     </span>
                   </td>
-                  <td>{describe(OUTCOME_LABELS, learner.OUTCOME)}</td>
                   <td className="actions-cell">
                     <button type="button" className="secondary" onClick={() => setPanel({ mode: 'edit', learner })}>
                       Edit
@@ -234,6 +228,25 @@ function App() {
         />
       )}
       {panel.mode === 'add' && <AddLearnerForm onLearnerAdded={loadLearners} />}
+
+      {detailLearner && (
+        <LearnerDetail
+          learner={detailLearner}
+          onClose={() => setDetailLearner(null)}
+          onEdit={(learner) => {
+            setDetailLearner(null)
+            setPanel({ mode: 'edit', learner })
+          }}
+          onComplete={(learner) => {
+            setDetailLearner(null)
+            setPanel({ mode: 'complete', learner })
+          }}
+          onWithdraw={(learner) => {
+            setDetailLearner(null)
+            setPanel({ mode: 'withdraw', learner })
+          }}
+        />
+      )}
       </>
       )}
 
