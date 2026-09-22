@@ -11,6 +11,40 @@ table {
   font-size: 14px;
 }
 
+.learner-filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.search-input {
+  flex: 1;
+  max-width: 320px;
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.learner-filters select {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-h);
+}
+
+.filter-count {
+  color: var(--text-h);
+  opacity: 0.7;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
 th,
 td {
   text-align: left;

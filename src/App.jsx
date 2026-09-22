@@ -16,6 +16,9 @@ function App() {
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
 
+  const [searchText, setSearchText] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
+
   // What the panel below the table is showing: adding a new learner
   // (the default), editing an existing one, or marking an aim completed.
   const [panel, setPanel] = useState({ mode: 'add' })
@@ -46,6 +49,27 @@ function App() {
     loadLearners()
   }
 
+  function handleClearFilters() {
+    setSearchText('')
+    setStatusFilter('all')
+  }
+
+  const filteredLearners = learners.filter((learner) => {
+    const query = searchText.trim().toLowerCase()
+    const matchesSearch =
+      !query ||
+      learner.LEARNREFNUMBER?.toLowerCase().includes(query) ||
+      learner.GIVENNAMES?.toLowerCase().includes(query) ||
+      learner.FAMILYNAME?.toLowerCase().includes(query)
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'continuing' && learner.COMPSTATUS === 1) ||
+      (statusFilter === 'completed' && learner.COMPSTATUS === 2)
+
+    return matchesSearch && matchesStatus
+  })
+
   return (
     <>
       <section id="learners">
@@ -58,6 +82,41 @@ function App() {
         )}
 
         {status === 'ready' && (
+          <>
+            <div className="learner-filters">
+              <input
+                type="search"
+                className="search-input"
+                placeholder="Search by learner ref or name"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                aria-label="Search by learner ref or name"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter by status"
+              >
+                <option value="all">All</option>
+                <option value="continuing">Continuing</option>
+                <option value="completed">Completed</option>
+              </select>
+              <button type="button" className="secondary" onClick={handleClearFilters}>
+                Clear
+              </button>
+            </div>
+
+            <p className="filter-count">
+              Showing {filteredLearners.length} of {learners.length} learners
+            </p>
+          </>
+        )}
+
+        {status === 'ready' && filteredLearners.length === 0 && (
+          <p>No learners match your search</p>
+        )}
+
+        {status === 'ready' && filteredLearners.length > 0 && (
           <table>
             <thead>
               <tr>
@@ -75,7 +134,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {learners.map((learner) => (
+              {filteredLearners.map((learner) => (
                 <tr key={`${learner.LEARNREFNUMBER}-${learner.LEARNAIMREF}`}>
                   <td>{learner.LEARNREFNUMBER}</td>
                   <td>
