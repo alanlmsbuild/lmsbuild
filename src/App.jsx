@@ -3,6 +3,7 @@ import './App.css'
 import AddLearnerForm from './AddLearnerForm'
 import EditLearnerForm from './EditLearnerForm'
 import MarkCompletedForm from './MarkCompletedForm'
+import WithdrawAimForm from './WithdrawAimForm'
 import {
   AIM_TYPE_LABELS,
   COMPLETION_STATUS_LABELS,
@@ -20,7 +21,8 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
 
   // What the panel below the table is showing: adding a new learner
-  // (the default), editing an existing one, or marking an aim completed.
+  // (the default), editing an existing one, marking an aim completed, or
+  // withdrawing an aim.
   const [panel, setPanel] = useState({ mode: 'add' })
 
   // Also used to refresh the list after a learner is added, edited, or an
@@ -161,6 +163,15 @@ function App() {
                         Mark completed
                       </button>
                     )}
+                    {learner.COMPSTATUS === 1 && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setPanel({ mode: 'withdraw', learner })}
+                      >
+                        Withdraw
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -178,6 +189,13 @@ function App() {
       )}
       {panel.mode === 'complete' && (
         <MarkCompletedForm
+          learner={panel.learner}
+          onSaved={handleSaved}
+          onCancel={() => setPanel({ mode: 'add' })}
+        />
+      )}
+      {panel.mode === 'withdraw' && (
+        <WithdrawAimForm
           learner={panel.learner}
           onSaved={handleSaved}
           onCancel={() => setPanel({ mode: 'add' })}

@@ -44,10 +44,11 @@ function EditLearnerForm({ learner, onSaved, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState(null)
 
-  // The aim's start date can only be changed while it's still continuing
-  // (COMPSTATUS 1). Once it's completed or withdrawn, the field is shown
-  // but disabled, and the server would reject a change to it anyway.
-  const startDateEditable = learner.COMPSTATUS === 1
+  // The aim's start date and standard code can only be changed while it's
+  // still continuing (COMPSTATUS 1). Once it's completed or withdrawn, both
+  // fields are shown but disabled, and the server would reject a change to
+  // either anyway.
+  const aimLocked = learner.COMPSTATUS !== 1
 
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -200,10 +201,10 @@ function EditLearnerForm({ learner, onSaved, onCancel }) {
             <input
               type="date"
               value={form.startDate}
-              disabled={!startDateEditable}
+              disabled={aimLocked}
               onChange={(e) => updateField('startDate', e.target.value)}
             />
-            {!startDateEditable && (
+            {aimLocked && (
               <span className="field-hint">This aim is no longer continuing, so its start date is locked.</span>
             )}
           </Field>
@@ -217,7 +218,7 @@ function EditLearnerForm({ learner, onSaved, onCancel }) {
           </Field>
 
           <Field label="Standard code" error={errors.stdCode} required>
-            <select value={form.stdCode} onChange={(e) => updateField('stdCode', e.target.value)}>
+            <select value={form.stdCode} disabled={aimLocked} onChange={(e) => updateField('stdCode', e.target.value)}>
               <option value="">Select…</option>
               {STANDARD_OPTIONS.map((o) => (
                 <option key={o.code} value={o.code}>
@@ -225,6 +226,9 @@ function EditLearnerForm({ learner, onSaved, onCancel }) {
                 </option>
               ))}
             </select>
+            {aimLocked && (
+              <span className="field-hint">This aim is no longer continuing, so its standard code is locked.</span>
+            )}
           </Field>
 
           <Field label="Delivery location postcode" error={errors.dellocPostcode} required>

@@ -10,6 +10,7 @@ import {
   LLDD_HEALTH_PROBLEM_OPTIONS,
   ETHNICITY_OPTIONS,
   STANDARD_OPTIONS,
+  WITHDRAW_REASON_OPTIONS,
 } from './ilrCodes.js'
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
@@ -22,6 +23,7 @@ const SEX_CODES = new Set(SEX_OPTIONS.map((o) => o.code))
 const LLDD_CODES = new Set(LLDD_HEALTH_PROBLEM_OPTIONS.map((o) => o.code))
 const ETHNICITY_CODES = new Set(ETHNICITY_OPTIONS.map((o) => o.code))
 const STANDARD_CODES = new Set(STANDARD_OPTIONS.map((o) => o.code))
+const WITHDRAW_REASON_CODES = new Set(WITHDRAW_REASON_OPTIONS.map((o) => o.code))
 
 function isUln(value) {
   const text = String(value ?? '').trim()
@@ -151,6 +153,29 @@ export function validateCompleteAimForm(input, startDate) {
     errors.achievementDate = 'Achievement date cannot be before the start date.'
   } else if (v.achievementDate > today) {
     errors.achievementDate = 'Achievement date cannot be in the future.'
+  }
+
+  return errors
+}
+
+// Validates the "withdraw an aim" form. startDate is the aim's existing
+// start date (from the database), used to check the end date isn't before
+// it, the same way validateCompleteAimForm does.
+export function validateWithdrawAimForm(input, startDate) {
+  const errors = {}
+  const v = input ?? {}
+  const today = todayString()
+
+  if (!isValidDateString(v.actualEndDate)) {
+    errors.actualEndDate = 'Enter a valid end date.'
+  } else if (v.actualEndDate < startDate) {
+    errors.actualEndDate = 'End date cannot be before the start date.'
+  } else if (v.actualEndDate > today) {
+    errors.actualEndDate = 'End date cannot be in the future.'
+  }
+
+  if (!WITHDRAW_REASON_CODES.has(Number(v.withdrawReason))) {
+    errors.withdrawReason = 'Choose a withdrawal reason from the list.'
   }
 
   return errors

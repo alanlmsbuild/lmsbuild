@@ -4,7 +4,12 @@ import dotenv from 'dotenv'
 import express from 'express'
 import cors from 'cors'
 import { connect, execute, destroy } from './db.js'
-import { validateLearnerForm, validateLearnerEditForm, validateCompleteAimForm } from '../src/validation.js'
+import {
+  validateLearnerForm,
+  validateLearnerEditForm,
+  validateCompleteAimForm,
+  validateWithdrawAimForm,
+} from '../src/validation.js'
 import { OUTCOME_ACHIEVED } from '../src/ilrCodes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -93,13 +98,14 @@ async function isUlnTaken(connection, uln, excludeLearnRefNumber) {
   return rows.length > 0
 }
 
-// The one row (learner joined with their aim) that the edit and
-// mark-completed routes both need to read before they can validate or
-// update anything.
+// The one row (learner joined with their aim) that the edit,
+// mark-completed, and withdraw routes all need to read before they can
+// validate or update anything.
 const LEARNER_BY_REF_QUERY = `
   select
     l.LEARNREFNUMBER,
     ld.LEARNSTARTDATE,
+    ld.STDCODE,
     ld.COMPSTATUS
   from LEARNER l
   join LEARNING_DELIVERY ld
@@ -239,12 +245,20 @@ app.put('/api/learners/:learnRefNumber', async (req, res) => {
       return
     }
 
-    const startDateEditable = existing.COMPSTATUS === 1
+    // The start date and standard code can only be changed while the aim is
+    // still continuing (COMPSTATUS 1). Once it's completed or withdrawn,
+    // both are locked - the browser disables the fields (see
+    // EditLearnerForm's aimLocked), and this check enforces it server-side
+    // too in case that was bypassed.
+    const aimLocked = existing.COMPSTATUS !== 1
     const fieldErrors = validateLearnerEditForm(req.body)
 
     const v = req.body
-    if (!startDateEditable && v.startDate !== existing.LEARNSTARTDATE) {
+    if (aimLocked && v.startDate !== existing.LEARNSTARTDATE) {
       fieldErrors.startDate = 'Start date cannot be changed because this aim is no longer continuing.'
+    }
+    if (aimLocked && Number(v.stdCode) !== existing.STDCODE) {
+      fieldErrors.stdCode = 'Standard code cannot be changed because this aim is no longer continuing.'
     }
 
     if (Object.keys(fieldErrors).length > 0) {
@@ -282,9 +296,9 @@ app.put('/api/learners/:learnRefNumber', async (req, res) => {
     ])
 
     await execute(connection, UPDATE_LEARNING_DELIVERY, [
-      startDateEditable ? v.startDate : existing.LEARNSTARTDATE,
+      aimLocked ? existing.LEARNSTARTDATE : v.startDate,
       v.plannedEndDate,
-      Number(v.stdCode),
+      aimLocked ? existing.STDCODE : Number(v.stdCode),
       v.dellocPostcode.trim().toUpperCase(),
       learnRefNumber,
     ])
@@ -358,6 +372,64 @@ app.put('/api/learners/:learnRefNumber/complete', async (req, res) => {
       }
     }
     console.error('Failed to mark aim completed:', err.message)
+    res.status(500).json({ error: 'Could not save this. Please try again.' })
+  } finally {
+    if (connection) await destroy(connection)
+  }
+})
+
+// Only these columns can ever be written by
+// PUT /api/learners/:learnRefNumber/withdraw. OUTCOME and ACHDATE are left
+// empty, since a withdrawn aim was never achieved.
+const WITHDRAW_AIM = `
+  update LEARNING_DELIVERY set
+    COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = null, ACHDATE = null
+  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1
+`
+
+app.put('/api/learners/:learnRefNumber/withdraw', async (req, res) => {
+  const { learnRefNumber } = req.params
+  let connection
+  try {
+    connection = await connect()
+
+    const existing = await findLearnerAim(connection, learnRefNumber)
+    if (!existing) {
+      res.status(404).json({ error: 'Learner not found.' })
+      return
+    }
+    if (existing.COMPSTATUS !== 1) {
+      res.status(409).json({ error: 'This aim is not currently continuing, so it cannot be withdrawn.' })
+      return
+    }
+
+    const fieldErrors = validateWithdrawAimForm(req.body, existing.LEARNSTARTDATE)
+    if (Object.keys(fieldErrors).length > 0) {
+      res.status(400).json({
+        error: 'Please fix the highlighted fields.',
+        fields: fieldErrors,
+      })
+      return
+    }
+
+    const v = req.body
+    await execute(connection, 'begin')
+    await execute(connection, WITHDRAW_AIM, [
+      v.actualEndDate,
+      Number(v.withdrawReason),
+      learnRefNumber,
+    ])
+    await execute(connection, 'commit')
+    res.json({ learnRefNumber })
+  } catch (err) {
+    if (connection) {
+      try {
+        await execute(connection, 'rollback')
+      } catch (rollbackErr) {
+        console.error('Failed to roll back transaction:', rollbackErr.message)
+      }
+    }
+    console.error('Failed to withdraw aim:', err.message)
     res.status(500).json({ error: 'Could not save this. Please try again.' })
   } finally {
     if (connection) await destroy(connection)

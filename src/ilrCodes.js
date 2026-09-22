@@ -50,3 +50,18 @@ export const STANDARD_OPTIONS = [
 // Outcome 1 (achieved) comes from my notes and must be checked against the
 // ILR 2026 to 2027 specification before this is used for anything real.
 export const OUTCOME_ACHIEVED = 1
+
+// This is a shortened list of withdrawal reasons. Codes 2, 7, 40, 41, 42,
+// 45, 46, 47, 48 also exist in the ILR spec but are left out here as
+// uncommon or not relevant to apprenticeships; codes 42 and 45 are for
+// higher education aims only. This list comes from notes and must be
+// checked against the ILR 2026 to 2027 specification before it is used for
+// anything real.
+export const WITHDRAW_REASON_OPTIONS = [
+  { code: 3, label: 'Learner injury or illness' },
+  { code: 29, label: 'Learner made redundant' },
+  { code: 43, label: 'Financial reasons' },
+  { code: 44, label: 'Other personal reasons' },
+  { code: 97, label: 'Other' },
+  { code: 98, label: 'Reason not known' },
+]
