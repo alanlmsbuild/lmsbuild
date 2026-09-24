@@ -377,6 +377,48 @@ tbody tr:hover {
   color: var(--text-h);
 }
 
+/* Officer detail panel (reuses the learner detail panel and dashboard
+   stat card styles above; these only adjust them for the narrower panel) */
+
+.detail-stat-grid {
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 12px;
+}
+
+.detail-stat-grid .stat-card {
+  padding: 12px 14px;
+}
+
+.detail-stat-grid .stat-value {
+  font-size: 22px;
+}
+
+.dashboard-list li.officer-learner {
+  align-items: flex-start;
+}
+
+.officer-learner-main,
+.officer-learner-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.officer-learner-main {
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.officer-learner-side {
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.officer-learner .dashboard-list-meta {
+  white-space: normal;
+  font-size: 13px;
+}
+
 @media (max-width: 640px) {
   .detail-panel {
     width: 100%;

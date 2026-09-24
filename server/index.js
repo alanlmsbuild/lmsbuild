@@ -586,7 +586,33 @@ app.get('/api/learners/:learnRefNumber/officers', async (req, res) => {
   }
 })
 
-const LEARNER_EXISTS_QUERY = `select LEARNREFNUMBER from LEARNER where LEARNREFNUMBER = ?`
+// Only the learner references are returned: the browser already holds the
+// full learner rows from /api/learners and matches these against them, so
+// the officer detail panel can show status/standard and link straight
+// through to the learner detail panel without repeating that query here.
+const OFFICER_LEARNERS_QUERY = `
+  select LEARNREFNUMBER
+  from LEARNER_OFFICER
+  where OFFICERREFNUMBER = ?
+  order by LEARNREFNUMBER
+`
+
+app.get('/api/officers/:officerRefNumber/learners', async (req, res) => {
+  const { officerRefNumber } = req.params
+  let connection
+  try {
+    connection = await connect()
+    const rows = await execute(connection, OFFICER_LEARNERS_QUERY, [officerRefNumber])
+    res.json(rows)
+  } catch (err) {
+    console.error('Failed to fetch learners for officer:', err.message)
+    res.status(500).json({ error: 'Failed to fetch learners for this officer' })
+  } finally {
+    if (connection) await destroy(connection)
+  }
+})
+
+const LEARNER_EXISTS_QUERY =`select LEARNREFNUMBER from LEARNER where LEARNREFNUMBER = ?`
 const OFFICER_EXISTS_QUERY = `select OFFICERREFNUMBER from OFFICER where OFFICERREFNUMBER = ?`
 const LEARNER_OFFICER_EXISTS_QUERY = `
   select 1 from LEARNER_OFFICER where LEARNREFNUMBER = ? and OFFICERREFNUMBER = ?

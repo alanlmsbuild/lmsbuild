@@ -237,24 +237,6 @@ function App() {
       )}
       {panel.mode === 'add' && <AddLearnerForm onLearnerAdded={loadLearners} />}
 
-      {detailLearner && (
-        <LearnerDetail
-          learner={detailLearner}
-          onClose={() => setDetailLearner(null)}
-          onEdit={(learner) => {
-            setDetailLearner(null)
-            setPanel({ mode: 'edit', learner })
-          }}
-          onComplete={(learner) => {
-            setDetailLearner(null)
-            setPanel({ mode: 'complete', learner })
-          }}
-          onWithdraw={(learner) => {
-            setDetailLearner(null)
-            setPanel({ mode: 'withdraw', learner })
-          }}
-        />
-      )}
       </>
       )}
 
@@ -270,7 +252,34 @@ function App() {
         </>
       )}
 
-      {view === 'officers' && <Officers />}
+      {view === 'officers' && (
+        <Officers learners={learners} learnersStatus={status} onOpenLearner={setDetailLearner} />
+      )}
+
+      {/* Rendered outside the tabs since it can be opened from either the
+          Learners list or an officer's detail panel. Edit / Mark completed /
+          Withdraw switch back to the Learners tab, where those forms live. */}
+      {detailLearner && (
+        <LearnerDetail
+          learner={detailLearner}
+          onClose={() => setDetailLearner(null)}
+          onEdit={(learner) => {
+            setDetailLearner(null)
+            setView('learners')
+            setPanel({ mode: 'edit', learner })
+          }}
+          onComplete={(learner) => {
+            setDetailLearner(null)
+            setView('learners')
+            setPanel({ mode: 'complete', learner })
+          }}
+          onWithdraw={(learner) => {
+            setDetailLearner(null)
+            setView('learners')
+            setPanel({ mode: 'withdraw', learner })
+          }}
+        />
+      )}
       </main>
     </>
   )

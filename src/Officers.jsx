@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
 import { labelFromOptions } from './lookups'
 import { validateOfficerForm } from './validation'
+import OfficerDetail from './OfficerDetail'
 
 const EMPTY_FORM = { name: '', officerType: '', email: '', phone: '' }
 
@@ -18,7 +19,7 @@ function Field({ label, error, required, children }) {
   )
 }
 
-function Officers() {
+function Officers({ learners, learnersStatus, onOpenLearner }) {
   const [officers, setOfficers] = useState([])
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
@@ -28,6 +29,9 @@ function Officers() {
   const [saving, setSaving] = useState(false)
   const [serverError, setServerError] = useState(null)
   const [successRef, setSuccessRef] = useState(null)
+
+  // The officer currently shown in the detail side panel, or null if closed.
+  const [detailOfficer, setDetailOfficer] = useState(null)
 
   const loadOfficers = useCallback(async () => {
     try {
@@ -111,7 +115,11 @@ function Officers() {
               {officers.map((officer) => (
                 <tr key={officer.OFFICERREFNUMBER}>
                   <td>{officer.OFFICERREFNUMBER}</td>
-                  <td>{officer.OFFICERNAME}</td>
+                  <td>
+                    <button type="button" className="link-button" onClick={() => setDetailOfficer(officer)}>
+                      {officer.OFFICERNAME}
+                    </button>
+                  </td>
                   <td>{labelFromOptions(OFFICER_TYPE_OPTIONS, officer.OFFICERTYPE)}</td>
                   <td>{officer.EMAIL || '—'}</td>
                   <td>{officer.TELNO || '—'}</td>
@@ -166,6 +174,19 @@ function Officers() {
           {saving ? 'Saving…' : 'Add officer'}
         </button>
       </form>
+
+      {detailOfficer && (
+        <OfficerDetail
+          officer={detailOfficer}
+          learners={learners}
+          learnersStatus={learnersStatus}
+          onClose={() => setDetailOfficer(null)}
+          onOpenLearner={(learner) => {
+            setDetailOfficer(null)
+            onOpenLearner(learner)
+          }}
+        />
+      )}
     </section>
   )
 }
