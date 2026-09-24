@@ -13,6 +13,7 @@ import {
   WITHDRAW_REASON_OPTIONS,
   CONTACT_METHOD_OPTIONS,
   CONTRACT_TYPE_OPTIONS,
+  OFFICER_TYPE_OPTIONS,
 } from './ilrCodes.js'
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
@@ -28,6 +29,7 @@ const STANDARD_CODES = new Set(STANDARD_OPTIONS.map((o) => o.code))
 const WITHDRAW_REASON_CODES = new Set(WITHDRAW_REASON_OPTIONS.map((o) => o.code))
 const CONTACT_METHOD_CODES = new Set(CONTACT_METHOD_OPTIONS.map((o) => o.code))
 const CONTRACT_TYPE_CODES = new Set(CONTRACT_TYPE_OPTIONS.map((o) => o.code))
+const OFFICER_TYPE_CODES = new Set(OFFICER_TYPE_OPTIONS.map((o) => o.code))
 
 function isUln(value) {
   const text = String(value ?? '').trim()
@@ -227,6 +229,31 @@ export function validateWithdrawAimForm(input, startDate) {
 
   if (!WITHDRAW_REASON_CODES.has(Number(v.withdrawReason))) {
     errors.withdrawReason = 'Choose a withdrawal reason from the list.'
+  }
+
+  return errors
+}
+
+// Validates the "add an officer" form.
+export function validateOfficerForm(input) {
+  const errors = {}
+  const v = input ?? {}
+
+  if (!v.name || String(v.name).trim().length === 0) {
+    errors.name = 'Enter a name.'
+  } else if (String(v.name).trim().length > 160) {
+    errors.name = 'Name must be 160 characters or fewer.'
+  }
+
+  if (!OFFICER_TYPE_CODES.has(v.officerType)) {
+    errors.officerType = 'Choose an officer type from the list.'
+  }
+
+  if (v.email && !EMAIL.test(String(v.email).trim())) {
+    errors.email = 'Enter a valid email address.'
+  }
+  if (v.phone && !PHONE.test(String(v.phone).trim())) {
+    errors.phone = 'Enter a valid phone number.'
   }
 
   return errors

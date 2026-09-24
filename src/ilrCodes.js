@@ -86,3 +86,10 @@ export const CONTRACT_TYPE_OPTIONS = [
   { code: 'FULLY_FUNDED', label: 'Fully funded' },
   { code: 'OTHER', label: 'Other' },
 ]
+
+// Not an ILR field - local officer role options for the officer type
+// dropdown. More types (e.g. Coach, Employer contact) may be added later.
+export const OFFICER_TYPE_OPTIONS = [
+  { code: 'TUTOR', label: 'Tutor' },
+  { code: 'ASSESSOR', label: 'Assessor' },
+]

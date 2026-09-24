@@ -9,6 +9,7 @@ import {
   validateLearnerEditForm,
   validateCompleteAimForm,
   validateWithdrawAimForm,
+  validateOfficerForm,
 } from '../src/validation.js'
 import { OUTCOME_ACHIEVED } from '../src/ilrCodes.js'
 
@@ -481,6 +482,173 @@ app.put('/api/learners/:learnRefNumber/withdraw', async (req, res) => {
     }
     console.error('Failed to withdraw aim:', err.message)
     res.status(500).json({ error: 'Could not save this. Please try again.' })
+  } finally {
+    if (connection) await destroy(connection)
+  }
+})
+
+const OFFICERS_QUERY = `
+  select OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE, EMAIL, TELNO
+  from OFFICER
+  order by OFFICERNAME
+`
+
+app.get('/api/officers', async (_req, res) => {
+  let connection
+  try {
+    connection = await connect()
+    const rows = await execute(connection, OFFICERS_QUERY)
+    res.json(rows)
+  } catch (err) {
+    console.error('Failed to fetch officers:', err.message)
+    res.status(500).json({ error: 'Failed to fetch officers' })
+  } finally {
+    if (connection) await destroy(connection)
+  }
+})
+
+// Finds the highest existing OFF officer reference and returns the next one
+// in the same style, e.g. current highest OFF0012 -> OFF0013 - the same
+// approach nextLearnRefNumber uses for learner references.
+const HIGHEST_OFFICER_REF_QUERY = `
+  select OFFICERREFNUMBER
+  from OFFICER
+  where OFFICERREFNUMBER like 'OFF%'
+  order by OFFICERREFNUMBER desc
+  limit 1
+`
+
+async function nextOfficerRefNumber(connection) {
+  const rows = await execute(connection, HIGHEST_OFFICER_REF_QUERY)
+  const highest = rows[0]?.OFFICERREFNUMBER
+  const highestNumber = highest ? Number(highest.slice('OFF'.length)) : 0
+  return `OFF${String(highestNumber + 1).padStart(4, '0')}`
+}
+
+const INSERT_OFFICER = `
+  insert into OFFICER (OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE, EMAIL, TELNO)
+  values (?, ?, ?, ?, ?)
+`
+
+app.post('/api/officers', async (req, res) => {
+  const fieldErrors = validateOfficerForm(req.body)
+  if (Object.keys(fieldErrors).length > 0) {
+    return res.status(400).json({
+      error: 'Please fix the highlighted fields.',
+      fields: fieldErrors,
+    })
+  }
+
+  const v = req.body
+  let connection
+  try {
+    connection = await connect()
+
+    const officerRefNumber = await nextOfficerRefNumber(connection)
+
+    await execute(connection, INSERT_OFFICER, [
+      officerRefNumber,
+      v.name.trim(),
+      v.officerType,
+      v.email?.trim() || null,
+      v.phone?.trim() || null,
+    ])
+
+    res.status(201).json({ officerRefNumber })
+  } catch (err) {
+    console.error('Failed to add officer:', err.message)
+    res.status(500).json({ error: 'Could not save the new officer. Please try again.' })
+  } finally {
+    if (connection) await destroy(connection)
+  }
+})
+
+const LEARNER_OFFICERS_QUERY = `
+  select o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE, o.EMAIL, o.TELNO
+  from LEARNER_OFFICER lo
+  join OFFICER o on lo.OFFICERREFNUMBER = o.OFFICERREFNUMBER
+  where lo.LEARNREFNUMBER = ?
+  order by o.OFFICERNAME
+`
+
+app.get('/api/learners/:learnRefNumber/officers', async (req, res) => {
+  const { learnRefNumber } = req.params
+  let connection
+  try {
+    connection = await connect()
+    const rows = await execute(connection, LEARNER_OFFICERS_QUERY, [learnRefNumber])
+    res.json(rows)
+  } catch (err) {
+    console.error('Failed to fetch officers for learner:', err.message)
+    res.status(500).json({ error: 'Failed to fetch officers for this learner' })
+  } finally {
+    if (connection) await destroy(connection)
+  }
+})
+
+const LEARNER_EXISTS_QUERY = `select LEARNREFNUMBER from LEARNER where LEARNREFNUMBER = ?`
+const OFFICER_EXISTS_QUERY = `select OFFICERREFNUMBER from OFFICER where OFFICERREFNUMBER = ?`
+const LEARNER_OFFICER_EXISTS_QUERY = `
+  select 1 from LEARNER_OFFICER where LEARNREFNUMBER = ? and OFFICERREFNUMBER = ?
+`
+const INSERT_LEARNER_OFFICER = `
+  insert into LEARNER_OFFICER (LEARNREFNUMBER, OFFICERREFNUMBER) values (?, ?)
+`
+
+app.post('/api/learners/:learnRefNumber/officers', async (req, res) => {
+  const { learnRefNumber } = req.params
+  const officerRefNumber = req.body?.officerRefNumber
+  if (!officerRefNumber) {
+    res.status(400).json({ error: 'officerRefNumber is required.' })
+    return
+  }
+
+  let connection
+  try {
+    connection = await connect()
+
+    const learnerRows = await execute(connection, LEARNER_EXISTS_QUERY, [learnRefNumber])
+    if (learnerRows.length === 0) {
+      res.status(404).json({ error: 'Learner not found.' })
+      return
+    }
+
+    const officerRows = await execute(connection, OFFICER_EXISTS_QUERY, [officerRefNumber])
+    if (officerRows.length === 0) {
+      res.status(404).json({ error: 'Officer not found.' })
+      return
+    }
+
+    const existing = await execute(connection, LEARNER_OFFICER_EXISTS_QUERY, [learnRefNumber, officerRefNumber])
+    if (existing.length > 0) {
+      res.status(409).json({ error: 'This officer is already assigned to this learner.' })
+      return
+    }
+
+    await execute(connection, INSERT_LEARNER_OFFICER, [learnRefNumber, officerRefNumber])
+    res.status(201).json({ learnRefNumber, officerRefNumber })
+  } catch (err) {
+    console.error('Failed to assign officer to learner:', err.message)
+    res.status(500).json({ error: 'Could not assign this officer. Please try again.' })
+  } finally {
+    if (connection) await destroy(connection)
+  }
+})
+
+const DELETE_LEARNER_OFFICER = `
+  delete from LEARNER_OFFICER where LEARNREFNUMBER = ? and OFFICERREFNUMBER = ?
+`
+
+app.delete('/api/learners/:learnRefNumber/officers/:officerRefNumber', async (req, res) => {
+  const { learnRefNumber, officerRefNumber } = req.params
+  let connection
+  try {
+    connection = await connect()
+    await execute(connection, DELETE_LEARNER_OFFICER, [learnRefNumber, officerRefNumber])
+    res.json({ learnRefNumber, officerRefNumber })
+  } catch (err) {
+    console.error('Failed to remove officer from learner:', err.message)
+    res.status(500).json({ error: 'Could not remove this officer. Please try again.' })
   } finally {
     if (connection) await destroy(connection)
   }

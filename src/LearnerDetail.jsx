@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   SEX_OPTIONS,
   LLDD_HEALTH_PROBLEM_OPTIONS,
@@ -7,6 +7,7 @@ import {
   WITHDRAW_REASON_OPTIONS,
   CONTACT_METHOD_OPTIONS,
   CONTRACT_TYPE_OPTIONS,
+  OFFICER_TYPE_OPTIONS,
 } from './ilrCodes'
 import {
   COMPLETION_STATUS_LABELS,
@@ -77,6 +78,80 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
 
   const age = ageFromDateOfBirth(learner.DATEOFBIRTH)
   const timeOnProgramme = timeOnPlacement(learner)
+
+  const [assignedOfficers, setAssignedOfficers] = useState([])
+  const [allOfficers, setAllOfficers] = useState([])
+  const [officersStatus, setOfficersStatus] = useState('loading') // 'loading' | 'ready' | 'error'
+  const [selectedOfficer, setSelectedOfficer] = useState('')
+  const [assigning, setAssigning] = useState(false)
+  const [officerError, setOfficerError] = useState(null)
+
+  const loadOfficers = useCallback(async () => {
+    try {
+      const [assignedRes, allRes] = await Promise.all([
+        fetch(`/api/learners/${learner.LEARNREFNUMBER}/officers`),
+        fetch('/api/officers'),
+      ])
+      if (!assignedRes.ok || !allRes.ok) throw new Error('Server error')
+      setAssignedOfficers(await assignedRes.json())
+      setAllOfficers(await allRes.json())
+      setOfficersStatus('ready')
+    } catch {
+      setOfficersStatus('error')
+    }
+  }, [learner.LEARNREFNUMBER])
+
+  useEffect(() => {
+    loadOfficers()
+  }, [loadOfficers])
+
+  async function handleAssignOfficer(e) {
+    e.preventDefault()
+    if (!selectedOfficer) return
+    setOfficerError(null)
+    setAssigning(true)
+    try {
+      const res = await fetch(`/api/learners/${learner.LEARNREFNUMBER}/officers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ officerRefNumber: selectedOfficer }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setOfficerError(data.error || 'Could not assign this officer.')
+        return
+      }
+
+      setSelectedOfficer('')
+      loadOfficers()
+    } catch {
+      setOfficerError('Could not reach the server. Please try again.')
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  async function handleRemoveOfficer(officerRefNumber) {
+    setOfficerError(null)
+    try {
+      const res = await fetch(`/api/learners/${learner.LEARNREFNUMBER}/officers/${officerRefNumber}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setOfficerError(data.error || 'Could not remove this officer.')
+        return
+      }
+      loadOfficers()
+    } catch {
+      setOfficerError('Could not reach the server. Please try again.')
+    }
+  }
+
+  const assignableOfficers = allOfficers.filter(
+    (o) => !assignedOfficers.some((a) => a.OFFICERREFNUMBER === o.OFFICERREFNUMBER),
+  )
 
   return (
     <div className="detail-overlay" onClick={onClose}>
@@ -168,6 +243,58 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
               label="Withdrawal reason"
               value={labelFromOptions(WITHDRAW_REASON_OPTIONS, learner.WITHDRAWREASON)}
             />
+          )}
+        </section>
+
+        <section className="detail-section">
+          <h3>Officers</h3>
+
+          {officersStatus === 'loading' && <p className="empty-note">Loading officers…</p>}
+          {officersStatus === 'error' && <p role="alert">Couldn't load officers.</p>}
+
+          {officersStatus === 'ready' && (
+            <>
+              {assignedOfficers.length === 0 ? (
+                <p className="empty-note">No officers assigned.</p>
+              ) : (
+                assignedOfficers.map((officer) => (
+                  <div className="detail-row" key={officer.OFFICERREFNUMBER}>
+                    <span>
+                      {officer.OFFICERNAME} ({labelFromOptions(OFFICER_TYPE_OPTIONS, officer.OFFICERTYPE)})
+                    </span>
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => handleRemoveOfficer(officer.OFFICERREFNUMBER)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              )}
+
+              {officerError && (
+                <p className="error-banner" role="alert">
+                  {officerError}
+                </p>
+              )}
+
+              {assignableOfficers.length > 0 && (
+                <form className="assign-officer-form" onSubmit={handleAssignOfficer}>
+                  <select value={selectedOfficer} onChange={(e) => setSelectedOfficer(e.target.value)}>
+                    <option value="">Select an officer to assign…</option>
+                    {assignableOfficers.map((officer) => (
+                      <option key={officer.OFFICERREFNUMBER} value={officer.OFFICERREFNUMBER}>
+                        {officer.OFFICERNAME} ({labelFromOptions(OFFICER_TYPE_OPTIONS, officer.OFFICERTYPE)})
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className="secondary" disabled={!selectedOfficer || assigning}>
+                    {assigning ? 'Assigning…' : 'Assign'}
+                  </button>
+                </form>
+              )}
+            </>
           )}
         </section>
       </aside>

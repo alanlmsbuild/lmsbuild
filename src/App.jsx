@@ -5,6 +5,7 @@ import EditLearnerForm from './EditLearnerForm'
 import MarkCompletedForm from './MarkCompletedForm'
 import WithdrawAimForm from './WithdrawAimForm'
 import Dashboard from './Dashboard'
+import Officers from './Officers'
 import LearnerDetail from './LearnerDetail'
 import { STANDARD_OPTIONS } from './ilrCodes'
 import { COMPLETION_STATUS_LABELS, describe, labelFromOptions, statusClassName } from './lookups'
@@ -14,7 +15,7 @@ function App() {
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
 
-  const [view, setView] = useState('learners') // 'learners' | 'dashboard'
+  const [view, setView] = useState('learners') // 'learners' | 'dashboard' | 'officers'
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
@@ -94,6 +95,13 @@ function App() {
             onClick={() => setView('dashboard')}
           >
             Dashboard
+          </button>
+          <button
+            type="button"
+            className={view === 'officers' ? 'tab active' : 'tab'}
+            onClick={() => setView('officers')}
+          >
+            Officers
           </button>
         </nav>
       </header>
@@ -261,6 +269,8 @@ function App() {
           {status === 'ready' && <Dashboard learners={learners} />}
         </>
       )}
+
+      {view === 'officers' && <Officers />}
       </main>
     </>
   )
