@@ -3,11 +3,11 @@ import {
   SEX_OPTIONS,
   LLDD_HEALTH_PROBLEM_OPTIONS,
   ETHNICITY_OPTIONS,
-  STANDARD_OPTIONS,
   CONTACT_METHOD_OPTIONS,
   CONTRACT_TYPE_OPTIONS,
 } from './ilrCodes'
 import { validateLearnerEditForm } from './validation'
+import StandardPicker from './StandardPicker'
 
 // Turns a learner+aim row from GET /api/learners into the shape this form's
 // fields use, the same shape AddLearnerForm's EMPTY_FORM uses.
@@ -44,9 +44,9 @@ function toFormState(learner) {
   }
 }
 
-function Field({ label, error, required, children }) {
+function Field({ label, error, required, wide, children }) {
   return (
-    <label className="field">
+    <label className={wide ? 'field field-wide' : 'field'}>
       <span>
         {label}
         {required && <span className="required-mark"> *</span>}
@@ -57,7 +57,7 @@ function Field({ label, error, required, children }) {
   )
 }
 
-function EditLearnerForm({ learner, onSaved, onCancel }) {
+function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCancel }) {
   const [form, setForm] = useState(() => toFormState(learner))
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -353,17 +353,19 @@ function EditLearnerForm({ learner, onSaved, onCancel }) {
             />
           </Field>
 
-          <Field label="Standard code" error={errors.stdCode} required>
-            <select value={form.stdCode} disabled={aimLocked} onChange={(e) => updateField('stdCode', e.target.value)}>
-              <option value="">Select…</option>
-              {STANDARD_OPTIONS.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.code} - {o.label}
-                </option>
-              ))}
-            </select>
+          <Field label="Standard" error={errors.stdCode} required wide>
+            {/* currentCode keeps the learner's existing standard pickable even
+                if it has since closed to new starts. */}
+            <StandardPicker
+              standards={standards}
+              status={standardsStatus}
+              value={form.stdCode}
+              currentCode={learner.STDCODE}
+              disabled={aimLocked}
+              onChange={(code) => updateField('stdCode', code)}
+            />
             {aimLocked && (
-              <span className="field-hint">This aim is no longer continuing, so its standard code is locked.</span>
+              <span className="field-hint">This aim is no longer continuing, so its standard is locked.</span>
             )}
           </Field>
 

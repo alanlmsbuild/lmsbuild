@@ -37,15 +37,8 @@ export const ETHNICITY_OPTIONS = [
   { code: 99, label: 'Not known/not provided' },
 ]
 
-// These standard codes are made up for this dummy project - they are NOT
-// real apprenticeship standards. Real codes must come from the
-// apprenticeship standard list in the LARS (Learning Aims Reference
-// Service) database, not from here.
-export const STANDARD_OPTIONS = [
-  { code: 9901, label: 'Dummy standard: Business administrator' },
-  { code: 9902, label: 'Dummy standard: Software developer' },
-  { code: 9903, label: 'Dummy standard: Team leader' },
-]
+// Apprenticeship standards are not listed here: they come from the real
+// LARS data in CAPTURE_DB.LARS.STANDARD, via GET /api/standards.
 
 // Outcome 1 (achieved) comes from my notes and must be checked against the
 // ILR 2026 to 2027 specification before this is used for anything real.

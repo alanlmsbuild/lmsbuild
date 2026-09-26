@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { OFFICER_TYPE_OPTIONS, STANDARD_OPTIONS } from './ilrCodes'
-import { COMPLETION_STATUS_LABELS, describe, labelFromOptions, statusClassName } from './lookups'
+import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
+import { COMPLETION_STATUS_LABELS, describe, labelFromOptions, standardLabel, statusClassName } from './lookups'
 
 function Row({ label, value }) {
   return (
@@ -133,7 +133,7 @@ function OfficerDetail({ officer, learners, learnersStatus, onClose, onOpenLearn
                           {learner.GIVENNAMES} {learner.FAMILYNAME}
                         </button>
                         <span className="dashboard-list-meta">
-                          {learner.LEARNREFNUMBER} · {labelFromOptions(STANDARD_OPTIONS, learner.STDCODE)}
+                          {learner.LEARNREFNUMBER} · {standardLabel(learner, { withLevel: false })}
                         </span>
                       </div>
                       <div className="officer-learner-side">

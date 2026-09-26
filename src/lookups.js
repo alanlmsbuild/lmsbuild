@@ -41,6 +41,18 @@ export function formatDate(value) {
   return new Date(value).toLocaleDateString('en-GB')
 }
 
+// Formats a LARS standard, e.g. "ST0072 Customer Service Practitioner
+// (Level 2)". Works on a row from GET /api/standards or a learner row from
+// GET /api/learners, since both carry STDCODE, STDREFERENCE, STDNAME and
+// STDLEVEL. Pass { withLevel: false } for the shorter "ST0072 Customer
+// Service Practitioner" used in lists and panels.
+export function standardLabel(row, { withLevel = true } = {}) {
+  if (row?.STDCODE === null || row?.STDCODE === undefined) return '—'
+  if (!row.STDNAME) return `Code ${row.STDCODE} (not in LARS)`
+  const level = withLevel && row.STDLEVEL != null ? ` (Level ${row.STDLEVEL})` : ''
+  return `${row.STDREFERENCE ?? ''} ${row.STDNAME}${level}`.trim()
+}
+
 // Looks up a label from one of the {code, label} option lists in
 // ilrCodes.js (e.g. SEX_OPTIONS, ETHNICITY_OPTIONS) by code. Codes are
 // compared as strings so this works whether the value passed in is a

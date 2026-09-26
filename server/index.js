@@ -10,8 +10,10 @@ import {
   validateCompleteAimForm,
   validateWithdrawAimForm,
   validateOfficerForm,
+  todayString,
 } from '../src/validation.js'
 import { OUTCOME_ACHIEVED } from '../src/ilrCodes.js'
+import { standardLabel } from '../src/lookups.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '.env') })
@@ -54,6 +56,9 @@ const LEARNERS_QUERY = `
     ld.AIMTYPE,
     ld.PROGTYPE,
     ld.STDCODE,
+    s.REFERENCE as STDREFERENCE,
+    s.NAME as STDNAME,
+    s.NOTIONAL_END_LEVEL as STDLEVEL,
     ld.FUNDMODEL,
     ld.LEARNSTARTDATE,
     ld.LEARNPLANENDDATE,
@@ -66,6 +71,8 @@ const LEARNERS_QUERY = `
   from LEARNER l
   join LEARNING_DELIVERY ld
     on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
+  left join LARS.STANDARD s
+    on s.STANDARD_CODE = ld.STDCODE
   order by l.LEARNREFNUMBER
 `
 
@@ -82,6 +89,72 @@ app.get('/api/learners', async (_req, res) => {
     if (connection) await destroy(connection)
   }
 })
+
+// A standard is open for new starts when neither its last date for starts
+// nor its effective-to date has passed. Both placeholders are today's date.
+const STANDARD_IS_OPEN = `
+  (LAST_DATE_STARTS is null or LAST_DATE_STARTS >= ?)
+  and (EFFECTIVE_TO is null or EFFECTIVE_TO >= ?)
+`
+
+// Same column names as the STDREFERENCE / STDNAME / STDLEVEL columns on
+// each learner row, so standardLabel() in lookups.js works on either.
+const STANDARDS_QUERY = `
+  select
+    STANDARD_CODE as STDCODE,
+    REFERENCE as STDREFERENCE,
+    NAME as STDNAME,
+    NOTIONAL_END_LEVEL as STDLEVEL,
+    ${STANDARD_IS_OPEN} as ISOPEN
+  from LARS.STANDARD
+  order by REFERENCE, STANDARD_CODE
+`
+
+const STANDARD_BY_CODE_QUERY = `
+  select
+    STANDARD_CODE as STDCODE,
+    REFERENCE as STDREFERENCE,
+    NAME as STDNAME,
+    NOTIONAL_END_LEVEL as STDLEVEL,
+    ${STANDARD_IS_OPEN} as ISOPEN
+  from LARS.STANDARD
+  where STANDARD_CODE = ?
+`
+
+app.get('/api/standards', async (_req, res) => {
+  let connection
+  try {
+    connection = await connect()
+    const today = todayString()
+    const rows = await execute(connection, STANDARDS_QUERY, [today, today])
+    res.json(rows)
+  } catch (err) {
+    console.error('Failed to fetch standards:', err.message)
+    res.status(500).json({ error: 'Failed to fetch standards' })
+  } finally {
+    if (connection) await destroy(connection)
+  }
+})
+
+// Snowflake doesn't enforce the link from LEARNING_DELIVERY.STDCODE to
+// LARS.STANDARD, so every save checks it here. A closed standard is only
+// accepted when it's the one the aim is already on (keptCode), so a learner
+// who started before their standard closed can still be edited. Returns an
+// error message for the stdCode field, or null if the standard is fine.
+async function checkStandard(connection, stdCode, keptCode = null) {
+  const code = Number(stdCode)
+  const today = todayString()
+  const [standard] = await execute(connection, STANDARD_BY_CODE_QUERY, [today, today, code])
+  if (!standard) {
+    return `Standard code ${code} is not in the LARS standards list.`
+  }
+  if (!standard.ISOPEN && code !== keptCode) {
+    return keptCode === null
+      ? `${standardLabel(standard)} is closed to new starts, so it can't be used for a new learner. Choose an open standard.`
+      : `${standardLabel(standard)} is closed to new starts. Choose an open standard, or keep the learner's current one.`
+  }
+  return null
+}
 
 // Finds the highest existing TESTL learner reference and returns the next
 // one in the same style, e.g. current highest TESTL0012 -> TESTL0013.
@@ -186,6 +259,15 @@ app.post('/api/learners', async (req, res) => {
   let connection
   try {
     connection = await connect()
+
+    const standardError = await checkStandard(connection, v.stdCode)
+    if (standardError) {
+      res.status(400).json({
+        error: 'Please fix the highlighted fields.',
+        fields: { stdCode: standardError },
+      })
+      return
+    }
 
     const learnRefNumber = await nextLearnRefNumber(connection)
 
@@ -298,6 +380,10 @@ app.put('/api/learners/:learnRefNumber', async (req, res) => {
     }
     if (aimLocked && Number(v.stdCode) !== existing.STDCODE) {
       fieldErrors.stdCode = 'Standard code cannot be changed because this aim is no longer continuing.'
+    }
+    if (!fieldErrors.stdCode) {
+      const standardError = await checkStandard(connection, v.stdCode, existing.STDCODE)
+      if (standardError) fieldErrors.stdCode = standardError
     }
 
     if (Object.keys(fieldErrors).length > 0) {

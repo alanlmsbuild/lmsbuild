@@ -9,6 +9,7 @@
     "dev:server": "node --watch server/index.js",
     "test:connection": "node server/test-connection.js",
     "import:lars": "node scripts/import-lars.js",
+    "remap:standards": "node scripts/remap-standards.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"

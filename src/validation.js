@@ -9,7 +9,6 @@ import {
   SEX_OPTIONS,
   LLDD_HEALTH_PROBLEM_OPTIONS,
   ETHNICITY_OPTIONS,
-  STANDARD_OPTIONS,
   WITHDRAW_REASON_OPTIONS,
   CONTACT_METHOD_OPTIONS,
   CONTRACT_TYPE_OPTIONS,
@@ -21,11 +20,11 @@ const NI_NUMBER = /^[A-Za-z]{2}\d{6}[A-Da-d]$/
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE = /^[+\d][\d\s]{6,19}$/
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+const STANDARD_CODE = /^\d+$/
 
 const SEX_CODES = new Set(SEX_OPTIONS.map((o) => o.code))
 const LLDD_CODES = new Set(LLDD_HEALTH_PROBLEM_OPTIONS.map((o) => o.code))
 const ETHNICITY_CODES = new Set(ETHNICITY_OPTIONS.map((o) => o.code))
-const STANDARD_CODES = new Set(STANDARD_OPTIONS.map((o) => o.code))
 const WITHDRAW_REASON_CODES = new Set(WITHDRAW_REASON_OPTIONS.map((o) => o.code))
 const CONTACT_METHOD_CODES = new Set(CONTACT_METHOD_OPTIONS.map((o) => o.code))
 const CONTRACT_TYPE_CODES = new Set(CONTRACT_TYPE_OPTIONS.map((o) => o.code))
@@ -49,7 +48,7 @@ function isValidDateString(value) {
 
 // Today's date as a YYYY-MM-DD string, so it can be compared with the ISO
 // date strings the forms use just by comparing text.
-function todayString() {
+export function todayString() {
   return new Date().toISOString().slice(0, 10)
 }
 
@@ -143,7 +142,9 @@ function validateLearnerFields(v, errors) {
 // start date is actually allowed to change (only when the aim is still
 // continuing, COMPSTATUS 1) is checked separately by the server against
 // the database, never against anything the browser sends - see the
-// PUT /api/learners/:learnRefNumber route.
+// PUT /api/learners/:learnRefNumber route. Likewise, whether the standard
+// code is in LARS and open for new starts needs the database, so only its
+// shape is checked here and the server's checkStandard does the rest.
 function validateAimFields(v, errors) {
   if (!isValidDateString(v.startDate)) {
     errors.startDate = 'Enter a valid start date.'
@@ -153,7 +154,7 @@ function validateAimFields(v, errors) {
   } else if (isValidDateString(v.startDate) && v.plannedEndDate <= v.startDate) {
     errors.plannedEndDate = 'Planned end date must be after the start date.'
   }
-  if (!STANDARD_CODES.has(Number(v.stdCode))) {
+  if (!STANDARD_CODE.test(String(v.stdCode ?? '').trim())) {
     errors.stdCode = 'Choose a standard from the list.'
   }
   if (!isPostcode(v.dellocPostcode)) {

@@ -3,11 +3,11 @@ import {
   SEX_OPTIONS,
   LLDD_HEALTH_PROBLEM_OPTIONS,
   ETHNICITY_OPTIONS,
-  STANDARD_OPTIONS,
   CONTACT_METHOD_OPTIONS,
   CONTRACT_TYPE_OPTIONS,
 } from './ilrCodes'
 import { validateLearnerForm } from './validation'
+import StandardPicker from './StandardPicker'
 
 const EMPTY_FORM = {
   uln: '',
@@ -40,9 +40,9 @@ const EMPTY_FORM = {
   dellocPostcode: 'ZZ3 3DA',
 }
 
-function Field({ label, error, required, children }) {
+function Field({ label, error, required, wide, children }) {
   return (
-    <label className="field">
+    <label className={wide ? 'field field-wide' : 'field'}>
       <span>
         {label}
         {required && <span className="required-mark"> *</span>}
@@ -53,7 +53,7 @@ function Field({ label, error, required, children }) {
   )
 }
 
-function AddLearnerForm({ onLearnerAdded }) {
+function AddLearnerForm({ standards, standardsStatus, onLearnerAdded }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -340,15 +340,13 @@ function AddLearnerForm({ onLearnerAdded }) {
             />
           </Field>
 
-          <Field label="Standard code" error={errors.stdCode} required>
-            <select value={form.stdCode} onChange={(e) => updateField('stdCode', e.target.value)}>
-              <option value="">Select…</option>
-              {STANDARD_OPTIONS.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.code} - {o.label}
-                </option>
-              ))}
-            </select>
+          <Field label="Standard" error={errors.stdCode} required wide>
+            <StandardPicker
+              standards={standards}
+              status={standardsStatus}
+              value={form.stdCode}
+              onChange={(code) => updateField('stdCode', code)}
+            />
           </Field>
 
           <Field label="Delivery location postcode" error={errors.dellocPostcode} required>

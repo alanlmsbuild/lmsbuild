@@ -479,6 +479,78 @@ legend {
   color: var(--text-muted);
 }
 
+/* A field that spans the whole fieldset row, for long values like the
+   standard picker. */
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+/* Searchable standard picker (StandardPicker.jsx) */
+
+.combobox {
+  position: relative;
+}
+
+.combobox input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.combobox-list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.combobox-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.combobox-option[data-active='true'] {
+  background: var(--accent-bg);
+}
+
+.combobox-option[aria-selected='true'] {
+  font-weight: 600;
+}
+
+.combobox-option-code {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.combobox-note {
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.standard-closed {
+  padding: 0 6px;
+  border: 1px solid var(--status-withdrawn);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--status-withdrawn);
+}
+
 .checkbox-group {
   display: flex;
   flex-wrap: wrap;

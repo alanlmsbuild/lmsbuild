@@ -7,13 +7,18 @@ import WithdrawAimForm from './WithdrawAimForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
 import LearnerDetail from './LearnerDetail'
-import { STANDARD_OPTIONS } from './ilrCodes'
-import { COMPLETION_STATUS_LABELS, describe, labelFromOptions, statusClassName } from './lookups'
+import { COMPLETION_STATUS_LABELS, describe, standardLabel, statusClassName } from './lookups'
 
 function App() {
   const [learners, setLearners] = useState([])
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
+
+  // The full LARS standards list for the add / edit forms' standard picker.
+  // Fetched once here rather than by each form, since it doesn't change
+  // while the app is open.
+  const [standards, setStandards] = useState([])
+  const [standardsStatus, setStandardsStatus] = useState('loading') // 'loading' | 'ready' | 'error'
 
   const [view, setView] = useState('learners') // 'learners' | 'dashboard' | 'officers'
 
@@ -50,6 +55,21 @@ function App() {
   useEffect(() => {
     loadLearners()
   }, [loadLearners])
+
+  useEffect(() => {
+    async function loadStandards() {
+      try {
+        const res = await fetch('/api/standards')
+        if (!res.ok) throw new Error(`Server responded with ${res.status}`)
+        setStandards(await res.json())
+        setStandardsStatus('ready')
+      } catch (err) {
+        console.error('Failed to load standards:', err.message)
+        setStandardsStatus('error')
+      }
+    }
+    loadStandards()
+  }, [])
 
   function handleSaved() {
     setPanel({ mode: 'add' })
@@ -177,7 +197,7 @@ function App() {
                       {learner.GIVENNAMES} {learner.FAMILYNAME}
                     </button>
                   </td>
-                  <td>{labelFromOptions(STANDARD_OPTIONS, learner.STDCODE)}</td>
+                  <td>{standardLabel(learner, { withLevel: false })}</td>
                   <td>
                     <span className={statusClassName(learner.COMPSTATUS)}>
                       {describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}
@@ -217,6 +237,8 @@ function App() {
       {panel.mode === 'edit' && (
         <EditLearnerForm
           learner={panel.learner}
+          standards={standards}
+          standardsStatus={standardsStatus}
           onSaved={handleSaved}
           onCancel={() => setPanel({ mode: 'add' })}
         />
@@ -235,7 +257,9 @@ function App() {
           onCancel={() => setPanel({ mode: 'add' })}
         />
       )}
-      {panel.mode === 'add' && <AddLearnerForm onLearnerAdded={loadLearners} />}
+      {panel.mode === 'add' && (
+        <AddLearnerForm standards={standards} standardsStatus={standardsStatus} onLearnerAdded={loadLearners} />
+      )}
 
       </>
       )}

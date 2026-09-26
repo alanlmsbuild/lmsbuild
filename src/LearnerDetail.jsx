@@ -3,7 +3,6 @@ import {
   SEX_OPTIONS,
   LLDD_HEALTH_PROBLEM_OPTIONS,
   ETHNICITY_OPTIONS,
-  STANDARD_OPTIONS,
   WITHDRAW_REASON_OPTIONS,
   CONTACT_METHOD_OPTIONS,
   CONTRACT_TYPE_OPTIONS,
@@ -16,6 +15,7 @@ import {
   labelFromOptions,
   labelsFromCommaList,
   formatDate,
+  standardLabel,
   statusClassName,
 } from './lookups'
 
@@ -224,7 +224,7 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
 
         <section className="detail-section">
           <h3>Apprenticeship aim</h3>
-          <Row label="Standard" value={labelFromOptions(STANDARD_OPTIONS, learner.STDCODE)} />
+          <Row label="Standard" value={standardLabel(learner, { withLevel: false })} />
           <Row label="Start date" value={formatDate(learner.LEARNSTARTDATE)} />
           <Row label="Planned end date" value={formatDate(learner.LEARNPLANENDDATE)} />
           <Row

@@ -1,7 +1,4 @@
-import { STANDARD_OPTIONS } from './ilrCodes'
-import { formatDate } from './lookups'
-
-const STANDARD_LABELS = new Map(STANDARD_OPTIONS.map((o) => [o.code, o.label]))
+import { formatDate, standardLabel } from './lookups'
 
 const DAYS_AHEAD = 60
 
@@ -26,18 +23,20 @@ function Dashboard({ learners }) {
     })
     .sort((a, b) => new Date(a.LEARNPLANENDDATE) - new Date(b.LEARNPLANENDDATE))
 
+  // Each learner row already carries its standard's LARS reference and
+  // name, so the first learner seen on a standard supplies its label.
   const standardCounts = new Map()
   for (const learner of learners) {
     const code = learner.STDCODE ?? null
-    standardCounts.set(code, (standardCounts.get(code) ?? 0) + 1)
-  }
-  const standardRows = [...standardCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([code, count]) => ({
+    const row = standardCounts.get(code) ?? {
       code,
-      count,
-      label: code === null ? 'No standard code' : (STANDARD_LABELS.get(code) ?? `Code ${code}`),
-    }))
+      count: 0,
+      label: code === null ? 'No standard code' : standardLabel(learner, { withLevel: false }),
+    }
+    row.count++
+    standardCounts.set(code, row)
+  }
+  const standardRows = [...standardCounts.values()].sort((a, b) => b.count - a.count)
 
   return (
     <section id="dashboard">
