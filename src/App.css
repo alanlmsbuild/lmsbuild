@@ -9,9 +9,35 @@
   background: var(--surface);
 }
 
-.app-header h1 {
+/* Warren logo: the mark, then the wordmark with "by rarebit" beneath. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+
+.app-header .brand-name {
   margin: 0;
-  font-weight: 700;
+  font-family: var(--brand-display);
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: normal;
+  color: var(--brand-wordmark);
+}
+
+.brand-byline {
+  margin: 3px 0 0;
+  font-family: var(--brand-sans);
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--brand-byline);
 }
 
 .app-tabs {
@@ -423,6 +449,58 @@ tbody tr:hover {
 @media (max-width: 640px) {
   .detail-panel {
     width: 100%;
+  }
+}
+
+/* Footer: Skills England logo and attribution (required by their data
+   terms), plus our own copyright. */
+
+.app-footer {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.app-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.footer-logo {
+  height: 60px;
+  width: auto;
+}
+
+.footer-attribution {
+  flex: 1;
+  min-width: 240px;
+}
+
+.footer-attribution p,
+.footer-copyright {
+  margin: 0;
+}
+
+.footer-attribution a {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.footer-attribution .footer-ogl {
+  margin-top: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  /* The white logo is landscape rather than stacked, so it's shorter for
+     the same visual weight. */
+  .footer-logo {
+    height: 40px;
   }
 }
 

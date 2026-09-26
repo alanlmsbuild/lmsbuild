@@ -32,6 +32,17 @@
 
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
+  /* Warren brand. Only the header logo uses these so far - the rest of
+     the app keeps the slate palette above until it's restyled. */
+  --warren-green: #2e5a4c;
+  --cheddar: #e9a23b;
+  --ink: #2a1f17;
+  --crumb: #f9e9c8;
+  --brand-display: 'Fraunces', Georgia, serif;
+  --brand-sans: 'DM Sans', var(--sans);
+  --brand-wordmark: var(--ink);
+  --brand-byline: var(--warren-green);
+
   font: 16px/1.5 var(--sans);
   color-scheme: light dark;
   color: var(--text);
@@ -69,6 +80,11 @@
     --error: #e5867e;
     --error-bg: rgba(229, 134, 126, 0.12);
     --error-border: rgba(229, 134, 126, 0.4);
+
+    /* Ink and Warren green disappear on the dark header, so the wordmark
+       switches to the lighter brand colours. */
+    --brand-wordmark: var(--crumb);
+    --brand-byline: var(--cheddar);
   }
 }
 

@@ -6,6 +6,7 @@ import MarkCompletedForm from './MarkCompletedForm'
 import WithdrawAimForm from './WithdrawAimForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
+import warrenMark from './assets/warren-mark.svg'
 import LearnerDetail from './LearnerDetail'
 import { COMPLETION_STATUS_LABELS, describe, standardLabel, statusClassName } from './lookups'
 
@@ -100,7 +101,13 @@ function App() {
   return (
     <>
       <header className="app-header">
-        <h1>ILR Learner Tracker</h1>
+        <div className="brand">
+          <img src={warrenMark} alt="" className="brand-mark" />
+          <div>
+            <h1 className="brand-name">Warren</h1>
+            <p className="brand-byline">by rarebit</p>
+          </div>
+        </div>
         <nav className="app-tabs" aria-label="Views">
           <button
             type="button"
@@ -305,6 +312,45 @@ function App() {
         />
       )}
       </main>
+
+      <footer className="app-footer">
+        <div className="app-footer-inner">
+          {/* Skills England's official colourways, used unchanged: the blue
+              stacked logo normally, their all-white landscape one in dark mode. */}
+          <picture>
+            <source
+              media="(prefers-color-scheme: dark)"
+              srcSet="/brand/skills-england_lesser_arms_landscape-se-logo-white.svg"
+            />
+            <img
+              src="/brand/skills-england_lesser_arms_stacked-dfe-blue-se-logo.svg"
+              alt="Skills England"
+              className="footer-logo"
+            />
+          </picture>
+          {/* Attribution statement for online publications, worded exactly
+              as Skills England's public API terms require:
+              https://occupational-maps.skillsengland.education.gov.uk/public-api/#licence */}
+          <div className="footer-attribution">
+            <p>© Skills England 2025</p>
+            <p>
+              This information is licensed under the Open Government Licence{' '}
+              <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">
+                https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3
+              </a>
+            </p>
+            {/* Standard OGL attribution for the LARS data, which DfE publishes. */}
+            <p className="footer-ogl">
+              Contains public sector information licensed under the{' '}
+              <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">
+                Open Government Licence v3.0
+              </a>
+              .
+            </p>
+          </div>
+          <p className="footer-copyright">© 2026 Rarebit</p>
+        </div>
+      </footer>
     </>
   )
 }
