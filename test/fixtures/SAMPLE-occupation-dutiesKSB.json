@@ -1,0 +1,129 @@
+{
+  "object": "Occupation",
+  "stdCode": "OCC9999",
+  "name": "SAMPLE Occupation (not real data)",
+  "status": 3,
+  "statusName": "Approved for delivery",
+  "level": 2,
+  "versionNo": "1.1",
+  "summary": "<p>SAMPLE summary. This whole file is invented test data in the shape of the Skills England API response.</p>",
+  "overview": "SAMPLE overview: helps customers of a made-up organisation.",
+  "soc": {
+    "soc2010Code": 9999,
+    "soc2010Description": "SAMPLE SOC 2010 description",
+    "soc2020Code": 9999,
+    "soc2020Description": "SAMPLE SOC 2020 description",
+    "soc2020SubUnitGroups": []
+  },
+  "mapHierarchy": {
+    "routeId": 99,
+    "routeName": "SAMPLE Route",
+    "routeSequence": 1,
+    "pathwayId": 999,
+    "pathwayName": "SAMPLE Pathway",
+    "clusterGroupId": 9999,
+    "clusterId": 9999,
+    "clusterName": "SAMPLE Cluster",
+    "technicalLevel": 2,
+    "technicalLevelName": "Operative",
+    "pathwaySequence": 1,
+    "clusterGroupSequence": 1,
+    "clusterSeqeunce": 1
+  },
+  "knowledges": [
+    { "id": "00000000-0000-4000-8000-00000000a001", "knowledgeId": "K1", "detail": "SAMPLE knowledge one: the organisation's products and services." },
+    { "id": "00000000-0000-4000-8000-00000000a002", "knowledgeId": "K2", "detail": "SAMPLE knowledge two: data protection and confidentiality." },
+    { "id": "00000000-0000-4000-8000-00000000a003", "knowledgeId": "K3", "detail": "SAMPLE knowledge three: how to handle complaints." },
+    { "id": "00000000-0000-4000-8000-00000000a004", "knowledgeId": "K4", "detail": "SAMPLE knowledge four: the systems used to record customer contact." }
+  ],
+  "skills": [
+    { "id": "00000000-0000-4000-8000-00000000b001", "skillId": "S1", "detail": "SAMPLE skill one: listen to and question customers to find their needs." },
+    { "id": "00000000-0000-4000-8000-00000000b002", "skillId": "S2", "detail": "SAMPLE skill two: record interactions accurately." },
+    { "id": "00000000-0000-4000-8000-00000000b003", "skillId": "S3", "detail": "SAMPLE skill three: resolve problems within agreed limits." }
+  ],
+  "behaviours": [
+    { "id": "00000000-0000-4000-8000-00000000c001", "behaviourId": "B1", "detail": "SAMPLE behaviour one: takes ownership of customer issues." },
+    { "id": "00000000-0000-4000-8000-00000000c002", "behaviourId": "B2", "detail": "SAMPLE behaviour two: treats customers and colleagues with respect." }
+  ],
+  "duties": [
+    {
+      "id": "00000000-0000-4000-8000-00000000d001",
+      "dutyId": "D1",
+      "dutyDetail": "SAMPLE duty one: deal with customer enquiries.",
+      "isThisACoreDuty": true,
+      "criteriaForMeasuringPerformance": "SAMPLE criteria: enquiries resolved first time where possible.",
+      "mappedBehaviour": ["SAMPLE behaviour one: takes ownership of customer issues."],
+      "mappedBehaviourIds": ["00000000-0000-4000-8000-00000000c001"],
+      "mappedKnowledge": ["SAMPLE knowledge one: the organisation's products and services.", "SAMPLE knowledge four: the systems used to record customer contact."],
+      "mappedKnowledgeIds": ["00000000-0000-4000-8000-00000000a001", "00000000-0000-4000-8000-00000000a004"],
+      "mappedSkills": ["SAMPLE skill one: listen to and question customers to find their needs."],
+      "mappedSkillsIds": ["00000000-0000-4000-8000-00000000b001"]
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000d002",
+      "dutyId": "D2",
+      "dutyDetail": "SAMPLE duty two: keep accurate customer records.",
+      "isThisACoreDuty": true,
+      "criteriaForMeasuringPerformance": "SAMPLE criteria: records complete and compliant.",
+      "mappedBehaviour": [],
+      "mappedBehaviourIds": [],
+      "mappedKnowledge": ["SAMPLE knowledge two: data protection and confidentiality.", "SAMPLE knowledge four: the systems used to record customer contact."],
+      "mappedKnowledgeIds": ["00000000-0000-4000-8000-00000000a002", "00000000-0000-4000-8000-00000000a004"],
+      "mappedSkills": ["SAMPLE skill two: record interactions accurately."],
+      "mappedSkillsIds": ["00000000-0000-4000-8000-00000000b002"]
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000d003",
+      "dutyId": "D3",
+      "dutyDetail": "SAMPLE duty three: resolve complaints.",
+      "isThisACoreDuty": false,
+      "criteriaForMeasuringPerformance": "SAMPLE criteria: complaints closed within agreed timescales.",
+      "mappedBehaviour": ["SAMPLE behaviour one: takes ownership of customer issues.", "SAMPLE behaviour two: treats customers and colleagues with respect."],
+      "mappedBehaviourIds": ["00000000-0000-4000-8000-00000000c001", "00000000-0000-4000-8000-00000000c002"],
+      "mappedKnowledge": ["SAMPLE knowledge three: how to handle complaints."],
+      "mappedKnowledgeIds": ["00000000-0000-4000-8000-00000000a003"],
+      "mappedSkills": ["SAMPLE skill three: resolve problems within agreed limits."],
+      "mappedSkillsIds": ["00000000-0000-4000-8000-00000000b003"]
+    }
+  ],
+  "products": [
+    {
+      "object": "Product",
+      "name": "SAMPLE apprenticeship standard",
+      "versionNo": "1.1",
+      "level": 2,
+      "status": 3,
+      "statusName": "Approved for delivery",
+      "type": 1,
+      "typeName": "Apprenticeship",
+      "careerStarter": false,
+      "productCode": "ST9999",
+      "royal": false,
+      "links": [],
+      "qualificationCategory": null,
+      "ssa1": "SAMPLE SSA tier 1",
+      "ssa2": "SAMPLE SSA tier 2"
+    },
+    {
+      "object": "Product",
+      "name": "SAMPLE T Level",
+      "versionNo": null,
+      "level": 3,
+      "status": 3,
+      "statusName": "Approved for delivery",
+      "type": 2,
+      "typeName": "T Level",
+      "careerStarter": false,
+      "productCode": "TL9999",
+      "royal": false,
+      "links": [],
+      "qualificationCategory": null,
+      "ssa1": null,
+      "ssa2": null
+    }
+  ],
+  "links": [
+    { "rel": "self", "href": "https://example.invalid/sample-occupation/OCC9999" }
+  ],
+  "statusLastUpdated": "2026-01-15T09:30:00Z"
+}
