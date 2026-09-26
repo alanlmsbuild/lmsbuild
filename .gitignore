@@ -31,3 +31,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# LARS CSV extracts and local import tooling (large files, never commit)
+data/

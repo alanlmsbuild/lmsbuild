@@ -8,6 +8,7 @@
     "dev:client": "vite",
     "dev:server": "node --watch server/index.js",
     "test:connection": "node server/test-connection.js",
+    "import:lars": "node scripts/import-lars.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
