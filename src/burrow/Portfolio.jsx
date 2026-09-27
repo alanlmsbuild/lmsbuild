@@ -83,7 +83,7 @@ function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollT
               </ul>
             </>
           ) : (
-            <NotLoaded />
+            <NotLoaded forStaff={readOnly} />
           )}
         </section>
 

@@ -3,6 +3,7 @@ import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
 import { labelFromOptions } from './lookups'
 import { validateOfficerForm } from './validation'
 import OfficerDetail from './OfficerDetail'
+import { StatusBadge } from './ui/components'
 
 const EMPTY_FORM = { name: '', officerType: '', email: '', phone: '' }
 
@@ -119,6 +120,12 @@ function Officers({ learners, learnersStatus, onOpenLearner }) {
                     <button type="button" className="link-button" onClick={() => setDetailOfficer(officer)}>
                       {officer.OFFICERNAME}
                     </button>
+                    {!officer.ISACTIVE && (
+                      <>
+                        {' '}
+                        <StatusBadge tone="neutral">Access ended</StatusBadge>
+                      </>
+                    )}
                   </td>
                   <td>{labelFromOptions(OFFICER_TYPE_OPTIONS, officer.OFFICERTYPE)}</td>
                   <td>{officer.EMAIL || '—'}</td>

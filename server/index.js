@@ -14,6 +14,7 @@ import {
   IN_ORG_LEARNERS,
   LEARNER,
   MANAGER,
+  ORG_APP_USER,
   ORG_LEARNER,
   ORG_OFFICER,
   ORG_OFFICER_ASSIGNMENT,
@@ -594,10 +595,18 @@ app.put('/api/learners/:learnRefNumber/withdraw', allow(MANAGER), async (req, re
   }
 })
 
+// An officer is inactive when their user account is (APP_USER.ISACTIVE is
+// FALSE): their access has ended, so they can't be given learners. An
+// officer with no user account yet counts as active.
+const OFFICER_IS_ACTIVE = `not exists (
+    select 1 from ${ORG_APP_USER} u
+    where u.OFFICERREFNUMBER = o.OFFICERREFNUMBER and not u.ISACTIVE)`
+
 const OFFICERS_QUERY = `
-  select OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE, EMAIL, TELNO
-  from ${ORG_OFFICER}
-  order by OFFICERNAME
+  select o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE, o.EMAIL, o.TELNO,
+    ${OFFICER_IS_ACTIVE} as ISACTIVE
+  from ${ORG_OFFICER} o
+  order by o.OFFICERNAME
 `
 
 app.get('/api/officers', allow(MANAGER), async (req, res) => {
@@ -673,7 +682,11 @@ app.post('/api/officers', allow(MANAGER), async (req, res) => {
 // A tutor or assessor can look up only the learners on their caseload and
 // their own officer record; anything else gives "not found".
 const LEARNER_EXISTS_QUERY = `select LEARNREFNUMBER from ${VISIBLE_LEARNER} where LEARNREFNUMBER = ?`
-const OFFICER_TYPE_QUERY = `select OFFICERTYPE from ${VISIBLE_OFFICER} where OFFICERREFNUMBER = ?`
+const OFFICER_TYPE_QUERY = `
+  select o.OFFICERNAME, o.OFFICERTYPE, ${OFFICER_IS_ACTIVE} as ISACTIVE
+  from ${VISIBLE_OFFICER} o
+  where o.OFFICERREFNUMBER = ?
+`
 
 const LEARNER_OFFICERS_QUERY = `
   select o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE, o.EMAIL, o.TELNO,
@@ -751,7 +764,8 @@ const INSERT_ASSIGNMENT = `
 
 // Makes the officer the learner's tutor or assessor. Each learner has
 // exactly one current tutor and one current assessor, so any current
-// assignment in that role is ended in the same transaction. This is also
+// assignment in that role is ended in the same transaction. An inactive
+// officer can't be assigned. This is also
 // how an officer is taken off a learner: there's no route that only ends
 // an assignment, so a learner is never left without one. The role
 // defaults to the officer's type, and must match it. STARTEDBY and
@@ -776,6 +790,11 @@ app.post('/api/learners/:learnRefNumber/officers', allow(MANAGER), async (req, r
     const [officer] = await execute(connection, OFFICER_TYPE_QUERY, [officerRefNumber])
     if (!officer) {
       res.status(404).json({ error: 'Officer not found.' })
+      return
+    }
+
+    if (!officer.ISACTIVE) {
+      res.status(409).json({ error: `${officer.OFFICERNAME}'s access has ended, so they can't be given learners.` })
       return
     }
 

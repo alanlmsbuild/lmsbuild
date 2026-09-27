@@ -291,6 +291,8 @@ function MyDay({ me, onOpenLearner }) {
     (c) => inFilter(c.task) && !(data?.tasks ?? []).some((t) => t.TASK === c.task),
   )
   const firstName = officer?.OFFICERNAME?.split(' ')[0] ?? ''
+  // A manager can open someone else's day, which isn't addressed to them.
+  const viewingOwnDay = viewingAs === me?.OFFICERREFNUMBER
   const caseload = data?.caseload
   const qar = data?.qar
 
@@ -317,7 +319,11 @@ function MyDay({ me, onOpenLearner }) {
               </p>
             )}
             <h2 className="myday-greeting">
-              {officer ? `Morning, ${firstName}. Here's your day.` : 'My day'}
+              {!officer
+                ? 'My day'
+                : viewingOwnDay
+                  ? `Morning, ${firstName}. Here's your day.`
+                  : `${officer.OFFICERNAME}’s day`}
             </h2>
           </div>
           {isManager && (

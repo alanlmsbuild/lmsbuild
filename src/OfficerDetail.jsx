@@ -18,7 +18,9 @@ function Row({ label, value }) {
 // (sets ENDEDAT) in the same step. Nothing is deleted.
 function ReplaceOfficerForm({ officer, learner, role, officers, onReplaced, onCancel }) {
   const roleLabel = labelFromOptions(OFFICER_TYPE_OPTIONS, role).toLowerCase()
-  const candidates = officers.filter((o) => o.OFFICERTYPE === role && o.OFFICERREFNUMBER !== officer.OFFICERREFNUMBER)
+  const candidates = officers.filter(
+    (o) => o.OFFICERTYPE === role && o.ISACTIVE && o.OFFICERREFNUMBER !== officer.OFFICERREFNUMBER,
+  )
   const [replacement, setReplacement] = useState('')
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)

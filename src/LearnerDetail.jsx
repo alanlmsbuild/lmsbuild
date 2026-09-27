@@ -247,8 +247,12 @@ function LearnerDetail({ learner, canManage, onClose, onEdit, onComplete, onWith
             <>
               {ASSIGNMENT_ROLES.map(({ code: role, label }) => {
                 const current = assignedOfficers.filter((a) => a.ASSIGNMENTROLE === role)
+                // Inactive officers' access has ended, so they can't take learners.
                 const choices = allOfficers.filter(
-                  (o) => o.OFFICERTYPE === role && !current.some((a) => a.OFFICERREFNUMBER === o.OFFICERREFNUMBER),
+                  (o) =>
+                    o.OFFICERTYPE === role &&
+                    o.ISACTIVE &&
+                    !current.some((a) => a.OFFICERREFNUMBER === o.OFFICERREFNUMBER),
                 )
                 return (
                   <div key={role} className="assignment-role">

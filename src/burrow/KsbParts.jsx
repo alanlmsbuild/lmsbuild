@@ -41,14 +41,28 @@ export function StatusBar({ counts, total, thin = false }) {
   )
 }
 
-export function NotLoaded() {
+// forStaff: worded for staff reading a learner's portfolio, who can't add
+// evidence, rather than for the learner.
+export function NotLoaded({ forStaff = false }) {
   return (
     <div className="burrow-not-loaded" role="note">
-      <strong>Your standard&apos;s KSBs aren&apos;t loaded yet.</strong>
-      <span>
-        They&apos;ll appear here once they&apos;ve been imported from Skills England. You can still save evidence as a
-        draft and add the KSBs later.
-      </span>
+      {forStaff ? (
+        <>
+          <strong>The KSBs for this learner&apos;s standard aren&apos;t loaded yet.</strong>
+          <span>
+            They&apos;ll appear here, with the learner&apos;s progress against each one, once they&apos;ve been
+            imported from Skills England.
+          </span>
+        </>
+      ) : (
+        <>
+          <strong>Your standard&apos;s KSBs aren&apos;t loaded yet.</strong>
+          <span>
+            They&apos;ll appear here once they&apos;ve been imported from Skills England. You can still save evidence as
+            a draft and add the KSBs later.
+          </span>
+        </>
+      )}
     </div>
   )
 }
