@@ -102,15 +102,17 @@ function BurrowApp() {
 
   useEffect(() => {
     async function load() {
+      let meData
       try {
         const meRes = await fetch('/api/me')
-        const meData = await meRes.json()
+        meData = await meRes.json()
         if (!meRes.ok) throw new Error(meData.error || `Server responded with ${meRes.status}`)
         setMe(meData)
       } catch (err) {
         setMeError(err.message)
         return
       }
+      // Only learners and staff read portfolios; employers never get the list.
       if (!meData.roles.includes('LEARNER') && !meData.roles.some((r) => STAFF_ROLES.includes(r))) return
       try {
         const res = await fetch('/api/burrow/learners')
