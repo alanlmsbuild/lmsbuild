@@ -111,10 +111,12 @@ function DevUserSwitcher() {
         className="dev-switcher-pill"
         aria-expanded={open}
         aria-controls={panelId}
+        aria-label={`Test user: ${current?.DISPLAYNAME ?? state?.current ?? 'nobody'}. Development only.`}
         onClick={() => setOpen((o) => !o)}
       >
         <span className="dev-switcher-label">Test user</span>
-        <span className="dev-switcher-name">{current?.DISPLAYNAME ?? state?.current ?? 'Nobody'}</span>
+        {/* First name only, to keep the header on one line; the panel has the full list. */}
+        <span className="dev-switcher-name">{current?.DISPLAYNAME.split(' ')[0] ?? state?.current ?? 'Nobody'}</span>
         <span aria-hidden="true" className="dev-switcher-caret">▾</span>
       </button>
 

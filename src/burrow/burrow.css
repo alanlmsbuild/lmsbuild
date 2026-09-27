@@ -38,26 +38,12 @@
   --b-fraunces: var(--rb-font-heading);
   --b-dm-sans: var(--rb-font-body);
 
-  /* The shared Skills England footer, in Burrow's colours. */
-  --footer-background: var(--b-page);
-  --footer-border: var(--b-rule);
-  --footer-text: var(--b-muted);
-  --footer-link: var(--b-link);
-
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100svh;
   background: var(--b-page);
   color: var(--b-ink);
   font-family: var(--b-dm-sans);
-}
-
-@media (prefers-color-scheme: dark) {
-  .burrow .burrow-avatar {
-    background: var(--b-ink);
-    color: var(--b-page);
-  }
 }
 
 .burrow h1,
@@ -81,59 +67,14 @@
   font-size: 14px;
 }
 
-/* ---------------------------------------------------------------- header */
+/* ---------------------------------------------------------------- toolbar */
 
-.burrow-header {
+/* Staff pick whose portfolio to read here (the header is the shared one,
+   src/shell). */
+.burrow-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 24px;
-  min-height: 72px;
-  padding: 12px 48px;
-  background: var(--b-card);
-  border-bottom: 1px solid var(--b-rule);
-}
-
-.burrow-header-left,
-.burrow-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px 40px;
-}
-
-.burrow-header-right {
-  gap: 12px;
-}
-
-.burrow .burrow-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--b-ink);
-  text-decoration: none;
-  font-family: var(--b-fraunces);
-  font-weight: 600;
-  font-size: 26px;
-}
-
-.burrow-nav {
-  display: flex;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.burrow .burrow-pill {
-  padding: 10px 16px;
-  border-radius: 999px;
-  color: var(--b-ink);
-  text-decoration: none;
-}
-
-.burrow .burrow-pill.is-active {
-  background: var(--b-pill);
-  color: var(--b-link);
+  justify-content: flex-end;
+  margin-bottom: 20px;
 }
 
 .burrow-viewing-as {
@@ -154,25 +95,6 @@
   border-radius: 10px;
   background: var(--b-card);
   color: var(--b-ink);
-}
-
-.burrow-learner-name {
-  font-size: 15px;
-  color: var(--b-body);
-}
-
-.burrow-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--b-ink);
-  color: var(--b-avatar-text);
-  font-size: 14px;
-  font-weight: 700;
-  flex-shrink: 0;
 }
 
 /* ---------------------------------------------------------------- layout */
@@ -932,17 +854,6 @@
     padding-bottom: 72px;
   }
 
-  .burrow-header {
-    min-height: 64px;
-    padding: 10px 20px;
-  }
-
-  .burrow .burrow-logo {
-    font-size: 22px;
-  }
-
-  .burrow .burrow-nav,
-  .burrow .burrow-learner-name,
   .burrow .burrow-desktop-only {
     display: none;
   }
@@ -957,12 +868,6 @@
 
   .burrow-viewing-as select {
     max-width: 150px;
-  }
-
-  .burrow-avatar {
-    width: 36px;
-    height: 36px;
-    font-size: 13px;
   }
 
   .burrow-body {

@@ -1,6 +1,5 @@
 // The Warren mark: a zigzag of burrow entrances with cheddar centres. The
-// same drawing as src/assets/warren-mark.svg, which the app header and
-// favicon use.
+// same drawing as src/assets/warren-mark.svg, which the favicon uses.
 const POINTS = [
   [30, 60],
   [65, 146],

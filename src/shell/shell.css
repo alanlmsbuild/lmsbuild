@@ -1,0 +1,316 @@
+/* The shared header. Its colour is the area's (--area-header, from
+   src/ui/tokens.css), the same in light and dark mode. Moving between
+   areas fades the colour and the area name; there's no fade for people
+   whose device asks for reduced motion. */
+
+.shell-header {
+  position: relative;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  min-height: 64px;
+  padding: 10px 20px;
+  background: var(--area-header);
+  color: var(--rb-on-header);
+  font-family: var(--rb-font-body);
+  transition: background-color 220ms ease;
+}
+
+.shell-header a {
+  color: inherit;
+}
+
+.shell-header :focus-visible {
+  outline: 3px solid var(--rb-on-header);
+  outline-offset: 2px;
+}
+
+.shell-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+/* The Rarebit mark on a small cream tile, so its toast brown shows on
+   every area's colour. */
+.shell-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--rb-header-tab);
+}
+
+.shell-wordmark {
+  font-family: var(--rb-font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.shell-divider {
+  width: 1px;
+  height: 24px;
+  background: currentColor;
+  opacity: 0.4;
+}
+
+.shell-area {
+  font-family: var(--rb-font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  animation: shell-fade-in 220ms ease;
+}
+
+@keyframes shell-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Each area's tabs go in here (see useShell().tabSlot). */
+.shell-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shell-tabs > nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.shell-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: var(--rb-radius-button);
+  background: none;
+  color: var(--rb-on-header);
+  font: 500 15px/1.2 var(--rb-font-body);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shell-tab:hover {
+  background: rgba(255, 251, 242, 0.14);
+}
+
+.shell-tab.is-active,
+.shell-tab[aria-current='page'] {
+  background: var(--rb-header-tab);
+  color: var(--area-header-tab-text);
+}
+
+.shell-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.shell-switch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 1.5px solid currentColor;
+  border-radius: var(--rb-radius-button);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.shell-switch:hover {
+  background: rgba(255, 251, 242, 0.14);
+}
+
+.shell-header .shell-signin {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 6px 16px;
+  border-radius: var(--rb-radius-button);
+  background: var(--rb-cheddar);
+  color: var(--rb-header-tab-rarebit);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------- account menu */
+
+.shell-account {
+  position: relative;
+}
+
+.shell-account-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  padding: 3px 8px 3px 3px;
+  border: 0;
+  border-radius: var(--rb-radius-button);
+  background: none;
+  color: var(--rb-on-header);
+  font: 500 14px/1.2 var(--rb-font-body);
+  cursor: pointer;
+}
+
+.shell-account-button:hover {
+  background: rgba(255, 251, 242, 0.14);
+}
+
+.shell-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--rb-header-tab);
+  color: var(--rb-header-tab-rarebit);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.shell-account-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell-caret {
+  flex: none;
+  font-size: 10px;
+}
+
+.shell-account-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: 12px;
+  width: min(300px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--rb-rule);
+  border-radius: var(--rb-radius-card);
+  background: var(--rb-card);
+  color: var(--rb-body);
+  box-shadow: 0 12px 32px var(--rb-shadow);
+  text-align: left;
+}
+
+.shell-account-who {
+  display: grid;
+  gap: 2px;
+}
+
+.shell-account-who strong {
+  color: var(--rb-ink);
+  font-size: 15px;
+}
+
+.shell-account-who span {
+  color: var(--rb-muted);
+  font-size: 13px;
+}
+
+.shell-account-links {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 10px 0;
+  border-block: 1px solid var(--rb-rule);
+  list-style: none;
+}
+
+.shell-account-links a {
+  display: block;
+  padding: 6px 8px;
+  border-radius: var(--rb-radius-control);
+  color: var(--area-link);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.shell-account-links a:hover {
+  background: var(--area-tint);
+}
+
+.shell-account-links a:focus-visible {
+  outline: 3px solid var(--area-link);
+  outline-offset: 1px;
+}
+
+.shell-account-note {
+  margin: 0;
+  color: var(--rb-muted);
+  font-size: 13px;
+}
+
+/* Keeps the page's height steady while an area's code loads. */
+.shell-loading {
+  flex: 1;
+  min-height: 60vh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-header {
+    transition: none;
+  }
+
+  .shell-area {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- phones */
+
+@media (max-width: 700px) {
+  .shell-header {
+    gap: 8px 12px;
+    padding: 8px 16px;
+  }
+
+  .shell-wordmark,
+  .shell-account-name,
+  .shell-switch {
+    display: none;
+  }
+
+  /* The tabs take their own row, scrolling sideways if they don't fit. */
+  .shell-tabs {
+    order: 10;
+    flex: 1 0 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .shell-tabs > nav {
+    flex-wrap: nowrap;
+  }
+
+  /* Burrow has its own bottom bar on a phone. */
+  :root[data-area='burrow'] .shell-tabs {
+    display: none;
+  }
+}

@@ -62,6 +62,19 @@
   --rb-rarebit-link: #9a5b2b;
   --rb-rarebit-tint: #f9e9c8;
 
+  /* The shared header (src/shell). The same in light and dark mode, so an
+     area always looks like itself: cream text on Warren green (7.6:1), on
+     clay (4.8:1) and on ink (13.9:1); the active tab is a cream pill with
+     the area's dark colour (7.6:1 green, 7.1:1 #8e3f1f). */
+  --rb-header-warren: #2e5a4c;
+  --rb-header-burrow: #b4532a;
+  --rb-header-rarebit: #2a1f17;
+  --rb-on-header: #fffbf2;
+  --rb-header-tab: #fffbf2;
+  --rb-header-tab-warren: #2e5a4c;
+  --rb-header-tab-burrow: #8e3f1f;
+  --rb-header-tab-rarebit: #2a1f17;
+
   /* ------------------------------------------------ status colours */
   --status-done-bg: #ddf0df;
   --status-done-text: #1d5b2b;
@@ -81,8 +94,10 @@
   --status-on-solid: #fffbf2;
 }
 
+/* Dark mode. The landing page (data-area="rarebit") is a light-only
+   design, so it keeps the light values. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-area='rarebit']) {
     --rb-page: #1f1812;
     --rb-card: #2a2119;
     --rb-ink: #f6eedc;
@@ -141,6 +156,8 @@
   --area-on-accent: var(--rb-on-warren);
   --area-link: var(--rb-warren-link);
   --area-tint: var(--rb-warren-tint);
+  --area-header: var(--rb-header-warren);
+  --area-header-tab-text: var(--rb-header-tab-warren);
 }
 
 :root[data-area='burrow'] {
@@ -149,18 +166,29 @@
   --area-on-accent: var(--rb-on-burrow);
   --area-link: var(--rb-burrow-link);
   --area-tint: var(--rb-burrow-tint);
+  --area-header: var(--rb-header-burrow);
+  --area-header-tab-text: var(--rb-header-tab-burrow);
 }
 
 :root[data-area='rarebit'] {
+  color-scheme: light;
   --area-accent: var(--rb-rarebit);
   --area-accent-hover: var(--rb-rarebit-hover);
   --area-on-accent: var(--rb-on-rarebit);
   --area-link: var(--rb-rarebit-link);
   --area-tint: var(--rb-rarebit-tint);
+  --area-header: var(--rb-header-rarebit);
+  --area-header-tab-text: var(--rb-header-tab-rarebit);
 }
 
 /* ------------------------------------------------ what the shared components read */
 :root {
+  /* The Skills England footer, shown under Warren and Burrow. */
+  --footer-background: var(--rb-page);
+  --footer-border: var(--rb-rule);
+  --footer-text: var(--rb-muted);
+  --footer-link: var(--area-link);
+
   --ui-font-heading: var(--rb-font-heading);
   --ui-font-body: var(--rb-font-body);
 

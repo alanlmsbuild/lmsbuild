@@ -35,16 +35,6 @@
   --sans: var(--rb-font-body);
   --heading: var(--rb-font-heading);
 
-  /* The Warren wordmark in the header. */
-  --warren-green: var(--rb-warren);
-  --cheddar: var(--rb-cheddar);
-  --ink: var(--rb-ink);
-  --crumb: var(--rb-crumb);
-  --brand-display: var(--rb-font-heading);
-  --brand-sans: var(--rb-font-body);
-  --brand-wordmark: var(--rb-ink);
-  --brand-byline: var(--area-link);
-
   font: 16px/1.5 var(--sans);
   color-scheme: light dark;
   color: var(--text);

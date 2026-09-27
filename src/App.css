@@ -1,56 +1,12 @@
-.app-header {
+/* Warren's styles. Everything is nested under .warren (the element App.jsx
+   renders), because Warren and Burrow now share one page: without it,
+   element rules like table and fieldset would reach into Burrow. The
+   header is the shared one (src/shell). */
+
+.warren {
+  flex: 1;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-
-/* Warren logo: the mark, then the wordmark with "by rarebit" beneath. */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand-mark {
-  width: 44px;
-  height: 44px;
-  flex: none;
-}
-
-.app-header .brand-name {
-  margin: 0;
-  font-family: var(--brand-display);
-  font-weight: 600;
-  font-size: 28px;
-  line-height: 1;
-  letter-spacing: normal;
-  color: var(--brand-wordmark);
-}
-
-.brand-byline {
-  margin: 3px 0 0;
-  font-family: var(--brand-sans);
-  font-size: 12px;
-  line-height: 1.2;
-  color: var(--brand-byline);
-}
-
-.app-tabs {
-  display: flex;
-  gap: 4px;
-}
-
-/* The tabs sit at the right, before the development-only test user pill. */
-.app-header .app-tabs {
-  margin-left: auto;
-}
-
-.app-tabs .tab,
+  flex-direction: column;
 .report-tabs .tab {
   font: inherit;
   font-size: 14px;
@@ -63,12 +19,10 @@
   cursor: pointer;
 }
 
-.app-tabs .tab:hover,
 .report-tabs .tab:hover {
   color: var(--text-h);
 }
 
-.app-tabs .tab.active,
 .report-tabs .tab.active {
   background: var(--accent-bg);
   border-color: var(--accent-border);
@@ -790,10 +744,6 @@ form button.secondary {
 }
 
 @media (max-width: 640px) {
-  .app-header {
-    padding: 14px 16px;
-  }
-
   #learners,
   #dashboard,
   #officers,
@@ -818,4 +768,5 @@ form button.secondary {
     margin-left: 0;
     margin-top: 8px;
   }
+}
 }

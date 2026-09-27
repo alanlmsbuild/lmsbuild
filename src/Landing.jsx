@@ -1,4 +1,6 @@
+import { createPortal } from 'react-dom'
 import './Landing.css'
+import { useShell } from './shell/navigation'
 import RarebitMark from './logos/RarebitMark'
 import WarrenMark from './logos/WarrenMark'
 import BurrowMark from './logos/BurrowMark'
@@ -18,26 +20,27 @@ function ProductPoint({ children }) {
 }
 
 function Landing() {
+  // The shared header (src/shell) shows the Rarebit mark and "Sign in";
+  // the page's section links go in its tab slot.
+  const { tabSlot } = useShell()
   return (
     <div className="landing">
       <div id="top" className="landing-page">
-        <header className="landing-header">
-          <a href="#top" aria-label="Rarebit home" className="landing-logo">
-            <RarebitMark size={52} />
-            <span className="landing-wordmark">rarebit</span>
-          </a>
-          <nav aria-label="Main" className="landing-nav">
-            <a href="#products">Products</a>
-            <a href="#who">Who it’s for</a>
-            <a href="#why">Why Rarebit</a>
-            <a href="/app" className="landing-pill landing-pill-outline">
-              Open Warren
-            </a>
-            <a href="#contact" className="landing-pill landing-pill-ink">
-              Book a demo
-            </a>
-          </nav>
-        </header>
+        {tabSlot &&
+          createPortal(
+            <nav aria-label="Main">
+              <a href="#products" className="shell-tab">
+                Products
+              </a>
+              <a href="#who" className="shell-tab">
+                Who it’s for
+              </a>
+              <a href="#why" className="shell-tab">
+                Why Rarebit
+              </a>
+            </nav>,
+            tabSlot,
+          )}
 
         <section className="landing-hero">
           <div className="landing-hero-text">

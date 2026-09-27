@@ -121,9 +121,12 @@ export const VISIBLE_OFFICER = `(
 // ---------------------------------------------------------------- the signed-in user
 
 const USER_QUERY = `
-  select USERID, ORGANISATIONID, DISPLAYNAME, EMAIL, OFFICERREFNUMBER, LEARNREFNUMBER, EMPLOYERID, ISACTIVE, ISTESTDATA
-  from ACCESS.APP_USER
-  where USERID = ?
+  select u.USERID, u.ORGANISATIONID, o.NAME as ORGANISATIONNAME, u.DISPLAYNAME, u.EMAIL, u.OFFICERREFNUMBER,
+    u.LEARNREFNUMBER, u.EMPLOYERID, u.ISACTIVE, u.ISTESTDATA
+  from ACCESS.APP_USER u
+  left join ACCESS.ORGANISATION o
+    on o.ORGANISATIONID = u.ORGANISATIONID
+  where u.USERID = ?
 `
 
 // A role counts only while it hasn't been revoked.

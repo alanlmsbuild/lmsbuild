@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import './burrow.css'
-import BurrowArch from '../logos/BurrowArch'
-import SkillsEnglandFooter from '../SkillsEnglandFooter'
 import Portfolio from './Portfolio'
 import AddEvidence from './AddEvidence'
 import EmployerHome from './EmployerHome'
-import DevUserSwitcher from '../DevUserSwitcher'
+import { useShell } from '../shell/navigation'
 
 // Burrow, the learner e-portfolio, at /burrow:
 //   /burrow           My portfolio
 //   /burrow/add       Add evidence (?evidence=<id> to carry on with a draft)
 //   /burrow/feedback  My portfolio, at "Feedback for you"
 //   /burrow/apprentices  An employer's apprentices and witness statements
-// Moving between them updates the address without reloading, and the
-// browser's back button works. On a phone the same screens reshape, with
-// the nav as a bottom bar.
+// It lives in the one-app shell (src/shell), which owns the address and
+// the header: moving between pages (and to Warren) doesn't reload, and the
+// browser's back button works. Burrow's tabs go in the shared header. On a
+// phone the same screens reshape, with the tabs as a bottom bar.
 //
 // What each user gets, from their roles (/api/me), added together:
 //   Learner   their own portfolio, and adds and changes their evidence
@@ -26,8 +26,8 @@ import DevUserSwitcher from '../DevUserSwitcher'
 // Everyone who works for the provider, as STAFF in server/access.js.
 const STAFF_ROLES = ['MANAGER', 'TUTOR', 'ASSESSOR', 'IQA']
 
-function currentLocation() {
-  const { pathname, search } = window.location
+function parseLocation(path) {
+  const [pathname, search = ''] = path.split('?')
   const params = new URLSearchParams(search)
   if (pathname.startsWith('/burrow/add')) return { page: 'add', evidenceId: params.get('evidence') }
   if (pathname.startsWith('/burrow/feedback')) return { page: 'feedback' }
@@ -41,10 +41,6 @@ function pageFor(asked, { isLearner, isEmployer, canReadPortfolios }) {
   if (asked === 'apprentices') return isEmployer ? 'apprentices' : 'portfolio'
   if (asked === 'add' && !isLearner) return 'portfolio'
   return asked
-}
-
-function initials(learner) {
-  return `${learner?.GIVENNAMES?.[0] ?? ''}${learner?.FAMILYNAME?.[0] ?? ''}`.toUpperCase() || '?'
 }
 
 function fullName(learner) {
@@ -70,11 +66,10 @@ function NavLink({ to, active, navigate, className, children }) {
 }
 
 function BurrowApp() {
-  const [location, setLocation] = useState(currentLocation)
+  const { path, navigate, me, meError, tabSlot } = useShell()
+  const location = parseLocation(path)
   const [learners, setLearners] = useState([])
   const [learnersStatus, setLearnersStatus] = useState('loading') // 'loading' | 'ready' | 'error'
-  const [me, setMe] = useState(null)
-  const [meError, setMeError] = useState(null)
   const [viewingAs, setViewingAs] = useState(null)
   const roles = me?.roles ?? []
   const isLearner = roles.includes('LEARNER')
@@ -86,34 +81,10 @@ function BurrowApp() {
   const [error, setError] = useState(null)
   const [flash, setFlash] = useState(null)
 
+  // Only learners and staff read portfolios; employers never get the list.
   useEffect(() => {
-    function handlePopState() {
-      setLocation(currentLocation())
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
-
-  const navigate = useCallback((to) => {
-    if (`${window.location.pathname}${window.location.search}` !== to) window.history.pushState(null, '', to)
-    setLocation(currentLocation())
-    window.scrollTo(0, 0)
-  }, [])
-
-  useEffect(() => {
+    if (!canReadPortfolios) return
     async function load() {
-      let meData
-      try {
-        const meRes = await fetch('/api/me')
-        meData = await meRes.json()
-        if (!meRes.ok) throw new Error(meData.error || `Server responded with ${meRes.status}`)
-        setMe(meData)
-      } catch (err) {
-        setMeError(err.message)
-        return
-      }
-      // Only learners and staff read portfolios; employers never get the list.
-      if (!meData.roles.includes('LEARNER') && !meData.roles.some((r) => STAFF_ROLES.includes(r))) return
       try {
         const res = await fetch('/api/burrow/learners')
         if (!res.ok) throw new Error(`Server responded with ${res.status}`)
@@ -125,7 +96,7 @@ function BurrowApp() {
       }
     }
     load()
-  }, [])
+  }, [canReadPortfolios])
 
   // A learner opens their own portfolio; anyone else starts at the first.
   useEffect(() => {
@@ -164,44 +135,43 @@ function BurrowApp() {
     navigate('/burrow')
   }
 
-  const learner = portfolio?.learner ?? learners.find((l) => l.LEARNREFNUMBER === viewingAs)
   const feedbackCount = (portfolio?.evidence ?? []).filter((e) => e.STATUS === 'changes_requested').length
   const page = me ? pageFor(location.page, { isLearner, isEmployer, canReadPortfolios }) : null
   const onPortfolio = page === 'portfolio' || page === 'feedback'
 
   return (
     <div className="burrow">
-      <header className="burrow-header">
-        <div className="burrow-header-left">
-          <NavLink navigate={navigate} to="/burrow" className="burrow-logo" active={false}>
-            <BurrowArch size={36} />
-            <span>Burrow</span>
-          </NavLink>
-          <nav aria-label="Burrow" className="burrow-nav">
+      {tabSlot &&
+        createPortal(
+          <nav aria-label="Burrow">
             {canReadPortfolios && (
-              <NavLink navigate={navigate} to="/burrow" className="burrow-pill" active={page === 'portfolio'}>
+              <NavLink navigate={navigate} to="/burrow" className="shell-tab" active={page === 'portfolio'}>
                 {isLearner ? 'My portfolio' : 'Portfolio'}
               </NavLink>
             )}
             {isLearner && (
-              <NavLink navigate={navigate} to="/burrow/add" className="burrow-pill" active={page === 'add'}>
+              <NavLink navigate={navigate} to="/burrow/add" className="shell-tab" active={page === 'add'}>
                 Add evidence
               </NavLink>
             )}
             {canReadPortfolios && (
-              <NavLink navigate={navigate} to="/burrow/feedback" className="burrow-pill" active={page === 'feedback'}>
+              <NavLink navigate={navigate} to="/burrow/feedback" className="shell-tab" active={page === 'feedback'}>
                 Feedback ({feedbackCount})
               </NavLink>
             )}
             {isEmployer && (
-              <NavLink navigate={navigate} to="/burrow/apprentices" className="burrow-pill" active={page === 'apprentices'}>
+              <NavLink navigate={navigate} to="/burrow/apprentices" className="shell-tab" active={page === 'apprentices'}>
                 Apprentices
               </NavLink>
             )}
-          </nav>
-        </div>
-        <div className="burrow-header-right">
-          {me && !isLearner && canReadPortfolios && page !== 'apprentices' && (
+          </nav>,
+          tabSlot,
+        )}
+
+      <div className="burrow-body">
+        {meError && <p role="alert">{meError}</p>}
+        {me && !isLearner && canReadPortfolios && page !== 'apprentices' && (
+          <div className="burrow-toolbar">
             <label className="burrow-viewing-as">
               <span>Portfolio of</span>
               <select
@@ -217,24 +187,8 @@ function BurrowApp() {
                 ))}
               </select>
             </label>
-          )}
-          {!isLearner && isEmployer && page === 'apprentices' && (
-            <span className="burrow-learner-name">{me.DISPLAYNAME}</span>
-          )}
-          {isLearner && learner && (
-            <>
-              <span className="burrow-learner-name">{fullName(learner)}</span>
-              <span className="burrow-avatar" aria-hidden="true">
-                {initials(learner)}
-              </span>
-            </>
-          )}
-          <DevUserSwitcher />
-        </div>
-      </header>
-
-      <div className="burrow-body">
-        {meError && <p role="alert">{meError}</p>}
+          </div>
+        )}
         {me && !canReadPortfolios && !isEmployer && (
           <p className="burrow-muted">There&apos;s nothing in Burrow for your account yet.</p>
         )}
@@ -271,8 +225,6 @@ function BurrowApp() {
           />
         )}
       </div>
-
-      <SkillsEnglandFooter />
 
       {/* The nav on a phone: a bottom bar, as in the phone design. */}
       <nav aria-label="Burrow" className="burrow-bottom-nav">

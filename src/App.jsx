@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import './App.css'
 import AddLearnerForm from './AddLearnerForm'
 import EditLearnerForm from './EditLearnerForm'
@@ -6,13 +7,11 @@ import MarkCompletedForm from './MarkCompletedForm'
 import WithdrawAimForm from './WithdrawAimForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
-import warrenMark from './assets/warren-mark.svg'
 import LearnerDetail from './LearnerDetail'
 import Reports from './Reports'
 import MyDay from './MyDay'
 import IqaSignOffs from './IqaSignOffs'
-import DevUserSwitcher from './DevUserSwitcher'
-import SkillsEnglandFooter from './SkillsEnglandFooter'
+import { useShell } from './shell/navigation'
 import { Card, Notice } from './ui/components'
 import { standardLabel } from './lookups'
 import CompletionStatus from './CompletionStatus'
@@ -50,8 +49,8 @@ function App() {
   //                      apart from recording progress reviews
   //   IQA                Sign-offs to check, and every learner, read only
   //   Learner, Employer  nothing here: Warren is for staff, they use Burrow
-  const [me, setMe] = useState(null)
-  const [meError, setMeError] = useState(null)
+  // The shell loads the signed-in user, and holds the header's tab slot.
+  const { me, meError, tabSlot } = useShell()
   const roles = me?.roles ?? []
   const isManager = roles.includes('MANAGER')
   const hasCaseload = roles.some((r) => ['MANAGER', 'TUTOR', 'ASSESSOR'].includes(r))
@@ -93,20 +92,6 @@ function App() {
   useEffect(() => {
     if (isStaff) loadLearners()
   }, [isStaff, loadLearners])
-
-  useEffect(() => {
-    async function loadMe() {
-      try {
-        const res = await fetch('/api/me')
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || `Server responded with ${res.status}`)
-        setMe(data)
-      } catch (err) {
-        setMeError(err.message)
-      }
-    }
-    loadMe()
-  }, [])
 
   // Only the add and edit forms use standards, and only managers get those.
   useEffect(() => {
@@ -157,32 +142,25 @@ function App() {
   })
 
   return (
-    <>
-      <header className="app-header">
-        <div className="brand">
-          <img src={warrenMark} alt="" className="brand-mark" />
-          <div>
-            <h1 className="brand-name">Warren</h1>
-            <p className="brand-byline">by rarebit</p>
-          </div>
-        </div>
-        {isStaff && (
-          <nav className="app-tabs" aria-label="Views">
+    <div className="warren">
+      {isStaff &&
+        tabSlot &&
+        createPortal(
+          <nav aria-label="Warren">
             {TABS.filter((t) => t.shows({ isManager, hasCaseload, isIqa })).map((t) => (
               <button
                 key={t.view}
                 type="button"
-                className={view === t.view ? 'tab active' : 'tab'}
+                className={view === t.view ? 'shell-tab is-active' : 'shell-tab'}
                 aria-current={view === t.view ? 'page' : undefined}
                 onClick={() => setView(t.view)}
               >
                 {t.label}
               </button>
             ))}
-          </nav>
+          </nav>,
+          tabSlot,
         )}
-        <DevUserSwitcher />
-      </header>
 
       <main className="app-main">
       {meError && (
@@ -389,9 +367,7 @@ function App() {
         />
       )}
       </main>
-
-      <SkillsEnglandFooter />
-    </>
+    </div>
   )
 }
 
