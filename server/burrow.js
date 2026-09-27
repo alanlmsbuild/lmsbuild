@@ -4,6 +4,12 @@
 // (loaded by scripts/import-ksbs.js); until that has data, every screen says
 // the KSBs aren't loaded yet and nothing is made up. Evidence is never
 // deleted: taking a file or a KSB off a draft marks the row instead.
+//
+// Who can do what (see access.js for which learners each user can see):
+//   the learner list   everyone, showing only the learners they can see
+//   reading a portfolio, its evidence and files   the learner and staff
+//   changing evidence  only the learner, on their own portfolio
+// Employers get the list of their apprentices only, for now.
 
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -14,7 +20,7 @@ import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import busboy from 'busboy'
 import { execute } from './db.js'
-import { IN_ORG_LEARNERS, ORG_LEARNER } from './access.js'
+import { allow, EMPLOYER, IN_ORG_LEARNERS, LEARNER, STAFF, VISIBLE_LEARNER } from './access.js'
 import { validateEvidenceForm, validateEvidenceSubmission } from '../src/validation.js'
 import {
   EDITABLE_STATUSES,
@@ -59,7 +65,7 @@ const LEARNER_QUERY = `
     s.NAME as STDNAME,
     s.NOTIONAL_END_LEVEL as STDLEVEL,
     ld.COMPSTATUS
-  from ${ORG_LEARNER} l
+  from ${VISIBLE_LEARNER} l
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -76,7 +82,7 @@ const LEARNERS_QUERY = `
     l.FAMILYNAME,
     s.REFERENCE as STDREFERENCE,
     s.NAME as STDNAME
-  from ${ORG_LEARNER} l
+  from ${VISIBLE_LEARNER} l
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -209,7 +215,7 @@ const EVIDENCE_QUERY = `
   from BURROW.EVIDENCE
   where EVIDENCE_ID = ?
     and LEARNREFNUMBER = ?
-    and ${IN_ORG_LEARNERS}
+    and LEARNREFNUMBER in (select LEARNREFNUMBER from ${VISIBLE_LEARNER})
 `
 
 const ACTIVE_CLAIMS_QUERY = `
@@ -232,6 +238,14 @@ async function findEvidence(connection, evidenceId, learnRefNumber) {
   const [evidence] = await execute(connection, EVIDENCE_QUERY, [evidenceId, learnRefNumber])
   if (!evidence) throw new RequestError('Evidence not found.', 404)
   return evidence
+}
+
+// Evidence is changed only by the learner it belongs to. Anyone else who
+// can see the portfolio (their tutor, say) is refused.
+function requireOwnPortfolio(req) {
+  if (!req.user.roles.includes(LEARNER) || req.user.LEARNREFNUMBER !== req.params.learnRefNumber) {
+    throw new RequestError('Only the learner can change their own evidence.', 403)
+  }
 }
 
 function requireEditable(evidence) {
@@ -515,7 +529,7 @@ function contentDisposition(kind, filename) {
 // ---------------------------------------------------------------- routes
 
 export function registerBurrowRoutes(app) {
-  app.get('/api/burrow/learners', async (req, res) => {
+  app.get('/api/burrow/learners', allow(LEARNER, EMPLOYER, STAFF), async (req, res) => {
     const connection = req.db
     try {
       res.json(await execute(connection, LEARNERS_QUERY))
@@ -524,7 +538,7 @@ export function registerBurrowRoutes(app) {
     }
   })
 
-  app.get('/api/burrow/learners/:learnRefNumber/portfolio', async (req, res) => {
+  app.get('/api/burrow/learners/:learnRefNumber/portfolio', allow(LEARNER, STAFF), async (req, res) => {
     const connection = req.db
     try {
       const learner = await findLearner(connection, req.params.learnRefNumber)
@@ -540,7 +554,7 @@ export function registerBurrowRoutes(app) {
     }
   })
 
-  app.get('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId', async (req, res) => {
+  app.get('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId', allow(LEARNER, STAFF), async (req, res) => {
     const connection = req.db
     try {
       const evidence = await findEvidence(connection, req.params.evidenceId, req.params.learnRefNumber)
@@ -556,7 +570,7 @@ export function registerBurrowRoutes(app) {
 
   // Creates a draft. Sending for review is a separate step, after any files
   // have uploaded, so nothing half-finished is ever sent.
-  app.post('/api/burrow/learners/:learnRefNumber/evidence', async (req, res) => {
+  app.post('/api/burrow/learners/:learnRefNumber/evidence', allow(LEARNER), async (req, res) => {
     const fields = formFields(req.body)
     const fieldErrors = validateEvidenceForm(fields)
     if (Object.keys(fieldErrors).length > 0) {
@@ -565,6 +579,7 @@ export function registerBurrowRoutes(app) {
     }
     const connection = req.db
     try {
+      requireOwnPortfolio(req)
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const standard = await standardKsbs(connection, learner.STDREFERENCE)
       checkKsbs(fields.ksbs, standard)
@@ -589,7 +604,7 @@ export function registerBurrowRoutes(app) {
     }
   })
 
-  app.put('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId', async (req, res) => {
+  app.put('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId', allow(LEARNER), async (req, res) => {
     const fields = formFields(req.body)
     const fieldErrors = validateEvidenceForm(fields)
     if (Object.keys(fieldErrors).length > 0) {
@@ -598,6 +613,7 @@ export function registerBurrowRoutes(app) {
     }
     const connection = req.db
     try {
+      requireOwnPortfolio(req)
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const evidence = await findEvidence(connection, req.params.evidenceId, learner.LEARNREFNUMBER)
       requireEditable(evidence)
@@ -624,9 +640,10 @@ export function registerBurrowRoutes(app) {
 
   // Sends a draft (or evidence sent back for changes) for review, checking
   // what's actually saved rather than anything the browser says.
-  app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/submit', async (req, res) => {
+  app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/submit', allow(LEARNER), async (req, res) => {
     const connection = req.db
     try {
+      requireOwnPortfolio(req)
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const evidence = await findEvidence(connection, req.params.evidenceId, learner.LEARNREFNUMBER)
       requireEditable(evidence)
@@ -664,10 +681,11 @@ export function registerBurrowRoutes(app) {
 
   // One file per request. The evidence is checked first, so nothing is read
   // for evidence that can't take it. The temporary folder is always removed.
-  app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/files', async (req, res) => {
+  app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/files', allow(LEARNER), async (req, res) => {
     const connection = req.db
     let tmpDir
     try {
+      requireOwnPortfolio(req)
       const evidence = await findEvidence(connection, req.params.evidenceId, req.params.learnRefNumber)
       requireEditable(evidence)
       const files = await execute(connection, ACTIVE_FILES_QUERY, [evidence.EVIDENCE_ID])
@@ -715,9 +733,10 @@ export function registerBurrowRoutes(app) {
   })
 
   // Takes a file off a draft. The row and the stored file are both kept.
-  app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/files/:fileId/remove', async (req, res) => {
+  app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/files/:fileId/remove', allow(LEARNER), async (req, res) => {
     const connection = req.db
     try {
+      requireOwnPortfolio(req)
       const evidence = await findEvidence(connection, req.params.evidenceId, req.params.learnRefNumber)
       requireEditable(evidence)
       await execute(
@@ -735,7 +754,7 @@ export function registerBurrowRoutes(app) {
 
   // Streams a file from the stage through the server. ?download=1 saves it
   // instead of showing it in the browser.
-  app.get('/api/burrow/learners/:learnRefNumber/files/:fileId', async (req, res) => {
+  app.get('/api/burrow/learners/:learnRefNumber/files/:fileId', allow(LEARNER, STAFF), async (req, res) => {
     const connection = req.db
     let tmpDir
     try {
@@ -744,7 +763,7 @@ export function registerBurrowRoutes(app) {
         `select f.STAGE_PATH, f.ORIGINAL_FILENAME, f.CONTENT_TYPE
          from BURROW.EVIDENCE_FILE f
          join BURROW.EVIDENCE e on e.EVIDENCE_ID = f.EVIDENCE_ID
-         join ${ORG_LEARNER} l on l.LEARNREFNUMBER = e.LEARNREFNUMBER
+         join ${VISIBLE_LEARNER} l on l.LEARNREFNUMBER = e.LEARNREFNUMBER
          where f.FILE_ID = ? and e.LEARNREFNUMBER = ?`,
         [req.params.fileId, req.params.learnRefNumber],
       )

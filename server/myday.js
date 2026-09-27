@@ -3,7 +3,7 @@
 
 import crypto from 'node:crypto'
 import { execute } from './db.js'
-import { ORG_LEARNER, ORG_OFFICER, ORG_OFFICER_ASSIGNMENT } from './access.js'
+import { allow, ASSESSOR, MANAGER, ORG_LEARNER, ORG_OFFICER_ASSIGNMENT, TUTOR, VISIBLE_LEARNER, VISIBLE_OFFICER } from './access.js'
 import { todayString, validateProgressReviewForm } from '../src/validation.js'
 import { QAR_AIMS, DEFAULT_QAR_YEAR } from './reports.js'
 
@@ -172,15 +172,18 @@ export const MY_QAR_QUERY = `
     and LEARNREFNUMBER in (select LEARNREFNUMBER from ${ORG_OFFICER_ASSIGNMENT} where OFFICERREFNUMBER = :3 and ENDEDAT is null)
 `
 
+// A tutor or assessor finds only themselves here, so they can open only
+// their own My day and record reviews only as themselves. Managers find
+// any officer in the organisation.
 const OFFICER_QUERY = `
   select OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE
-  from ${ORG_OFFICER}
+  from ${VISIBLE_OFFICER}
   where OFFICERREFNUMBER = ?
 `
 
 const LEARNER_START_QUERY = `
   select l.LEARNREFNUMBER, ld.LEARNSTARTDATE
-  from ${ORG_LEARNER} l
+  from ${VISIBLE_LEARNER} l
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -200,7 +203,7 @@ function toIsoDateString(value) {
 }
 
 export function registerMyDayRoutes(app) {
-  app.get('/api/myday/:officerRefNumber', async (req, res) => {
+  app.get('/api/myday/:officerRefNumber', allow(MANAGER, TUTOR, ASSESSOR), async (req, res) => {
     const { officerRefNumber } = req.params
     const connection = req.db
     try {
@@ -236,7 +239,7 @@ export function registerMyDayRoutes(app) {
 
   // Reviews can be added (and, later, corrected) but never deleted - the
   // app's role has no DELETE on PROGRESS_REVIEW.
-  app.post('/api/learners/:learnRefNumber/progress-reviews', async (req, res) => {
+  app.post('/api/learners/:learnRefNumber/progress-reviews', allow(MANAGER, TUTOR, ASSESSOR), async (req, res) => {
     const { learnRefNumber } = req.params
     const fieldErrors = validateProgressReviewForm(req.body)
     const v = req.body ?? {}

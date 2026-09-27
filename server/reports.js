@@ -1,8 +1,12 @@
 // Report endpoints for the Reports tab. Every figure is worked out here in
 // Snowflake SQL; the browser only displays what comes back.
+//
+// Managers get the whole organisation. A tutor or assessor gets only their
+// own caseload: the QAR counts only learners they can see, and the caseload
+// report shows only their own row.
 
 import { execute } from './db.js'
-import { ORG_LEARNER, ORG_OFFICER, ORG_OFFICER_ASSIGNMENT } from './access.js'
+import { allow, ASSESSOR, MANAGER, ORG_OFFICER_ASSIGNMENT, TUTOR, VISIBLE_LEARNER, VISIBLE_OFFICER } from './access.js'
 import { todayString } from '../src/validation.js'
 
 // ---------------------------------------------------------------- QAR (indicative)
@@ -47,7 +51,7 @@ export const QAR_AIMS = `
       -- An overdue continuing aim: still continuing, but past its planned end date.
       coalesce(ld.COMPSTATUS = 1 and ld.LEARNPLANENDDATE < :1::date, false) as IS_OVERDUE
     from LEARNING_DELIVERY ld
-    join ${ORG_LEARNER} l
+    join ${VISIBLE_LEARNER} l
       on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
@@ -161,7 +165,7 @@ export const CASELOAD_QUERY = `
     count_if(ld.COMPSTATUS = 2) as COMPLETED,
     count_if(ld.COMPSTATUS = 3) as WITHDRAWN,
     count_if(ld.COMPSTATUS = 1 and ld.LEARNPLANENDDATE < ?::date) as OVERDUE
-  from ${ORG_OFFICER} o
+  from ${VISIBLE_OFFICER} o
   left join ${ORG_OFFICER_ASSIGNMENT} a
     on a.OFFICERREFNUMBER = o.OFFICERREFNUMBER
    and a.ENDEDAT is null
@@ -187,7 +191,9 @@ export const CASELOAD_LEARNERS_QUERY = `
     ld.COMPSTATUS,
     coalesce(ld.COMPSTATUS = 1 and ld.LEARNPLANENDDATE < ?::date, false) as IS_OVERDUE
   from ${ORG_OFFICER_ASSIGNMENT} a
-  join ${ORG_LEARNER} l
+  join ${VISIBLE_OFFICER} o
+    on o.OFFICERREFNUMBER = a.OFFICERREFNUMBER
+  join ${VISIBLE_LEARNER} l
     on l.LEARNREFNUMBER = a.LEARNREFNUMBER
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
@@ -202,8 +208,10 @@ export const CASELOAD_LEARNERS_QUERY = `
 
 // ---------------------------------------------------------------- routes
 
+const REPORT_ROLES = [MANAGER, TUTOR, ASSESSOR]
+
 export function registerReportRoutes(app) {
-  app.get('/api/reports/qar', async (req, res) => {
+  app.get('/api/reports/qar', allow(REPORT_ROLES), async (req, res) => {
     const year = req.query.year === undefined ? DEFAULT_QAR_YEAR : Number(req.query.year)
     if (!Number.isInteger(year) || year < 2000 || year > 2100) {
       res.status(400).json({ error: 'year must be the starting year of an academic year, e.g. 2025.' })
@@ -233,7 +241,7 @@ export function registerReportRoutes(app) {
     }
   })
 
-  app.get('/api/reports/caseload', async (req, res) => {
+  app.get('/api/reports/caseload', allow(REPORT_ROLES), async (req, res) => {
     const connection = req.db
     try {
       const rows = await execute(connection, CASELOAD_QUERY, [todayString()])
@@ -244,7 +252,7 @@ export function registerReportRoutes(app) {
     }
   })
 
-  app.get('/api/reports/caseload/:officerRefNumber/learners', async (req, res) => {
+  app.get('/api/reports/caseload/:officerRefNumber/learners', allow(REPORT_ROLES), async (req, res) => {
     const connection = req.db
     try {
       const rows = await execute(connection, CASELOAD_LEARNERS_QUERY, [todayString(), req.params.officerRefNumber])

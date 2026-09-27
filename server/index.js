@@ -5,12 +5,20 @@ import express from 'express'
 import cors from 'cors'
 import { execute } from './db.js'
 import {
+  allow,
+  ASSESSOR,
   attachUser,
+  CURRENT_ISTESTDATA,
   CURRENT_ORGANISATIONID,
   IN_ORG_LEARNERS,
+  MANAGER,
   ORG_LEARNER,
   ORG_OFFICER,
   ORG_OFFICER_ASSIGNMENT,
+  STAFF,
+  TUTOR,
+  VISIBLE_LEARNER,
+  VISIBLE_OFFICER,
 } from './access.js'
 import {
   validateLearnerForm,
@@ -34,7 +42,8 @@ app.use(cors())
 app.use(express.json())
 
 // Every API request is made as the signed-in user, and only sees their
-// organisation's data (see access.js).
+// organisation's data (see access.js). Each route then says which roles may
+// use it with allow(...). Only managers change ILR records and caseloads.
 app.use('/api', attachUser)
 
 // Selects every column the browser needs both to list learners and to
@@ -83,7 +92,7 @@ const LEARNERS_QUERY = `
     ld.OUTCOME,
     ld.ACHDATE,
     ld.WITHDRAWREASON
-  from ${ORG_LEARNER} l
+  from ${VISIBLE_LEARNER} l
   join LEARNING_DELIVERY ld
     on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
   left join LARS.STANDARD s
@@ -91,7 +100,7 @@ const LEARNERS_QUERY = `
   order by l.LEARNREFNUMBER
 `
 
-app.get('/api/learners', async (req, res) => {
+app.get('/api/learners', allow(STAFF), async (req, res) => {
   const connection = req.db
   try {
     const rows = await execute(connection, LEARNERS_QUERY)
@@ -133,7 +142,7 @@ const STANDARD_BY_CODE_QUERY = `
   where STANDARD_CODE = ?
 `
 
-app.get('/api/standards', async (req, res) => {
+app.get('/api/standards', allow(STAFF), async (req, res) => {
   const connection = req.db
   try {
     const today = todayString()
@@ -245,8 +254,8 @@ const INSERT_LEARNER = `
     ETHNICITY, SEX, LLDDHEALTHPROB, NINUMBER, POSTCODEPRIOR, POSTCODE, TELNO, EMAIL,
     TITLE, ADDRESSLINE1, ADDRESSLINE2, ADDRESSLINE3, WARDORCOUNTY, MOBILENO,
     CONTACTMETHODSALLOWED, PREFERREDCONTACTMETHOD,
-    NEXTOFKINNAME, NEXTOFKINRELATIONSHIP, NEXTOFKINPHONE, CONTRACTTYPE, ORGANISATIONID
-  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${CURRENT_ORGANISATIONID})
+    NEXTOFKINNAME, NEXTOFKINRELATIONSHIP, NEXTOFKINPHONE, CONTRACTTYPE, ORGANISATIONID, ISTESTDATA
+  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${CURRENT_ORGANISATIONID}, ${CURRENT_ISTESTDATA})
 `
 
 // The aim fields fixed by the milestone spec (LEARNAIMREF, AIMTYPE,
@@ -255,11 +264,11 @@ const INSERT_LEARNER = `
 const INSERT_LEARNING_DELIVERY = `
   insert into LEARNING_DELIVERY (
     LEARNREFNUMBER, LEARNAIMREF, AIMTYPE, AIMSEQNUMBER, LEARNSTARTDATE, LEARNPLANENDDATE,
-    FUNDMODEL, PROGTYPE, STDCODE, DELLOCPOSTCODE, COMPSTATUS
-  ) values (?, 'ZPROG001', 1, 1, ?, ?, 36, 25, ?, ?, 1)
+    FUNDMODEL, PROGTYPE, STDCODE, DELLOCPOSTCODE, COMPSTATUS, ISTESTDATA
+  ) values (?, 'ZPROG001', 1, 1, ?, ?, 36, 25, ?, ?, 1, ${CURRENT_ISTESTDATA})
 `
 
-app.post('/api/learners', async (req, res) => {
+app.post('/api/learners', allow(MANAGER), async (req, res) => {
   const fieldErrors = validateLearnerForm(req.body)
   if (Object.keys(fieldErrors).length > 0) {
     return res.status(400).json({
@@ -364,7 +373,7 @@ const UPDATE_LEARNING_DELIVERY = `
   where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
 `
 
-app.put('/api/learners/:learnRefNumber', async (req, res) => {
+app.put('/api/learners/:learnRefNumber', allow(MANAGER), async (req, res) => {
   const { learnRefNumber } = req.params
   const connection = req.db
   try {
@@ -472,7 +481,7 @@ const COMPLETE_AIM = `
   where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
 `
 
-app.put('/api/learners/:learnRefNumber/complete', async (req, res) => {
+app.put('/api/learners/:learnRefNumber/complete', allow(MANAGER), async (req, res) => {
   const { learnRefNumber } = req.params
   const connection = req.db
   try {
@@ -528,7 +537,7 @@ const WITHDRAW_AIM = `
   where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
 `
 
-app.put('/api/learners/:learnRefNumber/withdraw', async (req, res) => {
+app.put('/api/learners/:learnRefNumber/withdraw', allow(MANAGER), async (req, res) => {
   const { learnRefNumber } = req.params
   const connection = req.db
   try {
@@ -580,7 +589,7 @@ const OFFICERS_QUERY = `
   order by OFFICERNAME
 `
 
-app.get('/api/officers', async (req, res) => {
+app.get('/api/officers', allow(MANAGER), async (req, res) => {
   const connection = req.db
   try {
     const rows = await execute(connection, OFFICERS_QUERY)
@@ -611,11 +620,11 @@ async function nextOfficerRefNumber(connection) {
 }
 
 const INSERT_OFFICER = `
-  insert into OFFICER (OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE, EMAIL, TELNO, ORGANISATIONID)
-  values (?, ?, ?, ?, ?, ${CURRENT_ORGANISATIONID})
+  insert into OFFICER (OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE, EMAIL, TELNO, ORGANISATIONID, ISTESTDATA)
+  values (?, ?, ?, ?, ?, ${CURRENT_ORGANISATIONID}, ${CURRENT_ISTESTDATA})
 `
 
-app.post('/api/officers', async (req, res) => {
+app.post('/api/officers', allow(MANAGER), async (req, res) => {
   const fieldErrors = validateOfficerForm(req.body)
   if (Object.keys(fieldErrors).length > 0) {
     return res.status(400).json({
@@ -649,8 +658,11 @@ app.post('/api/officers', async (req, res) => {
 // spell, with the officer's role for that learner (TUTOR or ASSESSOR). An
 // assignment is current while ENDEDAT is empty. Assignments are ended, never
 // deleted, so caseload history is kept.
-const LEARNER_EXISTS_QUERY = `select LEARNREFNUMBER from ${ORG_LEARNER} where LEARNREFNUMBER = ?`
-const OFFICER_TYPE_QUERY = `select OFFICERTYPE from ${ORG_OFFICER} where OFFICERREFNUMBER = ?`
+//
+// A tutor or assessor can look up only the learners on their caseload and
+// their own officer record; anything else gives "not found".
+const LEARNER_EXISTS_QUERY = `select LEARNREFNUMBER from ${VISIBLE_LEARNER} where LEARNREFNUMBER = ?`
+const OFFICER_TYPE_QUERY = `select OFFICERTYPE from ${VISIBLE_OFFICER} where OFFICERREFNUMBER = ?`
 
 const LEARNER_OFFICERS_QUERY = `
   select o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE, o.EMAIL, o.TELNO,
@@ -662,7 +674,7 @@ const LEARNER_OFFICERS_QUERY = `
   order by decode(a.ASSIGNMENTROLE, 'TUTOR', 1, 'ASSESSOR', 2, 3), o.OFFICERNAME
 `
 
-app.get('/api/learners/:learnRefNumber/officers', async (req, res) => {
+app.get('/api/learners/:learnRefNumber/officers', allow(STAFF), async (req, res) => {
   const { learnRefNumber } = req.params
   const connection = req.db
   try {
@@ -691,7 +703,7 @@ const OFFICER_LEARNERS_QUERY = `
   order by LEARNREFNUMBER
 `
 
-app.get('/api/officers/:officerRefNumber/learners', async (req, res) => {
+app.get('/api/officers/:officerRefNumber/learners', allow(MANAGER, TUTOR, ASSESSOR), async (req, res) => {
   const { officerRefNumber } = req.params
   const connection = req.db
   try {
@@ -726,15 +738,15 @@ const END_ASSIGNMENT = `
     and ASSIGNMENTID in (select ASSIGNMENTID from ${ORG_OFFICER_ASSIGNMENT})
 `
 const INSERT_ASSIGNMENT = `
-  insert into OFFICER_ASSIGNMENT (LEARNREFNUMBER, OFFICERREFNUMBER, ASSIGNMENTROLE, STARTEDBY)
-  values (?, ?, ?, ?)
+  insert into OFFICER_ASSIGNMENT (LEARNREFNUMBER, OFFICERREFNUMBER, ASSIGNMENTROLE, STARTEDBY, ISTESTDATA)
+  values (?, ?, ?, ?, ${CURRENT_ISTESTDATA})
 `
 
 // Makes the officer the learner's tutor or assessor. Each learner has
 // exactly one current tutor and one current assessor, so any current
 // assignment in that role is ended in the same transaction. The role
 // defaults to the officer's type, and must match it.
-app.post('/api/learners/:learnRefNumber/officers', async (req, res) => {
+app.post('/api/learners/:learnRefNumber/officers', allow(MANAGER), async (req, res) => {
   const { learnRefNumber } = req.params
   const officerRefNumber = req.body?.officerRefNumber
   if (!officerRefNumber) {
