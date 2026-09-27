@@ -14,6 +14,7 @@
 // the session variables can't carry over from one user to another.
 
 import { connect, execute, destroy } from './db.js'
+import { switchedUserId } from './devUsers.js'
 
 // Only for reading from the ORG_ sources below. Not a table.
 const ORG = '$CURRENT_ORGANISATIONID'
@@ -142,13 +143,15 @@ function sessionValues(user) {
   ]
 }
 
-// There's no sign-in yet: the user is DEV_USER_ID from server/.env.
-function signedInUserId() {
-  return process.env.DEV_USER_ID?.trim() || null
+// There's no sign-in yet. The user is the test user picked in the
+// development-only switcher (devUsers.js), if switching is on, and
+// otherwise DEV_USER_ID from server/.env. Real sign-in replaces this.
+function signedInUserId(req) {
+  return switchedUserId(req) ?? (process.env.DEV_USER_ID?.trim() || null)
 }
 
 export async function attachUser(req, res, next) {
-  const userId = signedInUserId()
+  const userId = signedInUserId(req)
   if (!userId) {
     res.status(401).json({ error: 'Nobody is signed in. Set DEV_USER_ID in server/.env and restart the server.' })
     return
@@ -161,6 +164,11 @@ export async function attachUser(req, res, next) {
     if (!user) {
       await destroy(connection)
       res.status(401).json({ error: `User ${userId} doesn't exist.` })
+      return
+    }
+    if (switchedUserId(req) && !user.ISTESTDATA) {
+      await destroy(connection)
+      res.status(403).json({ error: 'Only test users can be picked in the development switcher.' })
       return
     }
     if (!user.ISACTIVE) {

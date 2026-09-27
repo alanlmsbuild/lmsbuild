@@ -36,13 +36,20 @@ import { registerReportRoutes } from './reports.js'
 import { registerMyDayRoutes } from './myday.js'
 import { registerBurrowRoutes } from './burrow.js'
 import { registerIqaRoutes } from './iqa.js'
+import { refuseDevSwitchingInProduction, registerDevUserRoutes } from './devUsers.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '.env') })
 
+refuseDevSwitchingInProduction()
+
 const app = express()
 app.use(cors())
 app.use(express.json())
+
+// Development only: picking a test user. Registered before attachUser,
+// since it runs before anyone is signed in.
+registerDevUserRoutes(app)
 
 // Every API request is made as the signed-in user, and only sees their
 // organisation's data (see access.js). Each route then says which roles may

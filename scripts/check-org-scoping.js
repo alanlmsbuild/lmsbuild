@@ -9,7 +9,8 @@
 //    or VISIBLE_ source or IN_ORG_LEARNERS, or says "-- all organisations"
 //    to show it's meant to (with a reason nearby).
 // 2. A route that doesn't say which roles may use it: every app.get, post,
-//    put, patch or delete must have allow(...) straight after its path.
+//    put, patch or delete must have allow(...) straight after its path, or
+//    devOnly for the development-only test user switcher.
 // 3. An insert into a table with an ISTESTDATA column that doesn't write
 //    ${CURRENT_ISTESTDATA}, so test users' records are marked as test data.
 //
@@ -26,7 +27,7 @@ const RAW_TABLE =
 const SCOPED = /\$\{(ORG_|VISIBLE_)\w+\}|\$\{IN_ORG_LEARNERS\}|-- all organisations/
 const TEST_DATA_TABLE =
   /\binsert\s+into\s+((ILR\.)?(LEARNER|LEARNING_DELIVERY|OFFICER|OFFICER_ASSIGNMENT|EMPLOYER|LEARNER_EMPLOYER)|ACCESS\.\w+)\b/i
-const ROUTE = /\bapp\.(get|post|put|patch|delete)\(\s*(['`"])[^'`"]*\2\s*,(?!\s*allow\()/g
+const ROUTE = /\bapp\.(get|post|put|patch|delete)\(\s*(['`"])[^'`"]*\2\s*,(?!\s*(allow\(|devOnly\b))/g
 
 let problems = 0
 function report(file, text, index, message) {

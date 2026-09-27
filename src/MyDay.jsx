@@ -4,28 +4,10 @@ import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
 import { labelFromOptions, standardLabel } from './lookups'
 import ProgressReviewForm from './ProgressReviewForm'
 
-// The officer home page. There are no logins yet, so the whole page
-// follows whoever is picked in "I'm viewing as" (remembered in this
-// browser only). Every figure and every task comes from
-// /api/myday/:officerRefNumber, where it's worked out in Snowflake SQL.
-
-const VIEWING_AS_KEY = 'warren.myday.viewingAs'
-
-function readViewingAs() {
-  try {
-    return localStorage.getItem(VIEWING_AS_KEY)
-  } catch {
-    return null
-  }
-}
-
-function saveViewingAs(ref) {
-  try {
-    localStorage.setItem(VIEWING_AS_KEY, ref)
-  } catch {
-    // Not remembering the choice is fine.
-  }
-}
+// The officer home page, for the signed-in officer (`me`, from /api/me).
+// A manager can also pick another officer to see their day. Every figure
+// and every task comes from /api/myday/:officerRefNumber, where it's worked
+// out in Snowflake SQL.
 
 // Dates arrive as 'YYYY-MM-DD'. Treat them as calendar dates, not moments,
 // so they never shift a day with the time zone.
@@ -233,7 +215,9 @@ function TrackerRow({ learner, today, onOpenLearner }) {
   )
 }
 
-function MyDay({ onOpenLearner }) {
+function MyDay({ me, onOpenLearner }) {
+  const isManager = me?.roles.includes('MANAGER') ?? false
+  // Only managers get the officer list, to pick whose day to see.
   const [officers, setOfficers] = useState([])
   const [officersStatus, setOfficersStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [viewingAs, setViewingAs] = useState(null)
@@ -247,22 +231,21 @@ function MyDay({ onOpenLearner }) {
   const [savedMessage, setSavedMessage] = useState(null)
 
   useEffect(() => {
+    if (!me) return
+    setViewingAs(me.OFFICERREFNUMBER)
+    if (!isManager) return
     async function loadOfficers() {
       try {
         const res = await fetch('/api/officers')
         if (!res.ok) throw new Error(`Server responded with ${res.status}`)
-        const list = await res.json()
-        setOfficers(list)
+        setOfficers(await res.json())
         setOfficersStatus('ready')
-        const saved = readViewingAs()
-        const pick = list.find((o) => o.OFFICERREFNUMBER === saved) ?? list[0]
-        setViewingAs(pick?.OFFICERREFNUMBER ?? null)
       } catch {
         setOfficersStatus('error')
       }
     }
     loadOfficers()
-  }, [])
+  }, [me, isManager])
 
   // Sets 'loading' itself only when an officer is picked (handleViewingAs),
   // so a reload after saving a review keeps the page in place.
@@ -270,8 +253,9 @@ function MyDay({ onOpenLearner }) {
     if (!ref) return
     try {
       const res = await fetch(`/api/myday/${encodeURIComponent(ref)}`)
-      if (!res.ok) throw new Error(`Server responded with ${res.status}`)
-      setData(await res.json())
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || `Server responded with ${res.status}`)
+      setData(body)
       setStatus('ready')
       setError(null)
     } catch (err) {
@@ -288,7 +272,6 @@ function MyDay({ onOpenLearner }) {
     setStatus('loading')
     setViewingAs(ref)
     setSavedMessage(null)
-    saveViewingAs(ref)
   }
 
   function handleReviewSaved(learner) {
@@ -337,30 +320,30 @@ function MyDay({ onOpenLearner }) {
               {officer ? `Morning, ${firstName}. Here's your day.` : 'My day'}
             </h2>
           </div>
-          <label className="myday-viewing-as">
-            <span>I&apos;m viewing as</span>
-            <select
-              value={viewingAs ?? ''}
-              disabled={officersStatus !== 'ready' || officers.length === 0}
-              onChange={(e) => handleViewingAs(e.target.value)}
-            >
-              {officersStatus === 'loading' && <option value="">Loading officers…</option>}
-              {officers.map((o) => (
-                <option key={o.OFFICERREFNUMBER} value={o.OFFICERREFNUMBER}>
-                  {o.OFFICERNAME} ({labelFromOptions(OFFICER_TYPE_OPTIONS, o.OFFICERTYPE)})
-                </option>
-              ))}
-            </select>
-          </label>
+          {isManager && (
+            <label className="myday-viewing-as">
+              <span>Showing the day for</span>
+              <select
+                value={viewingAs ?? ''}
+                disabled={officersStatus !== 'ready' || officers.length === 0}
+                onChange={(e) => handleViewingAs(e.target.value)}
+              >
+                {officersStatus === 'loading' && <option value="">Loading officers…</option>}
+                {officers.map((o) => (
+                  <option key={o.OFFICERREFNUMBER} value={o.OFFICERREFNUMBER}>
+                    {o.OFFICERNAME} ({labelFromOptions(OFFICER_TYPE_OPTIONS, o.OFFICERTYPE)})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
-        {officersStatus === 'error' && <p role="alert">Couldn&apos;t load the list of officers.</p>}
-        {officersStatus === 'ready' && officers.length === 0 && (
-          <p className="myday-muted">Add an officer on the Officers tab to see their day.</p>
+        {isManager && officersStatus === 'error' && <p role="alert">Couldn&apos;t load the list of officers.</p>}
+        {me && !me.OFFICERREFNUMBER && (
+          <p className="myday-muted">My day is for staff with an officer record, and you don&apos;t have one.</p>
         )}
-        {status === 'loading' && officersStatus !== 'error' && officers.length > 0 && (
-          <p className="myday-muted">Working out your day…</p>
-        )}
+        {status === 'loading' && viewingAs && <p className="myday-muted">Working out your day…</p>}
         {status === 'error' && <p role="alert">Couldn&apos;t load My day: {error}</p>}
 
         {status === 'ready' && data && (

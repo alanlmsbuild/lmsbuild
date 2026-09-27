@@ -4,6 +4,7 @@ import BurrowArch from '../logos/BurrowArch'
 import SkillsEnglandFooter from '../SkillsEnglandFooter'
 import Portfolio from './Portfolio'
 import AddEvidence from './AddEvidence'
+import DevUserSwitcher from '../DevUserSwitcher'
 
 // Burrow, the learner e-portfolio, at /burrow:
 //   /burrow           My portfolio
@@ -13,26 +14,8 @@ import AddEvidence from './AddEvidence'
 // browser's back button works. On a phone the same screens reshape, with
 // the nav as a bottom bar.
 //
-// There are no logins yet, so everything follows whoever is picked in
-// "I'm viewing as" (remembered in this browser only).
-
-const VIEWING_AS_KEY = 'burrow.viewingAs'
-
-function readViewingAs() {
-  try {
-    return localStorage.getItem(VIEWING_AS_KEY)
-  } catch {
-    return null
-  }
-}
-
-function saveViewingAs(ref) {
-  try {
-    localStorage.setItem(VIEWING_AS_KEY, ref)
-  } catch {
-    // Not remembering the choice is fine.
-  }
-}
+// A learner signed in (from /api/me) sees their own portfolio. Staff pick
+// whose portfolio to read from the learners they can see.
 
 function currentLocation() {
   const { pathname, search } = window.location
@@ -72,7 +55,10 @@ function BurrowApp() {
   const [location, setLocation] = useState(currentLocation)
   const [learners, setLearners] = useState([])
   const [learnersStatus, setLearnersStatus] = useState('loading') // 'loading' | 'ready' | 'error'
+  const [me, setMe] = useState(null)
+  const [meError, setMeError] = useState(null)
   const [viewingAs, setViewingAs] = useState(null)
+  const isLearner = me?.roles.includes('LEARNER') ?? false
 
   const [portfolio, setPortfolio] = useState(null)
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
@@ -94,22 +80,34 @@ function BurrowApp() {
   }, [])
 
   useEffect(() => {
-    async function loadLearners() {
+    async function load() {
+      try {
+        const meRes = await fetch('/api/me')
+        const meData = await meRes.json()
+        if (!meRes.ok) throw new Error(meData.error || `Server responded with ${meRes.status}`)
+        setMe(meData)
+      } catch (err) {
+        setMeError(err.message)
+        return
+      }
       try {
         const res = await fetch('/api/burrow/learners')
         if (!res.ok) throw new Error(`Server responded with ${res.status}`)
         const list = await res.json()
         setLearners(list)
         setLearnersStatus('ready')
-        const saved = readViewingAs()
-        const pick = list.find((l) => l.LEARNREFNUMBER === saved) ?? list[0]
-        setViewingAs(pick?.LEARNREFNUMBER ?? null)
       } catch {
         setLearnersStatus('error')
       }
     }
-    loadLearners()
+    load()
   }, [])
+
+  // A learner opens their own portfolio; anyone else starts at the first.
+  useEffect(() => {
+    if (!me || learnersStatus !== 'ready') return
+    setViewingAs(me.roles.includes('LEARNER') ? me.LEARNREFNUMBER : (learners[0]?.LEARNREFNUMBER ?? null))
+  }, [me, learners, learnersStatus])
 
   const loadPortfolio = useCallback(async (ref) => {
     if (!ref) return
@@ -134,7 +132,6 @@ function BurrowApp() {
     setStatus('loading')
     setFlash(null)
     setViewingAs(ref)
-    saveViewingAs(ref)
     if (location.page === 'add') navigate('/burrow/add')
   }
 
@@ -150,6 +147,7 @@ function BurrowApp() {
 
   return (
     <div className="burrow">
+      <DevUserSwitcher />
       <header className="burrow-header">
         <div className="burrow-header-left">
           <NavLink navigate={navigate} to="/burrow" className="burrow-logo" active={false}>
@@ -169,22 +167,24 @@ function BurrowApp() {
           </nav>
         </div>
         <div className="burrow-header-right">
-          <label className="burrow-viewing-as">
-            <span>I&apos;m viewing as</span>
-            <select
-              value={viewingAs ?? ''}
-              disabled={learnersStatus !== 'ready' || learners.length === 0}
-              onChange={(e) => handleViewingAs(e.target.value)}
-            >
-              {learnersStatus === 'loading' && <option value="">Loading learners…</option>}
-              {learners.map((l) => (
-                <option key={l.LEARNREFNUMBER} value={l.LEARNREFNUMBER}>
-                  {fullName(l)} ({l.LEARNREFNUMBER})
-                </option>
-              ))}
-            </select>
-          </label>
-          {learner && (
+          {me && !isLearner && (
+            <label className="burrow-viewing-as">
+              <span>Portfolio of</span>
+              <select
+                value={viewingAs ?? ''}
+                disabled={learnersStatus !== 'ready' || learners.length === 0}
+                onChange={(e) => handleViewingAs(e.target.value)}
+              >
+                {learnersStatus === 'loading' && <option value="">Loading learners…</option>}
+                {learners.map((l) => (
+                  <option key={l.LEARNREFNUMBER} value={l.LEARNREFNUMBER}>
+                    {fullName(l)} ({l.LEARNREFNUMBER})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {isLearner && learner && (
             <>
               <span className="burrow-learner-name">{fullName(learner)}</span>
               <span className="burrow-avatar" aria-hidden="true">
@@ -196,9 +196,10 @@ function BurrowApp() {
       </header>
 
       <div className="burrow-body">
+        {meError && <p role="alert">{meError}</p>}
         {learnersStatus === 'error' && <p role="alert">Couldn&apos;t load the list of learners.</p>}
         {learnersStatus === 'ready' && learners.length === 0 && (
-          <p className="burrow-muted">There are no learners yet. Add one in Warren first.</p>
+          <p className="burrow-muted">There are no portfolios for you to see.</p>
         )}
         {status === 'loading' && learners.length > 0 && <p className="burrow-muted">Opening your portfolio…</p>}
         {status === 'error' && <p role="alert">Couldn&apos;t load this portfolio: {error}</p>}

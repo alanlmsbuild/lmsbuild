@@ -11,6 +11,7 @@ import LearnerDetail from './LearnerDetail'
 import Reports from './Reports'
 import MyDay from './MyDay'
 import IqaSignOffs from './IqaSignOffs'
+import DevUserSwitcher from './DevUserSwitcher'
 import SkillsEnglandFooter from './SkillsEnglandFooter'
 import { COMPLETION_STATUS_LABELS, describe, standardLabel, statusClassName } from './lookups'
 
@@ -28,9 +29,11 @@ function App() {
   // My day is the home page at /app.
   const [view, setView] = useState('myday') // 'myday' | 'learners' | 'dashboard' | 'officers' | 'reports' | 'iqa'
 
-  // The signed-in user's roles, for showing the tabs they can use. The
-  // server checks every request itself, so this only tidies the screen.
-  const [roles, setRoles] = useState([])
+  // The signed-in user and their roles, for showing the tabs they can use
+  // and whose My day to open. The server checks every request itself.
+  const [me, setMe] = useState(null)
+  const [meError, setMeError] = useState(null)
+  const roles = me?.roles ?? []
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
@@ -70,10 +73,11 @@ function App() {
     async function loadMe() {
       try {
         const res = await fetch('/api/me')
-        if (!res.ok) throw new Error(`Server responded with ${res.status}`)
-        setRoles((await res.json()).roles)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || `Server responded with ${res.status}`)
+        setMe(data)
       } catch (err) {
-        console.error('Failed to load the signed-in user:', err.message)
+        setMeError(err.message)
       }
     }
     loadMe()
@@ -127,6 +131,7 @@ function App() {
 
   return (
     <>
+      <DevUserSwitcher />
       <header className="app-header">
         <div className="brand">
           <img src={warrenMark} alt="" className="brand-mark" />
@@ -184,6 +189,11 @@ function App() {
       </header>
 
       <main className="app-main">
+      {meError && (
+        <p className="error-banner" role="alert">
+          {meError}
+        </p>
+      )}
       {view === 'learners' && (
       <>
       <section id="learners">
@@ -339,7 +349,7 @@ function App() {
 
       {/* My day and Reports link to learners by reference, so look up the
           full row App already holds for the detail panel. */}
-      {view === 'myday' && <MyDay onOpenLearner={openLearnerByRef} />}
+      {view === 'myday' && <MyDay me={me} onOpenLearner={openLearnerByRef} />}
       {view === 'reports' && <Reports onOpenLearner={openLearnerByRef} />}
       {view === 'iqa' && <IqaSignOffs onOpenLearner={openLearnerByRef} />}
 
