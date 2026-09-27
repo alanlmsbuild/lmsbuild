@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
-import { COMPLETION_STATUS_LABELS, describe, labelFromOptions, standardLabel, statusClassName } from './lookups'
+import { labelFromOptions, standardLabel } from './lookups'
+import CompletionStatus from './CompletionStatus'
 import { Button, Card, Field, Notice } from './ui/components'
 
 function Row({ label, value }) {
@@ -215,9 +216,7 @@ function OfficerDetail({ officer, officers, learners, learnersStatus, onClose, o
                         </span>
                       </div>
                       <div className="officer-learner-side">
-                        <span className={statusClassName(learner.COMPSTATUS)}>
-                          {describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}
-                        </span>
+                        <CompletionStatus compstatus={learner.COMPSTATUS} />
                         <button
                           type="button"
                           className="link-button"

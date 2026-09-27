@@ -121,7 +121,7 @@
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--rb-radius-control);
   background: var(--surface);
   color: var(--text-h);
 }
@@ -130,7 +130,7 @@
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--rb-radius-control);
   background: var(--surface);
   color: var(--text-h);
 }
@@ -144,7 +144,7 @@
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rb-radius-card);
   margin-top: 16px;
 }
 
@@ -233,7 +233,7 @@ tbody tr:hover {
 .success-banner {
   background: var(--success-bg);
   border: 1px solid var(--success-border);
-  border-left: 3px solid var(--status-completed);
+  border-left: 3px solid var(--status-done-solid);
   color: var(--text-h);
 }
 
@@ -261,9 +261,9 @@ tbody tr:hover {
 .indicative-banner {
   padding: 10px 14px;
   border-radius: 4px;
-  border: 1px solid var(--status-withdrawn);
+  border: 1px solid var(--status-due-solid);
   border-left-width: 4px;
-  background: var(--notice-bg);
+  background: var(--status-due-bg);
   color: var(--text-h);
   font-size: 14px;
   font-weight: 600;
@@ -316,12 +316,12 @@ td.num {
 
 .overdue-tag {
   margin-left: 8px;
-  padding: 1px 6px;
-  border: 1px solid var(--status-withdrawn);
-  border-radius: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--status-withdrawn);
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-text);
 }
 
 .caseload-detail {
@@ -350,7 +350,7 @@ td.num {
   margin-top: 16px;
   padding: 12px 14px;
   border: 1px dashed var(--border);
-  border-radius: 6px;
+  border-radius: var(--rb-radius-card);
   color: var(--text-muted);
   font-size: 14px;
 }
@@ -374,7 +374,7 @@ td.num {
   gap: 4px;
   padding: 16px 18px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rb-radius-card);
   background: var(--surface);
 }
 
@@ -399,7 +399,7 @@ td.num {
 
 .dashboard-panel {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rb-radius-card);
   padding: 16px 18px;
   background: var(--surface);
 }
@@ -439,7 +439,7 @@ td.num {
 .detail-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 20, 28, 0.35);
+  background: var(--rb-overlay);
   display: flex;
   justify-content: flex-end;
   z-index: 20;
@@ -453,7 +453,7 @@ td.num {
   background: var(--surface);
   border-left: 1px solid var(--border);
   padding: 24px;
-  box-shadow: -8px 0 24px rgba(15, 20, 28, 0.16);
+  box-shadow: -8px 0 24px var(--rb-shadow);
 }
 
 .detail-header {
@@ -526,7 +526,7 @@ td.num {
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--rb-radius-control);
   background: var(--surface);
   color: var(--text-h);
 }
@@ -591,7 +591,7 @@ td.num {
 
 fieldset {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--rb-radius-card);
   padding: 18px 24px 22px;
   margin: 0 0 24px;
   display: grid;
@@ -621,7 +621,7 @@ legend {
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--rb-radius-control);
   background: var(--surface);
   color: var(--text-h);
 }
@@ -671,7 +671,7 @@ legend {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 18px var(--rb-shadow);
 }
 
 .combobox-option {
@@ -704,12 +704,12 @@ legend {
 }
 
 .standard-closed {
-  padding: 0 6px;
-  border: 1px solid var(--status-withdrawn);
-  border-radius: 4px;
+  padding: 0 8px;
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--status-withdrawn);
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-text);
 }
 
 .checkbox-group {
@@ -744,9 +744,9 @@ button[type='submit'] {
   font-weight: 600;
   padding: 10px 20px;
   border: 1px solid var(--accent);
-  border-radius: 6px;
+  border-radius: var(--rb-radius-button);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
 }
 
@@ -764,7 +764,7 @@ button.secondary {
   font: inherit;
   padding: 6px 14px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--rb-radius-button);
   background: var(--surface);
   color: var(--text-h);
   cursor: pointer;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { WITNESS_OUTCOME_OPTIONS } from '../burrowCodes'
-import { COMPLETION_STATUS_LABELS, describe, formatDate } from '../lookups'
+import { formatDate } from '../lookups'
+import CompletionStatus from '../CompletionStatus'
 import { validateWitnessConfirmationForm } from '../validation'
 import { Button, Card, Choices, Field, Heading, Meter, Notice, Stat, StatusBadge } from '../ui/components'
 import './employer.css'
@@ -10,12 +11,6 @@ import './employer.css'
 
 function fullName(row) {
   return `${row.GIVENNAMES ?? ''} ${row.FAMILYNAME ?? ''}`.trim() || row.LEARNREFNUMBER
-}
-
-function programmeTone(compstatus) {
-  if (compstatus === 2) return 'done'
-  if (compstatus === 3 || compstatus === 6) return 'overdue'
-  return 'neutral'
 }
 
 function ReviewStatus({ apprentice, windowDays }) {
@@ -34,7 +29,7 @@ function ApprenticeCard({ apprentice, windowDays }) {
       as="li"
       titleLevel={3}
       title={fullName(a)}
-      meta={<StatusBadge tone={programmeTone(a.COMPSTATUS)}>{describe(COMPLETION_STATUS_LABELS, a.COMPSTATUS)}</StatusBadge>}
+      meta={<CompletionStatus compstatus={a.COMPSTATUS} />}
     >
       <p className="ui-muted">
         {a.STDREFERENCE ? `${a.STDREFERENCE} ${a.STDNAME}` : 'Standard not recorded'}

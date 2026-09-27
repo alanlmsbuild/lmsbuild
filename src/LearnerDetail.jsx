@@ -12,15 +12,14 @@ import {
 // The two caseload roles every learner has exactly one current officer in.
 const ASSIGNMENT_ROLES = OFFICER_TYPE_OPTIONS.filter((o) => o.code === 'TUTOR' || o.code === 'ASSESSOR')
 import {
-  COMPLETION_STATUS_LABELS,
   OUTCOME_LABELS,
   describe,
   labelFromOptions,
   labelsFromCommaList,
   formatDate,
   standardLabel,
-  statusClassName,
 } from './lookups'
+import CompletionStatus from './CompletionStatus'
 
 // Age in whole years as of today, from a 'YYYY-MM-DD' (or similar
 // parseable) date of birth string.
@@ -221,9 +220,7 @@ function LearnerDetail({ learner, canManage, onClose, onEdit, onComplete, onWith
           <Row
             label="Status"
             value={
-              <span className={statusClassName(learner.COMPSTATUS)}>
-                {describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}
-              </span>
+              <CompletionStatus compstatus={learner.COMPSTATUS} />
             }
           />
           <Row label="Time on programme" value={timeOnProgramme ?? '—'} />

@@ -14,7 +14,8 @@ import IqaSignOffs from './IqaSignOffs'
 import DevUserSwitcher from './DevUserSwitcher'
 import SkillsEnglandFooter from './SkillsEnglandFooter'
 import { Card, Notice } from './ui/components'
-import { COMPLETION_STATUS_LABELS, describe, standardLabel, statusClassName } from './lookups'
+import { standardLabel } from './lookups'
+import CompletionStatus from './CompletionStatus'
 
 // Warren's tabs, and which roles see each one.
 const TABS = [
@@ -275,9 +276,7 @@ function App() {
                   </td>
                   <td>{standardLabel(learner, { withLevel: false })}</td>
                   <td>
-                    <span className={statusClassName(learner.COMPSTATUS)}>
-                      {describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}
-                    </span>
+                    <CompletionStatus compstatus={learner.COMPSTATUS} />
                   </td>
                   {isManager && (
                     <td className="actions-cell">

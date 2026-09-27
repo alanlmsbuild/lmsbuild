@@ -1,47 +1,49 @@
+/* Warren's names for the Rarebit design tokens (src/ui/tokens.css), which
+   App.css and the other Warren stylesheets use. The values live in the
+   tokens, so light and dark mode, and any change to the palette, happen
+   there. Status colours come from the tokens' status set, never from
+   Warren green. */
 :root {
-  /* A calm, muted slate blue-grey palette: a soft off-white background,
-     slate blue for headings and interactive elements, and colour reserved
-     for the two states that need it (Completed, Withdrawn). Continuing
-     stays the default text colour deliberately, since it's the normal,
-     unremarkable state. */
-  --bg: #f3f5f8;
-  --surface: #ffffff;
-  --text: #445064;
-  --text-h: #1c2536;
-  --text-muted: #6b7688;
-  --border: #d9dfe6;
+  --bg: var(--rb-page);
+  --surface: var(--rb-card);
+  --text: var(--rb-body);
+  --text-h: var(--rb-ink);
+  --text-muted: var(--rb-muted);
+  --border: var(--rb-rule);
 
-  --accent: #3d5a80;
-  --accent-hover: #2f4763;
-  --accent-bg: rgba(61, 90, 128, 0.08);
-  --accent-border: rgba(61, 90, 128, 0.35);
-  --row-hover: rgba(61, 90, 128, 0.05);
+  --accent: var(--area-accent);
+  --accent-hover: var(--area-accent-hover);
+  --on-accent: var(--area-on-accent);
+  --link: var(--area-link);
+  --accent-bg: var(--area-tint);
+  --accent-border: var(--area-accent);
+  --row-hover: var(--area-tint);
 
-  --status-completed: #1f7a4d;
-  --status-withdrawn: #a15c00;
+  --status-completed: var(--status-done-text);
+  --status-withdrawn: var(--status-overdue-text);
 
-  --notice-bg: #eef2f7;
-  --notice-border: #c7d2df;
+  --notice-bg: var(--rb-crumb);
+  --notice-border: var(--rb-rule);
 
-  --success-bg: rgba(31, 122, 77, 0.1);
-  --success-border: rgba(31, 122, 77, 0.4);
+  --success-bg: var(--status-done-bg);
+  --success-border: var(--status-done-solid);
 
-  --error: #b3261e;
-  --error-bg: rgba(179, 38, 30, 0.08);
-  --error-border: rgba(179, 38, 30, 0.35);
+  --error: var(--status-overdue-text);
+  --error-bg: var(--status-overdue-bg);
+  --error-border: var(--status-overdue-border);
 
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --sans: var(--rb-font-body);
+  --heading: var(--rb-font-heading);
 
-  /* Warren brand. Only the header logo uses these so far - the rest of
-     the app keeps the slate palette above until it's restyled. */
-  --warren-green: #2e5a4c;
-  --cheddar: #e9a23b;
-  --ink: #2a1f17;
-  --crumb: #f9e9c8;
-  --brand-display: 'Fraunces', Georgia, serif;
-  --brand-sans: 'DM Sans', var(--sans);
-  --brand-wordmark: var(--ink);
-  --brand-byline: var(--warren-green);
+  /* The Warren wordmark in the header. */
+  --warren-green: var(--rb-warren);
+  --cheddar: var(--rb-cheddar);
+  --ink: var(--rb-ink);
+  --crumb: var(--rb-crumb);
+  --brand-display: var(--rb-font-heading);
+  --brand-sans: var(--rb-font-body);
+  --brand-wordmark: var(--rb-ink);
+  --brand-byline: var(--area-link);
 
   font: 16px/1.5 var(--sans);
   color-scheme: light dark;
@@ -51,41 +53,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1a2029;
-    --surface: #222a35;
-    --text: #b7c0cc;
-    --text-h: #eef1f5;
-    --text-muted: #8b96a5;
-    --border: #333e4c;
-
-    --accent: #8aa8cc;
-    --accent-hover: #a7c1e0;
-    --accent-bg: rgba(138, 168, 204, 0.12);
-    --accent-border: rgba(138, 168, 204, 0.4);
-    --row-hover: rgba(138, 168, 204, 0.08);
-
-    --status-completed: #55b587;
-    --status-withdrawn: #d99a3d;
-
-    --notice-bg: #262f3c;
-    --notice-border: #3a4655;
-
-    --success-bg: rgba(85, 181, 135, 0.12);
-    --success-border: rgba(85, 181, 135, 0.4);
-
-    --error: #e5867e;
-    --error-bg: rgba(229, 134, 126, 0.12);
-    --error-border: rgba(229, 134, 126, 0.4);
-
-    /* Ink and Warren green disappear on the dark header, so the wordmark
-       switches to the lighter brand colours. */
-    --brand-wordmark: var(--crumb);
-    --brand-byline: var(--cheddar);
-  }
 }
 
 * {
@@ -105,7 +72,7 @@ body {
 h1,
 h2,
 h3 {
-  font-family: var(--sans);
+  font-family: var(--heading);
   font-weight: 600;
   color: var(--text-h);
   margin: 0 0 8px;

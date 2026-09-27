@@ -27,13 +27,16 @@ export function describe(map, code) {
   return map[code] ?? `Code ${code}`
 }
 
-// The colour used to mark a completion status, shared by the learner table
-// and the dashboard so the same status always reads the same way. Continuing
-// deliberately gets no colour, since it's the ordinary, unremarkable state.
-export function statusClassName(compstatus) {
-  if (compstatus === 2) return 'status-completed'
-  if (compstatus === 3) return 'status-withdrawn'
-  return ''
+// The status colour for a programme aim's completion status, shared by
+// every screen so the same status always reads the same way (see the status
+// colours in src/ui/tokens.css). Continuing is the ordinary state, so it's
+// neutral; completed is done; withdrawn is the overdue/refused colour; a
+// break in learning is "due" (it needs someone's attention).
+export function completionTone(compstatus) {
+  if (compstatus === 2) return 'done'
+  if (compstatus === 3) return 'overdue'
+  if (compstatus === 6) return 'due'
+  return 'neutral'
 }
 
 export function formatDate(value) {

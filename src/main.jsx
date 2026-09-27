@@ -1,5 +1,6 @@
 import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
+import './ui/tokens.css'
 import './index.css'
 
 // Three pages, chosen by path: the Warren learner app at /app, Burrow (the
@@ -15,6 +16,8 @@ const Page = isApp
   : isBurrow
     ? lazy(() => import('./burrow/BurrowApp.jsx'))
     : lazy(() => import('./Landing.jsx'))
+// Which area's accent colour the design tokens use (src/ui/tokens.css).
+document.documentElement.dataset.area = isApp ? 'warren' : isBurrow ? 'burrow' : 'rarebit'
 document.title = isApp
   ? 'Warren by Rarebit'
   : isBurrow

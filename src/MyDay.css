@@ -1,43 +1,28 @@
-/* My day, in the Rarebit style: Fraunces and DM Sans on cream, with Warren
-   green, Crust, Cheddar and Burrow clay. Scoped under .myday so the other
-   tabs keep the slate app style until they're restyled. */
+/* My day. Its colours and fonts are the Rarebit design tokens
+   (src/ui/tokens.css), under the short names below. Warren green is for
+   buttons and actions; anything that means a status (done, due soon,
+   overdue) uses the status colours instead. */
 
 .myday {
-  --md-page: #f6eedc;
-  --md-card: #fffbf2;
-  --md-ink: #2a1f17;
-  --md-body: #4a3a2c;
-  --md-muted: #6b5440;
-  --md-rule: #e4d6ba;
-  --md-green: #2e5a4c;
-  --md-cheddar: #e9a23b;
-  --md-clay: #b4532a;
-  --md-crumb: #f9e9c8;
-  --md-track: #efe3c8;
-  --md-button-text: #fffbf2;
-  --md-fraunces: 'Fraunces', Georgia, serif;
-  --md-dm-sans: 'DM Sans', system-ui, sans-serif;
+  --md-page: var(--rb-page);
+  --md-card: var(--rb-card);
+  --md-ink: var(--rb-ink);
+  --md-body: var(--rb-body);
+  --md-muted: var(--rb-muted);
+  --md-rule: var(--rb-rule);
+  --md-green: var(--area-accent);
+  --md-button-text: var(--area-on-accent);
+  --md-crumb: var(--rb-crumb);
+  --md-track: var(--rb-track);
+  --md-done: var(--status-done-solid);
+  --md-due: var(--status-due-solid);
+  --md-overdue: var(--status-overdue-solid);
+  --md-fraunces: var(--rb-font-heading);
+  --md-dm-sans: var(--rb-font-body);
 
   background: var(--md-page);
   color: var(--md-body);
   font-family: var(--md-dm-sans);
-}
-
-@media (prefers-color-scheme: dark) {
-  .myday {
-    --md-page: #1f1812;
-    --md-card: #2a2119;
-    --md-ink: #f6eedc;
-    --md-body: #e4d6ba;
-    --md-muted: #bfae90;
-    --md-rule: #45382b;
-    --md-green: #7fb3a1;
-    --md-cheddar: #e9a23b;
-    --md-clay: #dc8a63;
-    --md-crumb: #3a2e22;
-    --md-track: #3a2e22;
-    --md-button-text: #1f1812;
-  }
 }
 
 #myday {
@@ -108,7 +93,7 @@
   margin: 18px 0 0;
   padding: 10px 14px;
   border-radius: 8px;
-  border-left: 4px solid var(--md-green);
+  border-left: 4px solid var(--md-done);
   background: var(--md-card);
   color: var(--md-ink);
   font-size: 14px;
@@ -177,15 +162,16 @@
 }
 
 .myday-stack-continuing {
-  background: var(--md-green);
+  background: var(--status-neutral-solid);
+  box-shadow: inset 0 0 0 1px var(--status-neutral-border);
 }
 
 .myday-stack-completed {
-  background: var(--md-cheddar);
+  background: var(--md-done);
 }
 
 .myday-stack-withdrawn {
-  background: var(--md-clay);
+  background: var(--md-overdue);
 }
 
 .myday-legend {
@@ -275,15 +261,15 @@
 }
 
 .myday-column-do-first {
-  border-top-color: var(--md-clay);
+  border-top-color: var(--md-overdue);
 }
 
 .myday-column-coming-up {
-  border-top-color: var(--md-cheddar);
+  border-top-color: var(--md-due);
 }
 
 .myday-column-clear {
-  border-top-color: var(--md-green);
+  border-top-color: var(--md-done);
 }
 
 .myday-column h4 {
@@ -408,8 +394,8 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--md-green);
-  color: var(--md-button-text);
+  background: var(--md-done);
+  color: var(--status-on-solid);
   font-size: 12px;
   font-weight: 700;
 }
@@ -446,7 +432,7 @@
 
 .myday-key-ksb {
   margin-left: 8px;
-  border: 1px dashed var(--md-green);
+  border: 1px dashed var(--md-done);
 }
 
 .myday-key-marker {
@@ -496,14 +482,14 @@
   border: 1px solid var(--md-rule);
 }
 
-/* Reserved for KSB progress: a solid Warren green fill, drawn over the
+/* Reserved for KSB progress: a solid "done" fill, drawn over the
    time fill once sign-off data exists. Zero width for now. */
 .myday-track-ksb {
   position: absolute;
   inset: 0 auto 0 0;
   z-index: 1;
   border-radius: 999px;
-  background: var(--md-green);
+  background: var(--md-done);
 }
 
 .myday-track-marker {
@@ -518,7 +504,7 @@
 }
 
 .myday-track-marker.is-over {
-  background: var(--md-clay);
+  background: var(--md-overdue);
 }
 
 .myday-track-label {
@@ -538,7 +524,7 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(42, 31, 23, 0.45);
+  background: var(--rb-overlay);
 }
 
 .myday-modal {
@@ -549,7 +535,7 @@
   border-radius: 16px;
   background: var(--md-card);
   color: var(--md-body);
-  box-shadow: 0 12px 32px rgba(42, 31, 23, 0.25);
+  box-shadow: 0 12px 32px var(--rb-shadow);
 }
 
 .myday-modal h3 {

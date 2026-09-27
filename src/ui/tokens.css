@@ -1,21 +1,168 @@
-/* Design tokens for the shared components in src/ui. The components read
-   only these --ui-* values, so the look of every shared screen can change
-   here without touching the components.
+/* Rarebit's design tokens: one palette for the landing page, Warren and
+   Burrow (part 7, "Rarebit as one product"). Loaded on every page by
+   main.jsx. Every stylesheet takes its colours and fonts from here, either
+   directly or through its own short list of names (Warren's --bg, --accent
+   and so on in index.css, My day's --md-*, Burrow's --b-*).
 
-   For now each product maps them onto its own current colours and fonts
-   (Warren's :root variables in index.css, Burrow's .burrow variables in
-   burrow.css), so new screens match the screens around them. Part 7 (one
-   design across Rarebit, Warren and Burrow) replaces these values.
+   Three groups:
+   - Neutrals and type, shared by everything.
+   - The area accent, which is the only thing that changes between areas.
+     main.jsx sets data-area on <html>: rarebit (landing), warren or burrow.
+   - Status colours, the same in every area and never an area's accent.
+     A status always shows its word as well as its colour. The -text/-bg
+     pairs are for chips and status text (all 6.8:1 or more). The -solid
+     colours are for bars, dots and borders only (3:1 or more), never text.
 
-   Status colours are separate from product colours and the same in every
-   product: done (done, OK, confirmed), due (due soon, waiting) and overdue
-   (overdue, declined, refused), plus neutral. Each pair meets WCAG AA
-   contrast (4.5:1 or more), and the components always show a word with
-   the colour. */
+   Every pair was checked with the WCAG 2 formula. */
 
 :root {
-  --ui-font-heading: var(--sans);
-  --ui-font-body: var(--sans);
+  /* ------------------------------------------------ neutrals and type */
+  --rb-page: #f6eedc;
+  --rb-card: #fffbf2;
+  --rb-ink: #2a1f17;
+  --rb-body: #4a3a2c;
+  --rb-muted: #6b5440;
+  --rb-rule: #e4d6ba;
+  --rb-input-border: #d9c7a4;
+  --rb-crumb: #f9e9c8;
+  --rb-track: #efe3c8;
+  --rb-cheddar: #e9a23b;
+  --rb-crust: #9a5b2b;
+  --rb-overlay: rgba(42, 31, 23, 0.45);
+  --rb-shadow: rgba(42, 31, 23, 0.16);
+
+  --rb-radius-card: 16px;
+  --rb-radius-control: 10px;
+  --rb-radius-button: 999px;
+
+  --rb-font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --rb-font-body: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* ------------------------------------------------ area colours */
+  /* Warren green: 7.6:1 with cream text, 6.8:1 as links on the page. */
+  --rb-warren: #2e5a4c;
+  --rb-warren-hover: #244a3e;
+  --rb-on-warren: #fffbf2;
+  --rb-warren-link: #2e5a4c;
+  --rb-warren-tint: #e6efea;
+
+  /* Burrow clay (its logo colour): 4.8:1 with cream text. Clay is 4.3:1
+     as text, so Burrow's links are the darker #8e3f1f (6.3:1). */
+  --rb-burrow: #b4532a;
+  --rb-burrow-hover: #8e3f1f;
+  --rb-on-burrow: #fffbf2;
+  --rb-burrow-link: #8e3f1f;
+  --rb-burrow-tint: #f6ddd2;
+
+  /* Rarebit (landing): Cheddar with ink text (7.4:1). Cheddar is never
+     text; links are crust (4.7:1). */
+  --rb-rarebit: #e9a23b;
+  --rb-rarebit-hover: #d48f28;
+  --rb-on-rarebit: #2a1f17;
+  --rb-rarebit-link: #9a5b2b;
+  --rb-rarebit-tint: #f9e9c8;
+
+  /* ------------------------------------------------ status colours */
+  --status-done-bg: #ddf0df;
+  --status-done-text: #1d5b2b;
+  --status-done-solid: #2f7d32;
+  --status-due-bg: #fbe7c2;
+  --status-due-text: #6b4410;
+  --status-due-solid: #a86b00;
+  --status-overdue-bg: #fbe1e8;
+  --status-overdue-text: #8c1034;
+  --status-overdue-solid: #b0153f;
+  --status-overdue-border: #e7a9ba;
+  --status-neutral-bg: #ece4d4;
+  --status-neutral-text: #4a3a2c;
+  --status-neutral-solid: #ece4d4;
+  --status-neutral-border: #b8a27e;
+  /* Text on a -solid fill, e.g. a tick in a done circle (5.0:1). */
+  --status-on-solid: #fffbf2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --rb-page: #1f1812;
+    --rb-card: #2a2119;
+    --rb-ink: #f6eedc;
+    --rb-body: #e4d6ba;
+    --rb-muted: #bfae90;
+    --rb-rule: #45382b;
+    --rb-input-border: #5a4a39;
+    --rb-crumb: #3a2e22;
+    --rb-track: #3a2e22;
+    --rb-overlay: rgba(0, 0, 0, 0.6);
+    --rb-shadow: rgba(0, 0, 0, 0.4);
+
+    /* Dark mode accents are light, with dark text (7.7:1 or more). */
+    --rb-warren: #7fb8a4;
+    --rb-warren-hover: #a3cfc0;
+    --rb-on-warren: #1f1812;
+    --rb-warren-link: #7fb8a4;
+    --rb-warren-tint: #24362f;
+
+    --rb-burrow: #f0a07c;
+    --rb-burrow-hover: #f6c2a8;
+    --rb-on-burrow: #2a1f17;
+    --rb-burrow-link: #f0a07c;
+    --rb-burrow-tint: #4a2a1c;
+
+    --rb-rarebit: #e9a23b;
+    --rb-rarebit-hover: #f0b65e;
+    --rb-on-rarebit: #2a1f17;
+    --rb-rarebit-link: #e9a23b;
+    --rb-rarebit-tint: #3a2e22;
+
+    --status-done-bg: #1e3a24;
+    --status-done-text: #bfe8c8;
+    --status-done-solid: #5fb36a;
+    --status-due-bg: #4a3514;
+    --status-due-text: #fbe7c2;
+    --status-due-solid: #d9a036;
+    --status-overdue-bg: #4d1a29;
+    --status-overdue-text: #f9c4d2;
+    --status-overdue-solid: #e0607e;
+    --status-overdue-border: #7a3346;
+    --status-neutral-bg: #3a332a;
+    --status-neutral-text: #e4d6ba;
+    --status-neutral-solid: #3a332a;
+    --status-neutral-border: #7a6750;
+    --status-on-solid: #1f1812;
+  }
+}
+
+/* ------------------------------------------------ the area accent */
+/* Warren is the default, for anything outside the three areas. */
+:root,
+:root[data-area='warren'] {
+  --area-accent: var(--rb-warren);
+  --area-accent-hover: var(--rb-warren-hover);
+  --area-on-accent: var(--rb-on-warren);
+  --area-link: var(--rb-warren-link);
+  --area-tint: var(--rb-warren-tint);
+}
+
+:root[data-area='burrow'] {
+  --area-accent: var(--rb-burrow);
+  --area-accent-hover: var(--rb-burrow-hover);
+  --area-on-accent: var(--rb-on-burrow);
+  --area-link: var(--rb-burrow-link);
+  --area-tint: var(--rb-burrow-tint);
+}
+
+:root[data-area='rarebit'] {
+  --area-accent: var(--rb-rarebit);
+  --area-accent-hover: var(--rb-rarebit-hover);
+  --area-on-accent: var(--rb-on-rarebit);
+  --area-link: var(--rb-rarebit-link);
+  --area-tint: var(--rb-rarebit-tint);
+}
+
+/* ------------------------------------------------ what the shared components read */
+:root {
+  --ui-font-heading: var(--rb-font-heading);
+  --ui-font-body: var(--rb-font-body);
 
   --ui-space-1: 4px;
   --ui-space-2: 8px;
@@ -23,92 +170,37 @@
   --ui-space-4: 16px;
   --ui-space-5: 24px;
   --ui-space-6: 32px;
-  --ui-radius: 8px;
-  --ui-radius-small: 6px;
+  --ui-radius: var(--rb-radius-card);
+  --ui-radius-small: var(--rb-radius-control);
   --ui-radius-pill: 999px;
 
-  --ui-page: var(--bg);
-  --ui-surface: var(--surface);
-  --ui-text: var(--text);
-  --ui-text-strong: var(--text-h);
-  --ui-muted: var(--text-muted);
-  --ui-border: var(--border);
-  --ui-accent: var(--accent);
-  --ui-accent-hover: var(--accent-hover);
-  --ui-on-accent: #ffffff;
-  --ui-link: var(--accent);
-  --ui-focus: var(--accent);
+  --ui-page: var(--rb-page);
+  --ui-surface: var(--rb-card);
+  --ui-text: var(--rb-body);
+  --ui-text-strong: var(--rb-ink);
+  --ui-muted: var(--rb-muted);
+  --ui-border: var(--rb-rule);
+  --ui-input-border: var(--rb-input-border);
+  --ui-accent: var(--area-accent);
+  --ui-accent-hover: var(--area-accent-hover);
+  --ui-on-accent: var(--area-on-accent);
+  --ui-link: var(--area-link);
+  --ui-focus: var(--area-link);
 
-  --ui-done-bg: #ddebe3;
-  --ui-done-text: #1f4238;
-  --ui-due-bg: #fbe7c2;
-  --ui-due-text: #6b4410;
-  --ui-overdue-bg: #fbe0dd;
-  --ui-overdue-text: #8a1c14;
-  --ui-neutral-bg: #ebe7df;
-  --ui-neutral-text: #4a3a2c;
+  --ui-done-bg: var(--status-done-bg);
+  --ui-done-text: var(--status-done-text);
+  --ui-due-bg: var(--status-due-bg);
+  --ui-due-text: var(--status-due-text);
+  --ui-overdue-bg: var(--status-overdue-bg);
+  --ui-overdue-text: var(--status-overdue-text);
+  --ui-neutral-bg: var(--status-neutral-bg);
+  --ui-neutral-text: var(--status-neutral-text);
 
-  --ui-error-text: var(--error);
-  --ui-error-bg: var(--error-bg);
-  --ui-error-border: var(--error-border);
-  --ui-success-bg: var(--success-bg);
-  --ui-success-border: var(--success-border);
-  --ui-info-bg: var(--notice-bg);
-  --ui-info-border: var(--notice-border);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ui-on-accent: #1a2029;
-
-    --ui-done-bg: #1f3a31;
-    --ui-done-text: #bfe3d2;
-    --ui-due-bg: #4a3514;
-    --ui-due-text: #fbe7c2;
-    --ui-overdue-bg: #4d1f1b;
-    --ui-overdue-text: #f7c6c0;
-    --ui-neutral-bg: #3a332a;
-    --ui-neutral-text: #e4d6ba;
-  }
-}
-
-/* Burrow: its fonts and clay colour. */
-.burrow {
-  --ui-font-heading: var(--b-fraunces);
-  --ui-font-body: var(--b-dm-sans);
-
-  --ui-page: var(--b-page);
-  --ui-surface: var(--b-card);
-  --ui-text: var(--b-body);
-  --ui-text-strong: var(--b-ink);
-  --ui-muted: var(--b-muted);
-  --ui-border: var(--b-rule);
-  --ui-accent: var(--b-clay);
-  --ui-accent-hover: var(--b-link);
-  --ui-on-accent: var(--b-button-text);
-  --ui-link: var(--b-link);
-  --ui-focus: var(--b-clay);
-
-  --ui-error-text: #8a1c14;
-  --ui-error-bg: #fbe0dd;
-  --ui-error-border: #e8a79f;
-  --ui-success-bg: #ddebe3;
-  --ui-success-border: #9cc3b0;
-  --ui-info-bg: var(--b-page);
-  --ui-info-border: var(--b-rule);
-}
-
-/* Cream on dark mode's clay is only 3.8:1, so dark mode uses Burrow's
-   lighter link colour with dark text (7.7:1). */
-@media (prefers-color-scheme: dark) {
-  .burrow {
-    --ui-accent: #f0a07c;
-    --ui-accent-hover: #f6c2a8;
-    --ui-on-accent: #2a1f17;
-    --ui-error-text: #f7c6c0;
-    --ui-error-bg: #4d1f1b;
-    --ui-error-border: #7a3a33;
-    --ui-success-bg: #1f3a31;
-    --ui-success-border: #3f6b5b;
-  }
+  --ui-error-text: var(--status-overdue-text);
+  --ui-error-bg: var(--status-overdue-bg);
+  --ui-error-border: var(--status-overdue-border);
+  --ui-success-bg: var(--status-done-bg);
+  --ui-success-border: var(--status-done-solid);
+  --ui-info-bg: var(--rb-page);
+  --ui-info-border: var(--rb-rule);
 }

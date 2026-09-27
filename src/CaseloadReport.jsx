@@ -1,13 +1,7 @@
 import { useEffect, useState } from 'react'
 import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
-import {
-  COMPLETION_STATUS_LABELS,
-  describe,
-  formatDate,
-  labelFromOptions,
-  standardLabel,
-  statusClassName,
-} from './lookups'
+import { formatDate, labelFromOptions, standardLabel } from './lookups'
+import CompletionStatus from './CompletionStatus'
 
 // Placeholder until Burrow is built: evidence awaiting an assessor's review.
 function BurrowPlaceholder() {
@@ -85,9 +79,7 @@ function OfficerLearners({ officer, onClose, onOpenLearner }) {
                   <td>{formatDate(l.LEARNSTARTDATE)}</td>
                   <td>{formatDate(l.LEARNPLANENDDATE)}</td>
                   <td>
-                    <span className={statusClassName(l.COMPSTATUS)}>
-                      {describe(COMPLETION_STATUS_LABELS, l.COMPSTATUS)}
-                    </span>
+                    <CompletionStatus compstatus={l.COMPSTATUS} />
                     {l.IS_OVERDUE && <span className="overdue-tag">Overdue</span>}
                   </td>
                 </tr>
