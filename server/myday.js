@@ -33,16 +33,17 @@ const MY_CONTINUING_LEARNERS = `
       s.NAME as STDNAME,
       ld.LEARNSTARTDATE,
       ld.LEARNPLANENDDATE
-    from LEARNER_OFFICER lo
+    from OFFICER_ASSIGNMENT a
     join LEARNER l
-      on l.LEARNREFNUMBER = lo.LEARNREFNUMBER
+      on l.LEARNREFNUMBER = a.LEARNREFNUMBER
     join LEARNING_DELIVERY ld
-      on ld.LEARNREFNUMBER = lo.LEARNREFNUMBER
+      on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
      and ld.LEARNAIMREF = 'ZPROG001'
      and ld.AIMSEQNUMBER = 1
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
-    where lo.OFFICERREFNUMBER = :2
+    where a.OFFICERREFNUMBER = :2
+      and a.ENDEDAT is null
       and ld.COMPSTATUS = 1
   ),
   last_review as (
@@ -142,16 +143,17 @@ export const NEXT_TO_FINISH_QUERY = `
 // Bind: the officer reference.
 export const MY_CASELOAD_QUERY = `
   select
-    count(lo.LEARNREFNUMBER) as TOTAL,
+    count(a.LEARNREFNUMBER) as TOTAL,
     coalesce(count_if(ld.COMPSTATUS = 1), 0) as CONTINUING,
     coalesce(count_if(ld.COMPSTATUS = 2), 0) as COMPLETED,
     coalesce(count_if(ld.COMPSTATUS = 3), 0) as WITHDRAWN
-  from LEARNER_OFFICER lo
+  from OFFICER_ASSIGNMENT a
   left join LEARNING_DELIVERY ld
-    on ld.LEARNREFNUMBER = lo.LEARNREFNUMBER
+    on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
    and ld.AIMSEQNUMBER = 1
-  where lo.OFFICERREFNUMBER = ?
+  where a.OFFICERREFNUMBER = ?
+    and a.ENDEDAT is null
 `
 
 // The QAR report's method (reports.js), limited to this officer's learners.
@@ -166,7 +168,7 @@ export const MY_QAR_QUERY = `
     round(100 * count_if(IS_COMPLETER) / nullif(count_if(IS_LEAVER), 0), 1) as RETENTION_RATE
   from classified
   where IN_COHORT
-    and LEARNREFNUMBER in (select LEARNREFNUMBER from LEARNER_OFFICER where OFFICERREFNUMBER = :3)
+    and LEARNREFNUMBER in (select LEARNREFNUMBER from OFFICER_ASSIGNMENT where OFFICERREFNUMBER = :3 and ENDEDAT is null)
 `
 
 const OFFICER_QUERY = `

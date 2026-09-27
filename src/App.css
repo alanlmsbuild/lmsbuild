@@ -513,6 +513,14 @@ td.num {
   margin-top: 12px;
 }
 
+.assignment-role + .assignment-role {
+  margin-top: 16px;
+}
+
+.assignment-role .assign-officer-form {
+  margin-top: 6px;
+}
+
 .assign-officer-form select {
   flex: 1;
   font: inherit;

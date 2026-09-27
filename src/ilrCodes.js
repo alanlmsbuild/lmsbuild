@@ -85,4 +85,6 @@ export const CONTRACT_TYPE_OPTIONS = [
 export const OFFICER_TYPE_OPTIONS = [
   { code: 'TUTOR', label: 'Tutor' },
   { code: 'ASSESSOR', label: 'Assessor' },
+  { code: 'IQA', label: 'IQA' },
+  { code: 'MANAGER', label: 'Manager' },
 ]

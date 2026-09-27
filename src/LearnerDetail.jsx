@@ -8,6 +8,9 @@ import {
   CONTRACT_TYPE_OPTIONS,
   OFFICER_TYPE_OPTIONS,
 } from './ilrCodes'
+
+// The two caseload roles every learner has exactly one current officer in.
+const ASSIGNMENT_ROLES = OFFICER_TYPE_OPTIONS.filter((o) => o.code === 'TUTOR' || o.code === 'ASSESSOR')
 import {
   COMPLETION_STATUS_LABELS,
   OUTCOME_LABELS,
@@ -82,8 +85,9 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
   const [assignedOfficers, setAssignedOfficers] = useState([])
   const [allOfficers, setAllOfficers] = useState([])
   const [officersStatus, setOfficersStatus] = useState('loading') // 'loading' | 'ready' | 'error'
-  const [selectedOfficer, setSelectedOfficer] = useState('')
-  const [assigning, setAssigning] = useState(false)
+  // The officer picked in each role's "Change" list, keyed by role.
+  const [selectedOfficer, setSelectedOfficer] = useState({})
+  const [assigning, setAssigning] = useState(null) // the role being saved, or null
   const [officerError, setOfficerError] = useState(null)
 
   const loadOfficers = useCallback(async () => {
@@ -105,16 +109,19 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
     loadOfficers()
   }, [loadOfficers])
 
-  async function handleAssignOfficer(e) {
+  // Assigning replaces the learner's current tutor or assessor: the server
+  // ends the old assignment, so there's always exactly one of each.
+  async function handleAssignOfficer(e, role) {
     e.preventDefault()
-    if (!selectedOfficer) return
+    const officerRefNumber = selectedOfficer[role]
+    if (!officerRefNumber) return
     setOfficerError(null)
-    setAssigning(true)
+    setAssigning(role)
     try {
       const res = await fetch(`/api/learners/${learner.LEARNREFNUMBER}/officers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ officerRefNumber: selectedOfficer }),
+        body: JSON.stringify({ officerRefNumber, role }),
       })
       const data = await res.json()
 
@@ -123,35 +130,14 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
         return
       }
 
-      setSelectedOfficer('')
+      setSelectedOfficer((prev) => ({ ...prev, [role]: '' }))
       loadOfficers()
     } catch {
       setOfficerError('Could not reach the server. Please try again.')
     } finally {
-      setAssigning(false)
+      setAssigning(null)
     }
   }
-
-  async function handleRemoveOfficer(officerRefNumber) {
-    setOfficerError(null)
-    try {
-      const res = await fetch(`/api/learners/${learner.LEARNREFNUMBER}/officers/${officerRefNumber}`, {
-        method: 'DELETE',
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        setOfficerError(data.error || 'Could not remove this officer.')
-        return
-      }
-      loadOfficers()
-    } catch {
-      setOfficerError('Could not reach the server. Please try again.')
-    }
-  }
-
-  const assignableOfficers = allOfficers.filter(
-    (o) => !assignedOfficers.some((a) => a.OFFICERREFNUMBER === o.OFFICERREFNUMBER),
-  )
 
   return (
     <div className="detail-overlay" onClick={onClose}>
@@ -254,45 +240,50 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
 
           {officersStatus === 'ready' && (
             <>
-              {assignedOfficers.length === 0 ? (
-                <p className="empty-note">No officers assigned.</p>
-              ) : (
-                assignedOfficers.map((officer) => (
-                  <div className="detail-row" key={officer.OFFICERREFNUMBER}>
-                    <span>
-                      {officer.OFFICERNAME} ({labelFromOptions(OFFICER_TYPE_OPTIONS, officer.OFFICERTYPE)})
-                    </span>
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => handleRemoveOfficer(officer.OFFICERREFNUMBER)}
-                    >
-                      Remove
-                    </button>
+              {ASSIGNMENT_ROLES.map(({ code: role, label }) => {
+                const current = assignedOfficers.filter((a) => a.ASSIGNMENTROLE === role)
+                const choices = allOfficers.filter(
+                  (o) => o.OFFICERTYPE === role && !current.some((a) => a.OFFICERREFNUMBER === o.OFFICERREFNUMBER),
+                )
+                return (
+                  <div key={role} className="assignment-role">
+                    <Row
+                      label={label}
+                      value={current.length > 0 ? current.map((a) => a.OFFICERNAME).join(', ') : 'None assigned'}
+                    />
+                    {choices.length > 0 && (
+                      <form className="assign-officer-form" onSubmit={(e) => handleAssignOfficer(e, role)}>
+                        <select
+                          aria-label={`Change ${label.toLowerCase()}`}
+                          value={selectedOfficer[role] ?? ''}
+                          onChange={(e) => setSelectedOfficer((prev) => ({ ...prev, [role]: e.target.value }))}
+                        >
+                          <option value="">
+                            {current.length > 0 ? `Change ${label.toLowerCase()} to…` : `Assign a ${label.toLowerCase()}…`}
+                          </option>
+                          {choices.map((officer) => (
+                            <option key={officer.OFFICERREFNUMBER} value={officer.OFFICERREFNUMBER}>
+                              {officer.OFFICERNAME}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="submit"
+                          className="secondary"
+                          disabled={!selectedOfficer[role] || assigning !== null}
+                        >
+                          {assigning === role ? 'Saving…' : current.length > 0 ? 'Change' : 'Assign'}
+                        </button>
+                      </form>
+                    )}
                   </div>
-                ))
-              )}
+                )
+              })}
 
               {officerError && (
                 <p className="error-banner" role="alert">
                   {officerError}
                 </p>
-              )}
-
-              {assignableOfficers.length > 0 && (
-                <form className="assign-officer-form" onSubmit={handleAssignOfficer}>
-                  <select value={selectedOfficer} onChange={(e) => setSelectedOfficer(e.target.value)}>
-                    <option value="">Select an officer to assign…</option>
-                    {assignableOfficers.map((officer) => (
-                      <option key={officer.OFFICERREFNUMBER} value={officer.OFFICERREFNUMBER}>
-                        {officer.OFFICERNAME} ({labelFromOptions(OFFICER_TYPE_OPTIONS, officer.OFFICERTYPE)})
-                      </option>
-                    ))}
-                  </select>
-                  <button type="submit" className="secondary" disabled={!selectedOfficer || assigning}>
-                    {assigning ? 'Assigning…' : 'Assign'}
-                  </button>
-                </form>
               )}
             </>
           )}

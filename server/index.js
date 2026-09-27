@@ -652,12 +652,18 @@ app.post('/api/officers', async (req, res) => {
   }
 })
 
+// Caseloads live in OFFICER_ASSIGNMENT: one row per officer per learner per
+// spell, with the officer's role for that learner (TUTOR or ASSESSOR). An
+// assignment is current while ENDEDAT is empty. Assignments are ended, never
+// deleted, so caseload history is kept.
 const LEARNER_OFFICERS_QUERY = `
-  select o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE, o.EMAIL, o.TELNO
-  from LEARNER_OFFICER lo
-  join OFFICER o on lo.OFFICERREFNUMBER = o.OFFICERREFNUMBER
-  where lo.LEARNREFNUMBER = ?
-  order by o.OFFICERNAME
+  select o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE, o.EMAIL, o.TELNO,
+    a.ASSIGNMENTID, a.ASSIGNMENTROLE, a.STARTEDAT
+  from OFFICER_ASSIGNMENT a
+  join OFFICER o on a.OFFICERREFNUMBER = o.OFFICERREFNUMBER
+  where a.LEARNREFNUMBER = ?
+    and a.ENDEDAT is null
+  order by decode(a.ASSIGNMENTROLE, 'TUTOR', 1, 'ASSESSOR', 2, 3), o.OFFICERNAME
 `
 
 app.get('/api/learners/:learnRefNumber/officers', async (req, res) => {
@@ -680,9 +686,10 @@ app.get('/api/learners/:learnRefNumber/officers', async (req, res) => {
 // the officer detail panel can show status/standard and link straight
 // through to the learner detail panel without repeating that query here.
 const OFFICER_LEARNERS_QUERY = `
-  select LEARNREFNUMBER
-  from LEARNER_OFFICER
+  select LEARNREFNUMBER, ASSIGNMENTROLE
+  from OFFICER_ASSIGNMENT
   where OFFICERREFNUMBER = ?
+    and ENDEDAT is null
   order by LEARNREFNUMBER
 `
 
@@ -701,15 +708,33 @@ app.get('/api/officers/:officerRefNumber/learners', async (req, res) => {
   }
 })
 
+// Who made or ended an assignment. Replaced by the signed-in user's USERID
+// once users can sign in.
+const ASSIGNED_BY = 'warren-app'
+
+const ASSIGNMENT_ROLES = new Set(['TUTOR', 'ASSESSOR'])
+
 const LEARNER_EXISTS_QUERY =`select LEARNREFNUMBER from LEARNER where LEARNREFNUMBER = ?`
-const OFFICER_EXISTS_QUERY = `select OFFICERREFNUMBER from OFFICER where OFFICERREFNUMBER = ?`
-const LEARNER_OFFICER_EXISTS_QUERY = `
-  select 1 from LEARNER_OFFICER where LEARNREFNUMBER = ? and OFFICERREFNUMBER = ?
+const OFFICER_TYPE_QUERY = `select OFFICERTYPE from OFFICER where OFFICERREFNUMBER = ?`
+const CURRENT_ASSIGNMENT_QUERY = `
+  select ASSIGNMENTID, OFFICERREFNUMBER
+  from OFFICER_ASSIGNMENT
+  where LEARNREFNUMBER = ? and ASSIGNMENTROLE = ? and ENDEDAT is null
 `
-const INSERT_LEARNER_OFFICER = `
-  insert into LEARNER_OFFICER (LEARNREFNUMBER, OFFICERREFNUMBER) values (?, ?)
+const END_ASSIGNMENT = `
+  update OFFICER_ASSIGNMENT
+  set ENDEDAT = current_timestamp(), ENDEDBY = ?
+  where ASSIGNMENTID = ? and ENDEDAT is null
+`
+const INSERT_ASSIGNMENT = `
+  insert into OFFICER_ASSIGNMENT (LEARNREFNUMBER, OFFICERREFNUMBER, ASSIGNMENTROLE, STARTEDBY)
+  values (?, ?, ?, ?)
 `
 
+// Makes the officer the learner's tutor or assessor. Each learner has
+// exactly one current tutor and one current assessor, so any current
+// assignment in that role is ended in the same transaction. The role
+// defaults to the officer's type, and must match it.
 app.post('/api/learners/:learnRefNumber/officers', async (req, res) => {
   const { learnRefNumber } = req.params
   const officerRefNumber = req.body?.officerRefNumber
@@ -728,42 +753,51 @@ app.post('/api/learners/:learnRefNumber/officers', async (req, res) => {
       return
     }
 
-    const officerRows = await execute(connection, OFFICER_EXISTS_QUERY, [officerRefNumber])
-    if (officerRows.length === 0) {
+    const [officer] = await execute(connection, OFFICER_TYPE_QUERY, [officerRefNumber])
+    if (!officer) {
       res.status(404).json({ error: 'Officer not found.' })
       return
     }
 
-    const existing = await execute(connection, LEARNER_OFFICER_EXISTS_QUERY, [learnRefNumber, officerRefNumber])
-    if (existing.length > 0) {
-      res.status(409).json({ error: 'This officer is already assigned to this learner.' })
+    const role = req.body?.role ?? officer.OFFICERTYPE
+    if (!ASSIGNMENT_ROLES.has(role)) {
+      res.status(400).json({ error: 'Only tutors and assessors can be assigned to a learner.' })
+      return
+    }
+    if (role !== officer.OFFICERTYPE) {
+      res.status(400).json({ error: `This officer isn't a ${role.toLowerCase()}.` })
       return
     }
 
-    await execute(connection, INSERT_LEARNER_OFFICER, [learnRefNumber, officerRefNumber])
-    res.status(201).json({ learnRefNumber, officerRefNumber })
+    const current = await execute(connection, CURRENT_ASSIGNMENT_QUERY, [learnRefNumber, role])
+    if (current.some((a) => a.OFFICERREFNUMBER === officerRefNumber)) {
+      res.status(409).json({ error: `This officer is already this learner's ${role.toLowerCase()}.` })
+      return
+    }
+
+    await execute(connection, 'begin')
+    for (const a of current) {
+      await execute(connection, END_ASSIGNMENT, [ASSIGNED_BY, a.ASSIGNMENTID])
+    }
+    await execute(connection, INSERT_ASSIGNMENT, [learnRefNumber, officerRefNumber, role, ASSIGNED_BY])
+    await execute(connection, 'commit')
+
+    res.status(201).json({
+      learnRefNumber,
+      officerRefNumber,
+      role,
+      replaced: current.map((a) => a.OFFICERREFNUMBER),
+    })
   } catch (err) {
+    if (connection) {
+      try {
+        await execute(connection, 'rollback')
+      } catch (rollbackErr) {
+        console.error('Failed to roll back transaction:', rollbackErr.message)
+      }
+    }
     console.error('Failed to assign officer to learner:', err.message)
     res.status(500).json({ error: 'Could not assign this officer. Please try again.' })
-  } finally {
-    if (connection) await destroy(connection)
-  }
-})
-
-const DELETE_LEARNER_OFFICER = `
-  delete from LEARNER_OFFICER where LEARNREFNUMBER = ? and OFFICERREFNUMBER = ?
-`
-
-app.delete('/api/learners/:learnRefNumber/officers/:officerRefNumber', async (req, res) => {
-  const { learnRefNumber, officerRefNumber } = req.params
-  let connection
-  try {
-    connection = await connect()
-    await execute(connection, DELETE_LEARNER_OFFICER, [learnRefNumber, officerRefNumber])
-    res.json({ learnRefNumber, officerRefNumber })
-  } catch (err) {
-    console.error('Failed to remove officer from learner:', err.message)
-    res.status(500).json({ error: 'Could not remove this officer. Please try again.' })
   } finally {
     if (connection) await destroy(connection)
   }
