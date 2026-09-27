@@ -1,7 +1,8 @@
 // Report endpoints for the Reports tab. Every figure is worked out here in
 // Snowflake SQL; the browser only displays what comes back.
 
-import { connect, execute, destroy } from './db.js'
+import { execute } from './db.js'
+import { ORG_LEARNER, ORG_OFFICER, ORG_OFFICER_ASSIGNMENT } from './access.js'
 import { todayString } from '../src/validation.js'
 
 // ---------------------------------------------------------------- QAR (indicative)
@@ -46,7 +47,7 @@ export const QAR_AIMS = `
       -- An overdue continuing aim: still continuing, but past its planned end date.
       coalesce(ld.COMPSTATUS = 1 and ld.LEARNPLANENDDATE < :1::date, false) as IS_OVERDUE
     from LEARNING_DELIVERY ld
-    join LEARNER l
+    join ${ORG_LEARNER} l
       on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
@@ -160,8 +161,8 @@ export const CASELOAD_QUERY = `
     count_if(ld.COMPSTATUS = 2) as COMPLETED,
     count_if(ld.COMPSTATUS = 3) as WITHDRAWN,
     count_if(ld.COMPSTATUS = 1 and ld.LEARNPLANENDDATE < ?::date) as OVERDUE
-  from OFFICER o
-  left join OFFICER_ASSIGNMENT a
+  from ${ORG_OFFICER} o
+  left join ${ORG_OFFICER_ASSIGNMENT} a
     on a.OFFICERREFNUMBER = o.OFFICERREFNUMBER
    and a.ENDEDAT is null
   left join LEARNING_DELIVERY ld
@@ -185,8 +186,8 @@ export const CASELOAD_LEARNERS_QUERY = `
     ld.LEARNPLANENDDATE,
     ld.COMPSTATUS,
     coalesce(ld.COMPSTATUS = 1 and ld.LEARNPLANENDDATE < ?::date, false) as IS_OVERDUE
-  from OFFICER_ASSIGNMENT a
-  join LEARNER l
+  from ${ORG_OFFICER_ASSIGNMENT} a
+  join ${ORG_LEARNER} l
     on l.LEARNREFNUMBER = a.LEARNREFNUMBER
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
@@ -209,9 +210,8 @@ export function registerReportRoutes(app) {
       return
     }
 
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const binds = [todayString(), year]
       const summary = await execute(connection, QAR_SUMMARY_QUERY, binds)
       const learners = await execute(connection, QAR_LEARNERS_QUERY, binds)
@@ -230,36 +230,28 @@ export function registerReportRoutes(app) {
     } catch (err) {
       console.error('Failed to run QAR report:', err.message)
       res.status(500).json({ error: 'Failed to run the QAR report' })
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
-  app.get('/api/reports/caseload', async (_req, res) => {
-    let connection
+  app.get('/api/reports/caseload', async (req, res) => {
+    const connection = req.db
     try {
-      connection = await connect()
       const rows = await execute(connection, CASELOAD_QUERY, [todayString()])
       res.json(rows)
     } catch (err) {
       console.error('Failed to run caseload report:', err.message)
       res.status(500).json({ error: 'Failed to run the caseload report' })
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
   app.get('/api/reports/caseload/:officerRefNumber/learners', async (req, res) => {
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const rows = await execute(connection, CASELOAD_LEARNERS_QUERY, [todayString(), req.params.officerRefNumber])
       res.json(rows)
     } catch (err) {
       console.error('Failed to fetch caseload learners:', err.message)
       res.status(500).json({ error: "Failed to fetch this officer's learners" })
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 }

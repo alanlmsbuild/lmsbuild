@@ -3,7 +3,15 @@ import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
 import express from 'express'
 import cors from 'cors'
-import { connect, execute, destroy } from './db.js'
+import { execute } from './db.js'
+import {
+  attachUser,
+  CURRENT_ORGANISATIONID,
+  IN_ORG_LEARNERS,
+  ORG_LEARNER,
+  ORG_OFFICER,
+  ORG_OFFICER_ASSIGNMENT,
+} from './access.js'
 import {
   validateLearnerForm,
   validateLearnerEditForm,
@@ -24,6 +32,10 @@ dotenv.config({ path: path.join(__dirname, '.env') })
 const app = express()
 app.use(cors())
 app.use(express.json())
+
+// Every API request is made as the signed-in user, and only sees their
+// organisation's data (see access.js).
+app.use('/api', attachUser)
 
 // Selects every column the browser needs both to list learners and to
 // pre-fill the edit / mark-completed forms, so no separate "get one
@@ -71,7 +83,7 @@ const LEARNERS_QUERY = `
     ld.OUTCOME,
     ld.ACHDATE,
     ld.WITHDRAWREASON
-  from LEARNER l
+  from ${ORG_LEARNER} l
   join LEARNING_DELIVERY ld
     on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
   left join LARS.STANDARD s
@@ -79,17 +91,14 @@ const LEARNERS_QUERY = `
   order by l.LEARNREFNUMBER
 `
 
-app.get('/api/learners', async (_req, res) => {
-  let connection
+app.get('/api/learners', async (req, res) => {
+  const connection = req.db
   try {
-    connection = await connect()
     const rows = await execute(connection, LEARNERS_QUERY)
     res.json(rows)
   } catch (err) {
     console.error('Failed to fetch learners:', err.message)
     res.status(500).json({ error: 'Failed to fetch learners' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
@@ -124,18 +133,15 @@ const STANDARD_BY_CODE_QUERY = `
   where STANDARD_CODE = ?
 `
 
-app.get('/api/standards', async (_req, res) => {
-  let connection
+app.get('/api/standards', async (req, res) => {
+  const connection = req.db
   try {
-    connection = await connect()
     const today = todayString()
     const rows = await execute(connection, STANDARDS_QUERY, [today, today])
     res.json(rows)
   } catch (err) {
     console.error('Failed to fetch standards:', err.message)
     res.status(500).json({ error: 'Failed to fetch standards' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
@@ -161,9 +167,11 @@ async function checkStandard(connection, stdCode, keptCode = null) {
 
 // Finds the highest existing TESTL learner reference and returns the next
 // one in the same style, e.g. current highest TESTL0012 -> TESTL0013.
+// Deliberately across every organisation: LEARNREFNUMBER is the table's
+// key, so it must be unique everywhere. Only the reference is read.
 const HIGHEST_REF_QUERY = `
   select LEARNREFNUMBER
-  from LEARNER
+  from LEARNER -- all organisations
   where LEARNREFNUMBER like 'TESTL%'
   order by LEARNREFNUMBER desc
   limit 1
@@ -176,11 +184,13 @@ async function nextLearnRefNumber(connection) {
   return `TESTL${String(highestNumber + 1).padStart(4, '0')}`
 }
 
-// A ULN must not already belong to a different learner. excludeLearnRefNumber
+// A ULN must not already belong to a different learner in the same
+// organisation. The same person can be a learner at another provider, with
+// the same ULN, and this must not reveal that. excludeLearnRefNumber
 // is the learner being added or edited, so it doesn't flag itself as a
 // conflict when editing.
 const ULN_CONFLICT_QUERY = `
-  select LEARNREFNUMBER from LEARNER where ULN = ? and LEARNREFNUMBER <> ?
+  select LEARNREFNUMBER from ${ORG_LEARNER} where ULN = ? and LEARNREFNUMBER <> ?
 `
 
 async function isUlnTaken(connection, uln, excludeLearnRefNumber) {
@@ -197,7 +207,7 @@ const LEARNER_BY_REF_QUERY = `
     ld.LEARNSTARTDATE,
     ld.STDCODE,
     ld.COMPSTATUS
-  from LEARNER l
+  from ${ORG_LEARNER} l
   join LEARNING_DELIVERY ld
     on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -235,8 +245,8 @@ const INSERT_LEARNER = `
     ETHNICITY, SEX, LLDDHEALTHPROB, NINUMBER, POSTCODEPRIOR, POSTCODE, TELNO, EMAIL,
     TITLE, ADDRESSLINE1, ADDRESSLINE2, ADDRESSLINE3, WARDORCOUNTY, MOBILENO,
     CONTACTMETHODSALLOWED, PREFERREDCONTACTMETHOD,
-    NEXTOFKINNAME, NEXTOFKINRELATIONSHIP, NEXTOFKINPHONE, CONTRACTTYPE
-  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    NEXTOFKINNAME, NEXTOFKINRELATIONSHIP, NEXTOFKINPHONE, CONTRACTTYPE, ORGANISATIONID
+  ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${CURRENT_ORGANISATIONID})
 `
 
 // The aim fields fixed by the milestone spec (LEARNAIMREF, AIMTYPE,
@@ -259,9 +269,8 @@ app.post('/api/learners', async (req, res) => {
   }
 
   const v = req.body
-  let connection
+  const connection = req.db
   try {
-    connection = await connect()
 
     const standardError = await checkStandard(connection, v.stdCode)
     if (standardError) {
@@ -332,8 +341,6 @@ app.post('/api/learners', async (req, res) => {
     }
     console.error('Failed to add learner:', err.message)
     res.status(500).json({ error: 'Could not save the new learner. Please try again.' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
@@ -348,20 +355,19 @@ const UPDATE_LEARNER = `
     TITLE = ?, ADDRESSLINE1 = ?, ADDRESSLINE2 = ?, ADDRESSLINE3 = ?,
     WARDORCOUNTY = ?, MOBILENO = ?, CONTACTMETHODSALLOWED = ?, PREFERREDCONTACTMETHOD = ?,
     NEXTOFKINNAME = ?, NEXTOFKINRELATIONSHIP = ?, NEXTOFKINPHONE = ?, CONTRACTTYPE = ?
-  where LEARNREFNUMBER = ?
+  where LEARNREFNUMBER = ? and ${IN_ORG_LEARNERS}
 `
 
 const UPDATE_LEARNING_DELIVERY = `
   update LEARNING_DELIVERY set
     LEARNSTARTDATE = ?, LEARNPLANENDDATE = ?, STDCODE = ?, DELLOCPOSTCODE = ?
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1
+  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
 `
 
 app.put('/api/learners/:learnRefNumber', async (req, res) => {
   const { learnRefNumber } = req.params
-  let connection
+  const connection = req.db
   try {
-    connection = await connect()
 
     const existing = await findLearnerAim(connection, learnRefNumber)
     if (!existing) {
@@ -455,8 +461,6 @@ app.put('/api/learners/:learnRefNumber', async (req, res) => {
     }
     console.error('Failed to update learner:', err.message)
     res.status(500).json({ error: 'Could not save these changes. Please try again.' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
@@ -465,14 +469,13 @@ app.put('/api/learners/:learnRefNumber', async (req, res) => {
 const COMPLETE_AIM = `
   update LEARNING_DELIVERY set
     COMPSTATUS = 2, OUTCOME = ?, LEARNACTENDDATE = ?, ACHDATE = ?
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1
+  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
 `
 
 app.put('/api/learners/:learnRefNumber/complete', async (req, res) => {
   const { learnRefNumber } = req.params
-  let connection
+  const connection = req.db
   try {
-    connection = await connect()
 
     const existing = await findLearnerAim(connection, learnRefNumber)
     if (!existing) {
@@ -513,8 +516,6 @@ app.put('/api/learners/:learnRefNumber/complete', async (req, res) => {
     }
     console.error('Failed to mark aim completed:', err.message)
     res.status(500).json({ error: 'Could not save this. Please try again.' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
@@ -524,14 +525,13 @@ app.put('/api/learners/:learnRefNumber/complete', async (req, res) => {
 const WITHDRAW_AIM = `
   update LEARNING_DELIVERY set
     COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = null, ACHDATE = null
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1
+  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
 `
 
 app.put('/api/learners/:learnRefNumber/withdraw', async (req, res) => {
   const { learnRefNumber } = req.params
-  let connection
+  const connection = req.db
   try {
-    connection = await connect()
 
     const existing = await findLearnerAim(connection, learnRefNumber)
     if (!existing) {
@@ -571,37 +571,33 @@ app.put('/api/learners/:learnRefNumber/withdraw', async (req, res) => {
     }
     console.error('Failed to withdraw aim:', err.message)
     res.status(500).json({ error: 'Could not save this. Please try again.' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
 const OFFICERS_QUERY = `
   select OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE, EMAIL, TELNO
-  from OFFICER
+  from ${ORG_OFFICER}
   order by OFFICERNAME
 `
 
-app.get('/api/officers', async (_req, res) => {
-  let connection
+app.get('/api/officers', async (req, res) => {
+  const connection = req.db
   try {
-    connection = await connect()
     const rows = await execute(connection, OFFICERS_QUERY)
     res.json(rows)
   } catch (err) {
     console.error('Failed to fetch officers:', err.message)
     res.status(500).json({ error: 'Failed to fetch officers' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
 // Finds the highest existing OFF officer reference and returns the next one
 // in the same style, e.g. current highest OFF0012 -> OFF0013 - the same
-// approach nextLearnRefNumber uses for learner references.
+// approach nextLearnRefNumber uses for learner references, and across every
+// organisation for the same reason.
 const HIGHEST_OFFICER_REF_QUERY = `
   select OFFICERREFNUMBER
-  from OFFICER
+  from OFFICER -- all organisations
   where OFFICERREFNUMBER like 'OFF%'
   order by OFFICERREFNUMBER desc
   limit 1
@@ -615,8 +611,8 @@ async function nextOfficerRefNumber(connection) {
 }
 
 const INSERT_OFFICER = `
-  insert into OFFICER (OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE, EMAIL, TELNO)
-  values (?, ?, ?, ?, ?)
+  insert into OFFICER (OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE, EMAIL, TELNO, ORGANISATIONID)
+  values (?, ?, ?, ?, ?, ${CURRENT_ORGANISATIONID})
 `
 
 app.post('/api/officers', async (req, res) => {
@@ -629,9 +625,8 @@ app.post('/api/officers', async (req, res) => {
   }
 
   const v = req.body
-  let connection
+  const connection = req.db
   try {
-    connection = await connect()
 
     const officerRefNumber = await nextOfficerRefNumber(connection)
 
@@ -647,8 +642,6 @@ app.post('/api/officers', async (req, res) => {
   } catch (err) {
     console.error('Failed to add officer:', err.message)
     res.status(500).json({ error: 'Could not save the new officer. Please try again.' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
@@ -656,11 +649,14 @@ app.post('/api/officers', async (req, res) => {
 // spell, with the officer's role for that learner (TUTOR or ASSESSOR). An
 // assignment is current while ENDEDAT is empty. Assignments are ended, never
 // deleted, so caseload history is kept.
+const LEARNER_EXISTS_QUERY = `select LEARNREFNUMBER from ${ORG_LEARNER} where LEARNREFNUMBER = ?`
+const OFFICER_TYPE_QUERY = `select OFFICERTYPE from ${ORG_OFFICER} where OFFICERREFNUMBER = ?`
+
 const LEARNER_OFFICERS_QUERY = `
   select o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE, o.EMAIL, o.TELNO,
     a.ASSIGNMENTID, a.ASSIGNMENTROLE, a.STARTEDAT
-  from OFFICER_ASSIGNMENT a
-  join OFFICER o on a.OFFICERREFNUMBER = o.OFFICERREFNUMBER
+  from ${ORG_OFFICER_ASSIGNMENT} a
+  join ${ORG_OFFICER} o on a.OFFICERREFNUMBER = o.OFFICERREFNUMBER
   where a.LEARNREFNUMBER = ?
     and a.ENDEDAT is null
   order by decode(a.ASSIGNMENTROLE, 'TUTOR', 1, 'ASSESSOR', 2, 3), o.OFFICERNAME
@@ -668,16 +664,18 @@ const LEARNER_OFFICERS_QUERY = `
 
 app.get('/api/learners/:learnRefNumber/officers', async (req, res) => {
   const { learnRefNumber } = req.params
-  let connection
+  const connection = req.db
   try {
-    connection = await connect()
+    const learnerRows = await execute(connection, LEARNER_EXISTS_QUERY, [learnRefNumber])
+    if (learnerRows.length === 0) {
+      res.status(404).json({ error: 'Learner not found.' })
+      return
+    }
     const rows = await execute(connection, LEARNER_OFFICERS_QUERY, [learnRefNumber])
     res.json(rows)
   } catch (err) {
     console.error('Failed to fetch officers for learner:', err.message)
     res.status(500).json({ error: 'Failed to fetch officers for this learner' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
@@ -687,7 +685,7 @@ app.get('/api/learners/:learnRefNumber/officers', async (req, res) => {
 // through to the learner detail panel without repeating that query here.
 const OFFICER_LEARNERS_QUERY = `
   select LEARNREFNUMBER, ASSIGNMENTROLE
-  from OFFICER_ASSIGNMENT
+  from ${ORG_OFFICER_ASSIGNMENT}
   where OFFICERREFNUMBER = ?
     and ENDEDAT is null
   order by LEARNREFNUMBER
@@ -695,16 +693,18 @@ const OFFICER_LEARNERS_QUERY = `
 
 app.get('/api/officers/:officerRefNumber/learners', async (req, res) => {
   const { officerRefNumber } = req.params
-  let connection
+  const connection = req.db
   try {
-    connection = await connect()
+    const officerRows = await execute(connection, OFFICER_TYPE_QUERY, [officerRefNumber])
+    if (officerRows.length === 0) {
+      res.status(404).json({ error: 'Officer not found.' })
+      return
+    }
     const rows = await execute(connection, OFFICER_LEARNERS_QUERY, [officerRefNumber])
     res.json(rows)
   } catch (err) {
     console.error('Failed to fetch learners for officer:', err.message)
     res.status(500).json({ error: 'Failed to fetch learners for this officer' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 
@@ -714,17 +714,16 @@ const ASSIGNED_BY = 'warren-app'
 
 const ASSIGNMENT_ROLES = new Set(['TUTOR', 'ASSESSOR'])
 
-const LEARNER_EXISTS_QUERY =`select LEARNREFNUMBER from LEARNER where LEARNREFNUMBER = ?`
-const OFFICER_TYPE_QUERY = `select OFFICERTYPE from OFFICER where OFFICERREFNUMBER = ?`
 const CURRENT_ASSIGNMENT_QUERY = `
   select ASSIGNMENTID, OFFICERREFNUMBER
-  from OFFICER_ASSIGNMENT
+  from ${ORG_OFFICER_ASSIGNMENT}
   where LEARNREFNUMBER = ? and ASSIGNMENTROLE = ? and ENDEDAT is null
 `
 const END_ASSIGNMENT = `
   update OFFICER_ASSIGNMENT
   set ENDEDAT = current_timestamp(), ENDEDBY = ?
   where ASSIGNMENTID = ? and ENDEDAT is null
+    and ASSIGNMENTID in (select ASSIGNMENTID from ${ORG_OFFICER_ASSIGNMENT})
 `
 const INSERT_ASSIGNMENT = `
   insert into OFFICER_ASSIGNMENT (LEARNREFNUMBER, OFFICERREFNUMBER, ASSIGNMENTROLE, STARTEDBY)
@@ -743,9 +742,8 @@ app.post('/api/learners/:learnRefNumber/officers', async (req, res) => {
     return
   }
 
-  let connection
+  const connection = req.db
   try {
-    connection = await connect()
 
     const learnerRows = await execute(connection, LEARNER_EXISTS_QUERY, [learnRefNumber])
     if (learnerRows.length === 0) {
@@ -798,8 +796,6 @@ app.post('/api/learners/:learnRefNumber/officers', async (req, res) => {
     }
     console.error('Failed to assign officer to learner:', err.message)
     res.status(500).json({ error: 'Could not assign this officer. Please try again.' })
-  } finally {
-    if (connection) await destroy(connection)
   }
 })
 

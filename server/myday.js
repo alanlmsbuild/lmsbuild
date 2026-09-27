@@ -2,7 +2,8 @@
 // worked out in Snowflake SQL, plus saving a progress review.
 
 import crypto from 'node:crypto'
-import { connect, execute, destroy } from './db.js'
+import { execute } from './db.js'
+import { ORG_LEARNER, ORG_OFFICER, ORG_OFFICER_ASSIGNMENT } from './access.js'
 import { todayString, validateProgressReviewForm } from '../src/validation.js'
 import { QAR_AIMS, DEFAULT_QAR_YEAR } from './reports.js'
 
@@ -33,8 +34,8 @@ const MY_CONTINUING_LEARNERS = `
       s.NAME as STDNAME,
       ld.LEARNSTARTDATE,
       ld.LEARNPLANENDDATE
-    from OFFICER_ASSIGNMENT a
-    join LEARNER l
+    from ${ORG_OFFICER_ASSIGNMENT} a
+    join ${ORG_LEARNER} l
       on l.LEARNREFNUMBER = a.LEARNREFNUMBER
     join LEARNING_DELIVERY ld
       on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
@@ -147,7 +148,7 @@ export const MY_CASELOAD_QUERY = `
     coalesce(count_if(ld.COMPSTATUS = 1), 0) as CONTINUING,
     coalesce(count_if(ld.COMPSTATUS = 2), 0) as COMPLETED,
     coalesce(count_if(ld.COMPSTATUS = 3), 0) as WITHDRAWN
-  from OFFICER_ASSIGNMENT a
+  from ${ORG_OFFICER_ASSIGNMENT} a
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -168,18 +169,18 @@ export const MY_QAR_QUERY = `
     round(100 * count_if(IS_COMPLETER) / nullif(count_if(IS_LEAVER), 0), 1) as RETENTION_RATE
   from classified
   where IN_COHORT
-    and LEARNREFNUMBER in (select LEARNREFNUMBER from OFFICER_ASSIGNMENT where OFFICERREFNUMBER = :3 and ENDEDAT is null)
+    and LEARNREFNUMBER in (select LEARNREFNUMBER from ${ORG_OFFICER_ASSIGNMENT} where OFFICERREFNUMBER = :3 and ENDEDAT is null)
 `
 
 const OFFICER_QUERY = `
   select OFFICERREFNUMBER, OFFICERNAME, OFFICERTYPE
-  from OFFICER
+  from ${ORG_OFFICER}
   where OFFICERREFNUMBER = ?
 `
 
 const LEARNER_START_QUERY = `
   select l.LEARNREFNUMBER, ld.LEARNSTARTDATE
-  from LEARNER l
+  from ${ORG_LEARNER} l
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -201,9 +202,8 @@ function toIsoDateString(value) {
 export function registerMyDayRoutes(app) {
   app.get('/api/myday/:officerRefNumber', async (req, res) => {
     const { officerRefNumber } = req.params
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const [officer] = await execute(connection, OFFICER_QUERY, [officerRefNumber])
       if (!officer) {
         res.status(404).json({ error: 'Officer not found.' })
@@ -231,8 +231,6 @@ export function registerMyDayRoutes(app) {
     } catch (err) {
       console.error('Failed to load My day:', err.message)
       res.status(500).json({ error: 'Failed to load My day' })
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
@@ -247,9 +245,8 @@ export function registerMyDayRoutes(app) {
       return
     }
 
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
 
       // Snowflake doesn't enforce the learner and officer keys, so check here.
       const [learner] = await execute(connection, LEARNER_START_QUERY, [learnRefNumber])
@@ -285,8 +282,6 @@ export function registerMyDayRoutes(app) {
     } catch (err) {
       console.error('Failed to save progress review:', err.message)
       res.status(500).json({ error: 'Could not save this review. Please try again.' })
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 }

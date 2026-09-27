@@ -13,7 +13,8 @@ import path from 'node:path'
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import busboy from 'busboy'
-import { connect, execute, destroy } from './db.js'
+import { execute } from './db.js'
+import { IN_ORG_LEARNERS, ORG_LEARNER } from './access.js'
 import { validateEvidenceForm, validateEvidenceSubmission } from '../src/validation.js'
 import {
   EDITABLE_STATUSES,
@@ -58,7 +59,7 @@ const LEARNER_QUERY = `
     s.NAME as STDNAME,
     s.NOTIONAL_END_LEVEL as STDLEVEL,
     ld.COMPSTATUS
-  from LEARNER l
+  from ${ORG_LEARNER} l
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -75,7 +76,7 @@ const LEARNERS_QUERY = `
     l.FAMILYNAME,
     s.REFERENCE as STDREFERENCE,
     s.NAME as STDNAME
-  from LEARNER l
+  from ${ORG_LEARNER} l
   left join LEARNING_DELIVERY ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -208,6 +209,7 @@ const EVIDENCE_QUERY = `
   from BURROW.EVIDENCE
   where EVIDENCE_ID = ?
     and LEARNREFNUMBER = ?
+    and ${IN_ORG_LEARNERS}
 `
 
 const ACTIVE_CLAIMS_QUERY = `
@@ -513,22 +515,18 @@ function contentDisposition(kind, filename) {
 // ---------------------------------------------------------------- routes
 
 export function registerBurrowRoutes(app) {
-  app.get('/api/burrow/learners', async (_req, res) => {
-    let connection
+  app.get('/api/burrow/learners', async (req, res) => {
+    const connection = req.db
     try {
-      connection = await connect()
       res.json(await execute(connection, LEARNERS_QUERY))
     } catch (err) {
       sendError(res, err, 'Could not load learners')
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
   app.get('/api/burrow/learners/:learnRefNumber/portfolio', async (req, res) => {
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const st = learner.STDREFERENCE
       const [ksbs, evidence, [occupation]] = await Promise.all([
@@ -539,15 +537,12 @@ export function registerBurrowRoutes(app) {
       res.json({ learner, occupation: occupation ?? null, ksbsLoaded: ksbs.length > 0, ksbs, evidence })
     } catch (err) {
       sendError(res, err, 'Could not load the portfolio')
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
   app.get('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId', async (req, res) => {
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const evidence = await findEvidence(connection, req.params.evidenceId, req.params.learnRefNumber)
       const [claims, files] = await Promise.all([
         execute(connection, ACTIVE_CLAIMS_QUERY, [evidence.EVIDENCE_ID]),
@@ -556,8 +551,6 @@ export function registerBurrowRoutes(app) {
       res.json({ evidence, ksbs: claims.map((c) => c.KSB_REFERENCE), files })
     } catch (err) {
       sendError(res, err, 'Could not load this evidence')
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
@@ -570,9 +563,8 @@ export function registerBurrowRoutes(app) {
       res.status(400).json({ error: 'Please fix the highlighted fields.', fields: fieldErrors })
       return
     }
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const standard = await standardKsbs(connection, learner.STDREFERENCE)
       checkKsbs(fields.ksbs, standard)
@@ -594,8 +586,6 @@ export function registerBurrowRoutes(app) {
       res.status(201).json({ evidenceId })
     } catch (err) {
       sendError(res, err, 'Could not save this evidence')
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
@@ -606,9 +596,8 @@ export function registerBurrowRoutes(app) {
       res.status(400).json({ error: 'Please fix the highlighted fields.', fields: fieldErrors })
       return
     }
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const evidence = await findEvidence(connection, req.params.evidenceId, learner.LEARNREFNUMBER)
       requireEditable(evidence)
@@ -622,7 +611,7 @@ export function registerBurrowRoutes(app) {
           `update BURROW.EVIDENCE
            set TITLE = ?, EVIDENCE_TYPE = ?, OCCURRED_ON = ?, REFLECTION = ?,
                UPDATED_AT = current_timestamp(), UPDATED_BY = ?
-           where EVIDENCE_ID = ?`,
+           where EVIDENCE_ID = ? and ${IN_ORG_LEARNERS}`,
           [fields.title, fields.evidenceType, fields.occurredOn, fields.reflection || null, by, evidence.EVIDENCE_ID],
         )
         await setClaims(connection, evidence, fields.ksbs, standard, by)
@@ -630,17 +619,14 @@ export function registerBurrowRoutes(app) {
       res.json({ evidenceId: evidence.EVIDENCE_ID })
     } catch (err) {
       sendError(res, err, 'Could not save this evidence')
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
   // Sends a draft (or evidence sent back for changes) for review, checking
   // what's actually saved rather than anything the browser says.
   app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/submit', async (req, res) => {
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const evidence = await findEvidence(connection, req.params.evidenceId, learner.LEARNREFNUMBER)
       requireEditable(evidence)
@@ -667,24 +653,21 @@ export function registerBurrowRoutes(app) {
         `update BURROW.EVIDENCE
          set STATUS = 'submitted', SUBMISSION_COUNT = SUBMISSION_COUNT + 1,
              SUBMITTED_AT = current_timestamp(), UPDATED_AT = current_timestamp(), UPDATED_BY = ?
-         where EVIDENCE_ID = ? and STATUS in ('draft', 'changes_requested')`,
+         where EVIDENCE_ID = ? and STATUS in ('draft', 'changes_requested') and ${IN_ORG_LEARNERS}`,
         [learner.LEARNREFNUMBER, evidence.EVIDENCE_ID],
       )
       res.json({ evidenceId: evidence.EVIDENCE_ID, status: 'submitted' })
     } catch (err) {
       sendError(res, err, 'Could not send this for review')
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
   // One file per request. The evidence is checked first, so nothing is read
   // for evidence that can't take it. The temporary folder is always removed.
   app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/files', async (req, res) => {
-    let connection
+    const connection = req.db
     let tmpDir
     try {
-      connection = await connect()
       const evidence = await findEvidence(connection, req.params.evidenceId, req.params.learnRefNumber)
       requireEditable(evidence)
       const files = await execute(connection, ACTIVE_FILES_QUERY, [evidence.EVIDENCE_ID])
@@ -728,15 +711,13 @@ export function registerBurrowRoutes(app) {
       sendError(res, err, 'Could not upload this file')
     } finally {
       if (tmpDir) await fsp.rm(tmpDir, { recursive: true, force: true })
-      if (connection) await destroy(connection)
     }
   })
 
   // Takes a file off a draft. The row and the stored file are both kept.
   app.post('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId/files/:fileId/remove', async (req, res) => {
-    let connection
+    const connection = req.db
     try {
-      connection = await connect()
       const evidence = await findEvidence(connection, req.params.evidenceId, req.params.learnRefNumber)
       requireEditable(evidence)
       await execute(
@@ -749,23 +730,21 @@ export function registerBurrowRoutes(app) {
       res.json({ fileId: req.params.fileId })
     } catch (err) {
       sendError(res, err, 'Could not remove this file')
-    } finally {
-      if (connection) await destroy(connection)
     }
   })
 
   // Streams a file from the stage through the server. ?download=1 saves it
   // instead of showing it in the browser.
   app.get('/api/burrow/learners/:learnRefNumber/files/:fileId', async (req, res) => {
-    let connection
+    const connection = req.db
     let tmpDir
     try {
-      connection = await connect()
       const [file] = await execute(
         connection,
         `select f.STAGE_PATH, f.ORIGINAL_FILENAME, f.CONTENT_TYPE
          from BURROW.EVIDENCE_FILE f
          join BURROW.EVIDENCE e on e.EVIDENCE_ID = f.EVIDENCE_ID
+         join ${ORG_LEARNER} l on l.LEARNREFNUMBER = e.LEARNREFNUMBER
          where f.FILE_ID = ? and e.LEARNREFNUMBER = ?`,
         [req.params.fileId, req.params.learnRefNumber],
       )
@@ -782,7 +761,6 @@ export function registerBurrowRoutes(app) {
       else console.error('Failed while sending a file:', err.message)
     } finally {
       if (tmpDir) await fsp.rm(tmpDir, { recursive: true, force: true })
-      if (connection) await destroy(connection)
     }
   })
 }
