@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Burrow: add evidence</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&amp;family=DM+Sans:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0;font-family:'DM Sans',system-ui,sans-serif;background:#F6EEDC}
+a{color:#8E3F1F}a:hover{color:#6E2F15}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1200px; box-sizing: border-box; background: #F6EEDC; color: #2A1F17; font-family: 'DM Sans', system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="height: 72px; box-sizing: border-box; padding: 0 48px; background: #FFFBF2; border-bottom: 1px solid #E4D6BA; display: flex; flex-direction: row; align-items: center; justify-content: space-between">
+<div style="display: flex; flex-direction: row; align-items: center; gap: 40px">
+<a href="Main.dc.html" aria-label="Burrow home" style="display: flex; flex-direction: row; align-items: center; gap: 10px; text-decoration: none; color: #2A1F17">
+<svg viewBox="0 0 200 200" width="36" height="36" aria-hidden="true">
+<path fill="#B4532A" d="M36 176 L36 104 A64 64 0 0 1 164 104 L164 176 Z"></path>
+<path fill="#2A1F17" d="M60 176 L60 110 A40 40 0 0 1 140 110 L140 176 Z"></path>
+<rect x="82" y="108" width="44" height="34" rx="5" fill="#E9A23B"></rect>
+<rect x="72" y="122" width="54" height="40" rx="5" fill="#F9E9C8"></rect>
+</svg>
+<span style="font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 26px">Burrow</span>
+</a>
+<nav aria-label="Burrow" style="display: flex; flex-direction: row; gap: 8px; font-size: 16px; font-weight: 500">
+<a href="Main.dc.html" style="padding: 10px 16px; border-radius: 999px; color: #2A1F17; text-decoration: none">My portfolio</a>
+<a href="AddEvidence.dc.html" style="padding: 10px 16px; border-radius: 999px; background: #F6DDD2; color: #8E3F1F; text-decoration: none">Add evidence</a>
+<a href="Main.dc.html#feedback" style="padding: 10px 16px; border-radius: 999px; color: #2A1F17; text-decoration: none">Feedback (2)</a>
+</nav>
+</div>
+<div style="display: flex; flex-direction: row; align-items: center; gap: 12px">
+<div style="font-size: 15px; color: #4A3A2C">Alex Testlearner01</div>
+<div style="width: 40px; height: 40px; border-radius: 20px; background: #2A1F17; color: #F9E9C8; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700">AT</div>
+</div>
+</header>
+
+<div style="flex-grow: 1; padding: 36px 48px 24px; display: flex; flex-direction: row; gap: 32px">
+<main style="flex-grow: 1; display: flex; flex-direction: column; gap: 24px">
+<h1 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 40px; letter-spacing: -1px">Add evidence</h1>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<div style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label for="ev-title" style="font-size: 15px; font-weight: 700">Give it a title</label>
+<input id="ev-title" type="text" placeholder="For example: Helping a customer choose the right plan" style="height: 48px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid #D9C7A4; border-radius: 12px; background: #FFFBF2; font-family: 'DM Sans', sans-serif; font-size: 16px; color: #2A1F17">
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label for="ev-type" style="font-size: 15px; font-weight: 700">What kind of evidence?</label>
+<select id="ev-type" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1.5px solid #D9C7A4; border-radius: 12px; background: #FFFBF2; font-family: 'DM Sans', sans-serif; font-size: 16px; color: #2A1F17">
+<option>Photo</option>
+<option>Video</option>
+<option>Document</option>
+<option>Witness statement</option>
+<option>Reflection only</option>
+</select>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label for="ev-date" style="font-size: 15px; font-weight: 700">When did it happen?</label>
+<input id="ev-date" type="date" style="height: 48px; box-sizing: border-box; padding: 0 12px; border: 1.5px solid #D9C7A4; border-radius: 12px; background: #FFFBF2; font-family: 'DM Sans', sans-serif; font-size: 16px; color: #2A1F17">
+</div>
+</div>
+<div style="height: 150px; border: 2px dashed #B8A27E; border-radius: 16px; background: #FFFBF2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px">
+<svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true" fill="none" stroke="#8E3F1F" style="stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+<div style="font-size: 15px; color: #4A3A2C">Drag a file here, or</div>
+<button type="button" style="height: 44px; padding: 0 20px; border: 1.5px solid #2A1F17; border-radius: 999px; background: transparent; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; color: #2A1F17">Choose a file</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label for="ev-reflection" style="font-size: 15px; font-weight: 700">What did you do, and what did you learn?</label>
+<textarea id="ev-reflection" placeholder="Describe what happened, what you did and why, and what you would do differently next time." style="height: 200px; box-sizing: border-box; padding: 14px; border: 1.5px solid #D9C7A4; border-radius: 12px; background: #FFFBF2; font-family: 'DM Sans', sans-serif; font-size: 16px; line-height: 1.5; color: #2A1F17; resize: none"></textarea>
+</div>
+</div>
+
+<section aria-label="KSBs this shows" style="padding: 22px; background: #FFFBF2; border: 1px solid #E4D6BA; border-radius: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Which KSBs does this show?</h2>
+<div style="font-size: 14px; color: #4A3A2C">Tick every one it covers. Your assessor will confirm each.</div>
+</div>
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #6B5440; padding: 6px 0 2px">{{g.title}}</div>
+<sc-for list="{{g.items}}" as="k" hint-placeholder-count="6">
+<label style="min-height: 34px; display: flex; flex-direction: row; align-items: center; gap: 10px; font-size: 15px; cursor: pointer">
+<input type="checkbox" checked="{{k.checked}}" onChange="{{k.toggle}}" style="width: 20px; height: 20px; accent-color: #B4532A; flex-shrink: 0">
+<span style="width: 28px; font-weight: 700; color: #4A3A2C">{{k.ref}}</span>
+<span>{{k.text}}</span>
+</label>
+</sc-for>
+</div>
+</sc-for>
+</section>
+</div>
+
+<div style="display: flex; flex-direction: row; gap: 14px; align-items: center">
+<button type="button" style="height: 52px; padding: 0 28px; border: none; border-radius: 999px; background: #B4532A; font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 500; color: #FFFBF2">{{sendLabel}}</button>
+<button type="button" style="height: 52px; padding: 0 24px; border: 1.5px solid #2A1F17; border-radius: 999px; background: transparent; font-family: 'DM Sans', sans-serif; font-size: 17px; font-weight: 500; color: #2A1F17">Save as draft</button>
+</div>
+</main>
+
+<aside style="width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px">
+<section style="padding: 22px; background: #2E5A4C; color: #F6EEDC; border-radius: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 22px">What makes good evidence</h2>
+<div style="font-size: 15px; line-height: 1.5">Say what you did, not just what happened.</div>
+<div style="font-size: 15px; line-height: 1.5">Explain why you did it that way.</div>
+<div style="font-size: 15px; line-height: 1.5">Say what you learned, or would change next time.</div>
+<div style="font-size: 15px; line-height: 1.5">Leave out customers&#8217; personal details.</div>
+</section>
+<section style="padding: 22px; background: #FFFBF2; border: 1px solid #E4D6BA; border-radius: 20px; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">Still to evidence</h2>
+<div style="font-size: 15px; line-height: 1.5; color: #4A3A2C">K6 Customer experience, and B4 Equality, have no evidence yet.</div>
+</section>
+</aside>
+</div>
+
+<footer style="height: 56px; box-sizing: border-box; padding: 0 48px; border-top: 1px solid #E4D6BA; display: flex; flex-direction: row; align-items: center; gap: 16px; font-size: 13px; color: #6B5440">
+<div style="width: 96px; height: 32px; border: 1px dashed #B8A27E; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px">Skills England logo</div>
+<div>KSBs &#169; Skills England 2025. This information is licensed under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence</a>.</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { picked: { K6: true, B4: true } };
+}
+renderVals() {
+const picked = this.state.picked;
+const mk = (ref, text) => ({
+  ref: ref, text: text, checked: !!picked[ref],
+  toggle: () => this.setState({ picked: Object.assign({}, picked, { [ref]: !picked[ref] }) })
+});
+const count = Object.keys(picked).filter((k) => picked[k]).length;
+return {
+  sendLabel: count === 0 ? 'Send for review' : 'Send for review (' + count + (count === 1 ? ' KSB)' : ' KSBs)'),
+  groups: [
+    { title: 'Knowledge', items: [mk('K1', 'Knowing your customers'), mk('K2', 'Understanding the organisation'), mk('K3', 'Meeting regulations and legislation'), mk('K4', 'Systems and resources'), mk('K5', 'Your role and responsibility'), mk('K6', 'Customer experience'), mk('K7', 'Product and service knowledge')] },
+    { title: 'Skills', items: [mk('S1', 'Interpersonal skills'), mk('S2', 'Communication'), mk('S3', 'Influencing skills'), mk('S4', 'Personal organisation'), mk('S5', 'Dealing with conflict and challenge')] },
+    { title: 'Behaviours', items: [mk('B1', 'Develop self'), mk('B2', 'Being open to feedback'), mk('B3', 'Team working'), mk('B4', 'Equality'), mk('B5', 'Presentation'), mk('B6', 'Right first time')] }
+  ]
+};
+}
+}
+</script>
+</body>
+</html>

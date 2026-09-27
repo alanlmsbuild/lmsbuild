@@ -16,6 +16,7 @@ import { OUTCOME_ACHIEVED } from '../src/ilrCodes.js'
 import { standardLabel } from '../src/lookups.js'
 import { registerReportRoutes } from './reports.js'
 import { registerMyDayRoutes } from './myday.js'
+import { registerBurrowRoutes } from './burrow.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '.env') })
@@ -768,9 +769,11 @@ app.delete('/api/learners/:learnRefNumber/officers/:officerRefNumber', async (re
   }
 })
 
-// The Reports tab's endpoints live in reports.js, and My day's in myday.js.
+// The Reports tab's endpoints live in reports.js, My day's in myday.js,
+// and Burrow's in burrow.js.
 registerReportRoutes(app)
 registerMyDayRoutes(app)
+registerBurrowRoutes(app)
 
 const port = process.env.PORT || 3001
 app.listen(port, () => {

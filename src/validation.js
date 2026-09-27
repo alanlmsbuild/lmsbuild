@@ -14,6 +14,7 @@ import {
   CONTRACT_TYPE_OPTIONS,
   OFFICER_TYPE_OPTIONS,
 } from './ilrCodes.js'
+import { EVIDENCE_TYPE_OPTIONS, TYPES_NEEDING_A_FILE } from './burrowCodes.js'
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
 const NI_NUMBER = /^[A-Za-z]{2}\d{6}[A-Da-d]$/
@@ -29,6 +30,8 @@ const WITHDRAW_REASON_CODES = new Set(WITHDRAW_REASON_OPTIONS.map((o) => o.code)
 const CONTACT_METHOD_CODES = new Set(CONTACT_METHOD_OPTIONS.map((o) => o.code))
 const CONTRACT_TYPE_CODES = new Set(CONTRACT_TYPE_OPTIONS.map((o) => o.code))
 const OFFICER_TYPE_CODES = new Set(OFFICER_TYPE_OPTIONS.map((o) => o.code))
+const EVIDENCE_TYPE_CODES = new Set(EVIDENCE_TYPE_OPTIONS.map((o) => o.code))
+const KSB_REFERENCE = /^[KSB]\d+[A-Z]?$/
 
 function isUln(value) {
   const text = String(value ?? '').trim()
@@ -283,6 +286,62 @@ export function validateProgressReviewForm(input) {
     errors.summary = 'Enter a short summary of the review.'
   } else if (summary.length > 1000) {
     errors.summary = 'Summary must be 1000 characters or fewer.'
+  }
+
+  return errors
+}
+
+// Validates Burrow's add evidence form, for saving a draft. A draft needs
+// only a title, a type and a date, so a quick capture on a phone can be
+// saved straight away and finished later.
+export function validateEvidenceForm(input) {
+  const errors = {}
+  const v = input ?? {}
+
+  const title = String(v.title ?? '').trim()
+  if (!title) {
+    errors.title = 'Give it a title.'
+  } else if (title.length > 200) {
+    errors.title = 'Title must be 200 characters or fewer.'
+  }
+
+  if (!EVIDENCE_TYPE_CODES.has(v.evidenceType)) {
+    errors.evidenceType = 'Choose what kind of evidence this is.'
+  }
+
+  if (!isValidDateString(v.occurredOn)) {
+    errors.occurredOn = 'Enter the date it happened.'
+  } else if (v.occurredOn > todayString()) {
+    errors.occurredOn = 'The date cannot be in the future.'
+  }
+
+  if (String(v.reflection ?? '').length > 5000) {
+    errors.reflection = 'Keep this to 5000 characters or fewer.'
+  }
+
+  const ksbs = Array.isArray(v.ksbs) ? v.ksbs : []
+  if (ksbs.some((ref) => !KSB_REFERENCE.test(String(ref)))) {
+    errors.ksbs = 'Choose KSBs from the list.'
+  }
+
+  return errors
+}
+
+// The extra checks before evidence can be sent for review. fileCount is the
+// number of files attached (the server counts them in the database).
+export function validateEvidenceSubmission(input, fileCount) {
+  const errors = validateEvidenceForm(input)
+  const v = input ?? {}
+
+  if (!String(v.reflection ?? '').trim()) {
+    errors.reflection = 'Say what you did and what you learned before sending this.'
+  }
+  const ksbs = Array.isArray(v.ksbs) ? v.ksbs : []
+  if (ksbs.length === 0 && !errors.ksbs) {
+    errors.ksbs = 'Tick at least one KSB this shows.'
+  }
+  if (TYPES_NEEDING_A_FILE.has(v.evidenceType) && fileCount === 0) {
+    errors.files = 'Add the file before sending this for review.'
   }
 
   return errors

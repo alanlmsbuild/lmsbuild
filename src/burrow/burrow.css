@@ -1,0 +1,1050 @@
+/* Burrow: Rarebit fonts and palette in Burrow's clay colour, from the
+   approved designs (design/burrow-learner-design/README.md). Everything is
+   scoped under .burrow. Below 700px wide the same screens take the phone
+   layout: compact header, bottom nav, and quick capture tiles. */
+
+.burrow {
+  --b-page: #f6eedc;
+  --b-card: #fffbf2;
+  --b-rule: #e4d6ba;
+  --b-ink: #2a1f17;
+  --b-body: #4a3a2c;
+  --b-muted: #6b5440;
+  --b-clay: #b4532a;
+  --b-link: #8e3f1f;
+  --b-link-hover: #6e2f15;
+  --b-pill: #f6ddd2;
+  --b-input-border: #d9c7a4;
+  --b-dashed: #b8a27e;
+  --b-green: #2e5a4c;
+  --b-button-text: #fffbf2;
+  --b-avatar-text: #f9e9c8;
+
+  --b-signed: #2e5a4c;
+  --b-signed-chip: #ddebe3;
+  --b-signed-text: #1f4238;
+  --b-awaiting: #e9a23b;
+  --b-awaiting-chip: #fbe7c2;
+  --b-awaiting-text: #6b4410;
+  --b-changes: #b4532a;
+  --b-changes-chip: #f6ddd2;
+  --b-changes-text: #8e3f1f;
+  --b-notstarted: #e4d6ba;
+
+  --b-fraunces: 'Fraunces', Georgia, serif;
+  --b-dm-sans: 'DM Sans', system-ui, sans-serif;
+
+  /* The shared Skills England footer, in Burrow's colours. */
+  --footer-background: var(--b-page);
+  --footer-border: var(--b-rule);
+  --footer-text: var(--b-muted);
+  --footer-link: var(--b-link);
+
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  background: var(--b-page);
+  color: var(--b-ink);
+  font-family: var(--b-dm-sans);
+}
+
+@media (prefers-color-scheme: dark) {
+  .burrow {
+    --b-page: #1f1812;
+    --b-card: #2a2119;
+    --b-rule: #45382b;
+    --b-ink: #f6eedc;
+    --b-body: #e4d6ba;
+    --b-muted: #bfae90;
+    --b-clay: #c9643a;
+    --b-link: #f0a07c;
+    --b-link-hover: #f6c2a8;
+    --b-pill: #4a2a1c;
+    --b-input-border: #5a4a39;
+    --b-dashed: #7a6750;
+    --b-green: #3f7a67;
+    --b-avatar-text: #2a1f17;
+    --b-notstarted: #45382b;
+  }
+
+  .burrow .burrow-avatar {
+    background: var(--b-ink);
+  }
+}
+
+.burrow h1,
+.burrow h2 {
+  margin: 0;
+  color: var(--b-ink);
+  font-family: var(--b-fraunces);
+  font-weight: 600;
+}
+
+.burrow a {
+  color: var(--b-link);
+}
+
+.burrow a:hover {
+  color: var(--b-link-hover);
+}
+
+.burrow-muted {
+  color: var(--b-muted);
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.burrow-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  min-height: 72px;
+  padding: 12px 48px;
+  background: var(--b-card);
+  border-bottom: 1px solid var(--b-rule);
+}
+
+.burrow-header-left,
+.burrow-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px 40px;
+}
+
+.burrow-header-right {
+  gap: 12px;
+}
+
+.burrow .burrow-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--b-ink);
+  text-decoration: none;
+  font-family: var(--b-fraunces);
+  font-weight: 600;
+  font-size: 26px;
+}
+
+.burrow-nav {
+  display: flex;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.burrow .burrow-pill {
+  padding: 10px 16px;
+  border-radius: 999px;
+  color: var(--b-ink);
+  text-decoration: none;
+}
+
+.burrow .burrow-pill.is-active {
+  background: var(--b-pill);
+  color: var(--b-link);
+}
+
+.burrow-viewing-as {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--b-muted);
+}
+
+.burrow-viewing-as select {
+  font: inherit;
+  font-size: 14px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1.5px solid var(--b-input-border);
+  border-radius: 10px;
+  background: var(--b-card);
+  color: var(--b-ink);
+}
+
+.burrow-learner-name {
+  font-size: 15px;
+  color: var(--b-body);
+}
+
+.burrow-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--b-ink);
+  color: var(--b-avatar-text);
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.burrow-body {
+  flex: 1;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 40px 48px 32px;
+}
+
+.burrow-layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.burrow-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.burrow-aside {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.burrow-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid var(--b-rule);
+  border-radius: 20px;
+  background: var(--b-card);
+}
+
+.burrow-card h2 {
+  font-size: 22px;
+}
+
+.burrow .burrow-h2-small {
+  font-family: var(--b-dm-sans);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.burrow .burrow-phone-only {
+  display: none;
+}
+
+.burrow-flash {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border-left: 4px solid var(--b-signed);
+  background: var(--b-card);
+  font-size: 15px;
+}
+
+.burrow-flash-close {
+  border: none;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--b-muted);
+  cursor: pointer;
+}
+
+.burrow-error {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border-left: 4px solid var(--b-clay);
+  background: var(--b-pill);
+  color: var(--b-ink);
+  font-size: 15px;
+}
+
+.burrow-not-loaded {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px dashed var(--b-dashed);
+  border-radius: 14px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--b-body);
+}
+
+.burrow-not-loaded strong {
+  color: var(--b-ink);
+}
+
+/* ---------------------------------------------------------------- portfolio */
+
+.burrow-greeting {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.burrow-greeting h1 {
+  font-size: 44px;
+  letter-spacing: -1px;
+}
+
+.burrow-greeting p {
+  margin: 0;
+  font-size: 17px;
+  color: var(--b-body);
+}
+
+.burrow-progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.burrow-progress-head strong {
+  font-size: 20px;
+}
+
+.burrow-progress-head span {
+  font-size: 15px;
+  color: var(--b-body);
+}
+
+.burrow-bar {
+  display: flex;
+  gap: 3px;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.burrow-bar.is-thin {
+  height: 12px;
+  gap: 2px;
+}
+
+.burrow-bar-signed_off {
+  background: var(--b-signed);
+}
+
+.burrow-bar-awaiting_review {
+  background: var(--b-awaiting);
+}
+
+.burrow-bar-needs_changes {
+  background: var(--b-changes);
+}
+
+.burrow-bar-not_started {
+  background: var(--b-notstarted);
+}
+
+.burrow-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--b-body);
+}
+
+.burrow-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.burrow-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.burrow-ksb-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.burrow-ksb-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.burrow-ksb-group h2 {
+  font-size: 24px;
+}
+
+.burrow-ksb-group-head span {
+  font-size: 14px;
+  color: var(--b-body);
+}
+
+.burrow-ksb-list,
+.burrow-recent,
+.burrow-still-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.burrow-ksb-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--b-page);
+}
+
+.burrow-ksb-ref {
+  width: 34px;
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--b-body);
+}
+
+/* The KSB's full wording, cut to two lines until it's opened. */
+.burrow-ksb-text {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--b-ink);
+  text-align: left;
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.burrow-ksb-text.is-open {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.burrow-chip {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.burrow-chip-signed_off {
+  background: var(--b-signed-chip);
+  color: var(--b-signed-text);
+}
+
+.burrow-chip-awaiting_review {
+  background: var(--b-awaiting-chip);
+  color: var(--b-awaiting-text);
+}
+
+.burrow-chip-needs_changes {
+  background: var(--b-changes-chip);
+  color: var(--b-changes-text);
+}
+
+.burrow-chip-not_started {
+  background: transparent;
+  border-color: var(--b-dashed);
+  color: var(--b-muted);
+}
+
+.burrow .burrow-add-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--b-clay);
+  color: var(--b-button-text);
+  font-size: 18px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.burrow .burrow-add-button:hover {
+  color: var(--b-button-text);
+  filter: brightness(0.95);
+}
+
+.burrow-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--b-pill);
+}
+
+.burrow-feedback p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--b-body);
+}
+
+.burrow-link-button,
+.burrow-recent-title {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--b-link);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.burrow-recent li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--b-rule);
+  font-size: 15px;
+}
+
+.burrow-recent li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* ---------------------------------------------------------------- add evidence */
+
+.burrow-add-head h1 {
+  font-size: 40px;
+  letter-spacing: -1px;
+}
+
+.burrow-add-head p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  color: var(--b-body);
+}
+
+.burrow-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.burrow-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.burrow-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.burrow-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.burrow-field input,
+.burrow-field select,
+.burrow-field textarea {
+  box-sizing: border-box;
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid var(--b-input-border);
+  border-radius: 12px;
+  background: var(--b-card);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--b-ink);
+}
+
+.burrow-field textarea {
+  height: auto;
+  min-height: 200px;
+  padding: 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.burrow-field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.burrow-field-error {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--b-link);
+}
+
+.burrow-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 150px;
+  padding: 16px;
+  box-sizing: border-box;
+  border: 2px dashed var(--b-dashed);
+  border-radius: 16px;
+  background: var(--b-card);
+  font-size: 15px;
+  color: var(--b-body);
+  text-align: center;
+}
+
+.burrow-drop.is-dragging {
+  border-color: var(--b-clay);
+  background: var(--b-pill);
+}
+
+.burrow-drop svg,
+.burrow-tile svg,
+.burrow-bottom-link svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.burrow-drop svg {
+  color: var(--b-link);
+}
+
+.burrow-drop-note {
+  max-width: 420px;
+  font-size: 13px;
+}
+
+.burrow-refused {
+  margin: 0;
+  padding: 12px 16px 12px 32px;
+  border-radius: 14px;
+  background: var(--b-pill);
+  font-size: 14px;
+  color: var(--b-ink);
+}
+
+.burrow-files {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.burrow-file {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--b-rule);
+  border-radius: 14px;
+  background: var(--b-card);
+}
+
+.burrow-file-media {
+  width: 96px;
+  height: 72px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--b-page);
+}
+
+.burrow-file-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.burrow-file-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.burrow-file-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.burrow .burrow-button-small {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  border: 1.5px solid var(--b-ink);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--b-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.burrow-ksb-picker h2 {
+  font-family: var(--b-dm-sans);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.burrow-ksb-picker p {
+  margin: -8px 0 0;
+}
+
+.burrow-ksb-picker fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.burrow-ksb-picker legend {
+  padding: 6px 0 2px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--b-muted);
+}
+
+.burrow-ksb-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.burrow-ksb-option input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--b-clay);
+}
+
+.burrow-ksb-option .burrow-ksb-ref {
+  width: 28px;
+  cursor: pointer;
+}
+
+.burrow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.burrow .burrow-button,
+.burrow .burrow-button-secondary {
+  height: 52px;
+  padding: 0 26px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.burrow .burrow-button {
+  border: none;
+  background: var(--b-clay);
+  color: var(--b-button-text);
+}
+
+.burrow .burrow-button-secondary {
+  border: 1.5px solid var(--b-ink);
+  background: transparent;
+  color: var(--b-ink);
+}
+
+.burrow-drop .burrow-button-secondary {
+  height: 44px;
+  font-size: 15px;
+}
+
+.burrow .burrow-button:disabled,
+.burrow .burrow-button-secondary:disabled,
+.burrow .burrow-button-small:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.burrow-tips {
+  background: var(--b-green);
+  border-color: var(--b-green);
+  color: #f6eedc;
+}
+
+.burrow .burrow-tips h2 {
+  color: #f6eedc;
+}
+
+.burrow-tips p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.burrow-still-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.burrow-locked {
+  max-width: 640px;
+}
+
+.burrow-locked p {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- phone capture */
+
+.burrow-capture-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.burrow-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 120px;
+  border: 1.5px solid var(--b-input-border);
+  border-radius: 20px;
+  background: var(--b-card);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--b-ink);
+  cursor: pointer;
+}
+
+.burrow-tile input {
+  display: none;
+}
+
+.burrow-tile-clay {
+  border: none;
+  background: var(--b-clay);
+  color: var(--b-button-text);
+}
+
+.burrow-tile-green {
+  border: none;
+  background: var(--b-green);
+  color: #f6eedc;
+}
+
+.burrow-phone-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.burrow-card-clay {
+  border-color: var(--b-pill);
+  background: var(--b-pill);
+  gap: 6px;
+}
+
+.burrow-card-clay a {
+  font-weight: 700;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+/* The bottom nav is only for phones. */
+.burrow-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .burrow-ksb-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .burrow-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .burrow-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .burrow-aside {
+    width: auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .burrow {
+    padding-bottom: 72px;
+  }
+
+  .burrow-header {
+    min-height: 64px;
+    padding: 10px 20px;
+  }
+
+  .burrow .burrow-logo {
+    font-size: 22px;
+  }
+
+  .burrow .burrow-nav,
+  .burrow .burrow-learner-name,
+  .burrow .burrow-desktop-only {
+    display: none;
+  }
+
+  .burrow .burrow-phone-only {
+    display: flex;
+  }
+
+  .burrow .burrow-capture-tiles.burrow-phone-only {
+    display: grid;
+  }
+
+  .burrow-viewing-as select {
+    max-width: 150px;
+  }
+
+  .burrow-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .burrow-body {
+    padding: 24px 20px;
+  }
+
+  .burrow-main {
+    gap: 20px;
+  }
+
+  .burrow-greeting h1,
+  .burrow-add-head h1 {
+    font-size: 32px;
+    letter-spacing: -0.5px;
+  }
+
+  .burrow-field-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Quick capture: tiles and cards first; the form opens after a capture. */
+  .burrow-add.is-capture-idle .burrow-form {
+    display: none;
+  }
+
+  .burrow .burrow-add:not(.is-capture-idle) .burrow-phone-cards {
+    display: none;
+  }
+
+  .burrow-drop {
+    min-height: 0;
+  }
+
+  .burrow-drop > svg,
+  .burrow-drop > span:first-of-type {
+    display: none;
+  }
+
+  .burrow-actions .burrow-button,
+  .burrow-actions .burrow-button-secondary {
+    flex: 1 1 100%;
+  }
+
+  .burrow-bottom-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    height: 72px;
+    border-top: 1px solid var(--b-rule);
+    background: var(--b-card);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .burrow .burrow-bottom-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--b-body);
+    text-decoration: none;
+  }
+
+  .burrow .burrow-bottom-link.is-active {
+    color: var(--b-link);
+  }
+}
