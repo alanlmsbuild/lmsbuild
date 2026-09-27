@@ -45,6 +45,11 @@
   gap: 4px;
 }
 
+/* The tabs sit at the right, before the development-only test user pill. */
+.app-header .app-tabs {
+  margin-left: auto;
+}
+
 .app-tabs .tab,
 .report-tabs .tab {
   font: inherit;

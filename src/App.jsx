@@ -158,7 +158,6 @@ function App() {
 
   return (
     <>
-      <DevUserSwitcher />
       <header className="app-header">
         <div className="brand">
           <img src={warrenMark} alt="" className="brand-mark" />
@@ -182,6 +181,7 @@ function App() {
             ))}
           </nav>
         )}
+        <DevUserSwitcher />
       </header>
 
       <main className="app-main">

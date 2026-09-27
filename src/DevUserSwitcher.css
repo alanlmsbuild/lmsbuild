@@ -1,46 +1,126 @@
-/* DEVELOPMENT ONLY: the test user switcher bar. Hazard stripes so it can't
-   be mistaken for part of the product. Fixed colours, the same in light
-   and dark mode. */
+/* DEVELOPMENT ONLY: the "Test user" pill and its panel. Cheddar with ink
+   text (7.4:1), Rarebit's own colour, so it reads the same in Warren and
+   Burrow and is never mistaken for either area's controls. */
 
 .dev-switcher {
-  display: flex;
-  flex-wrap: wrap;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--rb-font-body);
+}
+
+.dev-switcher-pill {
+  display: inline-flex;
   align-items: center;
-  gap: 6px 16px;
-  padding: 8px 16px;
-  background: repeating-linear-gradient(-45deg, #ffd23f 0 14px, #ffe79a 14px 28px);
-  border-bottom: 2px solid #1a1a1a;
-  color: #1a1a1a;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  gap: 8px;
+  min-height: 36px;
+  max-width: 280px;
+  padding: 4px 12px 4px 6px;
+  border: 1.5px dashed var(--rb-on-rarebit);
+  border-radius: var(--rb-radius-button);
+  background: var(--rb-rarebit);
+  color: var(--rb-on-rarebit);
+  font: 500 13px/1.2 var(--rb-font-body);
+  cursor: pointer;
+}
+
+.dev-switcher-pill:hover {
+  background: var(--rb-rarebit-hover);
+}
+
+.dev-switcher-pill:focus-visible {
+  outline: 3px solid var(--rb-ink);
+  outline-offset: 2px;
+}
+
+.dev-switcher-label {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--rb-radius-button);
+  background: var(--rb-on-rarebit);
+  color: var(--rb-rarebit);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dev-switcher-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-switcher-caret {
+  flex: none;
+  font-size: 10px;
+}
+
+.dev-switcher-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--rb-rule);
+  border-top: 4px solid var(--rb-rarebit);
+  border-radius: var(--rb-radius-card);
+  background: var(--rb-card);
+  color: var(--rb-body);
+  box-shadow: 0 12px 32px var(--rb-shadow);
+  text-align: left;
+}
+
+.dev-switcher-title {
+  margin: 0;
+  color: var(--rb-ink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dev-switcher-note {
+  margin: 0;
   font-size: 14px;
 }
 
-.dev-switcher label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+.dev-switcher-field {
+  display: grid;
+  gap: 4px;
+  color: var(--rb-ink);
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.dev-switcher select {
-  font: inherit;
-  max-width: min(460px, 100%);
-  min-width: 0;
-  padding: 4px 6px;
-  border: 1.5px solid #1a1a1a;
-  border-radius: 6px;
-  background: #fff;
-  color: #1a1a1a;
+.dev-switcher-field select {
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1.5px solid var(--rb-input-border);
+  border-radius: var(--rb-radius-control);
+  background: var(--rb-card);
+  color: var(--rb-ink);
+  font: 400 14px/1.4 var(--rb-font-body);
 }
 
+.dev-switcher-error {
+  margin-top: 4px;
+  padding: 4px 10px;
+  border-radius: var(--rb-radius-control);
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-text);
+  font-size: 13px;
+}
+
+/* On a phone the pill shows just "Test user". */
 @media (max-width: 560px) {
-  .dev-switcher label {
-    flex-wrap: wrap;
-    width: 100%;
-  }
-
-  .dev-switcher select {
-    width: 100%;
-    max-width: 100%;
+  .dev-switcher-name {
+    display: none;
   }
 }

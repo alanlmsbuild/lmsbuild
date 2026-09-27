@@ -171,7 +171,6 @@ function BurrowApp() {
 
   return (
     <div className="burrow">
-      <DevUserSwitcher />
       <header className="burrow-header">
         <div className="burrow-header-left">
           <NavLink navigate={navigate} to="/burrow" className="burrow-logo" active={false}>
@@ -230,6 +229,7 @@ function BurrowApp() {
               </span>
             </>
           )}
+          <DevUserSwitcher />
         </div>
       </header>
 
