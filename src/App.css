@@ -548,7 +548,15 @@ td.num {
 }
 
 .dashboard-list li.officer-learner {
+  flex-wrap: wrap;
   align-items: flex-start;
+}
+
+/* Asking who replaces an officer: a full-width row under the learner. */
+.officer-learner .replace-officer {
+  flex-basis: 100%;
+  margin: 4px 0 8px;
+  padding: 16px;
 }
 
 .officer-learner-main,

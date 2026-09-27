@@ -13,7 +13,18 @@ import MyDay from './MyDay'
 import IqaSignOffs from './IqaSignOffs'
 import DevUserSwitcher from './DevUserSwitcher'
 import SkillsEnglandFooter from './SkillsEnglandFooter'
+import { Card, Notice } from './ui/components'
 import { COMPLETION_STATUS_LABELS, describe, standardLabel, statusClassName } from './lookups'
+
+// Warren's tabs, and which roles see each one.
+const TABS = [
+  { view: 'myday', label: 'My day', shows: (r) => r.hasCaseload },
+  { view: 'learners', label: 'Learners', shows: () => true },
+  { view: 'dashboard', label: 'Dashboard', shows: () => true },
+  { view: 'officers', label: 'Officers', shows: (r) => r.isManager },
+  { view: 'reports', label: 'Reports', shows: (r) => r.hasCaseload },
+  { view: 'iqa', label: 'Sign-offs to check', shows: (r) => r.isIqa },
+]
 
 function App() {
   const [learners, setLearners] = useState([])
@@ -26,14 +37,27 @@ function App() {
   const [standards, setStandards] = useState([])
   const [standardsStatus, setStandardsStatus] = useState('loading') // 'loading' | 'ready' | 'error'
 
-  // My day is the home page at /app.
-  const [view, setView] = useState('myday') // 'myday' | 'learners' | 'dashboard' | 'officers' | 'reports' | 'iqa'
+  // The tab picked, or null for the user's home tab (below).
+  const [pickedView, setView] = useState(null) // 'myday' | 'learners' | 'dashboard' | 'officers' | 'reports' | 'iqa'
 
-  // The signed-in user and their roles, for showing the tabs they can use
-  // and whose My day to open. The server checks every request itself.
+  // The signed-in user and their roles, for showing the tabs and actions
+  // they can use and whose My day to open. The server checks every request
+  // itself. Roles add together:
+  //   Manager            everything, and the only one who changes ILR
+  //                      records, officers and caseloads
+  //   Tutor, Assessor    My day, Reports and their own learners, read only
+  //                      apart from recording progress reviews
+  //   IQA                Sign-offs to check, and every learner, read only
+  //   Learner, Employer  nothing here: Warren is for staff, they use Burrow
   const [me, setMe] = useState(null)
   const [meError, setMeError] = useState(null)
   const roles = me?.roles ?? []
+  const isManager = roles.includes('MANAGER')
+  const hasCaseload = roles.some((r) => ['MANAGER', 'TUTOR', 'ASSESSOR'].includes(r))
+  const isIqa = roles.includes('IQA')
+  const isStaff = hasCaseload || isIqa
+  const homeView = hasCaseload ? 'myday' : isIqa ? 'iqa' : 'learners'
+  const view = pickedView ?? homeView
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
@@ -66,8 +90,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    loadLearners()
-  }, [loadLearners])
+    if (isStaff) loadLearners()
+  }, [isStaff, loadLearners])
 
   useEffect(() => {
     async function loadMe() {
@@ -83,7 +107,9 @@ function App() {
     loadMe()
   }, [])
 
+  // Only the add and edit forms use standards, and only managers get those.
   useEffect(() => {
+    if (!isManager) return
     async function loadStandards() {
       try {
         const res = await fetch('/api/standards')
@@ -96,7 +122,7 @@ function App() {
       }
     }
     loadStandards()
-  }, [])
+  }, [isManager])
 
   function handleSaved() {
     setPanel({ mode: 'add' })
@@ -140,52 +166,21 @@ function App() {
             <p className="brand-byline">by rarebit</p>
           </div>
         </div>
-        <nav className="app-tabs" aria-label="Views">
-          <button
-            type="button"
-            className={view === 'myday' ? 'tab active' : 'tab'}
-            onClick={() => setView('myday')}
-          >
-            My day
-          </button>
-          <button
-            type="button"
-            className={view === 'learners' ? 'tab active' : 'tab'}
-            onClick={() => setView('learners')}
-          >
-            Learners
-          </button>
-          <button
-            type="button"
-            className={view === 'dashboard' ? 'tab active' : 'tab'}
-            onClick={() => setView('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button
-            type="button"
-            className={view === 'officers' ? 'tab active' : 'tab'}
-            onClick={() => setView('officers')}
-          >
-            Officers
-          </button>
-          <button
-            type="button"
-            className={view === 'reports' ? 'tab active' : 'tab'}
-            onClick={() => setView('reports')}
-          >
-            Reports
-          </button>
-          {roles.includes('IQA') && (
-            <button
-              type="button"
-              className={view === 'iqa' ? 'tab active' : 'tab'}
-              onClick={() => setView('iqa')}
-            >
-              Sign-offs to check
-            </button>
-          )}
-        </nav>
+        {isStaff && (
+          <nav className="app-tabs" aria-label="Views">
+            {TABS.filter((t) => t.shows({ isManager, hasCaseload, isIqa })).map((t) => (
+              <button
+                key={t.view}
+                type="button"
+                className={view === t.view ? 'tab active' : 'tab'}
+                aria-current={view === t.view ? 'page' : undefined}
+                onClick={() => setView(t.view)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
 
       <main className="app-main">
@@ -194,10 +189,24 @@ function App() {
           {meError}
         </p>
       )}
-      {view === 'learners' && (
+      {me && !isStaff && (
+        <Card title="Warren is for staff">
+          <Notice>
+            Your account can use Burrow, where you&apos;ll find{' '}
+            {roles.includes('LEARNER') ? 'your portfolio' : 'your apprentices'}. <a href="/burrow">Go to Burrow</a>
+          </Notice>
+        </Card>
+      )}
+      {isStaff && view === 'learners' && (
       <>
       <section id="learners">
         <p>Dummy ILR apprenticeship learners and their programme aim details.</p>
+        {!isManager && (
+          <p className="section-intro">
+            {isIqa ? 'Every learner in your organisation' : 'The learners on your caseload'}, to read. Only a manager can
+            change their details.
+          </p>
+        )}
 
         {status === 'loading' && <p>Loading learners…</p>}
         {status === 'error' && (
@@ -248,7 +257,7 @@ function App() {
                 <th>Name</th>
                 <th>Standard</th>
                 <th>Status</th>
-                <th>Actions</th>
+                {isManager && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -270,29 +279,31 @@ function App() {
                       {describe(COMPLETION_STATUS_LABELS, learner.COMPSTATUS)}
                     </span>
                   </td>
-                  <td className="actions-cell">
-                    <button type="button" className="secondary" onClick={() => setPanel({ mode: 'edit', learner })}>
-                      Edit
-                    </button>
-                    {learner.COMPSTATUS === 1 && (
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => setPanel({ mode: 'complete', learner })}
-                      >
-                        Mark completed
+                  {isManager && (
+                    <td className="actions-cell">
+                      <button type="button" className="secondary" onClick={() => setPanel({ mode: 'edit', learner })}>
+                        Edit
                       </button>
-                    )}
-                    {learner.COMPSTATUS === 1 && (
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={() => setPanel({ mode: 'withdraw', learner })}
-                      >
-                        Withdraw
-                      </button>
-                    )}
-                  </td>
+                      {learner.COMPSTATUS === 1 && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => setPanel({ mode: 'complete', learner })}
+                        >
+                          Mark completed
+                        </button>
+                      )}
+                      {learner.COMPSTATUS === 1 && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => setPanel({ mode: 'withdraw', learner })}
+                        >
+                          Withdraw
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -301,7 +312,7 @@ function App() {
         )}
       </section>
 
-      {panel.mode === 'edit' && (
+      {isManager && panel.mode === 'edit' && (
         <EditLearnerForm
           learner={panel.learner}
           standards={standards}
@@ -310,28 +321,28 @@ function App() {
           onCancel={() => setPanel({ mode: 'add' })}
         />
       )}
-      {panel.mode === 'complete' && (
+      {isManager && panel.mode === 'complete' && (
         <MarkCompletedForm
           learner={panel.learner}
           onSaved={handleSaved}
           onCancel={() => setPanel({ mode: 'add' })}
         />
       )}
-      {panel.mode === 'withdraw' && (
+      {isManager && panel.mode === 'withdraw' && (
         <WithdrawAimForm
           learner={panel.learner}
           onSaved={handleSaved}
           onCancel={() => setPanel({ mode: 'add' })}
         />
       )}
-      {panel.mode === 'add' && (
+      {isManager && panel.mode === 'add' && (
         <AddLearnerForm standards={standards} standardsStatus={standardsStatus} onLearnerAdded={loadLearners} />
       )}
 
       </>
       )}
 
-      {view === 'dashboard' && (
+      {isStaff && view === 'dashboard' && (
         <>
           {status === 'loading' && <p className="status-message">Loading dashboard…</p>}
           {status === 'error' && (
@@ -343,15 +354,15 @@ function App() {
         </>
       )}
 
-      {view === 'officers' && (
+      {isManager && view === 'officers' && (
         <Officers learners={learners} learnersStatus={status} onOpenLearner={setDetailLearner} />
       )}
 
       {/* My day and Reports link to learners by reference, so look up the
           full row App already holds for the detail panel. */}
-      {view === 'myday' && <MyDay me={me} onOpenLearner={openLearnerByRef} />}
-      {view === 'reports' && <Reports onOpenLearner={openLearnerByRef} />}
-      {view === 'iqa' && <IqaSignOffs onOpenLearner={openLearnerByRef} />}
+      {hasCaseload && view === 'myday' && <MyDay me={me} onOpenLearner={openLearnerByRef} />}
+      {hasCaseload && view === 'reports' && <Reports onOpenLearner={openLearnerByRef} />}
+      {isIqa && view === 'iqa' && <IqaSignOffs onOpenLearner={openLearnerByRef} />}
 
       {/* Rendered outside the tabs since it can be opened from either the
           Learners list or an officer's detail panel. Edit / Mark completed /
@@ -359,6 +370,7 @@ function App() {
       {detailLearner && (
         <LearnerDetail
           learner={detailLearner}
+          canManage={isManager}
           onClose={() => setDetailLearner(null)}
           onEdit={(learner) => {
             setDetailLearner(null)

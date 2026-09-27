@@ -15,12 +15,15 @@ function evidenceMeta(e) {
   const parts = [labelFromOptions(EVIDENCE_TYPE_OPTIONS, e.EVIDENCE_TYPE)]
   if (e.KSB_REFS) parts.push(e.KSB_REFS)
   parts.push(EVIDENCE_STATUS_LABELS[e.STATUS]?.toLowerCase() ?? e.STATUS)
+  if (e.EMPLOYER_OUTCOME === 'confirmed') parts.push('confirmed by employer')
+  if (e.EMPLOYER_OUTCOME === 'declined') parts.push('declined by employer')
   return parts.join(' · ')
 }
 
 // Screen 1: the learner's portfolio. Every figure comes from the server;
-// KSB statuses are worked out there from evidence and reviews.
-function Portfolio({ portfolio, flash, onDismissFlash, scrollToFeedback, navigate }) {
+// KSB statuses are worked out there from evidence and reviews. readOnly is
+// for staff reading it: only the learner adds or changes evidence.
+function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollToFeedback, navigate }) {
   const feedbackRef = useRef(null)
   const { learner, ksbs, ksbsLoaded, evidence } = portfolio
   const counts = countStatuses(ksbs)
@@ -47,7 +50,11 @@ function Portfolio({ portfolio, flash, onDismissFlash, scrollToFeedback, navigat
         )}
 
         <div className="burrow-greeting">
-          <h1>Hello, {learner.GIVENNAMES || learner.LEARNREFNUMBER}</h1>
+          <h1>
+            {readOnly
+              ? `${[learner.GIVENNAMES, learner.FAMILYNAME].filter(Boolean).join(' ') || learner.LEARNREFNUMBER}’s portfolio`
+              : `Hello, ${learner.GIVENNAMES || learner.LEARNREFNUMBER}`}
+          </h1>
           <p>
             {learner.STDREFERENCE} {learner.STDNAME}
             {learner.STDLEVEL !== null && learner.STDLEVEL !== undefined && ` · Level ${learner.STDLEVEL}`}
@@ -62,7 +69,7 @@ function Portfolio({ portfolio, flash, onDismissFlash, scrollToFeedback, navigat
                   {counts.signed_off} of {ksbs.length} KSBs signed off
                 </strong>
                 <span>
-                  {waiting} {waiting === 1 ? 'piece' : 'pieces'} waiting for your assessor
+                  {waiting} {waiting === 1 ? 'piece' : 'pieces'} waiting for {readOnly ? 'the' : 'your'} assessor
                 </span>
               </div>
               <StatusBar counts={counts} total={ksbs.length} />
@@ -110,21 +117,27 @@ function Portfolio({ portfolio, flash, onDismissFlash, scrollToFeedback, navigat
       </main>
 
       <aside className="burrow-aside">
-        <a
-          href="/burrow/add"
-          className="burrow-add-button"
-          onClick={(e) => {
-            e.preventDefault()
-            navigate('/burrow/add')
-          }}
-        >
-          Add evidence
-        </a>
+        {!readOnly && (
+          <a
+            href="/burrow/add"
+            className="burrow-add-button"
+            onClick={(e) => {
+              e.preventDefault()
+              navigate('/burrow/add')
+            }}
+          >
+            Add evidence
+          </a>
+        )}
 
         <section id="feedback" ref={feedbackRef} className="burrow-card">
-          <h2>Feedback for you</h2>
+          <h2>{readOnly ? 'Feedback waiting for the learner' : 'Feedback for you'}</h2>
           {feedback.length === 0 ? (
-            <p className="burrow-muted">No feedback waiting. When your assessor asks for changes, it&apos;ll show here.</p>
+            <p className="burrow-muted">
+              {readOnly
+                ? 'No feedback waiting.'
+                : 'No feedback waiting. When your assessor asks for changes, it’ll show here.'}
+            </p>
           ) : (
             feedback.map((e) => (
               <div key={e.EVIDENCE_ID} className="burrow-feedback">
@@ -133,9 +146,11 @@ function Portfolio({ portfolio, flash, onDismissFlash, scrollToFeedback, navigat
                 <span className="burrow-muted">
                   {e.OFFICER_NAME || 'Your assessor'} · needs changes
                 </span>
-                <button type="button" className="burrow-link-button" onClick={() => openEvidence(e)}>
-                  Make changes
-                </button>
+                {!readOnly && (
+                  <button type="button" className="burrow-link-button" onClick={() => openEvidence(e)}>
+                    Make changes
+                  </button>
+                )}
               </div>
             ))
           )}
@@ -144,12 +159,14 @@ function Portfolio({ portfolio, flash, onDismissFlash, scrollToFeedback, navigat
         <section className="burrow-card">
           <h2>Recent evidence</h2>
           {recent.length === 0 ? (
-            <p className="burrow-muted">Nothing yet. Add your first piece of evidence to get started.</p>
+            <p className="burrow-muted">
+              {readOnly ? 'No evidence yet.' : 'Nothing yet. Add your first piece of evidence to get started.'}
+            </p>
           ) : (
             <ul className="burrow-recent">
               {recent.map((e) => (
                 <li key={e.EVIDENCE_ID}>
-                  {e.STATUS === 'draft' || e.STATUS === 'changes_requested' ? (
+                  {!readOnly && (e.STATUS === 'draft' || e.STATUS === 'changes_requested') ? (
                     <button type="button" className="burrow-recent-title" onClick={() => openEvidence(e)}>
                       {e.TITLE}
                     </button>

@@ -1,0 +1,114 @@
+/* Design tokens for the shared components in src/ui. The components read
+   only these --ui-* values, so the look of every shared screen can change
+   here without touching the components.
+
+   For now each product maps them onto its own current colours and fonts
+   (Warren's :root variables in index.css, Burrow's .burrow variables in
+   burrow.css), so new screens match the screens around them. Part 7 (one
+   design across Rarebit, Warren and Burrow) replaces these values.
+
+   Status colours are separate from product colours and the same in every
+   product: done (done, OK, confirmed), due (due soon, waiting) and overdue
+   (overdue, declined, refused), plus neutral. Each pair meets WCAG AA
+   contrast (4.5:1 or more), and the components always show a word with
+   the colour. */
+
+:root {
+  --ui-font-heading: var(--sans);
+  --ui-font-body: var(--sans);
+
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 24px;
+  --ui-space-6: 32px;
+  --ui-radius: 8px;
+  --ui-radius-small: 6px;
+  --ui-radius-pill: 999px;
+
+  --ui-page: var(--bg);
+  --ui-surface: var(--surface);
+  --ui-text: var(--text);
+  --ui-text-strong: var(--text-h);
+  --ui-muted: var(--text-muted);
+  --ui-border: var(--border);
+  --ui-accent: var(--accent);
+  --ui-accent-hover: var(--accent-hover);
+  --ui-on-accent: #ffffff;
+  --ui-link: var(--accent);
+  --ui-focus: var(--accent);
+
+  --ui-done-bg: #ddebe3;
+  --ui-done-text: #1f4238;
+  --ui-due-bg: #fbe7c2;
+  --ui-due-text: #6b4410;
+  --ui-overdue-bg: #fbe0dd;
+  --ui-overdue-text: #8a1c14;
+  --ui-neutral-bg: #ebe7df;
+  --ui-neutral-text: #4a3a2c;
+
+  --ui-error-text: var(--error);
+  --ui-error-bg: var(--error-bg);
+  --ui-error-border: var(--error-border);
+  --ui-success-bg: var(--success-bg);
+  --ui-success-border: var(--success-border);
+  --ui-info-bg: var(--notice-bg);
+  --ui-info-border: var(--notice-border);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ui-on-accent: #1a2029;
+
+    --ui-done-bg: #1f3a31;
+    --ui-done-text: #bfe3d2;
+    --ui-due-bg: #4a3514;
+    --ui-due-text: #fbe7c2;
+    --ui-overdue-bg: #4d1f1b;
+    --ui-overdue-text: #f7c6c0;
+    --ui-neutral-bg: #3a332a;
+    --ui-neutral-text: #e4d6ba;
+  }
+}
+
+/* Burrow: its fonts and clay colour. */
+.burrow {
+  --ui-font-heading: var(--b-fraunces);
+  --ui-font-body: var(--b-dm-sans);
+
+  --ui-page: var(--b-page);
+  --ui-surface: var(--b-card);
+  --ui-text: var(--b-body);
+  --ui-text-strong: var(--b-ink);
+  --ui-muted: var(--b-muted);
+  --ui-border: var(--b-rule);
+  --ui-accent: var(--b-clay);
+  --ui-accent-hover: var(--b-link);
+  --ui-on-accent: var(--b-button-text);
+  --ui-link: var(--b-link);
+  --ui-focus: var(--b-clay);
+
+  --ui-error-text: #8a1c14;
+  --ui-error-bg: #fbe0dd;
+  --ui-error-border: #e8a79f;
+  --ui-success-bg: #ddebe3;
+  --ui-success-border: #9cc3b0;
+  --ui-info-bg: var(--b-page);
+  --ui-info-border: var(--b-rule);
+}
+
+/* Cream on dark mode's clay is only 3.8:1, so dark mode uses Burrow's
+   lighter link colour with dark text (7.7:1). */
+@media (prefers-color-scheme: dark) {
+  .burrow {
+    --ui-accent: #f0a07c;
+    --ui-accent-hover: #f6c2a8;
+    --ui-on-accent: #2a1f17;
+    --ui-error-text: #f7c6c0;
+    --ui-error-bg: #4d1f1b;
+    --ui-error-border: #7a3a33;
+    --ui-success-bg: #1f3a31;
+    --ui-success-border: #3f6b5b;
+  }
+}

@@ -178,6 +178,7 @@ function Officers({ learners, learnersStatus, onOpenLearner }) {
       {detailOfficer && (
         <OfficerDetail
           officer={detailOfficer}
+          officers={officers}
           learners={learners}
           learnersStatus={learnersStatus}
           onClose={() => setDetailOfficer(null)}

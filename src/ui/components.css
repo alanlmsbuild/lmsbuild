@@ -1,0 +1,250 @@
+/* The shared components' styles. Every colour, font and size comes from a
+   --ui-* token in tokens.css. Selectors use two classes where Warren's
+   global button styles (App.css) would otherwise win. */
+
+.ui-heading {
+  margin: 0 0 var(--ui-space-2);
+  font-family: var(--ui-font-heading);
+  font-weight: 600;
+  color: var(--ui-text-strong);
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.ui-button.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-space-2);
+  min-height: 40px;
+  padding: var(--ui-space-2) var(--ui-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-small);
+  font: 500 15px/1.2 var(--ui-font-body);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ui-button.ui-button:focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+.ui-button.ui-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ui-button.ui-button--primary {
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+}
+
+.ui-button.ui-button--primary:hover:not(:disabled) {
+  background: var(--ui-accent-hover);
+}
+
+.ui-button.ui-button--secondary {
+  background: var(--ui-surface);
+  color: var(--ui-text-strong);
+  border-color: var(--ui-border);
+}
+
+.ui-button.ui-button--secondary:hover:not(:disabled) {
+  border-color: var(--ui-accent);
+}
+
+.ui-button.ui-button--link {
+  min-height: 0;
+  padding: 0;
+  background: none;
+  color: var(--ui-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- cards */
+
+.ui-card {
+  padding: var(--ui-space-5);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  color: var(--ui-text);
+}
+
+.ui-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ui-space-2) var(--ui-space-4);
+  margin-bottom: var(--ui-space-3);
+}
+
+.ui-card-head .ui-heading {
+  margin: 0;
+  font-size: 18px;
+}
+
+.ui-card-meta {
+  color: var(--ui-muted);
+  font-size: 14px;
+}
+
+.ui-stack {
+  display: grid;
+  gap: var(--ui-space-4);
+}
+
+/* ---------------------------------------------------------------- status badges */
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-1);
+  padding: 2px var(--ui-space-2);
+  border-radius: var(--ui-radius-pill);
+  font: 500 13px/1.4 var(--ui-font-body);
+  white-space: nowrap;
+}
+
+.ui-badge--done {
+  background: var(--ui-done-bg);
+  color: var(--ui-done-text);
+}
+
+.ui-badge--due {
+  background: var(--ui-due-bg);
+  color: var(--ui-due-text);
+}
+
+.ui-badge--overdue {
+  background: var(--ui-overdue-bg);
+  color: var(--ui-overdue-text);
+}
+
+.ui-badge--neutral {
+  background: var(--ui-neutral-bg);
+  color: var(--ui-neutral-text);
+}
+
+/* ---------------------------------------------------------------- notices */
+
+.ui-notice {
+  padding: var(--ui-space-3) var(--ui-space-4);
+  border: 1px solid var(--ui-info-border);
+  border-radius: var(--ui-radius-small);
+  background: var(--ui-info-bg);
+  color: var(--ui-text-strong);
+}
+
+.ui-notice--success {
+  background: var(--ui-success-bg);
+  border-color: var(--ui-success-border);
+}
+
+.ui-notice--error {
+  background: var(--ui-error-bg);
+  border-color: var(--ui-error-border);
+  color: var(--ui-error-text);
+}
+
+.ui-muted {
+  color: var(--ui-muted);
+}
+
+/* ---------------------------------------------------------------- forms */
+
+.ui-field {
+  display: grid;
+  gap: var(--ui-space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--ui-text-strong);
+  font: 500 14px/1.4 var(--ui-font-body);
+}
+
+.ui-field-hint {
+  color: var(--ui-muted);
+  font-weight: 400;
+}
+
+.ui-field-error {
+  color: var(--ui-error-text);
+  font-weight: 500;
+}
+
+.ui-field select,
+.ui-field textarea,
+.ui-field input {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--ui-space-2) var(--ui-space-3);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-small);
+  background: var(--ui-surface);
+  color: var(--ui-text-strong);
+  font: 400 15px/1.4 var(--ui-font-body);
+}
+
+.ui-field textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.ui-field select:focus-visible,
+.ui-field textarea:focus-visible,
+.ui-field input:focus-visible {
+  outline: 3px solid var(--ui-focus);
+  outline-offset: 1px;
+}
+
+.ui-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-2) var(--ui-space-4);
+  font-weight: 400;
+}
+
+.ui-choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+}
+
+.ui-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-2);
+}
+
+/* ---------------------------------------------------------------- figures */
+
+.ui-stat {
+  display: grid;
+  gap: 2px;
+}
+
+.ui-stat-value {
+  color: var(--ui-text-strong);
+  font: 600 20px/1.2 var(--ui-font-heading);
+}
+
+.ui-stat-label {
+  color: var(--ui-muted);
+  font-size: 13px;
+}
+
+.ui-meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--ui-radius-pill);
+  background: var(--ui-neutral-bg);
+}
+
+.ui-meter-fill {
+  height: 100%;
+  background: var(--ui-accent);
+}

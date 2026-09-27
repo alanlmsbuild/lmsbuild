@@ -99,6 +99,17 @@ export const VISIBLE_LEARNER = `(
       or LEARNREFNUMBER = $OWN_LEARNREFNUMBER)
 )`
 
+// The current apprentices of the signed-in user's own employer (by
+// EMPLOYERID only), whatever other roles they hold. For the employer
+// screens, which show only what an employer may see of each apprentice.
+export const EMPLOYER_APPRENTICE = `(
+  select * from ILR.LEARNER
+  where ORGANISATIONID = ${ORG}
+    and LEARNREFNUMBER in (
+      select LEARNREFNUMBER from ILR.LEARNER_EMPLOYER
+      where EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (TODATE is null or TODATE >= current_date()))
+)`
+
 // Managers see every officer in the organisation. Anyone else sees only
 // their own officer record (for My day and their caseload report).
 export const VISIBLE_OFFICER = `(

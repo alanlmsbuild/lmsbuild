@@ -9,7 +9,7 @@ import { QAR_AIMS, DEFAULT_QAR_YEAR } from './reports.js'
 
 // Task thresholds, in days.
 const ENDING_SOON_DAYS = 30
-const REVIEW_WINDOW_DAYS = 35 // 5 weeks
+export const REVIEW_WINDOW_DAYS = 35 // 5 weeks
 const REVIEW_DO_FIRST_DAYS = 7
 const NO_EVIDENCE_DAYS = 28
 const NO_EVIDENCE_DO_FIRST_DAYS = 42
@@ -191,9 +191,11 @@ const LEARNER_START_QUERY = `
   where l.LEARNREFNUMBER = ?
 `
 
+// CREATEDBY is the signed-in user's USERID: usually the officer who held
+// the review, but a manager can record one for another officer.
 const INSERT_PROGRESS_REVIEW = `
-  insert into PROGRESS_REVIEW (REVIEWID, LEARNREFNUMBER, OFFICERREFNUMBER, REVIEWDATE, EMPLOYERATTENDED, SUMMARY)
-  values (?, ?, ?, ?, ?, ?)
+  insert into PROGRESS_REVIEW (REVIEWID, LEARNREFNUMBER, OFFICERREFNUMBER, REVIEWDATE, EMPLOYERATTENDED, SUMMARY, CREATEDBY)
+  values (?, ?, ?, ?, ?, ?, ?)
 `
 
 function toIsoDateString(value) {
@@ -280,6 +282,7 @@ export function registerMyDayRoutes(app) {
         v.reviewDate,
         v.employerAttended,
         String(v.summary).trim(),
+        req.user.USERID,
       ])
       res.status(201).json({ reviewId })
     } catch (err) {

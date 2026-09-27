@@ -5,11 +5,16 @@
 // the KSBs aren't loaded yet and nothing is made up. Evidence is never
 // deleted: taking a file or a KSB off a draft marks the row instead.
 //
+// Every *_BY column the app writes (CREATED_BY, UPDATED_BY, CLAIMED_BY,
+// UNCLAIMED_BY, UPLOADED_BY, REMOVED_BY) is the signed-in user's USERID.
+// Rows saved before that hold the learner reference instead.
+//
 // Who can do what (see access.js for which learners each user can see):
-//   the learner list   everyone, showing only the learners they can see
+//   the learner list   learners and staff, showing only the learners they can see
 //   reading a portfolio, its evidence and files   the learner and staff
 //   changing evidence  only the learner, on their own portfolio
-// Employers get the list of their apprentices only, for now.
+// Employers never get the portfolio: employer.js gives them their
+// apprentices' progress and the witness statements they're asked to confirm.
 
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -20,7 +25,7 @@ import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import busboy from 'busboy'
 import { execute } from './db.js'
-import { allow, EMPLOYER, IN_ORG_LEARNERS, LEARNER, STAFF, VISIBLE_LEARNER } from './access.js'
+import { allow, IN_ORG_LEARNERS, LEARNER, STAFF, VISIBLE_LEARNER } from './access.js'
 import { validateEvidenceForm, validateEvidenceSubmission } from '../src/validation.js'
 import {
   EDITABLE_STATUSES,
@@ -147,14 +152,20 @@ export const KSB_STATUS_QUERY = `
   order by decode(k.KSB_TYPE, 'K', 1, 'S', 2, 3), k.SORT_ORDER
 `
 
-// The learner's evidence, newest first, with its claimed KSB references
-// and, for evidence sent back, the latest review's feedback.
+// The learner's evidence, newest first, with its claimed KSB references,
+// for evidence sent back the latest review's feedback, and for a witness
+// statement the employer's answer on its latest submission.
 // Binds: the learner, the ST reference.
 export const EVIDENCE_LIST_QUERY = `
   with latest_review as (
     select EVIDENCE_ID, FEEDBACK, OFFICER_NAME, REVIEWED_AT
     from BURROW.EVIDENCE_REVIEW
     qualify row_number() over (partition by EVIDENCE_ID order by REVIEWED_AT desc) = 1
+  ),
+  latest_confirmation as (
+    select EVIDENCE_ID, SUBMISSION_NUMBER, OUTCOME, CONFIRMER_NAME, COMMENT_TEXT
+    from BURROW.WITNESS_CONFIRMATION
+    qualify row_number() over (partition by EVIDENCE_ID order by CONFIRMED_AT desc) = 1
   ),
   claimed as (
     select
@@ -175,12 +186,18 @@ export const EVIDENCE_LIST_QUERY = `
     c.KSB_REFS,
     r.FEEDBACK,
     r.OFFICER_NAME,
-    r.REVIEWED_AT
+    r.REVIEWED_AT,
+    wc.OUTCOME as EMPLOYER_OUTCOME,
+    wc.CONFIRMER_NAME as EMPLOYER_CONFIRMER,
+    wc.COMMENT_TEXT as EMPLOYER_COMMENT
   from BURROW.EVIDENCE e
   left join claimed c
     on c.EVIDENCE_ID = e.EVIDENCE_ID
   left join latest_review r
     on r.EVIDENCE_ID = e.EVIDENCE_ID
+  left join latest_confirmation wc
+    on wc.EVIDENCE_ID = e.EVIDENCE_ID
+   and wc.SUBMISSION_NUMBER = e.SUBMISSION_COUNT
   where e.LEARNREFNUMBER = ?
     and e.ST_REFERENCE = ?
     and e.STATUS <> 'withdrawn'
@@ -526,10 +543,33 @@ function contentDisposition(kind, filename) {
   return `${kind}; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`
 }
 
+// Streams one file (a row with STAGE_PATH, ORIGINAL_FILENAME and
+// CONTENT_TYPE, or undefined for "not found") from the stage through the
+// server. ?download=1 saves it instead of showing it in the browser. The
+// caller has already checked the user may see it.
+export async function sendStageFile(req, res, file) {
+  if (!file) throw new RequestError('File not found.', 404)
+  let tmpDir
+  try {
+    tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'burrow-download-'))
+    const local = await getFile(req.db, file.STAGE_PATH, tmpDir)
+    res.setHeader('Content-Type', file.CONTENT_TYPE)
+    res.setHeader('Content-Disposition', contentDisposition(req.query.download ? 'attachment' : 'inline', file.ORIGINAL_FILENAME))
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    await pipeline(fs.createReadStream(local), res)
+  } catch (err) {
+    // Part way through sending, the response can only be cut short.
+    if (res.headersSent) console.error('Failed while sending a file:', err.message)
+    else throw err
+  } finally {
+    if (tmpDir) await fsp.rm(tmpDir, { recursive: true, force: true })
+  }
+}
+
 // ---------------------------------------------------------------- routes
 
 export function registerBurrowRoutes(app) {
-  app.get('/api/burrow/learners', allow(LEARNER, EMPLOYER, STAFF), async (req, res) => {
+  app.get('/api/burrow/learners', allow(LEARNER, STAFF), async (req, res) => {
     const connection = req.db
     try {
       res.json(await execute(connection, LEARNERS_QUERY))
@@ -585,7 +625,7 @@ export function registerBurrowRoutes(app) {
       checkKsbs(fields.ksbs, standard)
 
       const evidenceId = crypto.randomUUID()
-      const by = learner.LEARNREFNUMBER
+      const by = req.user.USERID
       await inTransaction(connection, async () => {
         await execute(
           connection,
@@ -593,7 +633,7 @@ export function registerBurrowRoutes(app) {
              (EVIDENCE_ID, LEARNREFNUMBER, STDCODE, ST_REFERENCE, TITLE, EVIDENCE_TYPE, OCCURRED_ON, REFLECTION,
               STATUS, CREATED_BY, UPDATED_BY)
            values (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
-          [evidenceId, by, learner.STDCODE, learner.STDREFERENCE, fields.title, fields.evidenceType,
+          [evidenceId, learner.LEARNREFNUMBER, learner.STDCODE, learner.STDREFERENCE, fields.title, fields.evidenceType,
             fields.occurredOn, fields.reflection || null, by, by],
         )
         await setClaims(connection, { EVIDENCE_ID: evidenceId, ST_REFERENCE: learner.STDREFERENCE }, fields.ksbs, standard, by)
@@ -620,7 +660,7 @@ export function registerBurrowRoutes(app) {
       const standard = await standardKsbs(connection, evidence.ST_REFERENCE)
       checkKsbs(fields.ksbs, standard)
 
-      const by = learner.LEARNREFNUMBER
+      const by = req.user.USERID
       await inTransaction(connection, async () => {
         await execute(
           connection,
@@ -671,7 +711,7 @@ export function registerBurrowRoutes(app) {
          set STATUS = 'submitted', SUBMISSION_COUNT = SUBMISSION_COUNT + 1,
              SUBMITTED_AT = current_timestamp(), UPDATED_AT = current_timestamp(), UPDATED_BY = ?
          where EVIDENCE_ID = ? and STATUS in ('draft', 'changes_requested') and ${IN_ORG_LEARNERS}`,
-        [learner.LEARNREFNUMBER, evidence.EVIDENCE_ID],
+        [req.user.USERID, evidence.EVIDENCE_ID],
       )
       res.json({ evidenceId: evidence.EVIDENCE_ID, status: 'submitted' })
     } catch (err) {
@@ -713,7 +753,7 @@ export function registerBurrowRoutes(app) {
              (FILE_ID, EVIDENCE_ID, STAGE_PATH, ORIGINAL_FILENAME, CONTENT_TYPE, SIZE_BYTES, CHECKSUM_MD5, UPLOADED_BY)
            values (?, ?, ?, ?, ?, ?, ?, ?)`,
           [fileId, evidence.EVIDENCE_ID, stagePath, upload.filename, upload.rule.mime, upload.size, upload.md5,
-            evidence.LEARNREFNUMBER],
+            req.user.USERID],
         )
       } catch (err) {
         console.error(`Stage file ${stagePath} was uploaded but its EVIDENCE_FILE row could not be saved.`)
@@ -744,7 +784,7 @@ export function registerBurrowRoutes(app) {
         `update BURROW.EVIDENCE_FILE
          set REMOVED_AT = current_timestamp(), REMOVED_BY = ?
          where FILE_ID = ? and EVIDENCE_ID = ? and REMOVED_AT is null`,
-        [evidence.LEARNREFNUMBER, req.params.fileId, evidence.EVIDENCE_ID],
+        [req.user.USERID, req.params.fileId, evidence.EVIDENCE_ID],
       )
       res.json({ fileId: req.params.fileId })
     } catch (err) {
@@ -752,11 +792,9 @@ export function registerBurrowRoutes(app) {
     }
   })
 
-  // Streams a file from the stage through the server. ?download=1 saves it
-  // instead of showing it in the browser.
+  // A file on any evidence of a learner the user can see.
   app.get('/api/burrow/learners/:learnRefNumber/files/:fileId', allow(LEARNER, STAFF), async (req, res) => {
     const connection = req.db
-    let tmpDir
     try {
       const [file] = await execute(
         connection,
@@ -767,19 +805,9 @@ export function registerBurrowRoutes(app) {
          where f.FILE_ID = ? and e.LEARNREFNUMBER = ?`,
         [req.params.fileId, req.params.learnRefNumber],
       )
-      if (!file) throw new RequestError('File not found.', 404)
-
-      tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'burrow-download-'))
-      const local = await getFile(connection, file.STAGE_PATH, tmpDir)
-      res.setHeader('Content-Type', file.CONTENT_TYPE)
-      res.setHeader('Content-Disposition', contentDisposition(req.query.download ? 'attachment' : 'inline', file.ORIGINAL_FILENAME))
-      res.setHeader('X-Content-Type-Options', 'nosniff')
-      await pipeline(fs.createReadStream(local), res)
+      await sendStageFile(req, res, file)
     } catch (err) {
-      if (!res.headersSent) sendError(res, err, 'Could not fetch this file')
-      else console.error('Failed while sending a file:', err.message)
-    } finally {
-      if (tmpDir) await fsp.rm(tmpDir, { recursive: true, force: true })
+      sendError(res, err, 'Could not fetch this file')
     }
   })
 }

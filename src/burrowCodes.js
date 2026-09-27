@@ -23,6 +23,13 @@ export const EVIDENCE_STATUS_LABELS = {
   withdrawn: 'Withdrawn',
 }
 
+// An employer's answer on a witness statement, stored in
+// BURROW.WITNESS_CONFIRMATION.OUTCOME.
+export const WITNESS_OUTCOME_OPTIONS = [
+  { code: 'confirmed', label: 'Confirmed' },
+  { code: 'declined', label: 'Declined' },
+]
+
 // An IQA's finding on an assessor's sign-off, stored in
 // BURROW.IQA_CHECK.OUTCOME.
 export const IQA_OUTCOME_OPTIONS = [

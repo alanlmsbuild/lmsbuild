@@ -70,7 +70,9 @@ function Row({ label, value }) {
   )
 }
 
-function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
+// canManage: the signed-in user is a manager, so can change the learner and
+// their officers. Everyone else reads.
+function LearnerDetail({ learner, canManage, onClose, onEdit, onComplete, onWithdraw }) {
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === 'Escape') onClose()
@@ -90,20 +92,21 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
   const [assigning, setAssigning] = useState(null) // the role being saved, or null
   const [officerError, setOfficerError] = useState(null)
 
+  // The full officer list is only for a manager's "Change ... to" lists.
   const loadOfficers = useCallback(async () => {
     try {
       const [assignedRes, allRes] = await Promise.all([
         fetch(`/api/learners/${learner.LEARNREFNUMBER}/officers`),
-        fetch('/api/officers'),
+        canManage ? fetch('/api/officers') : null,
       ])
-      if (!assignedRes.ok || !allRes.ok) throw new Error('Server error')
+      if (!assignedRes.ok || (allRes && !allRes.ok)) throw new Error('Server error')
       setAssignedOfficers(await assignedRes.json())
-      setAllOfficers(await allRes.json())
+      setAllOfficers(allRes ? await allRes.json() : [])
       setOfficersStatus('ready')
     } catch {
       setOfficersStatus('error')
     }
-  }, [learner.LEARNREFNUMBER])
+  }, [learner.LEARNREFNUMBER, canManage])
 
   useEffect(() => {
     loadOfficers()
@@ -151,21 +154,23 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
           </button>
         </div>
 
-        <div className="detail-actions">
-          <button type="button" className="secondary" onClick={() => onEdit(learner)}>
-            Edit
-          </button>
-          {learner.COMPSTATUS === 1 && (
-            <button type="button" className="secondary" onClick={() => onComplete(learner)}>
-              Mark completed
+        {canManage && (
+          <div className="detail-actions">
+            <button type="button" className="secondary" onClick={() => onEdit(learner)}>
+              Edit
             </button>
-          )}
-          {learner.COMPSTATUS === 1 && (
-            <button type="button" className="secondary" onClick={() => onWithdraw(learner)}>
-              Withdraw
-            </button>
-          )}
-        </div>
+            {learner.COMPSTATUS === 1 && (
+              <button type="button" className="secondary" onClick={() => onComplete(learner)}>
+                Mark completed
+              </button>
+            )}
+            {learner.COMPSTATUS === 1 && (
+              <button type="button" className="secondary" onClick={() => onWithdraw(learner)}>
+                Withdraw
+              </button>
+            )}
+          </div>
+        )}
 
         <section className="detail-section">
           <h3>Personal details</h3>
@@ -251,7 +256,7 @@ function LearnerDetail({ learner, onClose, onEdit, onComplete, onWithdraw }) {
                       label={label}
                       value={current.length > 0 ? current.map((a) => a.OFFICERNAME).join(', ') : 'None assigned'}
                     />
-                    {choices.length > 0 && (
+                    {canManage && choices.length > 0 && (
                       <form className="assign-officer-form" onSubmit={(e) => handleAssignOfficer(e, role)}>
                         <select
                           aria-label={`Change ${label.toLowerCase()}`}

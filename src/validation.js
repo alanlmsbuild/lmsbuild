@@ -14,7 +14,7 @@ import {
   CONTRACT_TYPE_OPTIONS,
   OFFICER_TYPE_OPTIONS,
 } from './ilrCodes.js'
-import { EVIDENCE_TYPE_OPTIONS, IQA_OUTCOME_OPTIONS, TYPES_NEEDING_A_FILE } from './burrowCodes.js'
+import { EVIDENCE_TYPE_OPTIONS, IQA_OUTCOME_OPTIONS, TYPES_NEEDING_A_FILE, WITNESS_OUTCOME_OPTIONS } from './burrowCodes.js'
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
 const NI_NUMBER = /^[A-Za-z]{2}\d{6}[A-Da-d]$/
@@ -32,6 +32,7 @@ const CONTRACT_TYPE_CODES = new Set(CONTRACT_TYPE_OPTIONS.map((o) => o.code))
 const OFFICER_TYPE_CODES = new Set(OFFICER_TYPE_OPTIONS.map((o) => o.code))
 const EVIDENCE_TYPE_CODES = new Set(EVIDENCE_TYPE_OPTIONS.map((o) => o.code))
 const IQA_OUTCOME_CODES = new Set(IQA_OUTCOME_OPTIONS.map((o) => o.code))
+const WITNESS_OUTCOME_CODES = new Set(WITNESS_OUTCOME_OPTIONS.map((o) => o.code))
 const KSB_REFERENCE = /^[KSB]\d+[A-Z]?$/
 
 function isUln(value) {
@@ -364,6 +365,27 @@ export function validateIqaCheckForm(input) {
     errors.feedback = 'Say what the assessor needs to do.'
   } else if (feedback.length > 2000) {
     errors.feedback = 'Keep this to 2000 characters or fewer.'
+  }
+
+  return errors
+}
+
+// Validates an employer's answer on a witness statement. Declining needs a
+// reason, so the learner and assessor know what's wrong. Whether the
+// statement is theirs to answer needs the database, so the server checks that.
+export function validateWitnessConfirmationForm(input) {
+  const errors = {}
+  const v = input ?? {}
+
+  if (!WITNESS_OUTCOME_CODES.has(v.outcome)) {
+    errors.outcome = 'Choose whether you confirm this statement.'
+  }
+
+  const comment = String(v.comment ?? '').trim()
+  if (v.outcome === 'declined' && !comment) {
+    errors.comment = 'Say what isn’t right, so the learner can fix it.'
+  } else if (comment.length > 2000) {
+    errors.comment = 'Keep this to 2000 characters or fewer.'
   }
 
   return errors

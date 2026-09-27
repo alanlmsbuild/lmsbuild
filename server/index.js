@@ -36,6 +36,7 @@ import { registerReportRoutes } from './reports.js'
 import { registerMyDayRoutes } from './myday.js'
 import { registerBurrowRoutes } from './burrow.js'
 import { registerIqaRoutes } from './iqa.js'
+import { registerEmployerRoutes } from './employer.js'
 import { refuseDevSwitchingInProduction, registerDevUserRoutes } from './devUsers.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -730,10 +731,6 @@ app.get('/api/officers/:officerRefNumber/learners', allow(MANAGER, TUTOR, ASSESS
   }
 })
 
-// Who made or ended an assignment. Replaced by the signed-in user's USERID
-// once users can sign in.
-const ASSIGNED_BY = 'warren-app'
-
 const ASSIGNMENT_ROLES = new Set(['TUTOR', 'ASSESSOR'])
 
 const CURRENT_ASSIGNMENT_QUERY = `
@@ -754,8 +751,11 @@ const INSERT_ASSIGNMENT = `
 
 // Makes the officer the learner's tutor or assessor. Each learner has
 // exactly one current tutor and one current assessor, so any current
-// assignment in that role is ended in the same transaction. The role
-// defaults to the officer's type, and must match it.
+// assignment in that role is ended in the same transaction. This is also
+// how an officer is taken off a learner: there's no route that only ends
+// an assignment, so a learner is never left without one. The role
+// defaults to the officer's type, and must match it. STARTEDBY and
+// ENDEDBY are the signed-in user's USERID.
 app.post('/api/learners/:learnRefNumber/officers', allow(MANAGER), async (req, res) => {
   const { learnRefNumber } = req.params
   const officerRefNumber = req.body?.officerRefNumber
@@ -797,9 +797,9 @@ app.post('/api/learners/:learnRefNumber/officers', allow(MANAGER), async (req, r
 
     await execute(connection, 'begin')
     for (const a of current) {
-      await execute(connection, END_ASSIGNMENT, [ASSIGNED_BY, a.ASSIGNMENTID])
+      await execute(connection, END_ASSIGNMENT, [req.user.USERID, a.ASSIGNMENTID])
     }
-    await execute(connection, INSERT_ASSIGNMENT, [learnRefNumber, officerRefNumber, role, ASSIGNED_BY])
+    await execute(connection, INSERT_ASSIGNMENT, [learnRefNumber, officerRefNumber, role, req.user.USERID])
     await execute(connection, 'commit')
 
     res.status(201).json({
@@ -836,10 +836,11 @@ app.get('/api/me', allow(LEARNER, EMPLOYER, STAFF), (req, res) => {
 })
 
 // The Reports tab's endpoints live in reports.js, My day's in myday.js,
-// Burrow's in burrow.js, and IQA checks' in iqa.js.
+// Burrow's in burrow.js, employers' in employer.js, and IQA checks' in iqa.js.
 registerReportRoutes(app)
 registerMyDayRoutes(app)
 registerBurrowRoutes(app)
+registerEmployerRoutes(app)
 registerIqaRoutes(app)
 
 const port = process.env.PORT || 3001

@@ -1,0 +1,67 @@
+/* Layout for the employer screen. Colours, fonts and spacing are the
+   shared --ui-* tokens. */
+
+.employer {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--ui-space-5) var(--ui-space-4) var(--ui-space-6);
+}
+
+.employer h1.ui-heading {
+  font-size: 28px;
+}
+
+.employer h2.ui-heading {
+  margin: 0;
+  font-size: 20px;
+}
+
+.employer h4.ui-heading {
+  margin-bottom: var(--ui-space-1);
+  font-size: 15px;
+}
+
+.employer-list {
+  display: grid;
+  gap: var(--ui-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.employer-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--ui-space-4);
+  margin-top: var(--ui-space-4);
+}
+
+.employer-figures .ui-meter {
+  margin-top: var(--ui-space-2);
+}
+
+.employer-review-due {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-space-2);
+  margin-top: var(--ui-space-2);
+  font-size: 14px;
+}
+
+.employer-reflection {
+  white-space: pre-line;
+}
+
+.employer-ksbs,
+.employer-files {
+  display: grid;
+  gap: var(--ui-space-1);
+  margin: 0;
+  padding-left: var(--ui-space-5);
+}
+
+.employer-files a {
+  color: var(--ui-link);
+}

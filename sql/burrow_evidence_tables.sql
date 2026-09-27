@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS CAPTURE_DB.BURROW.EVIDENCE (
   STATUS             VARCHAR(20) DEFAULT 'draft' NOT NULL COMMENT 'draft | submitted | changes_requested | signed_off | withdrawn',
   SUBMISSION_COUNT   NUMBER(5,0) DEFAULT 0 NOT NULL COMMENT 'How many times it has been submitted. Each review records which submission it looked at.',
   CREATED_AT         TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP() NOT NULL,
-  CREATED_BY         VARCHAR(100) NOT NULL COMMENT 'Who added it: a learner reference or an officer reference.',
+  CREATED_BY         VARCHAR(100) NOT NULL COMMENT 'USERID of whoever added it. Rows saved before USERIDs were recorded hold the learner reference.',
   UPDATED_AT         TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP() NOT NULL COMMENT 'Last change of any kind, including status changes.',
   UPDATED_BY         VARCHAR(100),
   SUBMITTED_AT       TIMESTAMP_LTZ COMMENT 'The most recent submission. Earlier ones are in EVIDENCE_REVIEW.',
