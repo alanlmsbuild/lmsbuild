@@ -14,6 +14,7 @@ import {
 } from '../src/validation.js'
 import { OUTCOME_ACHIEVED } from '../src/ilrCodes.js'
 import { standardLabel } from '../src/lookups.js'
+import { registerReportRoutes } from './reports.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '.env') })
@@ -765,6 +766,9 @@ app.delete('/api/learners/:learnRefNumber/officers/:officerRefNumber', async (re
     if (connection) await destroy(connection)
   }
 })
+
+// The Reports tab's endpoints live in reports.js.
+registerReportRoutes(app)
 
 const port = process.env.PORT || 3001
 app.listen(port, () => {

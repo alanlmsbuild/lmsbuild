@@ -8,6 +8,7 @@ import Dashboard from './Dashboard'
 import Officers from './Officers'
 import warrenMark from './assets/warren-mark.svg'
 import LearnerDetail from './LearnerDetail'
+import Reports from './Reports'
 import { COMPLETION_STATUS_LABELS, describe, standardLabel, statusClassName } from './lookups'
 
 function App() {
@@ -21,7 +22,7 @@ function App() {
   const [standards, setStandards] = useState([])
   const [standardsStatus, setStandardsStatus] = useState('loading') // 'loading' | 'ready' | 'error'
 
-  const [view, setView] = useState('learners') // 'learners' | 'dashboard' | 'officers'
+  const [view, setView] = useState('learners') // 'learners' | 'dashboard' | 'officers' | 'reports'
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
@@ -77,6 +78,11 @@ function App() {
     loadLearners()
   }
 
+  function openLearnerByRef(learnRefNumber) {
+    const learner = learners.find((l) => l.LEARNREFNUMBER === learnRefNumber)
+    if (learner) setDetailLearner(learner)
+  }
+
   function handleClearFilters() {
     setSearchText('')
     setStatusFilter('all')
@@ -129,6 +135,13 @@ function App() {
             onClick={() => setView('officers')}
           >
             Officers
+          </button>
+          <button
+            type="button"
+            className={view === 'reports' ? 'tab active' : 'tab'}
+            onClick={() => setView('reports')}
+          >
+            Reports
           </button>
         </nav>
       </header>
@@ -286,6 +299,10 @@ function App() {
       {view === 'officers' && (
         <Officers learners={learners} learnersStatus={status} onOpenLearner={setDetailLearner} />
       )}
+
+      {/* Reports link to learners by reference, so look up the full row
+          App already holds for the detail panel. */}
+      {view === 'reports' && <Reports onOpenLearner={openLearnerByRef} />}
 
       {/* Rendered outside the tabs since it can be opened from either the
           Learners list or an officer's detail panel. Edit / Mark completed /
