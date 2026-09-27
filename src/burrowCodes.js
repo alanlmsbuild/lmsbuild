@@ -23,6 +23,13 @@ export const EVIDENCE_STATUS_LABELS = {
   withdrawn: 'Withdrawn',
 }
 
+// An IQA's finding on an assessor's sign-off, stored in
+// BURROW.IQA_CHECK.OUTCOME.
+export const IQA_OUTCOME_OPTIONS = [
+  { code: 'agreed', label: 'Agreed' },
+  { code: 'action_required', label: 'Action required' },
+]
+
 // Evidence can only be edited, and files added or removed, in these states.
 export const EDITABLE_STATUSES = new Set(['draft', 'changes_requested'])
 

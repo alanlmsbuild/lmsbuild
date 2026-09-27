@@ -33,8 +33,8 @@ import {
 const STAGE = '@CAPTURE_DB.BURROW.EVIDENCE_FILES'
 const LARGEST_UPLOAD = Math.max(...Object.values(UPLOAD_RULES).map((r) => r.maxBytes))
 
-// A problem with the request itself, shown to the learner as-is.
-class RequestError extends Error {
+// A problem with the request itself, shown to the user as-is.
+export class RequestError extends Error {
   constructor(message, status = 400, fields = undefined) {
     super(message)
     this.status = status
@@ -42,7 +42,7 @@ class RequestError extends Error {
   }
 }
 
-function sendError(res, err, fallback) {
+export function sendError(res, err, fallback) {
   if (err instanceof RequestError) {
     res.status(err.status).json({ error: err.message, ...(err.fields ? { fields: err.fields } : {}) })
     return

@@ -14,7 +14,7 @@ import {
   CONTRACT_TYPE_OPTIONS,
   OFFICER_TYPE_OPTIONS,
 } from './ilrCodes.js'
-import { EVIDENCE_TYPE_OPTIONS, TYPES_NEEDING_A_FILE } from './burrowCodes.js'
+import { EVIDENCE_TYPE_OPTIONS, IQA_OUTCOME_OPTIONS, TYPES_NEEDING_A_FILE } from './burrowCodes.js'
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
 const NI_NUMBER = /^[A-Za-z]{2}\d{6}[A-Da-d]$/
@@ -31,6 +31,7 @@ const CONTACT_METHOD_CODES = new Set(CONTACT_METHOD_OPTIONS.map((o) => o.code))
 const CONTRACT_TYPE_CODES = new Set(CONTRACT_TYPE_OPTIONS.map((o) => o.code))
 const OFFICER_TYPE_CODES = new Set(OFFICER_TYPE_OPTIONS.map((o) => o.code))
 const EVIDENCE_TYPE_CODES = new Set(EVIDENCE_TYPE_OPTIONS.map((o) => o.code))
+const IQA_OUTCOME_CODES = new Set(IQA_OUTCOME_OPTIONS.map((o) => o.code))
 const KSB_REFERENCE = /^[KSB]\d+[A-Z]?$/
 
 function isUln(value) {
@@ -342,6 +343,27 @@ export function validateEvidenceSubmission(input, fileCount) {
   }
   if (TYPES_NEEDING_A_FILE.has(v.evidenceType) && fileCount === 0) {
     errors.files = 'Add the file before sending this for review.'
+  }
+
+  return errors
+}
+
+// Validates an IQA check of an assessor's sign-off. Feedback is needed when
+// action is required, so the assessor knows what to do. Whether the IQA
+// signed it off themselves needs the database, so the server checks that.
+export function validateIqaCheckForm(input) {
+  const errors = {}
+  const v = input ?? {}
+
+  if (!IQA_OUTCOME_CODES.has(v.outcome)) {
+    errors.outcome = 'Choose whether you agree with the sign-off.'
+  }
+
+  const feedback = String(v.feedback ?? '').trim()
+  if (v.outcome === 'action_required' && !feedback) {
+    errors.feedback = 'Say what the assessor needs to do.'
+  } else if (feedback.length > 2000) {
+    errors.feedback = 'Keep this to 2000 characters or fewer.'
   }
 
   return errors

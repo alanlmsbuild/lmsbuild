@@ -10,7 +10,9 @@ import {
   attachUser,
   CURRENT_ISTESTDATA,
   CURRENT_ORGANISATIONID,
+  EMPLOYER,
   IN_ORG_LEARNERS,
+  LEARNER,
   MANAGER,
   ORG_LEARNER,
   ORG_OFFICER,
@@ -33,6 +35,7 @@ import { standardLabel } from '../src/lookups.js'
 import { registerReportRoutes } from './reports.js'
 import { registerMyDayRoutes } from './myday.js'
 import { registerBurrowRoutes } from './burrow.js'
+import { registerIqaRoutes } from './iqa.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '.env') })
@@ -811,11 +814,26 @@ app.post('/api/learners/:learnRefNumber/officers', allow(MANAGER), async (req, r
   }
 })
 
+// Who is signed in and which roles they hold, so the screens can show what
+// this user can use. The server still checks every request itself.
+app.get('/api/me', allow(LEARNER, EMPLOYER, STAFF), (req, res) => {
+  const u = req.user
+  res.json({
+    USERID: u.USERID,
+    DISPLAYNAME: u.DISPLAYNAME,
+    OFFICERREFNUMBER: u.OFFICERREFNUMBER,
+    LEARNREFNUMBER: u.LEARNREFNUMBER,
+    EMPLOYERID: u.EMPLOYERID,
+    roles: u.roles,
+  })
+})
+
 // The Reports tab's endpoints live in reports.js, My day's in myday.js,
-// and Burrow's in burrow.js.
+// Burrow's in burrow.js, and IQA checks' in iqa.js.
 registerReportRoutes(app)
 registerMyDayRoutes(app)
 registerBurrowRoutes(app)
+registerIqaRoutes(app)
 
 const port = process.env.PORT || 3001
 app.listen(port, () => {

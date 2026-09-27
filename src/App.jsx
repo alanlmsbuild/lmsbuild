@@ -10,6 +10,7 @@ import warrenMark from './assets/warren-mark.svg'
 import LearnerDetail from './LearnerDetail'
 import Reports from './Reports'
 import MyDay from './MyDay'
+import IqaSignOffs from './IqaSignOffs'
 import SkillsEnglandFooter from './SkillsEnglandFooter'
 import { COMPLETION_STATUS_LABELS, describe, standardLabel, statusClassName } from './lookups'
 
@@ -25,7 +26,11 @@ function App() {
   const [standardsStatus, setStandardsStatus] = useState('loading') // 'loading' | 'ready' | 'error'
 
   // My day is the home page at /app.
-  const [view, setView] = useState('myday') // 'myday' | 'learners' | 'dashboard' | 'officers' | 'reports'
+  const [view, setView] = useState('myday') // 'myday' | 'learners' | 'dashboard' | 'officers' | 'reports' | 'iqa'
+
+  // The signed-in user's roles, for showing the tabs they can use. The
+  // server checks every request itself, so this only tidies the screen.
+  const [roles, setRoles] = useState([])
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
@@ -60,6 +65,19 @@ function App() {
   useEffect(() => {
     loadLearners()
   }, [loadLearners])
+
+  useEffect(() => {
+    async function loadMe() {
+      try {
+        const res = await fetch('/api/me')
+        if (!res.ok) throw new Error(`Server responded with ${res.status}`)
+        setRoles((await res.json()).roles)
+      } catch (err) {
+        console.error('Failed to load the signed-in user:', err.message)
+      }
+    }
+    loadMe()
+  }, [])
 
   useEffect(() => {
     async function loadStandards() {
@@ -153,6 +171,15 @@ function App() {
           >
             Reports
           </button>
+          {roles.includes('IQA') && (
+            <button
+              type="button"
+              className={view === 'iqa' ? 'tab active' : 'tab'}
+              onClick={() => setView('iqa')}
+            >
+              Sign-offs to check
+            </button>
+          )}
         </nav>
       </header>
 
@@ -314,6 +341,7 @@ function App() {
           full row App already holds for the detail panel. */}
       {view === 'myday' && <MyDay onOpenLearner={openLearnerByRef} />}
       {view === 'reports' && <Reports onOpenLearner={openLearnerByRef} />}
+      {view === 'iqa' && <IqaSignOffs onOpenLearner={openLearnerByRef} />}
 
       {/* Rendered outside the tabs since it can be opened from either the
           Learners list or an officer's detail panel. Edit / Mark completed /
