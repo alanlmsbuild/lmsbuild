@@ -9,6 +9,7 @@ import Officers from './Officers'
 import warrenMark from './assets/warren-mark.svg'
 import LearnerDetail from './LearnerDetail'
 import Reports from './Reports'
+import MyDay from './MyDay'
 import { COMPLETION_STATUS_LABELS, describe, standardLabel, statusClassName } from './lookups'
 
 function App() {
@@ -22,7 +23,8 @@ function App() {
   const [standards, setStandards] = useState([])
   const [standardsStatus, setStandardsStatus] = useState('loading') // 'loading' | 'ready' | 'error'
 
-  const [view, setView] = useState('learners') // 'learners' | 'dashboard' | 'officers' | 'reports'
+  // My day is the home page at /app.
+  const [view, setView] = useState('myday') // 'myday' | 'learners' | 'dashboard' | 'officers' | 'reports'
 
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
@@ -115,6 +117,13 @@ function App() {
           </div>
         </div>
         <nav className="app-tabs" aria-label="Views">
+          <button
+            type="button"
+            className={view === 'myday' ? 'tab active' : 'tab'}
+            onClick={() => setView('myday')}
+          >
+            My day
+          </button>
           <button
             type="button"
             className={view === 'learners' ? 'tab active' : 'tab'}
@@ -300,8 +309,9 @@ function App() {
         <Officers learners={learners} learnersStatus={status} onOpenLearner={setDetailLearner} />
       )}
 
-      {/* Reports link to learners by reference, so look up the full row
-          App already holds for the detail panel. */}
+      {/* My day and Reports link to learners by reference, so look up the
+          full row App already holds for the detail panel. */}
+      {view === 'myday' && <MyDay onOpenLearner={openLearnerByRef} />}
       {view === 'reports' && <Reports onOpenLearner={openLearnerByRef} />}
 
       {/* Rendered outside the tabs since it can be opened from either the

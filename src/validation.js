@@ -259,3 +259,31 @@ export function validateOfficerForm(input) {
 
   return errors
 }
+
+// Validates the "record a progress review" form. employerAttended is a
+// real true/false, not a string, so a missing answer can't pass as "no".
+// Whether the date is on or after the learner's start date needs the
+// database, so the server checks that separately.
+export function validateProgressReviewForm(input) {
+  const errors = {}
+  const v = input ?? {}
+
+  if (!isValidDateString(v.reviewDate)) {
+    errors.reviewDate = 'Enter the date the review took place.'
+  } else if (v.reviewDate > todayString()) {
+    errors.reviewDate = 'Review date cannot be in the future.'
+  }
+
+  if (v.employerAttended !== true && v.employerAttended !== false) {
+    errors.employerAttended = 'Say whether the employer attended.'
+  }
+
+  const summary = String(v.summary ?? '').trim()
+  if (!summary) {
+    errors.summary = 'Enter a short summary of the review.'
+  } else if (summary.length > 1000) {
+    errors.summary = 'Summary must be 1000 characters or fewer.'
+  }
+
+  return errors
+}
