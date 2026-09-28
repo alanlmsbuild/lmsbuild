@@ -2,7 +2,7 @@
 //
 // Starts the API server twice on a spare port (CHECK_PORT, default 3002;
 // never the dev server's 3001) and sends requests to every route in
-// server/*.js, found the same way as npm run check:scoping, so new routes
+// server/ (subfolders too), found the same way as npm run check:scoping, so new routes
 // are covered without changing this file.
 //
 // With TEST_SIGN_IN=true:
@@ -47,7 +47,11 @@ const ANY_ROUTE = /\bapp\.(get|post|put|patch|delete)\(/g
 
 const routes = []
 let unreadable = 0
-for (const file of fs.readdirSync(serverDir).filter((f) => f.endsWith('.js'))) {
+// Every .js file under server/, including subfolders such as server/ilr/.
+const serverFiles = fs.readdirSync(serverDir, { recursive: true })
+  .map((f) => f.split(path.sep).join('/'))
+  .filter((f) => f.endsWith('.js'))
+for (const file of serverFiles) {
   const text = fs.readFileSync(path.join(serverDir, file), 'utf8')
   const found = [...text.matchAll(ROUTE)]
   for (const m of found) routes.push({ method: m[1].toUpperCase(), path: m[3], file })
@@ -137,7 +141,7 @@ async function everyRoute(label, userId, expect) {
   check(`${label}: all ${apiRoutes.length} routes`, wrong.length === 0, wrong.join('\n       '))
 }
 
-console.log(`${apiRoutes.length} API routes and ${devRoutes.length} test sign-in routes in server/*.js`)
+console.log(`${apiRoutes.length} API routes and ${devRoutes.length} test sign-in routes in server/`)
 check('every route is under /api', otherRoutes.length === 0, otherRoutes.map((r) => `${r.method} ${r.path}`).join(', '))
 
 let server = await startServer(true)

@@ -67,34 +67,70 @@
   font-size: 14px;
 }
 
-/* ---------------------------------------------------------------- toolbar */
+/* ---------------------------------------------------------------- staff learner list */
 
-/* Staff pick whose portfolio to read here (the header is the shared one,
-   src/shell). */
-.burrow-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 20px;
-}
-
-.burrow-viewing-as {
+/* /burrow/learners (StaffLearnerList.jsx). */
+.burrow-learner-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--b-muted);
+  gap: 16px;
+  max-width: 880px;
 }
 
-.burrow-viewing-as select {
-  font: inherit;
-  font-size: 14px;
-  height: 36px;
-  padding: 0 8px;
+.burrow-list-search {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+  color: var(--b-ink);
+  font-weight: 500;
+}
+
+.burrow-list-search input {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 8px 12px;
   border: 1.5px solid var(--b-input-border);
   border-radius: 10px;
   background: var(--b-card);
   color: var(--b-ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+.burrow-learner-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.burrow .burrow-learner-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--b-rule);
+  border-radius: 14px;
+  background: var(--b-card);
+  color: var(--b-body);
+  text-decoration: none;
+}
+
+.burrow .burrow-learner-row:hover {
+  border-color: var(--b-clay);
+  color: var(--b-body);
+}
+
+.burrow-learner-row strong {
+  color: var(--b-ink);
+}
+
+.burrow-learner-row span {
+  color: var(--b-muted);
+  font-size: 14px;
 }
 
 /* ---------------------------------------------------------------- layout */
@@ -864,10 +900,6 @@
 
   .burrow .burrow-capture-tiles.burrow-phone-only {
     display: grid;
-  }
-
-  .burrow-viewing-as select {
-    max-width: 150px;
   }
 
   .burrow-body {

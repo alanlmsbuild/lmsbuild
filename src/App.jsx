@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import './App.css'
 import AddLearnerForm from './AddLearnerForm'
@@ -7,7 +7,9 @@ import MarkCompletedForm from './MarkCompletedForm'
 import WithdrawAimForm from './WithdrawAimForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
-import LearnerDetail from './LearnerDetail'
+import LearnerRecord from './learner/LearnerRecord'
+import LearnerHeader from './learner/LearnerHeader'
+import { learnerPath, learnerActionPath, safeBack } from './learner/links'
 import Reports from './Reports'
 import MyDay from './MyDay'
 import IqaSignOffs from './IqaSignOffs'
@@ -33,11 +35,13 @@ const REPORTS = ['qar', 'caseload', 'ilr']
 // Every Warren view has its own address:
 //   /app/my-day, /app/dashboard, /app/sign-offs
 //   /app/learners?q=&status=         the list, with its search and filter
-//   /app/learners/<ref>              a learner's details, over the list
-//   /app/learners/<ref>?back=<path>  the same, over the page it was opened
-//                                    from (My day, a report...), which
-//                                    closing goes back to
-//   /app/learners/<ref>/edit         (and /complete, /withdraw) the form
+//   /app/learners/<ref>?back=<path>  the learner page's Record tab, with
+//                                    Back to the page it was opened from
+//                                    (the list, My day, a report...). The
+//                                    Portfolio tab is Burrow's
+//                                    /burrow/learners/<ref>.
+//   /app/learners/<ref>/edit         (and /complete, /withdraw) a manager's
+//                                    form on the learner page
 //   /app/officers[/<officer ref>]
 //   /app/reports/qar?year=, /app/reports/caseload[/<officer ref>],
 //   /app/reports/ilr
@@ -128,16 +132,17 @@ function App() {
   const isIqa = roles.includes('IQA')
   const can = { isManager, hasCaseload, isIqa }
 
-  // What the address asks for. A learner's details sit over the page they
-  // were opened from (?back=) or the learner list.
+  // What the address asks for. On a learner page, the header's tab is the
+  // one Back goes to (Learners unless it's another Warren tab).
   const current = parseWarren(path)
   const learnerRef = current.tab === 'learners' ? (current.rest[0] ?? null) : null
   const learnerAction = learnerRef && LEARNER_ACTIONS.includes(current.rest[1]) ? current.rest[1] : null
-  const back = current.params.get('back')
-  const backView = learnerRef && !learnerAction && back?.startsWith('/app/') ? parseWarren(back) : null
-  const backOk = backView && backView.tab !== 'learners' && isKnownView(backView) && !redirectFor(backView, can, me)
-  const view = backOk ? backView : current
   const listQuery = learnersQuery(current.params)
+  // Step 3's learner addresses carried the list's filters instead of ?back=.
+  const back = safeBack(current.params.get('back')) ?? `/app/learners${listQuery}`
+  const backTab = back.startsWith('/app/') ? parseWarren(back).tab : 'learners'
+  const view = current
+  const activeTab = learnerRef ? backTab : current.tab
   const searchText = current.params.get('q') ?? ''
   const statusFilter = current.params.get('status') ?? 'all' // 'all' | 'continuing' | 'completed'
 
@@ -146,9 +151,8 @@ function App() {
     if (redirect) navigate(redirect, { replace: true })
   }, [redirect, navigate])
 
-  // The learner shown in the detail side panel or a form, once the list
-  // has loaded (the list has a row per aim; any of the learner's rows
-  // will do).
+  // The learner on the learner page, once the list has loaded (the list
+  // has a row per aim; any of the learner's rows will do).
   const learnerRow = learnerRef ? learners.find((l) => l.LEARNREFNUMBER === learnerRef) : null
   const learnerMissing = learnerRef && status === 'ready' && !learnerRow
   const learnerName = learnerRow ? `${learnerRow.GIVENNAMES} ${learnerRow.FAMILYNAME}` : learnerRef
@@ -169,14 +173,6 @@ function App() {
               ? tabLabel
               : 'Not found',
   )
-
-  // A form opened from the table or the details goes below the list, so
-  // bring it into view.
-  const formRef = useRef(null)
-  const formShown = Boolean(learnerAction && learnerRow)
-  useEffect(() => {
-    if (formShown) formRef.current?.scrollIntoView({ block: 'start' })
-  }, [formShown, learnerRef, learnerAction])
 
   // Also used to refresh the list after a learner is added, edited, or an
   // aim is marked completed, so the table stays in place instead of
@@ -216,8 +212,9 @@ function App() {
     loadStandards()
   }, [isManager])
 
+  // A form goes back to the learner page, keeping its Back.
   function closeForm() {
-    navigate(`/app/learners${listQuery}`)
+    navigate(`/app/learners/${encodeURIComponent(learnerRef)}?back=${encodeURIComponent(back)}`)
   }
 
   function handleSaved() {
@@ -225,17 +222,10 @@ function App() {
     loadLearners()
   }
 
-  // Opens a learner's details over the page they were picked from.
+  // Opens a learner's page from wherever they were picked, with Back to
+  // here, on the tab this person used last.
   function openLearner(learnRefNumber, backTo = path) {
-    navigate(`/app/learners/${encodeURIComponent(learnRefNumber)}?back=${encodeURIComponent(backTo)}`)
-  }
-
-  function openLearnerAction(learnRefNumber, action) {
-    navigate(`/app/learners/${encodeURIComponent(learnRefNumber)}/${action}${listQuery}`)
-  }
-
-  function closeLearner() {
-    navigate(view === current ? `/app/learners${listQuery}` : back)
+    navigate(learnerPath(me, learnRefNumber, backTo))
   }
 
   // The search and filter live in the address, replaced as they change
@@ -268,9 +258,11 @@ function App() {
     return matchesSearch && matchesStatus
   })
 
-  const onLearnersPage = view.tab === 'learners'
+  // The learner list, the learner page, or another tab.
+  const onList = view.tab === 'learners' && !learnerRef
   const tab = view.tab
   const [report, caseloadOfficer] = tab === 'reports' ? view.rest : []
+  const listPath = `/app/learners${listQuery}`
 
   return (
     <div className="warren">
@@ -281,8 +273,8 @@ function App() {
               <a
                 key={t.slug}
                 href={`/app/${t.slug}`}
-                className={tab === t.slug ? 'shell-tab is-active' : 'shell-tab'}
-                aria-current={tab === t.slug ? 'page' : undefined}
+                className={activeTab === t.slug ? 'shell-tab is-active' : 'shell-tab'}
+                aria-current={activeTab === t.slug && !learnerRef ? 'page' : undefined}
               >
                 {t.label}
               </a>
@@ -299,11 +291,40 @@ function App() {
       )}
       {!redirect && learnerMissing && (
         <Notice tone="error">
-          There&apos;s no learner {learnerRef} that you can see.{' '}
-          <a href={backOk ? back : `/app/learners${listQuery}`}>Go back</a>
+          There&apos;s no learner {learnerRef} that you can see. <a href={back}>Go back</a>
         </Notice>
       )}
-      {!redirect && onLearnersPage && isKnownView(view) && (
+      {!redirect && learnerRef && status === 'loading' && <p>Loading…</p>}
+      {!redirect && learnerRef && status === 'error' && <p role="alert">Couldn&apos;t load this learner: {error}</p>}
+      {!redirect && learnerRow && isKnownView(view) && (
+        <div className="learner-page">
+          <LearnerHeader
+            learnRefNumber={learnerRef}
+            name={learnerName}
+            detail={standardLabel(learnerRow, { withLevel: false })}
+            tab="record"
+            back={back}
+          />
+          {!learnerAction && <LearnerRecord key={learnerRef} learner={learnerRow} canManage={isManager} back={back} />}
+          {isManager && learnerAction === 'edit' && (
+            <EditLearnerForm
+              key={learnerRef}
+              learner={learnerRow}
+              standards={standards}
+              standardsStatus={standardsStatus}
+              onSaved={handleSaved}
+              onCancel={closeForm}
+            />
+          )}
+          {isManager && learnerAction === 'complete' && (
+            <MarkCompletedForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
+          )}
+          {isManager && learnerAction === 'withdraw' && (
+            <WithdrawAimForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
+          )}
+        </div>
+      )}
+      {!redirect && onList && (
       <>
       <section id="learners">
         <p>Dummy ILR apprenticeship learners and their programme aim details.</p>
@@ -370,10 +391,7 @@ function App() {
                 <tr key={`${learner.LEARNREFNUMBER}-${learner.LEARNAIMREF}`}>
                   <td>{learner.LEARNREFNUMBER}</td>
                   <td>
-                    <a
-                      className="link-button"
-                      href={`/app/learners/${encodeURIComponent(learner.LEARNREFNUMBER)}${listQuery}`}
-                    >
+                    <a className="link-button" href={learnerPath(me, learner.LEARNREFNUMBER, listPath)}>
                       {learner.GIVENNAMES} {learner.FAMILYNAME}
                     </a>
                   </td>
@@ -386,7 +404,7 @@ function App() {
                       <button
                         type="button"
                         className="secondary"
-                        onClick={() => openLearnerAction(learner.LEARNREFNUMBER, 'edit')}
+                        onClick={() => navigate(learnerActionPath(learner.LEARNREFNUMBER, 'edit', listPath))}
                       >
                         Edit
                       </button>
@@ -394,7 +412,7 @@ function App() {
                         <button
                           type="button"
                           className="secondary"
-                          onClick={() => openLearnerAction(learner.LEARNREFNUMBER, 'complete')}
+                          onClick={() => navigate(learnerActionPath(learner.LEARNREFNUMBER, 'complete', listPath))}
                         >
                           Mark completed
                         </button>
@@ -403,7 +421,7 @@ function App() {
                         <button
                           type="button"
                           className="secondary"
-                          onClick={() => openLearnerAction(learner.LEARNREFNUMBER, 'withdraw')}
+                          onClick={() => navigate(learnerActionPath(learner.LEARNREFNUMBER, 'withdraw', listPath))}
                         >
                           Withdraw
                         </button>
@@ -418,27 +436,9 @@ function App() {
         )}
       </section>
 
-      <div ref={formRef}>
-        {isManager && learnerRow && learnerAction === 'edit' && (
-          <EditLearnerForm
-            key={learnerRef}
-            learner={learnerRow}
-            standards={standards}
-            standardsStatus={standardsStatus}
-            onSaved={handleSaved}
-            onCancel={closeForm}
-          />
-        )}
-        {isManager && learnerRow && learnerAction === 'complete' && (
-          <MarkCompletedForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
-        )}
-        {isManager && learnerRow && learnerAction === 'withdraw' && (
-          <WithdrawAimForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
-        )}
-        {isManager && !learnerAction && (
-          <AddLearnerForm standards={standards} standardsStatus={standardsStatus} onLearnerAdded={loadLearners} />
-        )}
-      </div>
+      {isManager && (
+        <AddLearnerForm standards={standards} standardsStatus={standardsStatus} onLearnerAdded={loadLearners} />
+      )}
 
       </>
       )}
@@ -455,14 +455,12 @@ function App() {
         </>
       )}
 
-      {/* Learners opened from an officer's details open over the officers
-          list rather than over both panels. */}
       {!redirect && tab === 'officers' && isKnownView(view) && (
         <Officers
           learners={learners}
           learnersStatus={status}
           officerRef={view.rest[0] ?? null}
-          onOpenLearner={(ref) => openLearner(ref, '/app/officers')}
+          onOpenLearner={openLearner}
         />
       )}
 
@@ -478,19 +476,6 @@ function App() {
       )}
       {!redirect && tab === 'sign-offs' && <IqaSignOffs onOpenLearner={openLearner} />}
 
-      {/* Over whichever page it was opened from. Edit / Mark completed /
-          Withdraw go to the form under the learner list. */}
-      {!redirect && learnerRow && !learnerAction && (
-        <LearnerDetail
-          key={learnerRef}
-          learner={learnerRow}
-          canManage={isManager}
-          onClose={closeLearner}
-          onEdit={(learner) => openLearnerAction(learner.LEARNREFNUMBER, 'edit')}
-          onComplete={(learner) => openLearnerAction(learner.LEARNREFNUMBER, 'complete')}
-          onWithdraw={(learner) => openLearnerAction(learner.LEARNREFNUMBER, 'withdraw')}
-        />
-      )}
       </main>
     </div>
   )

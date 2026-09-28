@@ -5,14 +5,21 @@ import Portfolio from './Portfolio'
 import AddEvidence from './AddEvidence'
 import EmployerHome from './EmployerHome'
 import { usePageTitle, useShell } from '../shell/navigation'
+import LearnerHeader from '../learner/LearnerHeader'
+import { learnerPath, safeBack } from '../learner/links'
+import StaffLearnerList from './StaffLearnerList'
 
 // Burrow, the learner e-portfolio, at /burrow. A learner's own pages:
 //   /burrow           My portfolio
 //   /burrow/add       Add evidence (?evidence=<id> to carry on with a draft)
 //   /burrow/feedback  My portfolio, at "Feedback for you"
-// Staff reading a learner's portfolio:
-//   /burrow/learners/<ref>           (/burrow goes to the first learner)
-//   /burrow/learners/<ref>/feedback
+// Staff:
+//   /burrow/learners                 the learners they can see (/burrow
+//                                    goes here)
+//   /burrow/learners/<ref>           the learner page's Portfolio tab, read
+//                                    only; its Record tab is Warren's
+//                                    /app/learners/<ref>. ?back= as there.
+//   /burrow/learners/<ref>/feedback  the same, at "Feedback for you"
 // An employer:
 //   /burrow/apprentices  Their apprentices and witness statements
 // Anything else here that someone can't use goes to the page they can.
@@ -45,32 +52,53 @@ function parseLocation(path) {
   if (parts.length === 1 && first === 'add') return { page: 'add', evidenceId: params.get('evidence') }
   if (parts.length === 1 && first === 'feedback') return { page: 'feedback' }
   if (parts.length === 1 && first === 'apprentices') return { page: 'apprentices' }
+  if (parts.length === 1 && first === 'learners') return { page: 'list' }
   if (first === 'learners' && ref && (parts.length === 2 || (parts.length === 3 && sub === 'feedback'))) {
     return { page: sub ? 'feedback' : 'portfolio', ref }
   }
   return { page: 'notfound' }
 }
 
-// A staff member's portfolio address for a learner.
-function staffPortfolioPath(ref, page) {
-  return `/burrow/learners/${encodeURIComponent(ref)}${page === 'feedback' ? '/feedback' : ''}`
-}
-
 // Where this address should go instead, for this user, or null to show it.
-function redirectFor(location, { isLearner, isEmployer, canReadPortfolios }, learners, learnersStatus) {
+function redirectFor(location, { isLearner, isEmployer, canReadPortfolios }) {
   const { page, ref } = location
   if (page === 'notfound') return null
   if (!canReadPortfolios) return page === 'apprentices' ? null : '/burrow/apprentices'
   if (page === 'apprentices') return isEmployer ? null : '/burrow'
   if (isLearner) {
     // A learner's own portfolio is /burrow, whatever reference is asked for.
+    if (page === 'list') return '/burrow'
     return ref ? (page === 'feedback' ? '/burrow/feedback' : '/burrow') : null
   }
-  if (page === 'add') return '/burrow'
-  if (!ref && learnersStatus === 'ready' && learners.length > 0) {
-    return staffPortfolioPath(learners[0].LEARNREFNUMBER, page)
-  }
+  if (page === 'add' || !ref) return page === 'list' ? null : '/burrow/learners'
   return null
+}
+
+const ICONS = {
+  portfolio: (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 9h8M8 13h8M8 17h5" />
+    </svg>
+  ),
+  add: (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
+    </svg>
+  ),
+  feedback: (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <path d="M4 5h16v11H9l-5 4z" />
+    </svg>
+  ),
+  learners: (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="9" cy="8" r="3" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M3 19c0-3.3 2.7-5 6-5s6 1.7 6 5M15 14.5c2.8 0 5 1.4 5 4.5" />
+    </svg>
+  ),
 }
 
 function fullName(learner) {
@@ -109,7 +137,7 @@ function BurrowApp() {
   // Whose portfolio is open: a learner's own, or the one in the address.
   const viewingAs = isLearner ? me.LEARNREFNUMBER : (location.ref ?? null)
 
-  const redirect = redirectFor(location, can, learners, learnersStatus)
+  const redirect = redirectFor(location, can)
   useEffect(() => {
     if (redirect) navigate(redirect, { replace: true })
   }, [redirect, navigate])
@@ -119,9 +147,10 @@ function BurrowApp() {
   const [error, setError] = useState(null)
   const [flash, setFlash] = useState(null)
 
-  // Only learners and staff read portfolios; employers never get the list.
+  // Staff's learner list. Employers never get it, and a learner only has
+  // their own portfolio.
   useEffect(() => {
-    if (!canReadPortfolios) return
+    if (!canReadPortfolios || isLearner) return
     async function load() {
       try {
         const res = await fetch('/api/burrow/learners')
@@ -134,7 +163,7 @@ function BurrowApp() {
       }
     }
     load()
-  }, [canReadPortfolios])
+  }, [canReadPortfolios, isLearner])
 
   const loadPortfolio = useCallback(async (ref) => {
     if (!ref) return
@@ -156,11 +185,6 @@ function BurrowApp() {
     loadPortfolio(viewingAs)
   }, [viewingAs, loadPortfolio])
 
-  function handleViewingAs(ref) {
-    setFlash(null)
-    navigate(staffPortfolioPath(ref, page))
-  }
-
   function handleSaved(message) {
     setFlash(message)
     loadPortfolio(viewingAs)
@@ -174,7 +198,9 @@ function BurrowApp() {
   const shownPortfolio = portfolio?.learner?.LEARNREFNUMBER === viewingAs ? portfolio : null
   const portfolioStatus = viewingAs && !shownPortfolio && status === 'ready' ? 'loading' : status
   const feedbackCount = (shownPortfolio?.evidence ?? []).filter((e) => e.STATUS === 'changes_requested').length
-  const viewingName = learners.find((l) => l.LEARNREFNUMBER === viewingAs)
+  const viewingName = shownPortfolio ? fullName(shownPortfolio.learner) : null
+  // Staff's Back from a portfolio: where they opened it, or their list.
+  const back = safeBack(new URLSearchParams(path.split('?')[1] ?? '').get('back')) ?? '/burrow/learners'
 
   usePageTitle(
     page === 'notfound'
@@ -183,46 +209,63 @@ function BurrowApp() {
         ? 'Apprentices'
         : page === 'add'
           ? 'Add evidence'
-          : !page
-            ? null
-            : isLearner
-              ? page === 'feedback'
-                ? 'Feedback'
-                : 'My portfolio'
-              : viewingName
-                ? `${page === 'feedback' ? 'Feedback' : 'Portfolio'}: ${fullName(viewingName)}`
-                : 'Portfolio',
+          : page === 'list'
+            ? 'Learners'
+            : !page
+              ? null
+              : isLearner
+                ? page === 'feedback'
+                  ? 'Feedback'
+                  : 'My portfolio'
+                : viewingName
+                  ? `Portfolio: ${viewingName}`
+                  : 'Portfolio',
   )
 
-  // Staff's tabs go to the portfolio being read.
-  const portfolioPath = isLearner ? '/burrow' : viewingAs ? staffPortfolioPath(viewingAs, 'portfolio') : '/burrow'
-  const feedbackPath = isLearner ? '/burrow/feedback' : viewingAs ? staffPortfolioPath(viewingAs, 'feedback') : '/burrow'
+  // Burrow's tabs, in the header (and as a bottom bar on a phone). A
+  // learner's are their own pages; staff have their learner list, and
+  // reach Record and Portfolio from the learner page.
+  const navItems = [
+    isLearner && {
+      to: '/burrow',
+      label: 'My portfolio',
+      short: 'Portfolio',
+      active: page === 'portfolio',
+      icon: ICONS.portfolio,
+    },
+    isLearner && { to: '/burrow/add', label: 'Add evidence', short: 'Add', active: page === 'add', icon: ICONS.add },
+    isLearner && {
+      to: '/burrow/feedback',
+      label: `Feedback (${feedbackCount})`,
+      short: `Feedback${feedbackCount > 0 ? ` (${feedbackCount})` : ''}`,
+      active: page === 'feedback',
+      icon: ICONS.feedback,
+    },
+    !isLearner &&
+      canReadPortfolios && {
+        to: '/burrow/learners',
+        label: 'Learners',
+        active: page === 'list' || onPortfolio,
+        icon: ICONS.learners,
+      },
+    isEmployer && {
+      to: '/burrow/apprentices',
+      label: 'Apprentices',
+      active: page === 'apprentices',
+      icon: ICONS.learners,
+    },
+  ].filter(Boolean)
 
   return (
     <div className="burrow">
       {tabSlot &&
         createPortal(
           <nav aria-label="Burrow">
-            {canReadPortfolios && (
-              <NavLink navigate={navigate} to={portfolioPath} className="shell-tab" active={page === 'portfolio'}>
-                {isLearner ? 'My portfolio' : 'Portfolio'}
+            {navItems.map((item) => (
+              <NavLink key={item.to} navigate={navigate} to={item.to} className="shell-tab" active={item.active}>
+                {item.label}
               </NavLink>
-            )}
-            {isLearner && (
-              <NavLink navigate={navigate} to="/burrow/add" className="shell-tab" active={page === 'add'}>
-                Add evidence
-              </NavLink>
-            )}
-            {canReadPortfolios && (
-              <NavLink navigate={navigate} to={feedbackPath} className="shell-tab" active={page === 'feedback'}>
-                Feedback ({feedbackCount})
-              </NavLink>
-            )}
-            {isEmployer && (
-              <NavLink navigate={navigate} to="/burrow/apprentices" className="shell-tab" active={page === 'apprentices'}>
-                Apprentices
-              </NavLink>
-            )}
+            ))}
           </nav>,
           tabSlot,
         )}
@@ -233,38 +276,40 @@ function BurrowApp() {
             There&apos;s nothing at this address in Burrow. <a href="/burrow">Go to Burrow</a>
           </p>
         )}
-        {me && !isLearner && canReadPortfolios && onPortfolio && (
-          <div className="burrow-toolbar">
-            <label className="burrow-viewing-as">
-              <span>Portfolio of</span>
-              <select
-                value={viewingAs ?? ''}
-                disabled={learnersStatus !== 'ready' || learners.length === 0}
-                onChange={(e) => handleViewingAs(e.target.value)}
-              >
-                {learnersStatus === 'loading' && <option value="">Loading learners…</option>}
-                {learners.map((l) => (
-                  <option key={l.LEARNREFNUMBER} value={l.LEARNREFNUMBER}>
-                    {fullName(l)} ({l.LEARNREFNUMBER})
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+        {page === 'list' && (
+          <StaffLearnerList
+            learners={learners}
+            status={learnersStatus}
+            linkFor={(ref) => learnerPath(me, ref, '/burrow/learners')}
+          />
         )}
         {page === 'apprentices' && <EmployerHome me={me} />}
 
         {canReadPortfolios && (onPortfolio || page === 'add') && (
           <>
-            {learnersStatus === 'error' && <p role="alert">Couldn&apos;t load the list of learners.</p>}
-            {learnersStatus === 'ready' && learners.length === 0 && (
-              <p className="burrow-muted">There are no portfolios for you to see.</p>
+            {portfolioStatus === 'loading' && <p className="burrow-muted">Opening the portfolio…</p>}
+            {portfolioStatus === 'error' && (
+              <p role="alert">
+                Couldn&apos;t load this portfolio: {error}
+                {!isLearner && (
+                  <>
+                    {' '}
+                    <a href={back}>Go back</a>
+                  </>
+                )}
+              </p>
             )}
-            {portfolioStatus === 'loading' && learners.length > 0 && (
-              <p className="burrow-muted">Opening the portfolio…</p>
-            )}
-            {portfolioStatus === 'error' && <p role="alert">Couldn&apos;t load this portfolio: {error}</p>}
           </>
+        )}
+
+        {shownPortfolio && onPortfolio && !isLearner && (
+          <LearnerHeader
+            learnRefNumber={viewingAs}
+            name={viewingName}
+            detail={[shownPortfolio.learner.STDREFERENCE, shownPortfolio.learner.STDNAME].filter(Boolean).join(' ')}
+            tab="portfolio"
+            back={back}
+          />
         )}
 
         {shownPortfolio && onPortfolio && (
@@ -291,42 +336,12 @@ function BurrowApp() {
 
       {/* The nav on a phone: a bottom bar, as in the phone design. */}
       <nav aria-label="Burrow" className="burrow-bottom-nav">
-        {canReadPortfolios && (
-          <NavLink navigate={navigate} to={portfolioPath} className="burrow-bottom-link" active={page === 'portfolio'}>
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-              <rect x="4" y="4" width="16" height="16" rx="2" />
-              <path d="M8 9h8M8 13h8M8 17h5" />
-            </svg>
-            Portfolio
+        {navItems.map((item) => (
+          <NavLink key={item.to} navigate={navigate} to={item.to} className="burrow-bottom-link" active={item.active}>
+            {item.icon}
+            {item.short ?? item.label}
           </NavLink>
-        )}
-        {isLearner && (
-          <NavLink navigate={navigate} to="/burrow/add" className="burrow-bottom-link" active={page === 'add'}>
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 8v8M8 12h8" />
-            </svg>
-            Add
-          </NavLink>
-        )}
-        {canReadPortfolios && (
-          <NavLink navigate={navigate} to={feedbackPath} className="burrow-bottom-link" active={page === 'feedback'}>
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-              <path d="M4 5h16v11H9l-5 4z" />
-            </svg>
-            Feedback{feedbackCount > 0 ? ` (${feedbackCount})` : ''}
-          </NavLink>
-        )}
-        {isEmployer && (
-          <NavLink navigate={navigate} to="/burrow/apprentices" className="burrow-bottom-link" active={page === 'apprentices'}>
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-              <circle cx="9" cy="8" r="3" />
-              <circle cx="17" cy="9" r="2.5" />
-              <path d="M3 19c0-3.3 2.7-5 6-5s6 1.7 6 5M15 14.5c2.8 0 5 1.4 5 4.5" />
-            </svg>
-            Apprentices
-          </NavLink>
-        )}
+        ))}
       </nav>
     </div>
   )

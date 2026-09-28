@@ -7,7 +7,7 @@ import {
   CONTACT_METHOD_OPTIONS,
   CONTRACT_TYPE_OPTIONS,
   OFFICER_TYPE_OPTIONS,
-} from './ilrCodes'
+} from '../ilrCodes'
 
 // The two caseload roles every learner has exactly one current officer in.
 const ASSIGNMENT_ROLES = OFFICER_TYPE_OPTIONS.filter((o) => o.code === 'TUTOR' || o.code === 'ASSESSOR')
@@ -18,8 +18,9 @@ import {
   labelsFromCommaList,
   formatDate,
   standardLabel,
-} from './lookups'
-import CompletionStatus from './CompletionStatus'
+} from '../lookups'
+import CompletionStatus from '../CompletionStatus'
+import { learnerActionPath } from './links'
 
 // Age in whole years as of today, from a 'YYYY-MM-DD' (or similar
 // parseable) date of birth string.
@@ -62,23 +63,28 @@ function timeOnPlacement(learner) {
 
 function Row({ label, value }) {
   return (
-    <div className="detail-row">
-      <span className="detail-label">{label}</span>
-      <span className="detail-value">{value}</span>
+    <div className="record-row">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
   )
 }
 
-// canManage: the signed-in user is a manager, so can change the learner and
-// their officers. Everyone else reads.
-function LearnerDetail({ learner, canManage, onClose, onEdit, onComplete, onWithdraw }) {
-  useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+function Section({ title, children }) {
+  return (
+    <section className="learner-section" aria-label={title}>
+      <h2>{title}</h2>
+      <dl>{children}</dl>
+    </section>
+  )
+}
+
+// The learner page's Record tab (Warren): everything Warren holds about the
+// learner, read only. canManage: the signed-in user is a manager, so can
+// change the learner and their officers, and sees NI number and ethnicity
+// (the server sends them to managers only). Everyone else reads.
+// back: the page's ?back=, kept on the edit and outcome forms.
+function LearnerRecord({ learner, canManage, back }) {
 
   const age = ageFromDateOfBirth(learner.DATEOFBIRTH)
   const timeOnProgramme = timeOnPlacement(learner)
@@ -142,56 +148,58 @@ function LearnerDetail({ learner, canManage, onClose, onEdit, onComplete, onWith
   }
 
   return (
-    <div className="detail-overlay" onClick={onClose}>
-      <aside className="detail-panel" onClick={(e) => e.stopPropagation()} aria-label="Learner detail">
-        <div className="detail-header">
-          <h2>
-            {learner.GIVENNAMES} {learner.FAMILYNAME}
-          </h2>
-          <button type="button" className="secondary" onClick={onClose}>
-            Close
-          </button>
+    <>
+      {canManage && (
+        <div className="learner-actions">
+          <a className="ui-button ui-button--secondary" href={learnerActionPath(learner.LEARNREFNUMBER, 'edit', back)}>
+            Edit
+          </a>
+          {learner.COMPSTATUS === 1 && (
+            <a className="ui-button ui-button--secondary" href={learnerActionPath(learner.LEARNREFNUMBER, 'complete', back)}>
+              Mark completed
+            </a>
+          )}
+          {learner.COMPSTATUS === 1 && (
+            <a className="ui-button ui-button--secondary" href={learnerActionPath(learner.LEARNREFNUMBER, 'withdraw', back)}>
+              Withdraw
+            </a>
+          )}
         </div>
+      )}
 
-        {canManage && (
-          <div className="detail-actions">
-            <button type="button" className="secondary" onClick={() => onEdit(learner)}>
-              Edit
-            </button>
-            {learner.COMPSTATUS === 1 && (
-              <button type="button" className="secondary" onClick={() => onComplete(learner)}>
-                Mark completed
-              </button>
-            )}
-            {learner.COMPSTATUS === 1 && (
-              <button type="button" className="secondary" onClick={() => onWithdraw(learner)}>
-                Withdraw
-              </button>
-            )}
-          </div>
-        )}
-
-        <section className="detail-section">
-          <h3>Personal details</h3>
+      <div className="learner-record">
+        <Section title="Personal details">
           <Row label="Learner reference" value={learner.LEARNREFNUMBER} />
           <Row label="ULN" value={learner.ULN ?? '—'} />
           <Row label="Date of birth" value={formatDate(learner.DATEOFBIRTH)} />
           <Row label="Age" value={age === null ? '—' : `${age} years old`} />
-          <Row label="Ethnicity" value={labelFromOptions(ETHNICITY_OPTIONS, learner.ETHNICITY)} />
+          {canManage && <Row label="Ethnicity" value={labelFromOptions(ETHNICITY_OPTIONS, learner.ETHNICITY)} />}
           <Row label="Sex" value={labelFromOptions(SEX_OPTIONS, learner.SEX)} />
           <Row
             label="LLDD health problem"
             value={labelFromOptions(LLDD_HEALTH_PROBLEM_OPTIONS, learner.LLDDHEALTHPROB)}
           />
-          <Row label="NI number" value={learner.NINUMBER || '—'} />
+          {canManage && <Row label="NI number" value={learner.NINUMBER || '—'} />}
           <Row label="Previous postcode" value={learner.POSTCODEPRIOR || '—'} />
           <Row label="Current postcode" value={learner.POSTCODE || '—'} />
           <Row label="Phone" value={learner.TELNO || '—'} />
           <Row label="Email" value={learner.EMAIL || '—'} />
-        </section>
+        </Section>
 
-        <section className="detail-section">
-          <h3>Contact details</h3>
+        <Section title="Apprenticeship aim">
+          <Row label="Standard" value={standardLabel(learner, { withLevel: false })} />
+          <Row label="Start date" value={formatDate(learner.LEARNSTARTDATE)} />
+          <Row label="Planned end date" value={formatDate(learner.LEARNPLANENDDATE)} />
+          <Row label="Status" value={<CompletionStatus compstatus={learner.COMPSTATUS} />} />
+          <Row label="Time on programme" value={timeOnProgramme ?? '—'} />
+          <Row label="Actual end date" value={formatDate(learner.LEARNACTENDDATE)} />
+          <Row label="Outcome" value={describe(OUTCOME_LABELS, learner.OUTCOME)} />
+          {learner.COMPSTATUS === 3 && (
+            <Row label="Withdrawal reason" value={labelFromOptions(WITHDRAW_REASON_OPTIONS, learner.WITHDRAWREASON)} />
+          )}
+        </Section>
+
+        <Section title="Contact details">
           <Row label="Title" value={learner.TITLE || '—'} />
           <Row label="Address line 1" value={learner.ADDRESSLINE1 || '—'} />
           <Row label="Address line 2" value={learner.ADDRESSLINE2 || '—'} />
@@ -210,32 +218,10 @@ function LearnerDetail({ learner, canManage, onClose, onEdit, onComplete, onWith
           <Row label="Next of kin relationship" value={learner.NEXTOFKINRELATIONSHIP || '—'} />
           <Row label="Next of kin phone" value={learner.NEXTOFKINPHONE || '—'} />
           <Row label="Contract type" value={labelFromOptions(CONTRACT_TYPE_OPTIONS, learner.CONTRACTTYPE)} />
-        </section>
+        </Section>
 
-        <section className="detail-section">
-          <h3>Apprenticeship aim</h3>
-          <Row label="Standard" value={standardLabel(learner, { withLevel: false })} />
-          <Row label="Start date" value={formatDate(learner.LEARNSTARTDATE)} />
-          <Row label="Planned end date" value={formatDate(learner.LEARNPLANENDDATE)} />
-          <Row
-            label="Status"
-            value={
-              <CompletionStatus compstatus={learner.COMPSTATUS} />
-            }
-          />
-          <Row label="Time on programme" value={timeOnProgramme ?? '—'} />
-          <Row label="Actual end date" value={formatDate(learner.LEARNACTENDDATE)} />
-          <Row label="Outcome" value={describe(OUTCOME_LABELS, learner.OUTCOME)} />
-          {learner.COMPSTATUS === 3 && (
-            <Row
-              label="Withdrawal reason"
-              value={labelFromOptions(WITHDRAW_REASON_OPTIONS, learner.WITHDRAWREASON)}
-            />
-          )}
-        </section>
-
-        <section className="detail-section">
-          <h3>Officers</h3>
+        <section className="learner-section" aria-label="Officers">
+          <h2>Officers</h2>
 
           {officersStatus === 'loading' && <p className="empty-note">Loading officers…</p>}
           {officersStatus === 'error' && <p role="alert">Couldn't load officers.</p>}
@@ -253,10 +239,12 @@ function LearnerDetail({ learner, canManage, onClose, onEdit, onComplete, onWith
                 )
                 return (
                   <div key={role} className="assignment-role">
-                    <Row
-                      label={label}
-                      value={current.length > 0 ? current.map((a) => a.OFFICERNAME).join(', ') : 'None assigned'}
-                    />
+                    <dl>
+                      <Row
+                        label={label}
+                        value={current.length > 0 ? current.map((a) => a.OFFICERNAME).join(', ') : 'None assigned'}
+                      />
+                    </dl>
                     {canManage && choices.length > 0 && (
                       <form className="assign-officer-form" onSubmit={(e) => handleAssignOfficer(e, role)}>
                         <select
@@ -294,9 +282,9 @@ function LearnerDetail({ learner, canManage, onClose, onEdit, onComplete, onWith
             </>
           )}
         </section>
-      </aside>
-    </div>
+      </div>
+    </>
   )
 }
 
-export default LearnerDetail
+export default LearnerRecord

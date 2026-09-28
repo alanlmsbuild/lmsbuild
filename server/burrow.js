@@ -25,7 +25,7 @@ import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import busboy from 'busboy'
 import { execute } from './db.js'
-import { allow, IN_ORG_LEARNERS, LEARNER, STAFF, VISIBLE_LEARNER } from './access.js'
+import { allow, IN_VISIBLE_LEARNERS, LEARNER, STAFF, VISIBLE_LEARNER } from './access.js'
 import { validateEvidenceForm, validateEvidenceSubmission } from '../src/validation.js'
 import {
   EDITABLE_STATUSES,
@@ -667,7 +667,7 @@ export function registerBurrowRoutes(app) {
           `update BURROW.EVIDENCE
            set TITLE = ?, EVIDENCE_TYPE = ?, OCCURRED_ON = ?, REFLECTION = ?,
                UPDATED_AT = current_timestamp(), UPDATED_BY = ?
-           where EVIDENCE_ID = ? and ${IN_ORG_LEARNERS}`,
+           where EVIDENCE_ID = ? and ${IN_VISIBLE_LEARNERS}`,
           [fields.title, fields.evidenceType, fields.occurredOn, fields.reflection || null, by, evidence.EVIDENCE_ID],
         )
         await setClaims(connection, evidence, fields.ksbs, standard, by)
@@ -710,7 +710,7 @@ export function registerBurrowRoutes(app) {
         `update BURROW.EVIDENCE
          set STATUS = 'submitted', SUBMISSION_COUNT = SUBMISSION_COUNT + 1,
              SUBMITTED_AT = current_timestamp(), UPDATED_AT = current_timestamp(), UPDATED_BY = ?
-         where EVIDENCE_ID = ? and STATUS in ('draft', 'changes_requested') and ${IN_ORG_LEARNERS}`,
+         where EVIDENCE_ID = ? and STATUS in ('draft', 'changes_requested') and ${IN_VISIBLE_LEARNERS}`,
         [req.user.USERID, evidence.EVIDENCE_ID],
       )
       res.json({ evidenceId: evidence.EVIDENCE_ID, status: 'submitted' })

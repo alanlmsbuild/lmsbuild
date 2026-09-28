@@ -19,24 +19,10 @@ import { testUserId } from './devUsers.js'
 // Only for reading from the ORG_ sources below. Not a table.
 const ORG = '$CURRENT_ORGANISATIONID'
 
-export const ORG_LEARNER = `(select * from ILR.LEARNER where ORGANISATIONID = ${ORG})`
 export const ORG_OFFICER = `(select * from ILR.OFFICER where ORGANISATIONID = ${ORG})`
 export const ORG_EMPLOYER = `(select * from ILR.EMPLOYER where ORGANISATIONID = ${ORG})`
 export const ORG_APP_USER = `(select * from ACCESS.APP_USER where ORGANISATIONID = ${ORG})`
 export const ORG_ORGANISATION = `(select * from ACCESS.ORGANISATION where ORGANISATIONID = ${ORG})`
-
-// Caseload assignments where both the learner and the officer are in the
-// organisation.
-export const ORG_OFFICER_ASSIGNMENT = `(
-  select * from ILR.OFFICER_ASSIGNMENT
-  where LEARNREFNUMBER in (select LEARNREFNUMBER from ILR.LEARNER where ORGANISATIONID = ${ORG})
-    and OFFICERREFNUMBER in (select OFFICERREFNUMBER from ILR.OFFICER where ORGANISATIONID = ${ORG})
-)`
-
-// For tables keyed by learner that have no ORGANISATIONID of their own
-// (LEARNING_DELIVERY, PROGRESS_REVIEW, BURROW.EVIDENCE): add to the where
-// clause of an update, so it can only touch this organisation's learners.
-export const IN_ORG_LEARNERS = `LEARNREFNUMBER in (select LEARNREFNUMBER from ILR.LEARNER where ORGANISATIONID = ${ORG})`
 
 // The organisation to write on new learners and officers.
 export const CURRENT_ORGANISATIONID = ORG
@@ -73,8 +59,26 @@ export function allow(...roles) {
   }
 }
 
-// ---------------------------------------------------------------- what each user can see
+// ---------------------------------------------------------------- learners
 //
+// The one place that says which learners a request can reach. Every read
+// of ILR.LEARNER goes through LEARNER_ROWS, and every learner lookup
+// through VISIBLE_LEARNER (or IN_VISIBLE_LEARNERS, the same set for a
+// where clause). Limiting managers to their own team (part 8) is a change
+// to VISIBLE_LEARNER only.
+//
+// Only managers see these columns. For everyone else they read as null,
+// whatever query asks for them (npm run check:scoping checks nothing reads
+// the table another way). Tutors, assessors and IQAs still see LLDD and
+// support needs, which they need to support the learner.
+export const MANAGER_ONLY_LEARNER_COLUMNS = ['NINUMBER', 'ETHNICITY']
+
+const LEARNER_ROWS = `(
+  select * replace (${MANAGER_ONLY_LEARNER_COLUMNS.map((c) => `iff($SEES_MANAGER_ONLY, ${c}, null) as ${c}`).join(', ')})
+  from ILR.LEARNER
+  where ORGANISATIONID = ${ORG}
+)`
+
 // Within the organisation, the learners a user can see depend on their
 // roles, added together:
 //   Manager, IQA        every learner in the organisation
@@ -86,29 +90,49 @@ export function allow(...roles) {
 // A learner outside this gets "not found", the same as one in another
 // organisation. Session variables for a role the user doesn't hold are ''
 // (matches nothing) or FALSE.
-
 export const VISIBLE_LEARNER = `(
-  select * from ILR.LEARNER
-  where ORGANISATIONID = ${ORG}
-    and ($SEES_ALL_LEARNERS
-      or LEARNREFNUMBER in (
-        select LEARNREFNUMBER from ILR.OFFICER_ASSIGNMENT
-        where OFFICERREFNUMBER = $CASELOAD_OFFICERREFNUMBER and ENDEDAT is null)
-      or LEARNREFNUMBER in (
-        select LEARNREFNUMBER from ILR.LEARNER_EMPLOYER
-        where EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (TODATE is null or TODATE >= current_date()))
-      or LEARNREFNUMBER = $OWN_LEARNREFNUMBER)
+  select * from ${LEARNER_ROWS}
+  where $SEES_ALL_LEARNERS
+    or LEARNREFNUMBER in (
+      select LEARNREFNUMBER from ILR.OFFICER_ASSIGNMENT
+      where OFFICERREFNUMBER = $CASELOAD_OFFICERREFNUMBER and ENDEDAT is null)
+    or LEARNREFNUMBER in (
+      select LEARNREFNUMBER from ILR.LEARNER_EMPLOYER
+      where EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (TODATE is null or TODATE >= current_date()))
+    or LEARNREFNUMBER = $OWN_LEARNREFNUMBER
 )`
+
+// For tables keyed by learner without an ORGANISATIONID of their own
+// (LEARNING_DELIVERY, PROGRESS_REVIEW, BURROW.EVIDENCE, the ILR records):
+// add to the where clause, so a query or update only touches learners this
+// user can reach.
+export const IN_VISIBLE_LEARNERS = `LEARNREFNUMBER in (select LEARNREFNUMBER from ${VISIBLE_LEARNER})`
 
 // The current apprentices of the signed-in user's own employer (by
 // EMPLOYERID only), whatever other roles they hold. For the employer
 // screens, which show only what an employer may see of each apprentice.
 export const EMPLOYER_APPRENTICE = `(
-  select * from ILR.LEARNER
-  where ORGANISATIONID = ${ORG}
-    and LEARNREFNUMBER in (
-      select LEARNREFNUMBER from ILR.LEARNER_EMPLOYER
-      where EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (TODATE is null or TODATE >= current_date()))
+  select * from ${VISIBLE_LEARNER}
+  where LEARNREFNUMBER in (
+    select LEARNREFNUMBER from ILR.LEARNER_EMPLOYER
+    where EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (TODATE is null or TODATE >= current_date()))
+)`
+
+// Every learner in the organisation, whoever is asking. Only for duties
+// that must cover the whole organisation rather than the learners someone
+// can see: a ULN can't be used twice in the organisation, and the ILR
+// return covers everyone. ORG_LEARNER and IN_ORG_LEARNERS (for a where
+// clause) are for these only, and each use says why with "-- whole organisation:"
+// (npm run check:scoping checks). Manager-only columns are masked as above.
+export const ORG_LEARNER = LEARNER_ROWS
+export const IN_ORG_LEARNERS = `LEARNREFNUMBER in (select LEARNREFNUMBER from ${LEARNER_ROWS})`
+
+// Caseload assignments where both the learner and the officer are in the
+// organisation.
+export const ORG_OFFICER_ASSIGNMENT = `(
+  select * from ILR.OFFICER_ASSIGNMENT
+  where LEARNREFNUMBER in (select LEARNREFNUMBER from ${LEARNER_ROWS})
+    and OFFICERREFNUMBER in (select OFFICERREFNUMBER from ILR.OFFICER where ORGANISATIONID = ${ORG})
 )`
 
 // Managers see every officer in the organisation. Anyone else sees only
@@ -139,9 +163,9 @@ const ACTIVE_ROLES_QUERY = `
 `
 
 const SET_SESSION = `
-  set (CURRENT_ORGANISATIONID, CURRENT_ISTESTDATA, SEES_ALL_LEARNERS, SEES_ALL_OFFICERS,
+  set (CURRENT_ORGANISATIONID, CURRENT_ISTESTDATA, SEES_ALL_LEARNERS, SEES_ALL_OFFICERS, SEES_MANAGER_ONLY,
        CURRENT_OFFICERREFNUMBER, CASELOAD_OFFICERREFNUMBER, APPRENTICES_OF_EMPLOYERID, OWN_LEARNREFNUMBER)
-    = (?, ?, ?, ?, ?, ?, ?, ?)
+    = (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 function sessionValues(user) {
@@ -150,6 +174,7 @@ function sessionValues(user) {
     user.ORGANISATIONID,
     user.ISTESTDATA === true,
     holds(MANAGER, IQA),
+    holds(MANAGER),
     holds(MANAGER),
     user.OFFICERREFNUMBER ?? '',
     holds(TUTOR, ASSESSOR) ? user.OFFICERREFNUMBER ?? '' : '',

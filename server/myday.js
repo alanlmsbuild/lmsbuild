@@ -3,7 +3,7 @@
 
 import crypto from 'node:crypto'
 import { execute } from './db.js'
-import { allow, ASSESSOR, MANAGER, ORG_LEARNER, ORG_OFFICER_ASSIGNMENT, TUTOR, VISIBLE_LEARNER, VISIBLE_OFFICER } from './access.js'
+import { allow, ASSESSOR, MANAGER, ORG_OFFICER_ASSIGNMENT, TUTOR, VISIBLE_LEARNER, VISIBLE_OFFICER } from './access.js'
 import { todayString, validateProgressReviewForm } from '../src/validation.js'
 import { QAR_AIMS, DEFAULT_QAR_YEAR } from './reports.js'
 
@@ -35,7 +35,7 @@ const MY_CONTINUING_LEARNERS = `
       ld.LEARNSTARTDATE,
       ld.LEARNPLANENDDATE
     from ${ORG_OFFICER_ASSIGNMENT} a
-    join ${ORG_LEARNER} l
+    join ${VISIBLE_LEARNER} l
       on l.LEARNREFNUMBER = a.LEARNREFNUMBER
     join LEARNING_DELIVERY ld
       on ld.LEARNREFNUMBER = a.LEARNREFNUMBER

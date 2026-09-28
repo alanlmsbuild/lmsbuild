@@ -11,7 +11,7 @@ import {
   CURRENT_ISTESTDATA,
   CURRENT_ORGANISATIONID,
   EMPLOYER,
-  IN_ORG_LEARNERS,
+  IN_VISIBLE_LEARNERS,
   LEARNER,
   MANAGER,
   ORG_APP_USER,
@@ -214,7 +214,7 @@ async function nextLearnRefNumber(connection) {
 // is the learner being added or edited, so it doesn't flag itself as a
 // conflict when editing.
 const ULN_CONFLICT_QUERY = `
-  select LEARNREFNUMBER from ${ORG_LEARNER} where ULN = ? and LEARNREFNUMBER <> ?
+  select LEARNREFNUMBER from ${ORG_LEARNER} where ULN = ? and LEARNREFNUMBER <> ? -- whole organisation: a ULN is used only once in it
 `
 
 async function isUlnTaken(connection, uln, excludeLearnRefNumber) {
@@ -231,7 +231,7 @@ const LEARNER_BY_REF_QUERY = `
     ld.LEARNSTARTDATE,
     ld.STDCODE,
     ld.COMPSTATUS
-  from ${ORG_LEARNER} l
+  from ${VISIBLE_LEARNER} l
   join LEARNING_DELIVERY ld
     on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
@@ -379,13 +379,13 @@ const UPDATE_LEARNER = `
     TITLE = ?, ADDRESSLINE1 = ?, ADDRESSLINE2 = ?, ADDRESSLINE3 = ?,
     WARDORCOUNTY = ?, MOBILENO = ?, CONTACTMETHODSALLOWED = ?, PREFERREDCONTACTMETHOD = ?,
     NEXTOFKINNAME = ?, NEXTOFKINRELATIONSHIP = ?, NEXTOFKINPHONE = ?, CONTRACTTYPE = ?
-  where LEARNREFNUMBER = ? and ${IN_ORG_LEARNERS}
+  where LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}
 `
 
 const UPDATE_LEARNING_DELIVERY = `
   update LEARNING_DELIVERY set
     LEARNSTARTDATE = ?, LEARNPLANENDDATE = ?, STDCODE = ?, DELLOCPOSTCODE = ?
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
+  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
 `
 
 app.put('/api/learners/:learnRefNumber', allow(MANAGER), async (req, res) => {
@@ -493,7 +493,7 @@ app.put('/api/learners/:learnRefNumber', allow(MANAGER), async (req, res) => {
 const COMPLETE_AIM = `
   update LEARNING_DELIVERY set
     COMPSTATUS = 2, OUTCOME = ?, LEARNACTENDDATE = ?, ACHDATE = ?
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
+  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
 `
 
 app.put('/api/learners/:learnRefNumber/complete', allow(MANAGER), async (req, res) => {
@@ -550,7 +550,7 @@ app.put('/api/learners/:learnRefNumber/complete', allow(MANAGER), async (req, re
 const WITHDRAW_AIM = `
   update LEARNING_DELIVERY set
     COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = 3, ACHDATE = null
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
+  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
 `
 
 // Withdrawing from the programme ends its open component aims (the
@@ -560,7 +560,7 @@ const WITHDRAW_AIM = `
 const WITHDRAW_COMPONENT_AIMS = `
   update LEARNING_DELIVERY set
     COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = 3, ACHDATE = null
-  where LEARNREFNUMBER = ? and AIMTYPE = 3 and COMPSTATUS = 1 and ${IN_ORG_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMTYPE = 3 and COMPSTATUS = 1 and ${IN_VISIBLE_LEARNERS}
 `
 
 app.put('/api/learners/:learnRefNumber/withdraw', allow(MANAGER), async (req, res) => {

@@ -42,11 +42,18 @@
 #add-learner,
 #edit-learner,
 #mark-completed,
-#withdraw-aim {
+#withdraw-aim,
+.learner-page {
   padding: 28px 20px 48px;
   max-width: 1100px;
   margin: 0 auto;
   text-align: left;
+}
+
+/* The edit and outcome forms sit inside the learner page, which already
+   has the padding. */
+.learner-page :is(#edit-learner, #mark-completed, #withdraw-aim) {
+  padding: 0;
 }
 
 #officers h3 {
@@ -808,8 +815,13 @@ form button.secondary {
   #edit-learner,
   #mark-completed,
   #withdraw-aim,
+  .learner-page,
   .status-message {
     padding: 20px 16px 40px;
+  }
+
+  .learner-page :is(#edit-learner, #mark-completed, #withdraw-aim) {
+    padding: 0;
   }
 
   .actions-cell {

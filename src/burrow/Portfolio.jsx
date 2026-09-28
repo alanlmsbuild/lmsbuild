@@ -49,17 +49,16 @@ function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollT
           </p>
         )}
 
-        <div className="burrow-greeting">
-          <h1>
-            {readOnly
-              ? `${[learner.GIVENNAMES, learner.FAMILYNAME].filter(Boolean).join(' ') || learner.LEARNREFNUMBER}’s portfolio`
-              : `Hello, ${learner.GIVENNAMES || learner.LEARNREFNUMBER}`}
-          </h1>
-          <p>
-            {learner.STDREFERENCE} {learner.STDNAME}
-            {learner.STDLEVEL !== null && learner.STDLEVEL !== undefined && ` · Level ${learner.STDLEVEL}`}
-          </p>
-        </div>
+        {/* Staff see the learner page's header instead (LearnerHeader). */}
+        {!readOnly && (
+          <div className="burrow-greeting">
+            <h1>Hello, {learner.GIVENNAMES || learner.LEARNREFNUMBER}</h1>
+            <p>
+              {learner.STDREFERENCE} {learner.STDNAME}
+              {learner.STDLEVEL !== null && learner.STDLEVEL !== undefined && ` · Level ${learner.STDLEVEL}`}
+            </p>
+          </div>
+        )}
 
         <section className="burrow-card burrow-progress" aria-label="Overall progress">
           {ksbsLoaded ? (

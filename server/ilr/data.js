@@ -30,7 +30,7 @@ const ORGANISATION_QUERY = `
 const LEARNERS_QUERY = `
   select LEARNREFNUMBER, ULN, FAMILYNAME, GIVENNAMES, DATEOFBIRTH, ETHNICITY, SEX, LLDDHEALTHPROB, NINUMBER,
     POSTCODEPRIOR, POSTCODE, ADDRESSLINE1, ADDRESSLINE2, ADDRESSLINE3, WARDORCOUNTY, TELNO, EMAIL, ISTESTDATA
-  from ${ORG_LEARNER}
+  from ${ORG_LEARNER} -- whole organisation: the ILR return covers everyone
   order by LEARNREFNUMBER
 `
 
@@ -42,7 +42,7 @@ const AIMS_QUERY = `
   from LEARNING_DELIVERY ld
   left join LARS.LEARNING_AIM la
     on la.LEARN_AIM_REF = ld.LEARNAIMREF
-  where ld.${IN_ORG_LEARNERS}
+  where ld.${IN_ORG_LEARNERS} -- whole organisation: the ILR return covers everyone
   order by ld.LEARNREFNUMBER, ld.AIMSEQNUMBER
 `
 
@@ -58,7 +58,7 @@ const STANDARDS_QUERY = `
 
 const byLearner = (table, columns, order) => `
   select ${columns} from ${table}
-  where ${IN_ORG_LEARNERS}
+  where ${IN_ORG_LEARNERS} -- whole organisation: the ILR return covers everyone
   order by LEARNREFNUMBER${order ? `, ${order}` : ''}
 `
 const PRIOR_QUERY = byLearner('ILR.PRIOR_ATTAINMENT', 'LEARNREFNUMBER, PRIORLEVEL, DATELEVELAPP', 'DATELEVELAPP')

@@ -1,0 +1,138 @@
+/* The learner page (LearnerHeader, LearnerRecord). Record is Warren's
+   green and Portfolio is Burrow's clay, whichever area the page is in. */
+
+.learner-header {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 24px;
+  font-family: var(--rb-font-body);
+}
+
+.learner-back {
+  justify-self: start;
+  color: var(--area-link);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.learner-back:hover {
+  text-decoration: underline;
+}
+
+.learner-title h1 {
+  margin: 0;
+  color: var(--rb-ink);
+  font-family: var(--rb-font-heading);
+  font-size: clamp(26px, 4vw, 34px);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.learner-title p {
+  margin: 4px 0 0;
+  color: var(--rb-muted);
+}
+
+.learner-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--rb-rule);
+}
+
+.learner-tab {
+  margin-bottom: -1px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: var(--rb-radius-control) var(--rb-radius-control) 0 0;
+  color: var(--rb-muted);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.learner-tab:hover {
+  color: var(--rb-ink);
+}
+
+.learner-tab.is-active {
+  border-color: var(--rb-rule);
+  border-bottom-color: var(--rb-page);
+  background: var(--rb-page);
+}
+
+.learner-tab--record.is-active {
+  color: var(--rb-warren-link);
+  box-shadow: inset 0 3px 0 var(--rb-warren);
+}
+
+.learner-tab--portfolio.is-active {
+  color: var(--rb-burrow-link);
+  box-shadow: inset 0 3px 0 var(--rb-burrow);
+}
+
+.learner-tab:focus-visible,
+.learner-back:focus-visible {
+  outline: 3px solid var(--area-link);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- Record */
+
+.learner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.learner-record {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.learner-section {
+  padding: 18px 20px;
+  border: 1px solid var(--rb-rule);
+  border-radius: var(--rb-radius-card);
+  background: var(--rb-card);
+}
+
+.learner-section h2 {
+  margin: 0 0 10px;
+  color: var(--rb-ink);
+  font-family: var(--rb-font-heading);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.learner-section dl {
+  margin: 0;
+}
+
+.record-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  border-top: 1px solid var(--rb-rule);
+}
+
+.record-row:first-child {
+  border-top: 0;
+}
+
+.record-row dt {
+  color: var(--rb-muted);
+}
+
+.record-row dd {
+  margin: 0;
+  color: var(--rb-ink);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.learner-section .assign-officer-form {
+  margin: 4px 0 8px;
+}
