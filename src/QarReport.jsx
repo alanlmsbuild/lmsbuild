@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { formatDate, standardLabel } from './lookups'
+import { StatusBadge } from './ui/components'
 
 const DEFAULT_YEAR = 2025
 
@@ -60,6 +61,61 @@ function AimsTable({ rows, onOpenLearner }) {
   )
 }
 
+// Data quality: aims past their planned end date with no outcome. They
+// aren't leavers until someone completes or withdraws them, so they're
+// listed here to be updated, whatever their year.
+function PastPlannedEndWarning({ rows, onOpenLearner }) {
+  if (rows.length === 0) return null
+  const count = rows.length === 1 ? '1 learner is' : `${rows.length} learners are`
+  return (
+    <section className="qar-warning" aria-labelledby="qar-warning-heading">
+      <h3 id="qar-warning-heading">
+        <StatusBadge tone="due">Data quality</StatusBadge> {count} past their planned end date with no outcome
+      </h3>
+      <p>
+        They&apos;re still continuing or on a break in learning, so they aren&apos;t counted as leavers in any
+        year. The DfE would count them as withdrawn only if they stopped appearing in the ILR. Record whether each one
+        completed, withdrew or has a new planned end date.
+      </p>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Learner</th>
+              <th>Standard</th>
+              <th>Status</th>
+              <th>Planned end</th>
+              <th className="num">Days past</th>
+              <th>Tutor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.LEARNREFNUMBER}>
+                <td>
+                  <button type="button" className="link-button" onClick={() => onOpenLearner(r.LEARNREFNUMBER)}>
+                    {r.GIVENNAMES} {r.FAMILYNAME}
+                  </button>
+                  <span className="report-meta"> {r.LEARNREFNUMBER}</span>
+                </td>
+                <td className="wrap">
+                  <StandardCell row={r} />
+                </td>
+                <td className="wrap">
+                  {r.COMPSTATUS === 6 ? `On a break since ${formatDate(r.LEARNACTENDDATE)}` : 'Continuing'}
+                </td>
+                <td>{formatDate(r.LEARNPLANENDDATE)}</td>
+                <td className="num">{r.DAYS_PAST}</td>
+                <td>{r.TUTORNAME ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
 function QarReport({ onOpenLearner }) {
   const [year, setYear] = useState(DEFAULT_YEAR)
   const [data, setData] = useState(null)
@@ -114,6 +170,9 @@ function QarReport({ onOpenLearner }) {
             ))}
           </select>
         </label>
+        <a className="ui-button ui-button--secondary" href={`/api/reports/qar/export?year=${year}`} download>
+          Download spreadsheet (.xlsx)
+        </a>
       </div>
 
       {status === 'loading' && <p className="empty-note">Calculating…</p>}
@@ -151,6 +210,8 @@ function QarReport({ onOpenLearner }) {
             Achievement rate = achievers ÷ leavers. Retention rate = completers ÷ leavers. Pass rate = achievers ÷
             completers.
           </p>
+
+          <PastPlannedEndWarning rows={data.pastPlannedEnd} onOpenLearner={onOpenLearner} />
 
           <h3>By standard, {academicYearLabel(data.year)}</h3>
           {data.byStandard.length === 0 ? (
@@ -225,8 +286,15 @@ function QarReport({ onOpenLearner }) {
                 achievement date, actual end date and planned end date.
               </li>
               <li>
-                Leavers are aims that have ended (completed or withdrawn), plus aims still continuing past their
-                planned end date. Completers have completion status 2. Achievers have outcome 1.
+                Leavers are aims that have ended (completed or withdrawn). Completers have completion status 2.
+                Achievers have outcome 1.
+              </li>
+              <li>
+                Aims past their planned end date with no outcome (still continuing, or on a break in learning) aren&apos;t
+                leavers. The DfE counts them as withdrawn only when they&apos;re missing from the next year&apos;s ILR
+                returns (&ldquo;overdue continuing aims&rdquo; and &ldquo;overdue planned breaks&rdquo;). Warren holds the
+                live record, so while one is still continuing or on a break here, it&apos;s treated as still being
+                returned. They&apos;re listed as a data quality warning instead.
               </li>
               <li>
                 Excluded: withdrawals within the funding qualifying period without achieving (under 42 days when
@@ -235,9 +303,10 @@ function QarReport({ onOpenLearner }) {
               </li>
               <li>
                 Not yet possible with Warren&apos;s data: the DfE uses five years of ILR returns (R14) to find the
-                reporting year, the year an aim was first reported complete, overdue planned breaks and restarts,
-                and to match aims across years. Warren only holds each aim&apos;s current record, so an aim still
-                continuing past its planned end date is counted as an overdue leaver in its planned end year.
+                reporting year, the year an aim was first reported complete, overdue continuing aims, overdue planned
+                breaks and restarts, and to match aims across years. Warren only holds each aim&apos;s current record,
+                so these figures can differ from the official QAR, especially for the aims in the data quality
+                warning.
               </li>
             </ul>
           </details>

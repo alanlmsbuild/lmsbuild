@@ -63,8 +63,9 @@
 --   How each is recorded, matching what the app writes:
 --     Achieved: COMPSTATUS 2, OUTCOME 1, LEARNACTENDDATE and ACHDATE.
 --     Completed but not achieved: COMPSTATUS 2, OUTCOME 3, no ACHDATE.
---     Withdrawn: COMPSTATUS 3, LEARNACTENDDATE and WITHDRAWREASON, OUTCOME
---       left empty (as the app's Withdraw button does).
+--     Withdrawn: COMPSTATUS 3, OUTCOME 3, LEARNACTENDDATE and WITHDRAWREASON.
+--       (The first version of this file left OUTCOME empty, as the app's
+--       Withdraw button did then. withdrawn_outcome.sql fills those in.)
 --     Break in learning: COMPSTATUS 6, LEARNACTENDDATE = the day the break
 --       started, OUTCOME left empty.
 --     Continuing: COMPSTATUS 1, no end date.
@@ -231,7 +232,7 @@ MERGE INTO CAPTURE_DB.ILR.LEARNING_DELIVERY t
 USING (SELECT LEARNREFNUMBER, STARTDATE::DATE AS LEARNSTARTDATE, PLANENDDATE::DATE AS LEARNPLANENDDATE, STDCODE,
               COMPSTATUS, ACTENDDATE::DATE AS LEARNACTENDDATE, OUTCOME, ACHIEVED::DATE AS ACHDATE, WITHDRAWREASON
        FROM (VALUES
-    ('TESTL0017', '2024-03-18', '2025-04-14', 122, 3, '2024-11-12', NULL, NULL, 44),
+    ('TESTL0017', '2024-03-18', '2025-04-14', 122, 3, '2024-11-12', 3, NULL, 44),
     ('TESTL0018', '2023-09-04', '2025-03-01', 119, 2, '2025-02-22', 1, '2025-04-23', NULL),
     ('TESTL0019', '2025-12-29', '2027-05-29', 119, 1, NULL, NULL, NULL, NULL),
     ('TESTL0020', '2024-09-23', '2026-03-19', 119, 1, NULL, NULL, NULL, NULL),
@@ -256,13 +257,13 @@ USING (SELECT LEARNREFNUMBER, STARTDATE::DATE AS LEARNSTARTDATE, PLANENDDATE::DA
     ('TESTL0039', '2024-04-29', '2025-05-24', 122, 2, '2025-05-14', 1, '2025-07-02', NULL),
     ('TESTL0040', '2026-05-11', '2027-08-11', 111, 1, NULL, NULL, NULL, NULL),
     ('TESTL0041', '2026-01-12', '2027-02-12', 111, 1, NULL, NULL, NULL, NULL),
-    ('TESTL0042', '2024-01-22', '2025-05-22', 119, 3, '2024-07-30', NULL, NULL, 98),
+    ('TESTL0042', '2024-01-22', '2025-05-22', 119, 3, '2024-07-30', 3, NULL, 98),
     ('TESTL0043', '2023-07-31', '2025-01-26', 119, 2, '2025-01-22', 1, '2025-03-01', NULL),
     ('TESTL0044', '2026-01-19', '2027-02-19', 122, 1, NULL, NULL, NULL, NULL),
     ('TESTL0045', '2024-03-04', '2025-06-04', 122, 2, '2025-06-27', 1, '2025-08-02', NULL),
     ('TESTL0046', '2023-09-11', '2024-10-09', 111, 2, '2024-10-04', 1, '2024-11-23', NULL),
     ('TESTL0047', '2026-03-30', '2027-05-30', 122, 1, NULL, NULL, NULL, NULL),
-    ('TESTL0048', '2024-09-23', '2025-12-22', 122, 3, '2025-06-17', NULL, NULL, 97),
+    ('TESTL0048', '2024-09-23', '2025-12-22', 122, 3, '2025-06-17', 3, NULL, 97),
     ('TESTL0049', '2023-10-16', '2024-11-13', 122, 2, '2024-10-19', 1, '2024-11-17', NULL),
     ('TESTL0050', '2025-01-06', '2026-04-01', 111, 2, '2026-03-25', 3, NULL, NULL),
     ('TESTL0051', '2025-01-20', '2026-02-16', 122, 6, '2025-06-22', NULL, NULL, NULL),
@@ -277,14 +278,14 @@ USING (SELECT LEARNREFNUMBER, STARTDATE::DATE AS LEARNSTARTDATE, PLANENDDATE::DA
     ('TESTL0060', '2024-01-15', '2025-07-12', 119, 2, '2025-07-26', 1, '2025-08-25', NULL),
     ('TESTL0061', '2025-11-17', '2027-01-17', 111, 1, NULL, NULL, NULL, NULL),
     ('TESTL0062', '2023-07-03', '2025-01-01', 119, 2, '2024-12-14', 1, '2025-02-01', NULL),
-    ('TESTL0063', '2024-11-25', '2025-12-20', 111, 3, '2025-10-18', NULL, NULL, 97),
+    ('TESTL0063', '2024-11-25', '2025-12-20', 111, 3, '2025-10-18', 3, NULL, 97),
     ('TESTL0064', '2025-07-28', '2026-12-28', 111, 1, NULL, NULL, NULL, NULL),
     ('TESTL0065', '2025-04-21', '2026-05-17', 111, 6, '2026-03-08', NULL, NULL, NULL),
     ('TESTL0066', '2024-07-29', '2025-10-28', 119, 2, '2025-10-19', 1, '2025-12-03', NULL),
     ('TESTL0067', '2024-09-23', '2025-12-20', 111, 2, '2025-11-25', 1, '2025-12-18', NULL),
     ('TESTL0068', '2026-01-12', '2027-04-12', 119, 1, NULL, NULL, NULL, NULL),
     ('TESTL0069', '2025-12-22', '2027-03-22', 119, 1, NULL, NULL, NULL, NULL),
-    ('TESTL0070', '2024-01-22', '2025-02-16', 111, 3, '2024-09-28', NULL, NULL, 44),
+    ('TESTL0070', '2024-01-22', '2025-02-16', 111, 3, '2024-09-28', 3, NULL, 44),
     ('TESTL0071', '2026-04-13', '2027-06-13', 122, 1, NULL, NULL, NULL, NULL),
     ('TESTL0072', '2024-05-13', '2025-09-13', 119, 2, '2025-09-02', 1, '2025-09-25', NULL),
     ('TESTL0073', '2025-06-23', '2026-11-23', 111, 1, NULL, NULL, NULL, NULL),
@@ -295,19 +296,19 @@ USING (SELECT LEARNREFNUMBER, STARTDATE::DATE AS LEARNSTARTDATE, PLANENDDATE::DA
     ('TESTL0078', '2026-04-20', '2027-09-20', 119, 1, NULL, NULL, NULL, NULL),
     ('TESTL0079', '2023-12-25', '2025-01-24', 111, 2, '2024-12-27', 3, NULL, NULL),
     ('TESTL0080', '2025-04-21', '2026-05-17', 111, 2, '2026-05-03', 1, '2026-05-29', NULL),
-    ('TESTL0081', '2023-12-04', '2025-03-01', 119, 3, '2025-01-08', NULL, NULL, 97),
+    ('TESTL0081', '2023-12-04', '2025-03-01', 119, 3, '2025-01-08', 3, NULL, 97),
     ('TESTL0082', '2023-12-04', '2025-01-04', 122, 2, '2024-12-20', 3, NULL, NULL),
-    ('TESTL0083', '2024-04-01', '2025-06-01', 111, 3, '2024-09-16', NULL, NULL, 98),
-    ('TESTL0084', '2025-02-24', '2026-04-22', 122, 3, '2025-11-15', NULL, NULL, 98),
+    ('TESTL0083', '2024-04-01', '2025-06-01', 111, 3, '2024-09-16', 3, NULL, 98),
+    ('TESTL0084', '2025-02-24', '2026-04-22', 122, 3, '2025-11-15', 3, NULL, 98),
     ('TESTL0085', '2024-12-02', '2025-12-31', 122, 1, NULL, NULL, NULL, NULL),
     ('TESTL0086', '2023-10-09', '2025-01-09', 111, 2, '2024-12-29', 1, '2025-01-29', NULL),
-    ('TESTL0087', '2024-01-15', '2025-05-13', 119, 3, '2024-05-30', NULL, NULL, 44),
+    ('TESTL0087', '2024-01-15', '2025-05-13', 119, 3, '2024-05-30', 3, NULL, 44),
     ('TESTL0088', '2025-08-25', '2027-01-25', 111, 1, NULL, NULL, NULL, NULL),
     ('TESTL0089', '2024-10-07', '2025-11-01', 122, 2, '2025-10-31', 1, '2025-12-14', NULL),
     ('TESTL0090', '2026-05-11', '2027-06-11', 111, 1, NULL, NULL, NULL, NULL),
-    ('TESTL0091', '2024-09-16', '2025-12-15', 122, 3, '2025-06-20', NULL, NULL, 29),
+    ('TESTL0091', '2024-09-16', '2025-12-15', 122, 3, '2025-06-20', 3, NULL, 29),
     ('TESTL0092', '2025-06-16', '2026-11-16', 122, 1, NULL, NULL, NULL, NULL),
-    ('TESTL0093', '2024-11-18', '2026-05-13', 119, 3, '2026-01-27', NULL, NULL, 98),
+    ('TESTL0093', '2024-11-18', '2026-05-13', 119, 3, '2026-01-27', 3, NULL, 98),
     ('TESTL0094', '2025-06-30', '2026-11-30', 111, 1, NULL, NULL, NULL, NULL),
     ('TESTL0095', '2026-04-27', '2027-05-27', 111, 1, NULL, NULL, NULL, NULL),
     ('TESTL0096', '2026-04-20', '2027-07-20', 119, 1, NULL, NULL, NULL, NULL),
@@ -320,7 +321,7 @@ USING (SELECT LEARNREFNUMBER, STARTDATE::DATE AS LEARNSTARTDATE, PLANENDDATE::DA
     ('TESTL0103', '2025-06-23', '2026-10-23', 122, 6, '2026-03-16', NULL, NULL, NULL),
     ('TESTL0104', '2025-10-06', '2027-01-06', 111, 1, NULL, NULL, NULL, NULL),
     ('TESTL0105', '2026-08-24', '2027-10-24', 122, 1, NULL, NULL, NULL, NULL),
-    ('TESTL0106', '2024-08-26', '2025-10-20', 111, 3, '2025-03-19', NULL, NULL, 97),
+    ('TESTL0106', '2024-08-26', '2025-10-20', 111, 3, '2025-03-19', 3, NULL, 97),
     ('TESTL0107', '2023-11-06', '2025-02-02', 119, 2, '2025-01-16', 1, '2025-02-15', NULL),
     ('TESTL0108', '2026-03-02', '2027-05-02', 111, 1, NULL, NULL, NULL, NULL),
     ('TESTL0109', '2026-07-27', '2027-08-27', 122, 1, NULL, NULL, NULL, NULL),
@@ -329,7 +330,7 @@ USING (SELECT LEARNREFNUMBER, STARTDATE::DATE AS LEARNSTARTDATE, PLANENDDATE::DA
     ('TESTL0112', '2024-09-02', '2025-09-30', 111, 2, '2025-09-05', 1, '2025-10-08', NULL),
     ('TESTL0113', '2025-03-03', '2026-05-28', 111, 2, '2026-04-30', 1, '2026-06-11', NULL),
     ('TESTL0114', '2026-08-17', '2027-10-17', 122, 1, NULL, NULL, NULL, NULL),
-    ('TESTL0115', '2024-01-08', '2025-03-31', 122, 3, '2024-01-26', NULL, NULL, 98),
+    ('TESTL0115', '2024-01-08', '2025-03-31', 122, 3, '2024-01-26', 3, NULL, 98),
     ('TESTL0116', '2024-07-22', '2025-11-17', 119, 1, NULL, NULL, NULL, NULL)) AS v (LEARNREFNUMBER, STARTDATE, PLANENDDATE, STDCODE, COMPSTATUS, ACTENDDATE, OUTCOME, ACHIEVED,
                           WITHDRAWREASON)) s
   ON t.LEARNREFNUMBER = s.LEARNREFNUMBER AND t.LEARNAIMREF = 'ZPROG001' AND t.AIMSEQNUMBER = 1
@@ -932,44 +933,37 @@ UNION ALL SELECT 'ILR.LEARNER_EMPLOYER', COUNT_IF(ISTESTDATA), COUNT(*) FROM CAP
 --    ORG-T001  2024 to 2025 ST0005    7   5   5   71.4  71.4  100.0
 --    ORG-T001  2024 to 2025 ST0072    7   6   5   71.4  85.7  83.3
 --    ORG-T001  2024 to 2025 ST0259    7   5   4   57.1  71.4  80.0
---    ORG-T001  2025 to 2026 All      31  21  18   58.1  67.7  85.7
---    ORG-T001  2025 to 2026 ST0005   12   9   8   66.7  75.0  88.9
---    ORG-T001  2025 to 2026 ST0072    9   6   5   55.6  66.7  83.3
---    ORG-T001  2025 to 2026 ST0259   10   6   5   50.0  60.0  83.3
+--    ORG-T001  2025 to 2026 All      26  21  18   69.2  80.8  85.7
+--    ORG-T001  2025 to 2026 ST0005   10   9   8   80.0  90.0  88.9
+--    ORG-T001  2025 to 2026 ST0072    8   6   5   62.5  75.0  83.3
+--    ORG-T001  2025 to 2026 ST0259    8   6   5   62.5  75.0  83.3
 --    ORG-T002  2024 to 2025 All       4   3   2   50.0  75.0  66.7
 --    ORG-T002  2024 to 2025 ST0005    2   1   1   50.0  50.0  100.0
 --    ORG-T002  2024 to 2025 ST0072    1   1   0   0.0   100.0 0.0
 --    ORG-T002  2024 to 2025 ST0259    1   1   1   100.0 100.0 100.0
---    ORG-T002  2025 to 2026 All       7   5   4   57.1  71.4  80.0
---    ORG-T002  2025 to 2026 ST0005    2   1   1   50.0  50.0  100.0
+--    ORG-T002  2025 to 2026 All       6   5   4   66.7  83.3  80.0
+--    ORG-T002  2025 to 2026 ST0005    1   1   1   100.0 100.0 100.0
 --    ORG-T002  2025 to 2026 ST0072    2   1   1   50.0  50.0  100.0
 --    ORG-T002  2025 to 2026 ST0259    3   3   2   66.7  100.0 66.7
 --
 --    How the 5 new learners past their planned end date with no outcome
 --    are treated (plus TESTL0013, an existing learner in the same position,
---    listed by check 9b): the figures above follow the Reports page. Their
---    planned end dates are all in 2025/26 and they have no actual end or
---    achievement date, so their hybrid end year is 2025/26. The Reports page
---    counts them in the 2025/26 cohort as leavers who have neither completed
---    nor achieved: they add to the leavers, which lowers the achievement and
---    retention rates, and leave the pass rate alone (it only counts
---    completers). They are not in 2024/25 at all. If one later completes,
---    their actual end year becomes their hybrid end year and they move out
---    of 2025/26.
+--    listed by check 9b with the 2 on a break): their planned end dates are all in 2025/26 and
+--    they have no actual end or achievement date, so their hybrid end year
+--    is 2025/26, but they are NOT leavers, so they aren't in any year's
+--    cohort. The Reports page lists them as a data quality warning instead.
+--    (Until 28 September 2026 the Reports page counted them as leavers in
+--    2025/26. That gave ORG-T001 31 leavers and ORG-T002 7.)
 --
---    The DfE rules are narrower. "Qualification achievement rates 2025 to
+--    This follows the DfE rules, "Qualification achievement rates 2025 to
 --    2026" (sections "Hybrid end years" and "Withdrawals" > "Overdue
---    continuing aims"): the hybrid end year is the latest of the planned end,
---    actual end, achievement and first-reported-complete years, and a
---    continuing aim only counts as a leaver (treated as a withdrawal, not
---    achieved) when it is continuing in a year's final R14 ILR return but
---    missing from the next year's return. A learner still returned as
---    continuing is not yet a leaver. Warren can't see ILR returns, so the
---    Reports page treats every continuing aim past its planned end date as
---    overdue. If these 6 were still being returned in 2026/27, DfE's 2025/26
---    figures would leave them out:
---      ORG-T001 2025 to 2026: 26 leavers, 21 completers, 18 achievers (69.2, 80.8, 85.7)
---      ORG-T002 2025 to 2026:  6 leavers,  5 completers,  4 achievers (66.7, 83.3, 80.0)
+--    continuing aims"): a continuing aim only counts as a leaver (treated
+--    as a withdrawal, not achieved) when it is continuing in a year's final
+--    R14 ILR return but missing from the next year's return. Warren holds
+--    the live record, so a learner still continuing in Warren is treated as
+--    still being returned. Overdue planned breaks work the same way: the 2
+--    learners on a break past their planned end date stay excluded (as
+--    breaks in learning) and are in the data quality warning too.
 --
 --    Also excluded from the cohort, as on the Reports page: the learner who
 --    withdrew 18 days after starting (inside the 42-day qualifying period)
@@ -983,8 +977,7 @@ WITH aims AS (
          YEAR(DATEADD(month, -7, ld.LEARNACTENDDATE)) AS ACTUAL_END_YEAR,
          YEAR(DATEADD(month, -7, ld.ACHDATE)) AS ACHIEVEMENT_YEAR,
          DATEDIFF(day, ld.LEARNSTARTDATE, ld.LEARNPLANENDDATE) AS PLANNED_DAYS,
-         DATEDIFF(day, ld.LEARNSTARTDATE, ld.LEARNACTENDDATE) AS ACTUAL_DAYS,
-         COALESCE(ld.COMPSTATUS = 1 AND ld.LEARNPLANENDDATE < CURRENT_DATE(), FALSE) AS IS_OVERDUE
+         DATEDIFF(day, ld.LEARNSTARTDATE, ld.LEARNACTENDDATE) AS ACTUAL_DAYS
   FROM CAPTURE_DB.ILR.LEARNING_DELIVERY ld
   JOIN CAPTURE_DB.ILR.LEARNER l ON l.LEARNREFNUMBER = ld.LEARNREFNUMBER
   LEFT JOIN CAPTURE_DB.LARS.STANDARD s ON s.STANDARD_CODE = ld.STDCODE
@@ -992,7 +985,7 @@ WITH aims AS (
 ), flagged AS (
   SELECT *,
          GREATEST(COALESCE(ACHIEVEMENT_YEAR, 0), COALESCE(ACTUAL_END_YEAR, 0), PLANNED_END_YEAR) AS HYBRID_END_YEAR,
-         COALESCE(COMPSTATUS IN (2, 3), FALSE) OR IS_OVERDUE AS IS_LEAVER,
+         COALESCE(COMPSTATUS IN (2, 3), FALSE) AS IS_LEAVER,
          COALESCE(COMPSTATUS = 2, FALSE) AS IS_COMPLETER,
          COALESCE(OUTCOME = 1, FALSE) AS IS_ACHIEVER,
          (COMPSTATUS = 3 AND COALESCE(OUTCOME, 0) <> 1
@@ -1014,17 +1007,21 @@ WHERE HYBRID_END_YEAR IN (2024, 2025) AND IS_LEAVER AND NOT IS_EXCLUDED
 GROUP BY GROUPING SETS ((ORGANISATIONID, HYBRID_END_YEAR, STDREFERENCE), (ORGANISATIONID, HYBRID_END_YEAR))
 ORDER BY ORGANISATIONID, HYBRID_END_YEAR, STDREFERENCE NULLS FIRST;
 
--- 9b. The learners still continuing past their planned end date. Expected:
---    TESTL0116  ORG-T002  ST0005  planned end 2025-11-17  counted in 2025 to 2026
---    TESTL0085  ORG-T001  ST0072  planned end 2025-12-31  counted in 2025 to 2026
---    TESTL0032  ORG-T001  ST0005  planned end 2026-01-16  counted in 2025 to 2026
---    TESTL0020  ORG-T001  ST0005  planned end 2026-03-19  counted in 2025 to 2026
---    TESTL0056  ORG-T001  ST0259  planned end 2026-04-10  counted in 2025 to 2026
---    TESTL0013  ORG-T001  ST0259  planned end 2026-07-01  counted in 2025 to 2026
-SELECT l.LEARNREFNUMBER, l.ORGANISATIONID, s.REFERENCE AS STANDARD, ld.LEARNPLANENDDATE,
-       YEAR(DATEADD(month, -7, ld.LEARNPLANENDDATE)) || ' to ' || (YEAR(DATEADD(month, -7, ld.LEARNPLANENDDATE)) + 1) AS COUNTED_IN
+-- 9b. The learners past their planned end date with no outcome (still
+--     continuing, or on a break in learning): the Reports page's data
+--     quality warning. Expected:
+--    TESTL0116  ORG-T002  ST0005  Continuing   planned end 2025-11-17
+--    TESTL0085  ORG-T001  ST0072  Continuing   planned end 2025-12-31
+--    TESTL0032  ORG-T001  ST0005  Continuing   planned end 2026-01-16
+--    TESTL0051  ORG-T001  ST0072  On a break   planned end 2026-02-16
+--    TESTL0020  ORG-T001  ST0005  Continuing   planned end 2026-03-19
+--    TESTL0056  ORG-T001  ST0259  Continuing   planned end 2026-04-10
+--    TESTL0065  ORG-T001  ST0259  On a break   planned end 2026-05-17
+--    TESTL0013  ORG-T001  ST0259  Continuing   planned end 2026-07-01
+SELECT l.LEARNREFNUMBER, l.ORGANISATIONID, s.REFERENCE AS STANDARD,
+       IFF(ld.COMPSTATUS = 6, 'On a break', 'Continuing') AS STATUS, ld.LEARNPLANENDDATE
 FROM CAPTURE_DB.ILR.LEARNING_DELIVERY ld
 JOIN CAPTURE_DB.ILR.LEARNER l ON l.LEARNREFNUMBER = ld.LEARNREFNUMBER
 LEFT JOIN CAPTURE_DB.LARS.STANDARD s ON s.STANDARD_CODE = ld.STDCODE
-WHERE ld.AIMTYPE = 1 AND ld.COMPSTATUS = 1 AND ld.LEARNPLANENDDATE < CURRENT_DATE()
+WHERE ld.AIMTYPE = 1 AND ld.COMPSTATUS IN (1, 6) AND ld.LEARNPLANENDDATE < CURRENT_DATE()
 ORDER BY ld.LEARNPLANENDDATE, l.LEARNREFNUMBER;

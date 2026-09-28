@@ -233,6 +233,37 @@ tbody tr:hover {
   margin-left: 6px;
 }
 
+/* Aims past their planned end date with no outcome, on the QAR report. */
+.qar-warning {
+  margin-top: 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--ui-border);
+  border-left: 4px solid var(--status-due-solid);
+  border-radius: 4px;
+  background: var(--ui-surface);
+}
+
+.report .qar-warning h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+/* Tables keep cells on one line; here the longer cells wrap so all six
+   columns fit on a laptop screen. */
+.qar-warning td.wrap {
+  white-space: normal;
+  min-width: 10em;
+}
+
+.qar-warning p {
+  margin: 0 0 10px;
+  max-width: 780px;
+  font-size: 14px;
+}
+
 .report-meta {
   color: var(--text-muted);
   font-size: 13px;

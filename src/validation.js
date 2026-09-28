@@ -35,11 +35,16 @@ const IQA_OUTCOME_CODES = new Set(IQA_OUTCOME_OPTIONS.map((o) => o.code))
 const WITNESS_OUTCOME_CODES = new Set(WITNESS_OUTCOME_OPTIONS.map((o) => o.code))
 const KSB_REFERENCE = /^[KSB]\d+[A-Z]?$/
 
+// A ULN is 10 digits, not starting with 0, and the last digit is a check
+// digit (DfE rule): weight the first 9 digits 10, 9, ... 2 and add them up.
+// The remainder after dividing by 11 must not be 0, and the last digit must
+// be 10 minus that remainder.
 function isUln(value) {
   const text = String(value ?? '').trim()
-  if (!/^\d{10}$/.test(text)) return false
-  const n = Number(text)
-  return n >= 1000000000 && n <= 9999999999
+  if (!/^[1-9]\d{9}$/.test(text)) return false
+  const digits = [...text].map(Number)
+  const remainder = digits.slice(0, 9).reduce((sum, d, i) => sum + d * (10 - i), 0) % 11
+  return remainder !== 0 && digits[9] === 10 - remainder
 }
 
 function isPostcode(value) {
@@ -61,8 +66,10 @@ export function todayString() {
 // you're adding a new learner or editing an existing one, so both
 // validateLearnerForm and validateLearnerEditForm call this.
 function validateLearnerFields(v, errors) {
-  if (!isUln(v.uln)) {
+  if (!/^[1-9]\d{9}$/.test(String(v.uln ?? '').trim())) {
     errors.uln = 'ULN must be exactly 10 digits, between 1000000000 and 9999999999.'
+  } else if (!isUln(v.uln)) {
+    errors.uln = "This isn't a valid ULN: the last digit doesn't match the check digit. Check each digit is typed correctly."
   }
   if (!ETHNICITY_CODES.has(Number(v.ethnicity))) {
     errors.ethnicity = 'Choose an ethnicity from the list.'

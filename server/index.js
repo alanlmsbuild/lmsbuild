@@ -541,11 +541,12 @@ app.put('/api/learners/:learnRefNumber/complete', allow(MANAGER), async (req, re
 })
 
 // Only these columns can ever be written by
-// PUT /api/learners/:learnRefNumber/withdraw. OUTCOME and ACHDATE are left
-// empty, since a withdrawn aim was never achieved.
+// PUT /api/learners/:learnRefNumber/withdraw. OUTCOME is 3 (no
+// achievement), as the ILR expects once an aim has an actual end date, and
+// ACHDATE is left empty, since a withdrawn aim was never achieved.
 const WITHDRAW_AIM = `
   update LEARNING_DELIVERY set
-    COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = null, ACHDATE = null
+    COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = 3, ACHDATE = null
   where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
 `
 
