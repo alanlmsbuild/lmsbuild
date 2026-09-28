@@ -338,7 +338,7 @@ function App() {
       {/* My day and Reports link to learners by reference, so look up the
           full row App already holds for the detail panel. */}
       {hasCaseload && view === 'myday' && <MyDay me={me} onOpenLearner={openLearnerByRef} />}
-      {hasCaseload && view === 'reports' && <Reports onOpenLearner={openLearnerByRef} />}
+      {hasCaseload && view === 'reports' && <Reports onOpenLearner={openLearnerByRef} isManager={isManager} />}
       {isIqa && view === 'iqa' && <IqaSignOffs onOpenLearner={openLearnerByRef} />}
 
       {/* Rendered outside the tabs since it can be opened from either the

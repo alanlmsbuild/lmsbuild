@@ -23,6 +23,7 @@ export const ORG_LEARNER = `(select * from ILR.LEARNER where ORGANISATIONID = ${
 export const ORG_OFFICER = `(select * from ILR.OFFICER where ORGANISATIONID = ${ORG})`
 export const ORG_EMPLOYER = `(select * from ILR.EMPLOYER where ORGANISATIONID = ${ORG})`
 export const ORG_APP_USER = `(select * from ACCESS.APP_USER where ORGANISATIONID = ${ORG})`
+export const ORG_ORGANISATION = `(select * from ACCESS.ORGANISATION where ORGANISATIONID = ${ORG})`
 
 // Caseload assignments where both the learner and the officer are in the
 // organisation.

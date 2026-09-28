@@ -4,8 +4,10 @@
 // 1. SQL that reads a table holding organisation data without going
 //    through the scoped sources. Every template literal in server/*.js
 //    (except access.js) that names LEARNER, OFFICER, EMPLOYER,
-//    OFFICER_ASSIGNMENT, LEARNER_EMPLOYER, LEARNER_OFFICER or an ACCESS
-//    table after from, join or update passes only if it also uses an ORG_
+//    OFFICER_ASSIGNMENT, LEARNER_EMPLOYER, LEARNER_OFFICER, one of the ILR
+//    return tables (PRIOR_ATTAINMENT, LLDD_HEALTH_PROBLEM, LEARNER_FAM,
+//    EMPLOYMENT_STATUS(_MONITORING), LEARNING_DELIVERY_FAM, APP_FIN_RECORD,
+//    HOURS_RECORD) or an ACCESS table after from, join or update passes only if it also uses an ORG_
 //    or VISIBLE_ source, EMPLOYER_APPRENTICE or IN_ORG_LEARNERS, or says
 //    "-- all organisations" to show it's meant to (with a reason nearby).
 // 2. A route that doesn't say which roles may use it: every app.get, post,
@@ -23,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 
 const serverDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'server')
 const RAW_TABLE =
-  /\b(from|join|update)\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|OFFICER_ASSIGNMENT|LEARNER_EMPLOYER|LEARNER_OFFICER)|ACCESS\.\w+)\b/i
+  /\b(from|join|update)\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|OFFICER_ASSIGNMENT|LEARNER_EMPLOYER|LEARNER_OFFICER|PRIOR_ATTAINMENT|LLDD_HEALTH_PROBLEM|LEARNER_FAM|EMPLOYMENT_STATUS|EMPLOYMENT_STATUS_MONITORING|LEARNING_DELIVERY_FAM|APP_FIN_RECORD|HOURS_RECORD)|ACCESS\.\w+)\b/i
 const SCOPED = /\$\{(ORG_|VISIBLE_|EMPLOYER_APPRENTICE)\w*\}|\$\{IN_ORG_LEARNERS\}|-- all organisations/
 const TEST_DATA_TABLE =
   /\binsert\s+into\s+((ILR\.)?(LEARNER|LEARNING_DELIVERY|OFFICER|OFFICER_ASSIGNMENT|EMPLOYER|LEARNER_EMPLOYER)|ACCESS\.\w+)\b/i
@@ -36,7 +38,12 @@ function report(file, text, index, message) {
   problems++
 }
 
-for (const file of fs.readdirSync(serverDir).filter((f) => f.endsWith('.js') && f !== 'access.js')) {
+// Every .js file under server/, including subfolders such as server/ilr/.
+const serverFiles = fs.readdirSync(serverDir, { recursive: true })
+  .map((f) => f.split(path.sep).join('/'))
+  .filter((f) => f.endsWith('.js') && f !== 'access.js')
+
+for (const file of serverFiles) {
   const text = fs.readFileSync(path.join(serverDir, file), 'utf8')
   for (const match of text.matchAll(/`[^`]*`/g)) {
     const sql = match[0]

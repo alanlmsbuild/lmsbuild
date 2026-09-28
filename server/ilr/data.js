@@ -1,0 +1,188 @@
+// Reads everything an ILR return needs for the signed-in user's organisation
+// and puts it together as one object per learner, in the shape of the ILR:
+// learner -> prior attainment, LLDD, employment status (-> monitoring), aims
+// (-> FAMs, hours, prices). Every query is limited to the organisation.
+//
+// Which learners are in a year's return: those with an aim still open at the
+// start of the year, or that ended or was achieved during it. Aims that ended
+// before the year are left out.
+
+import { execute } from '../db.js'
+import { IN_ORG_LEARNERS, ORG_LEARNER, ORG_ORGANISATION } from '../access.js'
+
+// DfE's dummy UKPRN from its sample ILR file, and a second one for the other
+// test organisation. Neither is on the UK Register of Learning Providers.
+export const TEST_UKPRNS = new Set([99999999, 99999998])
+
+// The years Warren can produce, with the official schema for each.
+export const ILR_YEARS = {
+  2026: { code: '2627', start: '2026-08-01', end: '2027-07-31', label: '2026 to 2027' },
+}
+
+// English and maths component aims carry the contract type (ACT), like the
+// programme aim (rule LearnDelFAMType_64). Recognised by their LARS title.
+const ENGLISH_OR_MATHS = /^(Functional Skills Qualification in (English|Mathematics)|GCSE .*(English|Mathematics))/i
+
+const ORGANISATION_QUERY = `
+  select ORGANISATIONID, NAME, UKPRN, ISTESTDATA from ${ORG_ORGANISATION}
+`
+
+const LEARNERS_QUERY = `
+  select LEARNREFNUMBER, ULN, FAMILYNAME, GIVENNAMES, DATEOFBIRTH, ETHNICITY, SEX, LLDDHEALTHPROB, NINUMBER,
+    POSTCODEPRIOR, POSTCODE, ADDRESSLINE1, ADDRESSLINE2, ADDRESSLINE3, WARDORCOUNTY, TELNO, EMAIL, ISTESTDATA
+  from ${ORG_LEARNER}
+  order by LEARNREFNUMBER
+`
+
+const AIMS_QUERY = `
+  select ld.LEARNREFNUMBER, ld.LEARNAIMREF, ld.AIMTYPE, ld.AIMSEQNUMBER, ld.LEARNSTARTDATE, ld.ORIGLEARNSTARTDATE,
+    ld.LEARNPLANENDDATE, ld.FUNDMODEL, ld.PROGTYPE, ld.STDCODE, ld.DELLOCPOSTCODE, ld.PRIORLEARNFUNDADJ,
+    ld.OTHERFUNDADJ, ld.EPAORGID, ld.COMPSTATUS, ld.LEARNACTENDDATE, ld.WITHDRAWREASON, ld.OUTCOME, ld.ACHDATE,
+    ld.OUTGRADE, ld.SWSUPAIMID, la.TITLE as AIMTITLE, la.LEARN_AIM_REF is not null as IN_LARS
+  from LEARNING_DELIVERY ld
+  left join LARS.LEARNING_AIM la
+    on la.LEARN_AIM_REF = ld.LEARNAIMREF
+  where ld.${IN_ORG_LEARNERS}
+  order by ld.LEARNREFNUMBER, ld.AIMSEQNUMBER
+`
+
+// Each standard's dates in LARS, across its versions, for rules
+// LearnStartDate_13, 17 and 18.
+const STANDARDS_QUERY = `
+  select STANDARD_CODE, min(EFFECTIVE_FROM) as EFFECTIVE_FROM,
+    iff(count_if(EFFECTIVE_TO is null) > 0, null, max(EFFECTIVE_TO)) as EFFECTIVE_TO,
+    iff(count_if(LAST_DATE_STARTS is null) > 0, null, max(LAST_DATE_STARTS)) as LAST_DATE_STARTS
+  from LARS.STANDARD
+  group by STANDARD_CODE
+`
+
+const byLearner = (table, columns, order) => `
+  select ${columns} from ${table}
+  where ${IN_ORG_LEARNERS}
+  order by LEARNREFNUMBER${order ? `, ${order}` : ''}
+`
+const PRIOR_QUERY = byLearner('ILR.PRIOR_ATTAINMENT', 'LEARNREFNUMBER, PRIORLEVEL, DATELEVELAPP', 'DATELEVELAPP')
+const LLDD_QUERY = byLearner('ILR.LLDD_HEALTH_PROBLEM', 'LEARNREFNUMBER, LLDDCAT, PRIMARYLLDD', 'LLDDCAT')
+const LEARNER_FAM_QUERY = byLearner('ILR.LEARNER_FAM', 'LEARNREFNUMBER, LEARNFAMTYPE, LEARNFAMCODE', 'LEARNFAMTYPE')
+const EMPLOYMENT_QUERY = byLearner('ILR.EMPLOYMENT_STATUS', 'LEARNREFNUMBER, DATEEMPSTATAPP, EMPSTAT, EMPID, AGREEMID', 'DATEEMPSTATAPP')
+const ESM_QUERY = byLearner('ILR.EMPLOYMENT_STATUS_MONITORING', 'LEARNREFNUMBER, DATEEMPSTATAPP, ESMTYPE, ESMCODE', 'DATEEMPSTATAPP, ESMTYPE')
+const AIM_FAM_QUERY = byLearner('ILR.LEARNING_DELIVERY_FAM',
+  'LEARNREFNUMBER, AIMSEQNUMBER, LEARNDELFAMTYPE, LEARNDELFAMCODE, DATEFROM, DATETO', 'AIMSEQNUMBER, LEARNDELFAMTYPE, DATEFROM')
+const HOURS_QUERY = byLearner('ILR.HOURS_RECORD', 'LEARNREFNUMBER, AIMSEQNUMBER, HRSTYPE, HRSCODE, HRSAMOUNT', 'AIMSEQNUMBER, HRSCODE')
+const FIN_QUERY = byLearner('ILR.APP_FIN_RECORD',
+  'LEARNREFNUMBER, AIMSEQNUMBER, AFINTYPE, AFINCODE, AFINDATE, AFINAMOUNT', 'AIMSEQNUMBER, AFINTYPE, AFINCODE, AFINDATE')
+
+// Snowflake DATE columns can arrive as strings or Date objects. Everything
+// here works with 'YYYY-MM-DD' strings, which compare correctly as text.
+function isoDate(value) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'string') return value.slice(0, 10)
+  return new Date(value).toISOString().slice(0, 10)
+}
+const DATE_COLUMNS = new Set(['DATEOFBIRTH', 'LEARNSTARTDATE', 'ORIGLEARNSTARTDATE', 'LEARNPLANENDDATE', 'LEARNACTENDDATE',
+  'ACHDATE', 'DATELEVELAPP', 'DATEEMPSTATAPP', 'DATEFROM', 'DATETO', 'AFINDATE', 'EFFECTIVE_FROM', 'EFFECTIVE_TO', 'LAST_DATE_STARTS'])
+const clean = (rows) => rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, DATE_COLUMNS.has(k) ? isoDate(v) : v])))
+
+function group(rows) {
+  const map = new Map()
+  for (const r of rows) {
+    if (!map.has(r.LEARNREFNUMBER)) map.set(r.LEARNREFNUMBER, [])
+    map.get(r.LEARNREFNUMBER).push(r)
+  }
+  return (ref) => map.get(ref) ?? []
+}
+
+// An aim belongs in the year's return if it's still open at the start of the
+// year, or ended or was achieved during the year or later.
+export function aimInYear(aim, year) {
+  const { start } = ILR_YEARS[year]
+  return aim.LEARNACTENDDATE === null || aim.LEARNACTENDDATE >= start || (aim.ACHDATE !== null && aim.ACHDATE >= start)
+}
+
+// The source of funding (always 105, adult) and the contract type (always
+// ACT 1 on programme aims starting from 1 April 2021, rule LearnDelFAMType_92)
+// aren't stored: they're added here. ACT runs from the aim's start to its
+// achievement date, or its actual end date once closed (R_102, R_121-R_123).
+function derivedFams(aim) {
+  const fams = [{ LEARNDELFAMTYPE: 'SOF', LEARNDELFAMCODE: '105', DATEFROM: null, DATETO: null, DERIVED: true }]
+  if (aim.AIMTYPE === 1 || aim.IS_ENGLISH_OR_MATHS) {
+    const to = aim.AIMTYPE === 1 && aim.ACHDATE ? aim.ACHDATE : aim.LEARNACTENDDATE
+    fams.push({ LEARNDELFAMTYPE: 'ACT', LEARNDELFAMCODE: '1', DATEFROM: aim.LEARNSTARTDATE, DATETO: to, DERIVED: true })
+  }
+  return fams
+}
+
+// Returns { organisation, learners, standards, excluded, problem }. When
+// problem is set, no file may be made (for example, no UKPRN, or a test
+// organisation without a dummy UKPRN).
+export async function loadIlrData(connection, year) {
+  const [organisation] = await execute(connection, ORGANISATION_QUERY)
+  if (!organisation) return { problem: 'Your organisation could not be found.' }
+  const isTest = organisation.ISTESTDATA === true
+  const ukprn = organisation.UKPRN === null ? null : Number(organisation.UKPRN)
+  if (ukprn === null) {
+    return { organisation, problem: 'Your organisation has no UKPRN yet, so an ILR file can\'t be made.' }
+  }
+  if (isTest && !TEST_UKPRNS.has(ukprn)) {
+    return { organisation, problem: `This is a test organisation, so it can only use a dummy UKPRN (${[...TEST_UKPRNS].join(' or ')}), not ${ukprn}.` }
+  }
+  if (!isTest && TEST_UKPRNS.has(ukprn)) {
+    return { organisation, problem: `${ukprn} is a dummy UKPRN for test data. A real organisation needs its own UKPRN.` }
+  }
+
+  const [learners, aims, standards, prior, lldd, learnerFams, employment, esm, aimFams, hours, fin] = await Promise.all(
+    [LEARNERS_QUERY, AIMS_QUERY, STANDARDS_QUERY, PRIOR_QUERY, LLDD_QUERY, LEARNER_FAM_QUERY, EMPLOYMENT_QUERY, ESM_QUERY,
+      AIM_FAM_QUERY, HOURS_QUERY, FIN_QUERY].map(async (sql) => clean(await execute(connection, sql))),
+  )
+  const aimsOf = group(aims)
+  const priorOf = group(prior)
+  const llddOf = group(lldd)
+  const learnerFamsOf = group(learnerFams)
+  const employmentOf = group(employment)
+  const esmOf = group(esm)
+  const aimFamsOf = group(aimFams)
+  const hoursOf = group(hours)
+  const finOf = group(fin)
+
+  // Test data never goes under a real UKPRN, and real records never go into
+  // a test file: a learner is only included when their test-data flag
+  // matches the organisation's.
+  const excluded = { testLearnersInRealOrganisation: 0, realLearnersInTestOrganisation: 0 }
+  const included = []
+  for (const l of learners) {
+    if (l.ISTESTDATA !== isTest) {
+      if (isTest) excluded.realLearnersInTestOrganisation++
+      else excluded.testLearnersInRealOrganisation++
+      continue
+    }
+    const ref = l.LEARNREFNUMBER
+    const allAims = aimsOf(ref)
+    const yearAims = allAims.filter((a) => aimInYear(a, year))
+    if (yearAims.length === 0) continue
+    const esmRows = esmOf(ref)
+    included.push({
+      ...l,
+      prior: priorOf(ref),
+      lldd: llddOf(ref),
+      learnerFams: learnerFamsOf(ref),
+      employment: employmentOf(ref).map((e) => ({ ...e, esm: esmRows.filter((m) => m.DATEEMPSTATAPP === e.DATEEMPSTATAPP) })),
+      earliestStart: allAims.map((a) => a.LEARNSTARTDATE).sort()[0],
+      aims: yearAims.map((a) => {
+        const aim = { ...a, IS_ENGLISH_OR_MATHS: a.AIMTYPE === 3 && ENGLISH_OR_MATHS.test(a.AIMTITLE ?? '') }
+        const seq = a.AIMSEQNUMBER
+        return {
+          ...aim,
+          fams: [...derivedFams(aim), ...aimFamsOf(ref).filter((f) => f.AIMSEQNUMBER === seq)],
+          hours: hoursOf(ref).filter((h) => h.AIMSEQNUMBER === seq),
+          fin: finOf(ref).filter((f) => f.AIMSEQNUMBER === seq),
+        }
+      }),
+    })
+  }
+  return {
+    organisation: { ...organisation, UKPRN: ukprn, ISTESTDATA: isTest },
+    learners: included,
+    standards: new Map(standards.map((s) => [s.STANDARD_CODE, s])),
+    excluded,
+  }
+}

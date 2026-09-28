@@ -258,6 +258,22 @@ tbody tr:hover {
   min-width: 10em;
 }
 
+.ilr-serial {
+  width: 5em;
+  margin-left: 6px;
+  font: inherit;
+}
+
+.ilr-refs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.ilr-return .ui-button {
+  text-decoration: none;
+}
+
 .qar-warning p {
   margin: 0 0 10px;
   max-width: 780px;

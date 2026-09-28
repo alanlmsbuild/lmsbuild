@@ -34,6 +34,7 @@ import {
 import { OUTCOME_ACHIEVED } from '../src/ilrCodes.js'
 import { standardLabel } from '../src/lookups.js'
 import { registerReportRoutes } from './reports.js'
+import { registerIlrRoutes } from './ilr/routes.js'
 import { registerMyDayRoutes } from './myday.js'
 import { registerBurrowRoutes } from './burrow.js'
 import { registerIqaRoutes } from './iqa.js'
@@ -876,6 +877,7 @@ app.get('/api/me', allow(LEARNER, EMPLOYER, STAFF), (req, res) => {
 // The Reports tab's endpoints live in reports.js, My day's in myday.js,
 // Burrow's in burrow.js, employers' in employer.js, and IQA checks' in iqa.js.
 registerReportRoutes(app)
+registerIlrRoutes(app)
 registerMyDayRoutes(app)
 registerBurrowRoutes(app)
 registerEmployerRoutes(app)
