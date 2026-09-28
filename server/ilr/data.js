@@ -8,7 +8,7 @@
 // before the year are left out.
 
 import { execute } from '../db.js'
-import { IN_ORG_LEARNERS, ORG_LEARNER, ORG_ORGANISATION } from '../access.js'
+import { IN_ORG_LEARNERS, ORG_APP_FIN_RECORD, ORG_LEARNER, ORG_ORGANISATION } from '../access.js'
 
 // DfE's dummy UKPRN from its sample ILR file, and a second one for the other
 // test organisation. Neither is on the UK Register of Learning Providers.
@@ -48,7 +48,7 @@ const AIMS_QUERY = `
 
 // Each standard's dates in LARS, across its versions, for rules
 // LearnStartDate_13, 17 and 18.
-const STANDARDS_QUERY = `
+export const STANDARDS_QUERY = `
   select STANDARD_CODE, min(EFFECTIVE_FROM) as EFFECTIVE_FROM,
     iff(count_if(EFFECTIVE_TO is null) > 0, null, max(EFFECTIVE_TO)) as EFFECTIVE_TO,
     iff(count_if(LAST_DATE_STARTS is null) > 0, null, max(LAST_DATE_STARTS)) as LAST_DATE_STARTS
@@ -69,7 +69,7 @@ const ESM_QUERY = byLearner('ILR.EMPLOYMENT_STATUS_MONITORING', 'LEARNREFNUMBER,
 const AIM_FAM_QUERY = byLearner('ILR.LEARNING_DELIVERY_FAM',
   'LEARNREFNUMBER, AIMSEQNUMBER, LEARNDELFAMTYPE, LEARNDELFAMCODE, DATEFROM, DATETO', 'AIMSEQNUMBER, LEARNDELFAMTYPE, DATEFROM')
 const HOURS_QUERY = byLearner('ILR.HOURS_RECORD', 'LEARNREFNUMBER, AIMSEQNUMBER, HRSTYPE, HRSCODE, HRSAMOUNT', 'AIMSEQNUMBER, HRSCODE')
-const FIN_QUERY = byLearner('ILR.APP_FIN_RECORD',
+const FIN_QUERY = byLearner(ORG_APP_FIN_RECORD,
   'LEARNREFNUMBER, AIMSEQNUMBER, AFINTYPE, AFINCODE, AFINDATE, AFINAMOUNT', 'AIMSEQNUMBER, AFINTYPE, AFINCODE, AFINDATE')
 
 // Snowflake DATE columns can arrive as strings or Date objects. Everything
@@ -81,7 +81,7 @@ function isoDate(value) {
 }
 const DATE_COLUMNS = new Set(['DATEOFBIRTH', 'LEARNSTARTDATE', 'ORIGLEARNSTARTDATE', 'LEARNPLANENDDATE', 'LEARNACTENDDATE',
   'ACHDATE', 'DATELEVELAPP', 'DATEEMPSTATAPP', 'DATEFROM', 'DATETO', 'AFINDATE', 'EFFECTIVE_FROM', 'EFFECTIVE_TO', 'LAST_DATE_STARTS'])
-const clean = (rows) => rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, DATE_COLUMNS.has(k) ? isoDate(v) : v])))
+export const clean = (rows) => rows.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, DATE_COLUMNS.has(k) ? isoDate(v) : v])))
 
 function group(rows) {
   const map = new Map()
@@ -110,6 +110,39 @@ function derivedFams(aim) {
     fams.push({ LEARNDELFAMTYPE: 'ACT', LEARNDELFAMCODE: '1', DATEFROM: aim.LEARNSTARTDATE, DATETO: to, DERIVED: true })
   }
   return fams
+}
+
+// One learner put together in the shape of the ILR for a year, from their
+// rows in each table (already cleaned): { aims, prior, lldd, learnerFams,
+// employment, esm, aimFams, hours, fin }. Null if none of their aims is in
+// the year's return. Used by the return and by one learner's checks on the
+// Record tab (learner.js), so both check exactly the same thing.
+export function assembleLearner(l, rows, year) {
+  const allAims = rows.aims
+  const yearAims = allAims.filter((a) => aimInYear(a, year))
+  if (yearAims.length === 0) return null
+  return {
+    ...l,
+    prior: rows.prior,
+    lldd: rows.lldd,
+    learnerFams: rows.learnerFams,
+    employment: rows.employment.map((e) => ({ ...e, esm: rows.esm.filter((m) => m.DATEEMPSTATAPP === e.DATEEMPSTATAPP) })),
+    earliestStart: allAims.map((a) => a.LEARNSTARTDATE).sort()[0],
+    aims: yearAims.map((a) => aimWithRecords(a, rows)),
+  }
+}
+
+// An aim with its FAMs (including the SOF and ACT the export adds), hours
+// and prices.
+export function aimWithRecords(a, rows) {
+  const aim = { ...a, IS_ENGLISH_OR_MATHS: a.AIMTYPE === 3 && ENGLISH_OR_MATHS.test(a.AIMTITLE ?? '') }
+  const seq = a.AIMSEQNUMBER
+  return {
+    ...aim,
+    fams: [...derivedFams(aim), ...rows.aimFams.filter((f) => f.AIMSEQNUMBER === seq)],
+    hours: rows.hours.filter((h) => h.AIMSEQNUMBER === seq),
+    fin: rows.fin.filter((f) => f.AIMSEQNUMBER === seq),
+  }
 }
 
 // Returns { organisation, learners, standards, excluded, problem }. When
@@ -156,28 +189,18 @@ export async function loadIlrData(connection, year) {
       continue
     }
     const ref = l.LEARNREFNUMBER
-    const allAims = aimsOf(ref)
-    const yearAims = allAims.filter((a) => aimInYear(a, year))
-    if (yearAims.length === 0) continue
-    const esmRows = esmOf(ref)
-    included.push({
-      ...l,
+    const learner = assembleLearner(l, {
+      aims: aimsOf(ref),
       prior: priorOf(ref),
       lldd: llddOf(ref),
       learnerFams: learnerFamsOf(ref),
-      employment: employmentOf(ref).map((e) => ({ ...e, esm: esmRows.filter((m) => m.DATEEMPSTATAPP === e.DATEEMPSTATAPP) })),
-      earliestStart: allAims.map((a) => a.LEARNSTARTDATE).sort()[0],
-      aims: yearAims.map((a) => {
-        const aim = { ...a, IS_ENGLISH_OR_MATHS: a.AIMTYPE === 3 && ENGLISH_OR_MATHS.test(a.AIMTITLE ?? '') }
-        const seq = a.AIMSEQNUMBER
-        return {
-          ...aim,
-          fams: [...derivedFams(aim), ...aimFamsOf(ref).filter((f) => f.AIMSEQNUMBER === seq)],
-          hours: hoursOf(ref).filter((h) => h.AIMSEQNUMBER === seq),
-          fin: finOf(ref).filter((f) => f.AIMSEQNUMBER === seq),
-        }
-      }),
-    })
+      employment: employmentOf(ref),
+      esm: esmOf(ref),
+      aimFams: aimFamsOf(ref),
+      hours: hoursOf(ref),
+      fin: finOf(ref),
+    }, year)
+    if (learner) included.push(learner)
   }
   return {
     organisation: { ...organisation, UKPRN: ukprn, ISTESTDATA: isTest },

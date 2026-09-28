@@ -33,6 +33,10 @@
 //    select * or alias.* from a table or a scoped source (which would pick
 //    them up without naming them). select * from a query step (a
 //    lower-case with ... as name, built from named columns) is fine.
+// 8. Prices and payments are for managers only: outside access.js,
+//    APP_FIN_RECORD may only be read through ORG_APP_FIN_RECORD (which is
+//    empty for anyone else). Naming the table is only allowed to write to
+//    it (insert into / update).
 //
 // Usage:
 //   npm run check:scoping
@@ -115,6 +119,17 @@ for (const file of ['qarExport.js', 'reports.js']) {
   }
 }
 
+// Check 8: prices and payments only through ORG_APP_FIN_RECORD.
+for (const file of serverFiles) {
+  const text = fs.readFileSync(path.join(serverDir, file), 'utf8')
+  for (const m of text.matchAll(/\bAPP_FIN_RECORD\b/g)) {
+    const before = text.slice(Math.max(0, m.index - 30), m.index)
+    if (/ORG_$/.test(before) || /(insert\s+into|update)\s+(ILR\.)?$/i.test(before)) continue
+    if (file === 'qarExport.js' || file === 'reports.js') continue // check 7 reports these
+    report(file, text, m.index, 'reads APP_FIN_RECORD directly: use ORG_APP_FIN_RECORD, so prices stay managers only')
+  }
+}
+
 // Check 5 in access.js itself.
 {
   const text = fs.readFileSync(path.join(serverDir, 'access.js'), 'utf8')
@@ -143,4 +158,4 @@ if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, every route says which roles can use it, and every insert sets ISTESTDATA.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, and every insert sets ISTESTDATA.')

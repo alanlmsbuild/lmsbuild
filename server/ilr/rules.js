@@ -118,6 +118,35 @@ export const NOT_CHECKED = [
   { rules: 'Filename_2, Filename_8, Inconsistent UKPRN', what: 'the file is newer than earlier submissions and matches the signed-in provider', fis: false },
 ]
 
+// Where each rule's problem shows on the learner page's Record tab.
+const SECTION_RULES = {
+  personal: ['ULN_04', 'R_59', 'FamilyName_01', 'GivenNames_01', 'DateOfBirth_01', 'DateOfBirth_48', 'AddLine1_03',
+    'Postcode_15', 'PostcodePrior_02', 'NINumber_01', 'NINumber_02', 'Warren: TelNo'],
+  support: ['LLDDHealthProb_06', 'LLDDHealthProb_04', 'PrimaryLLDD_01', 'PrimaryLLDD_03', 'LLDDCat_01'],
+  prior: ['R_131'],
+  employment: ['EmpStat_09', 'EmpStat_15', 'EmpStat_12', 'EmpId_10', 'EmpId_02', 'ESMType_02', 'ESMType_09', 'ESMType_15', 'R_43'],
+  programme: ['DateOfBirth_46', 'DateOfBirth_57', 'AimSeqNumber_02', 'R_07', 'LearnAimRef_01', 'LearnStartDate_03',
+    'LearnStartDate_13', 'LearnStartDate_17', 'LearnStartDate_18', 'LearnPlanEndDate_02', 'StdCode_01', 'DelLocPostCode_11',
+    'LearnDelFAMType_01', 'LearnDelFAMType_64', 'R_102', 'R_121', 'R_122', 'R_123', 'LearnDelFAMDateFrom_01',
+    'LearnDelFAMDateFrom_02', 'LearnDelFAMDateTo_01', 'LearnDelFAMDateTo_02', 'LearnDelFAMDateTo_03', 'R_52',
+    'EPAOrgID_02', 'EPAOrgID_03'],
+  hours: ['HRSType_01', 'HRSType_08', 'HRSType_09', 'HRSAmount_02', 'HRSAmount_03', 'HRSType_18'],
+  prices: ['AFinType_12', 'AFinType_13', 'AFinType_10', 'R_100', 'R_119', 'AFinDate_13', 'R_68'],
+  components: ['R_30', 'R_31', 'R_89', 'R_90', 'AchDate_14'],
+  outcome: ['DateOfBirth_47', 'DateOfBirth_58', 'LearnActEndDate_01', 'LearnActEndDate_04', 'Outcome_05', 'Outcome_10',
+    'Outcome_11', 'Outcome_12', 'CompStatus_03', 'CompStatus_04', 'CompStatus_06', 'CompStatus_07', 'AchDate_04',
+    'AchDate_05', 'AchDate_07', 'AchDate_12', 'WithdrawReason_03', 'WithdrawReason_04'],
+}
+export const RULE_SECTION = Object.fromEntries(
+  Object.entries(SECTION_RULES).flatMap(([section, rules]) => rules.map((rule) => [rule, section])),
+)
+
+// Rules about details only managers see (NI number, prices and payments,
+// and the assessment organisation, which goes with the assessment price).
+// For anyone else those details read as empty, so these rules can't be
+// checked for them and aren't shown.
+export const MANAGER_ONLY_RULES = new Set(['NINumber_01', 'NINumber_02', ...SECTION_RULES.prices, 'EPAOrgID_02', 'EPAOrgID_03'])
+
 const PC = /^[A-Z]{1,2}([0-9]{1,2}|[0-9][A-Z]) [0-9][ABD-HJLNP-UW-Z]{2}$/
 const NAME = /^[^0-9\r\n\t|"]{1,100}$/
 const NI = /^[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z][0-9]{6}[ABCD ]$/
@@ -145,8 +174,10 @@ function ulnPasses(uln) {
 }
 
 // Returns [{ rule, severity, description, learners: [ref...] }], errors
-// first, then by number of learners.
-export function checkIlrRules({ learners, standards }, year, filePreparationDate) {
+// first, then by number of learners. ulnCounts: how many learners in the
+// file have each ULN, when learners isn't the whole file (one learner's
+// checks), for R_59.
+export function checkIlrRules({ learners, standards }, year, filePreparationDate, { ulnCounts } = {}) {
   const { end: yearEnd } = ILR_YEARS[year]
   const found = new Map()
   const fail = (rule, ref) => {
@@ -154,8 +185,8 @@ export function checkIlrRules({ learners, standards }, year, filePreparationDate
     found.get(rule).add(ref)
   }
 
-  const ulnCount = new Map()
-  for (const l of learners) ulnCount.set(String(l.ULN), (ulnCount.get(String(l.ULN)) ?? 0) + 1)
+  const ulnCount = ulnCounts ?? new Map()
+  if (!ulnCounts) for (const l of learners) ulnCount.set(String(l.ULN), (ulnCount.get(String(l.ULN)) ?? 0) + 1)
 
   for (const l of learners) {
     const ref = l.LEARNREFNUMBER

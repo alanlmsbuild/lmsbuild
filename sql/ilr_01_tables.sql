@@ -30,9 +30,10 @@
 --   ACCESS.ORGANISATION already has UKPRN, and ilr_02 fills it for the test
 --   organisations.
 --
--- ILR_APP_ROLE gets SELECT on the new tables, for the export. Adding and
--- changing these records in the app comes with the capture screens (part 7
--- step 4), which will grant INSERT and UPDATE then.
+-- ILR_APP_ROLE gets SELECT on the new tables, for the export. Correction
+-- (28 September 2026): it also gets INSERT and UPDATE on them, from a
+-- future grant on the ILR schema that this file doesn't show. See
+-- sql/ilr_04_capture.sql, which states the permissions explicitly.
 
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE capture_wh;

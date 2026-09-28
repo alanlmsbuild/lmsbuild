@@ -21,6 +21,18 @@ import {
 } from '../lookups'
 import CompletionStatus from '../CompletionStatus'
 import { learnerActionPath } from './links'
+import {
+  ComponentRecords,
+  EmploymentRecords,
+  HoursRecords,
+  IlrSummary,
+  PriceRecords,
+  PriorRecords,
+  ProgrammeRecords,
+  Row,
+  Section,
+  SupportRecords,
+} from './IlrRecords'
 
 // Age in whole years as of today, from a 'YYYY-MM-DD' (or similar
 // parseable) date of birth string.
@@ -61,30 +73,44 @@ function timeOnPlacement(learner) {
   return formatDuration(wholeMonthsBetween(start, end))
 }
 
-function Row({ label, value }) {
-  return (
-    <div className="record-row">
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  )
-}
-
-function Section({ title, children }) {
-  return (
-    <section className="learner-section" aria-label={title}>
-      <h2>{title}</h2>
-      <dl>{children}</dl>
-    </section>
-  )
-}
-
 // The learner page's Record tab (Warren): everything Warren holds about the
-// learner, read only. canManage: the signed-in user is a manager, so can
-// change the learner and their officers, and sees NI number and ethnicity
-// (the server sends them to managers only). Everyone else reads.
-// back: the page's ?back=, kept on the edit and outcome forms.
+// learner, read only, grouped as the ILR groups it, each section with the
+// ILR 2026 to 2027 checks that fail for it. canManage: the signed-in user
+// is a manager, so can change the learner and their officers, and sees NI
+// number, ethnicity, prices and payments (the server sends them to managers
+// only). Everyone else reads. back: the page's ?back=, kept on the edit and
+// outcome forms.
 function LearnerRecord({ learner, canManage, back }) {
+  const [ilr, setIlr] = useState(null)
+  const [ilrStatus, setIlrStatus] = useState('loading') // 'loading' | 'ready' | 'error'
+  const [ilrError, setIlrError] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const res = await fetch(`/api/learners/${encodeURIComponent(learner.LEARNREFNUMBER)}/ilr`)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || `Server responded with ${res.status}`)
+        if (cancelled) return
+        setIlr(data)
+        setIlrStatus('ready')
+      } catch (err) {
+        if (cancelled) return
+        setIlrError(err.message)
+        setIlrStatus('error')
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [learner.LEARNREFNUMBER])
+
+  // Each section's failing checks.
+  const rulesFor = (section) => (ilr?.rules ?? []).filter((r) => r.section === section)
+  const ilrSection = (render) =>
+    ilrStatus === 'ready' ? render(ilr) : <p className="record-empty">{ilrStatus === 'loading' ? 'Loading…' : '—'}</p>
 
   const age = ageFromDateOfBirth(learner.DATEOFBIRTH)
   const timeOnProgramme = timeOnPlacement(learner)
@@ -167,57 +193,103 @@ function LearnerRecord({ learner, canManage, back }) {
         </div>
       )}
 
-      <div className="learner-record">
-        <Section title="Personal details">
-          <Row label="Learner reference" value={learner.LEARNREFNUMBER} />
-          <Row label="ULN" value={learner.ULN ?? '—'} />
-          <Row label="Date of birth" value={formatDate(learner.DATEOFBIRTH)} />
-          <Row label="Age" value={age === null ? '—' : `${age} years old`} />
-          {canManage && <Row label="Ethnicity" value={labelFromOptions(ETHNICITY_OPTIONS, learner.ETHNICITY)} />}
-          <Row label="Sex" value={labelFromOptions(SEX_OPTIONS, learner.SEX)} />
-          <Row
-            label="LLDD health problem"
-            value={labelFromOptions(LLDD_HEALTH_PROBLEM_OPTIONS, learner.LLDDHEALTHPROB)}
-          />
-          {canManage && <Row label="NI number" value={learner.NINUMBER || '—'} />}
-          <Row label="Previous postcode" value={learner.POSTCODEPRIOR || '—'} />
-          <Row label="Current postcode" value={learner.POSTCODE || '—'} />
-          <Row label="Phone" value={learner.TELNO || '—'} />
-          <Row label="Email" value={learner.EMAIL || '—'} />
-        </Section>
+      <IlrSummary ilr={ilr} status={ilrStatus} error={ilrError} canSeePrices={canManage} />
 
-        <Section title="Apprenticeship aim">
-          <Row label="Standard" value={standardLabel(learner, { withLevel: false })} />
-          <Row label="Start date" value={formatDate(learner.LEARNSTARTDATE)} />
-          <Row label="Planned end date" value={formatDate(learner.LEARNPLANENDDATE)} />
-          <Row label="Status" value={<CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} />} />
-          <Row label="Time on programme" value={timeOnProgramme ?? '—'} />
-          <Row label="Actual end date" value={formatDate(learner.LEARNACTENDDATE)} />
-          <Row label="Outcome" value={describe(OUTCOME_LABELS, learner.OUTCOME)} />
-          {learner.COMPSTATUS === 3 && (
-            <Row label="Withdrawal reason" value={labelFromOptions(WITHDRAW_REASON_OPTIONS, learner.WITHDRAWREASON)} />
-          )}
+      <div className="learner-record">
+        <Section title="Personal details" rules={rulesFor('personal')}>
+          <dl>
+            <Row label="Learner reference" value={learner.LEARNREFNUMBER} />
+            <Row label="ULN" value={learner.ULN ?? '—'} />
+            <Row label="Date of birth" value={formatDate(learner.DATEOFBIRTH)} />
+            <Row label="Age" value={age === null ? '—' : `${age} years old`} />
+            <Row label="Sex" value={labelFromOptions(SEX_OPTIONS, learner.SEX)} />
+            {canManage && <Row label="NI number" value={learner.NINUMBER || '—'} />}
+            <Row label="Previous postcode" value={learner.POSTCODEPRIOR || '—'} />
+            <Row label="Current postcode" value={learner.POSTCODE || '—'} />
+            <Row label="Phone" value={learner.TELNO || '—'} />
+            <Row label="Email" value={learner.EMAIL || '—'} />
+          </dl>
         </Section>
 
         <Section title="Contact details">
-          <Row label="Title" value={learner.TITLE || '—'} />
-          <Row label="Address line 1" value={learner.ADDRESSLINE1 || '—'} />
-          <Row label="Address line 2" value={learner.ADDRESSLINE2 || '—'} />
-          <Row label="Address line 3" value={learner.ADDRESSLINE3 || '—'} />
-          <Row label="Ward or county" value={learner.WARDORCOUNTY || '—'} />
-          <Row label="Mobile number" value={learner.MOBILENO || '—'} />
-          <Row
-            label="Contact methods allowed"
-            value={labelsFromCommaList(CONTACT_METHOD_OPTIONS, learner.CONTACTMETHODSALLOWED)}
-          />
-          <Row
-            label="Preferred contact method"
-            value={labelFromOptions(CONTACT_METHOD_OPTIONS, learner.PREFERREDCONTACTMETHOD)}
-          />
-          <Row label="Next of kin name" value={learner.NEXTOFKINNAME || '—'} />
-          <Row label="Next of kin relationship" value={learner.NEXTOFKINRELATIONSHIP || '—'} />
-          <Row label="Next of kin phone" value={learner.NEXTOFKINPHONE || '—'} />
-          <Row label="Contract type" value={labelFromOptions(CONTRACT_TYPE_OPTIONS, learner.CONTRACTTYPE)} />
+          <dl>
+            <Row label="Title" value={learner.TITLE || '—'} />
+            <Row label="Address line 1" value={learner.ADDRESSLINE1 || '—'} />
+            <Row label="Address line 2" value={learner.ADDRESSLINE2 || '—'} />
+            <Row label="Address line 3" value={learner.ADDRESSLINE3 || '—'} />
+            <Row label="Ward or county" value={learner.WARDORCOUNTY || '—'} />
+            <Row label="Mobile number" value={learner.MOBILENO || '—'} />
+            <Row
+              label="Contact methods allowed"
+              value={labelsFromCommaList(CONTACT_METHOD_OPTIONS, learner.CONTACTMETHODSALLOWED)}
+            />
+            <Row
+              label="Preferred contact method"
+              value={labelFromOptions(CONTACT_METHOD_OPTIONS, learner.PREFERREDCONTACTMETHOD)}
+            />
+            <Row label="Next of kin name" value={learner.NEXTOFKINNAME || '—'} />
+            <Row label="Next of kin relationship" value={learner.NEXTOFKINRELATIONSHIP || '—'} />
+            <Row label="Next of kin phone" value={learner.NEXTOFKINPHONE || '—'} />
+            <Row label="Contract type" value={labelFromOptions(CONTRACT_TYPE_OPTIONS, learner.CONTRACTTYPE)} />
+          </dl>
+        </Section>
+
+        <Section title="Equality and support" rules={rulesFor('support')}>
+          <dl>
+            {canManage && <Row label="Ethnicity" value={labelFromOptions(ETHNICITY_OPTIONS, learner.ETHNICITY)} />}
+            <Row
+              label="LLDD health problem"
+              value={labelFromOptions(LLDD_HEALTH_PROBLEM_OPTIONS, learner.LLDDHEALTHPROB)}
+            />
+          </dl>
+          {ilrSection((d) => <SupportRecords ilr={d} />)}
+        </Section>
+
+        <Section title="Prior attainment" rules={rulesFor('prior')}>
+          {ilrSection((d) => <PriorRecords ilr={d} />)}
+        </Section>
+
+        <Section title="Employment" rules={rulesFor('employment')}>
+          {ilrSection((d) => <EmploymentRecords ilr={d} />)}
+        </Section>
+
+        <Section title="Apprenticeship programme" rules={rulesFor('programme')}>
+          <dl>
+            <Row label="Standard" value={standardLabel(learner, { withLevel: false })} />
+            <Row label="Start date" value={formatDate(learner.LEARNSTARTDATE)} />
+            <Row label="Planned end date" value={formatDate(learner.LEARNPLANENDDATE)} />
+            <Row label="Time on programme" value={timeOnProgramme ?? '—'} />
+          </dl>
+          {ilrSection((d) => <ProgrammeRecords ilr={d} />)}
+        </Section>
+
+        <Section title="Off-the-job hours" rules={rulesFor('hours')}>
+          {ilrSection((d) => <HoursRecords ilr={d} />)}
+        </Section>
+
+        {canManage && (
+          <Section title="Prices and payments" rules={rulesFor('prices')}>
+            {ilrSection((d) => <PriceRecords ilr={d} />)}
+          </Section>
+        )}
+
+        <Section title="Component aims" rules={rulesFor('components')}>
+          {ilrSection((d) => <ComponentRecords ilr={d} />)}
+        </Section>
+
+        <Section title="Outcome" rules={rulesFor('outcome')}>
+          <dl>
+            <Row
+              label="Status"
+              value={<CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} />}
+            />
+            <Row label="Actual end date" value={formatDate(learner.LEARNACTENDDATE)} />
+            <Row label="Outcome" value={describe(OUTCOME_LABELS, learner.OUTCOME)} />
+            <Row label="Achievement date" value={formatDate(learner.ACHDATE)} />
+            {learner.COMPSTATUS === 3 && (
+              <Row label="Withdrawal reason" value={labelFromOptions(WITHDRAW_REASON_OPTIONS, learner.WITHDRAWREASON)} />
+            )}
+          </dl>
         </Section>
 
         <section className="learner-section" aria-label="Officers">

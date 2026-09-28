@@ -127,6 +127,16 @@ export const EMPLOYER_APPRENTICE = `(
 export const ORG_LEARNER = LEARNER_ROWS
 export const IN_ORG_LEARNERS = `LEARNREFNUMBER in (select LEARNREFNUMBER from ${LEARNER_ROWS})`
 
+// Prices and payments (ILR.APP_FIN_RECORD) are for managers only: anyone
+// else gets no rows, whatever the query. Every read goes through here (npm
+// run check:scoping checks). Add IN_VISIBLE_LEARNERS (or, for the ILR
+// return, IN_ORG_LEARNERS) to say whose.
+export const ORG_APP_FIN_RECORD = `(
+  select * from ILR.APP_FIN_RECORD
+  where $SEES_MANAGER_ONLY
+    and LEARNREFNUMBER in (select LEARNREFNUMBER from ${LEARNER_ROWS})
+)`
+
 // Caseload assignments where both the learner and the officer are in the
 // organisation.
 export const ORG_OFFICER_ASSIGNMENT = `(

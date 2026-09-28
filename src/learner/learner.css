@@ -136,3 +136,111 @@
 .learner-section .assign-officer-form {
   margin: 4px 0 8px;
 }
+
+/* ---------------------------------------------------------------- ILR on the Record tab */
+
+.record-ilr-summary {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--rb-rule);
+  border-radius: var(--rb-radius-control);
+  background: var(--rb-card);
+  color: var(--rb-body);
+}
+
+.record-ilr-summary--ok {
+  border-color: var(--status-done-solid);
+  background: var(--status-done-bg);
+  color: var(--status-done-text);
+}
+
+.record-ilr-summary--problem {
+  border-color: var(--status-overdue-border);
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-text);
+}
+
+.record-rules {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.record-rule {
+  padding: 8px 12px;
+  border-left: 4px solid;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.record-rule--error {
+  border-color: var(--status-overdue-solid);
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-text);
+}
+
+.record-rule--warning {
+  border-color: var(--status-due-solid);
+  background: var(--status-due-bg);
+  color: var(--status-due-text);
+}
+
+.record-subhead {
+  margin: 14px 0 4px;
+  color: var(--rb-ink);
+  font-family: var(--rb-font-body);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.record-empty {
+  margin: 4px 0;
+  color: var(--rb-muted);
+}
+
+.record-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--rb-ink);
+}
+
+.record-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.record-history {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record-history > li + li {
+  padding-top: 12px;
+  border-top: 1px solid var(--rb-rule);
+}
+
+.record-history-head {
+  margin: 0 0 4px;
+  color: var(--rb-ink);
+  font-weight: 600;
+}
+
+.record-id {
+  color: var(--rb-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
