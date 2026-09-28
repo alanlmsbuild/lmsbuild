@@ -29,7 +29,7 @@ function ApprenticeCard({ apprentice, windowDays }) {
       as="li"
       titleLevel={3}
       title={fullName(a)}
-      meta={<CompletionStatus compstatus={a.COMPSTATUS} />}
+      meta={<CompletionStatus compstatus={a.COMPSTATUS} plannedEndDate={a.LEARNPLANENDDATE} />}
     >
       <p className="ui-muted">
         {a.STDREFERENCE ? `${a.STDREFERENCE} ${a.STDNAME}` : 'Standard not recorded'}

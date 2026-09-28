@@ -190,7 +190,7 @@ function LearnerRecord({ learner, canManage, back }) {
           <Row label="Standard" value={standardLabel(learner, { withLevel: false })} />
           <Row label="Start date" value={formatDate(learner.LEARNSTARTDATE)} />
           <Row label="Planned end date" value={formatDate(learner.LEARNPLANENDDATE)} />
-          <Row label="Status" value={<CompletionStatus compstatus={learner.COMPSTATUS} />} />
+          <Row label="Status" value={<CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} />} />
           <Row label="Time on programme" value={timeOnProgramme ?? '—'} />
           <Row label="Actual end date" value={formatDate(learner.LEARNACTENDDATE)} />
           <Row label="Outcome" value={describe(OUTCOME_LABELS, learner.OUTCOME)} />

@@ -248,3 +248,17 @@
   height: 100%;
   background: var(--ui-accent);
 }
+
+/* CompletionStatus with a "past planned end" note beside the chip. */
+.completion-status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: inherit;
+  gap: 4px 8px;
+}
+
+.completion-status-note {
+  color: var(--status-overdue-text);
+  font: 500 13px/1.3 var(--ui-font-body);
+}

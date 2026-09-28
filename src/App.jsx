@@ -397,7 +397,7 @@ function App() {
                   </td>
                   <td>{standardLabel(learner, { withLevel: false })}</td>
                   <td>
-                    <CompletionStatus compstatus={learner.COMPSTATUS} />
+                    <CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} />
                   </td>
                   {isManager && (
                     <td className="actions-cell">

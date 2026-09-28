@@ -334,16 +334,6 @@ td.num {
   margin-bottom: 6px;
 }
 
-.overdue-tag {
-  margin-left: 8px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--status-overdue-bg);
-  color: var(--status-overdue-text);
-}
-
 .caseload-detail {
   margin-top: 20px;
 }
