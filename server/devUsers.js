@@ -1,13 +1,14 @@
-// DEVELOPMENT ONLY: switching between test users while there's no real
-// sign-in.
+// DEVELOPMENT ONLY: test sign-in, while there's no real sign-in.
 //
-// With DEV_USER_SWITCHING=true in server/.env, the sign-in page (/sign-in)
-// and the "Test user" pill in the header list the test users
+// With TEST_SIGN_IN=true in server/.env, the sign-in page (/sign-in) and
+// the "Test user" pill in the header list the test users
 // (ISTESTDATA = TRUE), and picking one sets a cookie: that's signing in.
 // access.js signs every request in as that user, and without the cookie
 // nobody is signed in. Signing out clears it. Only test users can be picked,
-// so this can never act as a real person. Without the setting the routes
-// here don't exist, the cookie is ignored, and everyone is DEV_USER_ID. The
+// so this can never act as a real person.
+//
+// Without TEST_SIGN_IN=true (missing, empty or anything else) the routes
+// here answer 404, the cookie is ignored, and everyone is signed out. The
 // server refuses to start with it set when NODE_ENV is production.
 //
 // When real sign-in arrives, this file and signedInUserId() in access.js
@@ -17,20 +18,21 @@ import { connect, execute, destroy } from './db.js'
 
 const COOKIE = 'dev_user_id'
 
-export function devSwitchingEnabled() {
-  return process.env.DEV_USER_SWITCHING?.trim() === 'true'
+export function testSignInEnabled() {
+  return process.env.TEST_SIGN_IN?.trim() === 'true'
 }
 
 // Called once at startup.
-export function refuseDevSwitchingInProduction() {
-  if (devSwitchingEnabled() && process.env.NODE_ENV === 'production') {
-    throw new Error('DEV_USER_SWITCHING=true is for development only. Remove it from server/.env before running in production.')
+export function refuseTestSignInInProduction() {
+  if (testSignInEnabled() && process.env.NODE_ENV === 'production') {
+    throw new Error('TEST_SIGN_IN=true is for development only. Remove it from server/.env before running in production.')
   }
 }
 
-// The test user picked in this browser, or null.
-export function switchedUserId(req) {
-  if (!devSwitchingEnabled()) return null
+// The test user signed in in this browser, or null. Always null without
+// TEST_SIGN_IN=true, whatever cookie the browser sends.
+export function testUserId(req) {
+  if (!testSignInEnabled()) return null
   for (const part of (req.headers.cookie ?? '').split(';')) {
     const [name, ...value] = part.trim().split('=')
     if (name === COOKIE) return decodeURIComponent(value.join('=')) || null
@@ -39,14 +41,14 @@ export function switchedUserId(req) {
 }
 
 // Instead of allow(...): these routes run before anyone is signed in, and
-// only exist while switching is on.
+// only exist while test sign-in is on.
 export function devOnly(req, res, next) {
-  if (devSwitchingEnabled()) {
+  if (testSignInEnabled()) {
     next()
     return
   }
   res.clearCookie(COOKIE, { path: '/api' })
-  res.status(404).json({ error: 'Switching test users is turned off.' })
+  res.status(404).json({ error: 'Test sign-in is turned off.' })
 }
 
 // Every test user in every organisation, with their active and revoked
@@ -84,7 +86,7 @@ export function registerDevUserRoutes(app) {
     try {
       const users = await withConnection((c) => execute(c, TEST_USERS_QUERY))
       res.json({
-        current: switchedUserId(req),
+        current: testUserId(req),
         users: users.map((u) => ({
           ...u,
           ROLES: u.ROLES ? u.ROLES.split(',') : [],

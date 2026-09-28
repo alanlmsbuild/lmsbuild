@@ -5,7 +5,7 @@ import './SignIn.css'
 
 // The sign-in page at /sign-in ("Who are you?"). There's no real sign-in
 // yet: this lists the test users (server/devUsers.js, only while
-// DEV_USER_SWITCHING=true) and picking one signs in as them. Then it goes on
+// TEST_SIGN_IN=true) and picking one signs in as them. Then it goes on
 // to where the person was going (?next=, if they can use it) or their home.
 // Real sign-in replaces this page.
 
@@ -134,8 +134,8 @@ function SignIn() {
 
         {switchedOff && (
           <p className="signin-alert" role="alert">
-            Test sign-in is turned off. To try Rarebit on this computer, set DEV_USER_SWITCHING=true in server/.env and
-            restart the server.
+            Test sign-in is turned off, so there&apos;s nobody to sign in as. To use it on this computer, set
+            TEST_SIGN_IN=true in server/.env and restart the server.
           </p>
         )}
         {loadError && (

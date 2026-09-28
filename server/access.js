@@ -14,7 +14,7 @@
 // the session variables can't carry over from one user to another.
 
 import { connect, execute, destroy } from './db.js'
-import { devSwitchingEnabled, switchedUserId } from './devUsers.js'
+import { testUserId } from './devUsers.js'
 
 // Only for reading from the ORG_ sources below. Not a table.
 const ORG = '$CURRENT_ORGANISATIONID'
@@ -158,24 +158,19 @@ function sessionValues(user) {
   ]
 }
 
-// There's no real sign-in yet. With development switching on, signing in
-// is picking a test user on the sign-in page (devUsers.js), which sets a
-// cookie: no cookie means nobody is signed in. With switching off, everyone
-// is DEV_USER_ID from server/.env. Real sign-in replaces this.
+// There's no real sign-in yet. With TEST_SIGN_IN=true, signing in is
+// picking a test user on the sign-in page (devUsers.js), which sets a
+// cookie. Without the cookie, or without TEST_SIGN_IN=true, nobody is
+// signed in. Real sign-in replaces this.
 function signedInUserId(req) {
-  if (devSwitchingEnabled()) return switchedUserId(req)
-  return process.env.DEV_USER_ID?.trim() || null
+  return testUserId(req)
 }
 
 export async function attachUser(req, res, next) {
   const userId = signedInUserId(req)
   if (!userId) {
     // signedIn: false tells the app to show the sign-in page, not an error.
-    res.status(401).json(
-      devSwitchingEnabled()
-        ? { error: "You're not signed in.", signedIn: false }
-        : { error: 'Nobody is signed in. Set DEV_USER_ID in server/.env and restart the server.' },
-    )
+    res.status(401).json({ error: "You're not signed in.", signedIn: false })
     return
   }
 
@@ -188,9 +183,9 @@ export async function attachUser(req, res, next) {
       res.status(401).json({ error: `User ${userId} doesn't exist.` })
       return
     }
-    if (switchedUserId(req) && !user.ISTESTDATA) {
+    if (!user.ISTESTDATA) {
       await destroy(connection)
-      res.status(403).json({ error: 'Only test users can be picked in the development switcher.' })
+      res.status(403).json({ error: 'Only test users can sign in with test sign-in.' })
       return
     }
     if (!user.ISACTIVE) {

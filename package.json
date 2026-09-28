@@ -14,6 +14,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "check:scoping": "node scripts/check-org-scoping.js",
+    "check:sign-in": "node scripts/check-sign-in.js",
     "preview": "vite preview",
     "import:ref": "node scripts/import-ref.js"
   },

@@ -39,19 +39,19 @@ import { registerMyDayRoutes } from './myday.js'
 import { registerBurrowRoutes } from './burrow.js'
 import { registerIqaRoutes } from './iqa.js'
 import { registerEmployerRoutes } from './employer.js'
-import { devSwitchingEnabled, refuseDevSwitchingInProduction, registerDevUserRoutes } from './devUsers.js'
+import { refuseTestSignInInProduction, registerDevUserRoutes, testSignInEnabled } from './devUsers.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '.env') })
 
-refuseDevSwitchingInProduction()
+refuseTestSignInInProduction()
 
 const app = express()
 app.use(cors())
 app.use(express.json())
 
-// Development only: picking a test user. Registered before attachUser,
-// since it runs before anyone is signed in.
+// Development only: test sign-in (TEST_SIGN_IN=true). Registered before
+// attachUser, since it runs before anyone is signed in.
 registerDevUserRoutes(app)
 
 // Every API request is made as the signed-in user, and only sees their
@@ -871,8 +871,8 @@ app.get('/api/me', allow(LEARNER, EMPLOYER, STAFF), (req, res) => {
     LEARNREFNUMBER: u.LEARNREFNUMBER,
     EMPLOYERID: u.EMPLOYERID,
     roles: u.roles,
-    // Signing out only exists with test-user sign-in (devUsers.js) for now.
-    canSignOut: devSwitchingEnabled(),
+    // Signing out only exists with test sign-in (devUsers.js) for now.
+    canSignOut: testSignInEnabled(),
   })
 })
 

@@ -3,7 +3,7 @@ import './DevUserSwitcher.css'
 
 // DEVELOPMENT ONLY: the "Test user" pill in the header, for switching test
 // users while there's no real sign-in (see server/devUsers.js). Shows
-// nothing unless the server has DEV_USER_SWITCHING=true (the /api/dev
+// nothing unless the server has TEST_SIGN_IN=true (the /api/dev
 // routes don't exist otherwise). The pill opens a small panel, marked as
 // development only, with the list of test users. Picking someone reloads
 // the page, so every screen starts again as them. The sign-in page
