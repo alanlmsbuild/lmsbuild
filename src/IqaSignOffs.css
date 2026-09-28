@@ -128,3 +128,14 @@
     margin-bottom: 8px;
   }
 }
+
+.iqa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.iqa-actions button.secondary {
+  margin-left: 0;
+}

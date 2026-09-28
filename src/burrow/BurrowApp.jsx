@@ -6,7 +6,8 @@ import AddEvidence from './AddEvidence'
 import EmployerHome from './EmployerHome'
 import { usePageTitle, useShell } from '../shell/navigation'
 import LearnerHeader from '../learner/LearnerHeader'
-import { learnerPath, safeBack } from '../learner/links'
+import { evidencePath, learnerPath, learnerTabPath, safeBack } from '../learner/links'
+import EvidenceView from './EvidenceView'
 import StaffLearnerList from './StaffLearnerList'
 
 // Burrow, the learner e-portfolio, at /burrow. A learner's own pages:
@@ -20,6 +21,7 @@ import StaffLearnerList from './StaffLearnerList'
 //                                    only; its Record tab is Warren's
 //                                    /app/learners/<ref>. ?back= as there.
 //   /burrow/learners/<ref>/feedback  the same, at "Feedback for you"
+//   /burrow/learners/<ref>/evidence/<id>  one piece of evidence, read only
 // An employer:
 //   /burrow/apprentices  Their apprentices and witness statements
 // Anything else here that someone can't use goes to the page they can.
@@ -47,12 +49,15 @@ function parseLocation(path) {
   } catch {
     // Leave a badly encoded reference as it is; it won't match a learner.
   }
-  const [first, ref, sub] = parts
+  const [first, ref, sub, evidenceId] = parts
   if (parts.length === 0) return { page: 'portfolio' }
   if (parts.length === 1 && first === 'add') return { page: 'add', evidenceId: params.get('evidence') }
   if (parts.length === 1 && first === 'feedback') return { page: 'feedback' }
   if (parts.length === 1 && first === 'apprentices') return { page: 'apprentices' }
   if (parts.length === 1 && first === 'learners') return { page: 'list' }
+  if (first === 'learners' && ref && parts.length === 4 && sub === 'evidence' && evidenceId) {
+    return { page: 'evidence', ref, evidenceId }
+  }
   if (first === 'learners' && ref && (parts.length === 2 || (parts.length === 3 && sub === 'feedback'))) {
     return { page: sub ? 'feedback' : 'portfolio', ref }
   }
@@ -193,6 +198,7 @@ function BurrowApp() {
 
   const page = redirect ? null : location.page
   const onPortfolio = page === 'portfolio' || page === 'feedback'
+  const onEvidence = page === 'evidence'
   // The portfolio on screen is the one asked for (not the last one, while
   // the next loads).
   const shownPortfolio = portfolio?.learner?.LEARNREFNUMBER === viewingAs ? portfolio : null
@@ -202,25 +208,18 @@ function BurrowApp() {
   // Staff's Back from a portfolio: where they opened it, or their list.
   const back = safeBack(new URLSearchParams(path.split('?')[1] ?? '').get('back')) ?? '/burrow/learners'
 
-  usePageTitle(
-    page === 'notfound'
-      ? 'Not found'
-      : page === 'apprentices'
-        ? 'Apprentices'
-        : page === 'add'
-          ? 'Add evidence'
-          : page === 'list'
-            ? 'Learners'
-            : !page
-              ? null
-              : isLearner
-                ? page === 'feedback'
-                  ? 'Feedback'
-                  : 'My portfolio'
-                : viewingName
-                  ? `Portfolio: ${viewingName}`
-                  : 'Portfolio',
-  )
+  // The tab title for each page. The evidence view names itself.
+  function pageTitle() {
+    if (onEvidence) return undefined
+    if (!page) return null
+    if (page === 'notfound') return 'Not found'
+    if (page === 'apprentices') return 'Apprentices'
+    if (page === 'add') return 'Add evidence'
+    if (page === 'list') return 'Learners'
+    if (isLearner) return page === 'feedback' ? 'Feedback' : 'My portfolio'
+    return viewingName ? `Portfolio: ${viewingName}` : 'Portfolio'
+  }
+  usePageTitle(pageTitle())
 
   // Burrow's tabs, in the header (and as a bottom bar on a phone). A
   // learner's are their own pages; staff have their learner list, and
@@ -245,7 +244,7 @@ function BurrowApp() {
       canReadPortfolios && {
         to: '/burrow/learners',
         label: 'Learners',
-        active: page === 'list' || onPortfolio,
+        active: page === 'list' || onPortfolio || onEvidence,
         icon: ICONS.learners,
       },
     isEmployer && {
@@ -285,7 +284,7 @@ function BurrowApp() {
         )}
         {page === 'apprentices' && <EmployerHome me={me} />}
 
-        {canReadPortfolios && (onPortfolio || page === 'add') && (
+        {canReadPortfolios && (onPortfolio || onEvidence || page === 'add') && (
           <>
             {portfolioStatus === 'loading' && <p className="burrow-muted">Opening the portfolio…</p>}
             {portfolioStatus === 'error' && (
@@ -302,13 +301,21 @@ function BurrowApp() {
           </>
         )}
 
-        {shownPortfolio && onPortfolio && !isLearner && (
+        {shownPortfolio && (onPortfolio || onEvidence) && !isLearner && (
           <LearnerHeader
             learnRefNumber={viewingAs}
             name={viewingName}
             detail={[shownPortfolio.learner.STDREFERENCE, shownPortfolio.learner.STDNAME].filter(Boolean).join(' ')}
             tab="portfolio"
             back={back}
+          />
+        )}
+
+        {shownPortfolio && onEvidence && !isLearner && (
+          <EvidenceView
+            learnRefNumber={viewingAs}
+            evidenceId={location.evidenceId}
+            portfolioPath={learnerTabPath(viewingAs, 'portfolio', back)}
           />
         )}
 
@@ -321,6 +328,7 @@ function BurrowApp() {
             onDismissFlash={() => setFlash(null)}
             scrollToFeedback={page === 'feedback'}
             navigate={navigate}
+            evidenceHref={isLearner ? null : (e) => evidencePath(viewingAs, e.EVIDENCE_ID, back)}
           />
         )}
         {shownPortfolio && page === 'add' && (

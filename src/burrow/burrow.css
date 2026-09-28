@@ -972,3 +972,73 @@
     color: var(--b-link);
   }
 }
+
+/* ---------------------------------------------------------------- evidence view */
+
+/* Staff's read-only view of one piece of evidence (EvidenceView.jsx). */
+.burrow-evidence-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 880px;
+}
+
+.burrow .burrow-evidence-back {
+  align-self: flex-start;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.burrow .burrow-evidence-back:hover {
+  text-decoration: underline;
+}
+
+.burrow-evidence-head h2 {
+  margin: 0 0 4px;
+  color: var(--b-ink);
+  font-family: var(--rb-font-heading);
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.burrow-evidence-head p {
+  margin: 2px 0 0;
+}
+
+.burrow-evidence-view .burrow-card h3 {
+  margin: 0;
+  color: var(--b-ink);
+  font-family: var(--rb-font-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.burrow-evidence-text {
+  margin: 4px 0 0;
+  color: var(--b-body);
+  white-space: pre-wrap;
+}
+
+.burrow-evidence-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.burrow-evidence-status {
+  font-weight: 600;
+}
+
+.burrow-evidence-status--signed_off {
+  color: var(--status-done-text);
+}
+
+.burrow-evidence-status--changes_requested {
+  color: var(--status-overdue-text);
+}
+
+.burrow a.burrow-recent-title {
+  text-decoration: underline;
+}

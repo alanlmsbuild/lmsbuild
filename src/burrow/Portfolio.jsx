@@ -23,13 +23,15 @@ function evidenceMeta(e) {
 // Screen 1: the learner's portfolio. Every figure comes from the server;
 // KSB statuses are worked out there from evidence and reviews. readOnly is
 // for staff reading it: only the learner adds or changes evidence.
-function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollToFeedback, navigate }) {
+// evidenceHref: for staff (readOnly), the read-only view of a piece of
+// evidence. Staff see every piece, not just the recent ones.
+function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollToFeedback, navigate, evidenceHref }) {
   const feedbackRef = useRef(null)
   const { learner, ksbs, ksbsLoaded, evidence } = portfolio
   const counts = countStatuses(ksbs)
   const waiting = evidence.filter((e) => e.STATUS === 'submitted').length
   const feedback = evidence.filter((e) => e.STATUS === 'changes_requested')
-  const recent = evidence.slice(0, RECENT_COUNT)
+  const recent = readOnly ? evidence : evidence.slice(0, RECENT_COUNT)
 
   useEffect(() => {
     if (scrollToFeedback) feedbackRef.current?.scrollIntoView({ block: 'start' })
@@ -140,7 +142,7 @@ function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollT
           ) : (
             feedback.map((e) => (
               <div key={e.EVIDENCE_ID} className="burrow-feedback">
-                <strong>{e.TITLE}</strong>
+                {evidenceHref ? <a href={evidenceHref(e)}><strong>{e.TITLE}</strong></a> : <strong>{e.TITLE}</strong>}
                 {e.FEEDBACK && <p>&ldquo;{e.FEEDBACK}&rdquo;</p>}
                 <span className="burrow-muted">
                   {e.OFFICER_NAME || 'Your assessor'} · needs changes
@@ -156,7 +158,7 @@ function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollT
         </section>
 
         <section className="burrow-card">
-          <h2>Recent evidence</h2>
+          <h2>{readOnly ? `Evidence (${evidence.length})` : 'Recent evidence'}</h2>
           {recent.length === 0 ? (
             <p className="burrow-muted">
               {readOnly ? 'No evidence yet.' : 'Nothing yet. Add your first piece of evidence to get started.'}
@@ -165,7 +167,11 @@ function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollT
             <ul className="burrow-recent">
               {recent.map((e) => (
                 <li key={e.EVIDENCE_ID}>
-                  {!readOnly && (e.STATUS === 'draft' || e.STATUS === 'changes_requested') ? (
+                  {evidenceHref ? (
+                    <a className="burrow-recent-title" href={evidenceHref(e)}>
+                      {e.TITLE}
+                    </a>
+                  ) : !readOnly && (e.STATUS === 'draft' || e.STATUS === 'changes_requested') ? (
                     <button type="button" className="burrow-recent-title" onClick={() => openEvidence(e)}>
                       {e.TITLE}
                     </button>

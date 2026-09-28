@@ -251,6 +251,40 @@ const ACTIVE_FILES_QUERY = `
   order by UPLOADED_AT
 `
 
+// For the read-only evidence view: each claimed KSB with its wording when
+// claimed and the assessor's current decision, every review (newest
+// first), every employer answer on a witness statement, and (for staff
+// only) every IQA check. Bind: the evidence, which findEvidence has
+// already found among the learners this user can see.
+const CLAIM_DETAILS_QUERY = `
+  select KSB_TYPE, KSB_REFERENCE, KSB_TEXT, DECISION, DECISION_COMMENT
+  from BURROW.EVIDENCE_KSB
+  where EVIDENCE_ID = ?
+    and UNCLAIMED_AT is null
+  order by decode(KSB_TYPE, 'K', 1, 'S', 2, 3), KSB_REFERENCE
+`
+
+const REVIEWS_QUERY = `
+  select REVIEW_ID, SUBMISSION_NUMBER, OFFICER_NAME, REVIEWED_AT, OUTCOME, FEEDBACK
+  from BURROW.EVIDENCE_REVIEW
+  where EVIDENCE_ID = ?
+  order by REVIEWED_AT desc
+`
+
+const CONFIRMATIONS_QUERY = `
+  select SUBMISSION_NUMBER, CONFIRMER_NAME, OUTCOME, COMMENT_TEXT, CONFIRMED_AT
+  from BURROW.WITNESS_CONFIRMATION
+  where EVIDENCE_ID = ?
+  order by CONFIRMED_AT desc
+`
+
+const IQA_CHECKS_QUERY = `
+  select REVIEW_ID, IQA_NAME, OUTCOME, FEEDBACK, CHECKED_AT
+  from BURROW.IQA_CHECK
+  where EVIDENCE_ID = ?
+  order by CHECKED_AT desc
+`
+
 async function findEvidence(connection, evidenceId, learnRefNumber) {
   const [evidence] = await execute(connection, EVIDENCE_QUERY, [evidenceId, learnRefNumber])
   if (!evidence) throw new RequestError('Evidence not found.', 404)
@@ -594,15 +628,33 @@ export function registerBurrowRoutes(app) {
     }
   })
 
+  // One piece of evidence: for the learner's edit screen, and for staff's
+  // read-only view (claims with decisions, reviews, employer answers and
+  // IQA checks). IQA checks are quality assurance between staff, so a
+  // learner doesn't get them.
   app.get('/api/burrow/learners/:learnRefNumber/evidence/:evidenceId', allow(LEARNER, STAFF), async (req, res) => {
     const connection = req.db
     try {
       const evidence = await findEvidence(connection, req.params.evidenceId, req.params.learnRefNumber)
-      const [claims, files] = await Promise.all([
-        execute(connection, ACTIVE_CLAIMS_QUERY, [evidence.EVIDENCE_ID]),
-        execute(connection, ACTIVE_FILES_QUERY, [evidence.EVIDENCE_ID]),
+      const isStaff = req.user.roles.some((role) => STAFF.includes(role))
+      const id = [evidence.EVIDENCE_ID]
+      const [claims, files, claimDetails, reviews, confirmations, iqaChecks] = await Promise.all([
+        execute(connection, ACTIVE_CLAIMS_QUERY, id),
+        execute(connection, ACTIVE_FILES_QUERY, id),
+        execute(connection, CLAIM_DETAILS_QUERY, id),
+        execute(connection, REVIEWS_QUERY, id),
+        execute(connection, CONFIRMATIONS_QUERY, id),
+        isStaff ? execute(connection, IQA_CHECKS_QUERY, id) : [],
       ])
-      res.json({ evidence, ksbs: claims.map((c) => c.KSB_REFERENCE), files })
+      res.json({
+        evidence,
+        ksbs: claims.map((c) => c.KSB_REFERENCE),
+        files,
+        claimDetails,
+        reviews,
+        confirmations,
+        ...(isStaff ? { iqaChecks } : {}),
+      })
     } catch (err) {
       sendError(res, err, 'Could not load this evidence')
     }

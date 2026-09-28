@@ -11,12 +11,13 @@ export function useShell() {
 }
 
 // Sets the browser tab's title for the page being shown, e.g. "My day".
-// The shell adds the area ("My day – Warren").
+// The shell adds the area ("My day – Warren"). undefined leaves the title
+// to a component further in (which sets it first), null clears it.
 export function usePageTitle(title) {
   const shell = useShell()
   const setPageTitle = shell?.setPageTitle
   useEffect(() => {
-    setPageTitle?.(title)
+    if (title !== undefined) setPageTitle?.(title)
   }, [title, setPageTitle])
 }
 

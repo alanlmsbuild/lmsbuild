@@ -36,6 +36,12 @@ export function learnerActionPath(learnRefNumber, action, back) {
   return back ? `${base}?back=${encodeURIComponent(back)}` : base
 }
 
+// Staff's read-only view of one piece of evidence, on the Portfolio tab.
+export function evidencePath(learnRefNumber, evidenceId, back) {
+  const base = `/burrow/learners/${encodeURIComponent(learnRefNumber)}/evidence/${encodeURIComponent(evidenceId)}`
+  return back ? `${base}?back=${encodeURIComponent(back)}` : base
+}
+
 // Where a link to a learner goes: their page on the last-used tab.
 export function learnerPath(me, learnRefNumber, back) {
   return learnerTabPath(learnRefNumber, lastLearnerTab(me?.USERID), back)

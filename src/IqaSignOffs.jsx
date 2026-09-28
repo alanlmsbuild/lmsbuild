@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import './IqaSignOffs.css'
+import { evidencePath } from './learner/links'
 import { EVIDENCE_TYPE_OPTIONS, IQA_OUTCOME_OPTIONS } from './burrowCodes'
 import { formatDate, labelFromOptions } from './lookups'
 import { validateIqaCheckForm } from './validation'
@@ -104,16 +105,24 @@ function IqaSignOffs({ onOpenLearner }) {
             {checking === s.REVIEW_ID ? (
               <IqaCheckForm signOff={s} onSaved={handleSaved} onCancel={() => setChecking(null)} />
             ) : (
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  setSaved(null)
-                  setChecking(s.REVIEW_ID)
-                }}
-              >
-                {s.CHECK_OUTCOME ? 'Check again' : 'Record check'}
-              </button>
+              <div className="iqa-actions">
+                <a
+                  className="ui-button ui-button--secondary"
+                  href={evidencePath(s.LEARNREFNUMBER, s.EVIDENCE_ID, '/app/sign-offs')}
+                >
+                  See the evidence
+                </a>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    setSaved(null)
+                    setChecking(s.REVIEW_ID)
+                  }}
+                >
+                  {s.CHECK_OUTCOME ? 'Check again' : 'Record check'}
+                </button>
+              </div>
             )}
           </li>
         ))}
