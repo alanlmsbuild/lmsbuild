@@ -25,6 +25,14 @@
 //    managers, and MANAGER_ONLY_LEARNER_COLUMNS must still list them.
 //    Elsewhere, SQL marked "-- all organisations" (which skips the masked
 //    sources) must not read them, or select * from the learner table.
+// 6. The ILR return is for managers only: every /api/ilr route must be
+//    allow(MANAGER) and nothing else.
+// 7. The QAR spreadsheet (server/qarExport.js, fed by server/reports.js)
+//    never carries NI number, ethnicity, prices or payments: neither file
+//    may name NINUMBER, ETHNICITY, APP_FIN_RECORD or an AFIN column, or
+//    select * or alias.* from a table or a scoped source (which would pick
+//    them up without naming them). select * from a query step (a
+//    lower-case with ... as name, built from named columns) is fine.
 //
 // Usage:
 //   npm run check:scoping
@@ -80,6 +88,33 @@ for (const file of serverFiles) {
   }
 }
 
+// Check 6: ILR return routes are managers only.
+const ILR_ROUTE = /\bapp\.(get|post|put|patch|delete)\(\s*(['`"])(\/api\/ilr[^'`"]*)\2\s*,\s*allow\(([^)]*)\)/g
+for (const file of serverFiles) {
+  const text = fs.readFileSync(path.join(serverDir, file), 'utf8')
+  for (const m of text.matchAll(/\bapp\.(get|post|put|patch|delete)\(\s*(['`"])(\/api\/ilr[^'`"]*)\2/g)) {
+    const withAllow = [...text.matchAll(ILR_ROUTE)].find((r) => r.index === m.index)
+    if (!withAllow || withAllow[4].trim() !== 'MANAGER') {
+      report(file, text, m.index, `${m[3]} is the ILR return, so it must be allow(MANAGER) only`)
+    }
+  }
+}
+
+// Check 7: nothing manager-only or financial in the QAR spreadsheet.
+const QAR_FORBIDDEN = /\b(NINUMBER|ETHNICITY|APP_FIN_RECORD|AFIN[A-Z]*)\b|\b[a-z]\w{0,10}\.\*/gi
+for (const file of ['qarExport.js', 'reports.js']) {
+  const text = fs.readFileSync(path.join(serverDir, file), 'utf8')
+  for (const m of text.matchAll(QAR_FORBIDDEN)) {
+    report(file, text, m.index, `"${m[0]}" could put NI number, ethnicity, prices or payments in the QAR spreadsheet`)
+  }
+  for (const m of text.matchAll(/\bselect\s+\*/gi)) {
+    const source = text.slice(m.index).match(/\bfrom\s+(\S+)/i)?.[1] ?? ''
+    if (!/^[a-z_][a-z0-9_]*$/.test(source)) {
+      report(file, text, m.index, `select * from ${source} could put NI number, ethnicity, prices or payments in the QAR spreadsheet`)
+    }
+  }
+}
+
 // Check 5 in access.js itself.
 {
   const text = fs.readFileSync(path.join(serverDir, 'access.js'), 'utf8')
@@ -108,4 +143,4 @@ if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, every route says which roles can use it, and every insert sets ISTESTDATA.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, every route says which roles can use it, and every insert sets ISTESTDATA.')
