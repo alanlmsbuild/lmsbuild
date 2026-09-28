@@ -10,7 +10,11 @@ It follows the response shape of `GET /api/v1/Occupations/{stdCode}` in the
 Skills England occupational maps API's Swagger documentation
 (https://occupational-maps-api.skillsengland.education.gov.uk/swagger/index.html),
 requested with
-`expand=occupation.dutiesKSB,occupation.products,occupation.overview,occupation.summary,occupation.maphierarchy,occupation.soc,occupation.links`.
+`expand=occupation.dutiesKSB,occupation.products,occupation.overview,occupation.summary,occupation.maphierarchy,occupation.soc,occupation.typicaljobtitles,occupation.keywords,occupation.links`.
+
+The SOC 2020 sub-unit groups, typical job titles (objects with a `name`) and
+keywords (strings) follow the Swagger types too; the sub-unit group code
+format (shown as 9999/01) is a guess until checked against a real response.
 
 The documentation lists the fields and their types but gives no example
 values, so some details are guesses to check against a real response once

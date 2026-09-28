@@ -14,7 +14,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "check:scoping": "node scripts/check-org-scoping.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "import:ref": "node scripts/import-ref.js"
   },
   "dependencies": {
     "busboy": "^1.6.0",

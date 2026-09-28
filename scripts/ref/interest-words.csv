@@ -1,0 +1,213 @@
+WORD,JOB_TITLE,SOC2020
+sports,Sports coach,3432
+sports,Sports development officer,3432
+sports,Sports assistant,6211
+sports,Sports therapist,2229
+gym,Fitness instructor,3433
+gym,Personal trainer,3433
+gym,Leisure centre assistant,6211
+football,Football coach,3432
+football,Groundsman,5114
+football,Sports coach,3432
+swimming,Swimming teacher,3432
+swimming,Lifeguard,6211
+swimming,Swimming pool attendant,6211
+dance,Dance teacher,3414
+dance,Dancer,3414
+music,Musician,3415
+music,Sound engineer,3417
+music,Music teacher,2319
+gaming,Games developer,2134
+gaming,Games tester,3131
+gaming,Software developer,2134
+computers,Software developer,2134
+computers,IT support technician,3132
+computers,Network engineer,2137
+computers,Web developer,2134
+coding,Software developer,2134
+coding,Web developer,2134
+coding,Programmer,2134
+technology,IT support technician,3132
+technology,Software developer,2134
+technology,Data analyst,3544
+social media,Social media manager,2493
+social media,Marketing assistant,3554
+social media,Digital marketing executive,3554
+art,Graphic designer,2142
+art,Illustrator,3411
+art,Artist,3411
+drawing,Illustrator,3411
+drawing,Graphic designer,2142
+drawing,CAD technician,3120
+design,Graphic designer,2142
+design,Interior designer,3421
+design,Product designer,3429
+photography,Photographer,3417
+photography,Photographic technician,3417
+film,Camera operator,3417
+film,Video editor,3416
+film,Film editor,3416
+fashion,Fashion designer,3422
+fashion,Sales assistant,7111
+fashion,Tailor,5413
+hair,Hairdresser,6221
+hair,Barber,6221
+hair,Hair stylist,6221
+beauty,Beauty therapist,6222
+beauty,Nail technician,6222
+beauty,Make-up artist,6222
+cooking,Chef,5434
+cooking,Cook,5435
+cooking,Kitchen assistant,9263
+cooking,Baker,5432
+baking,Baker,5432
+baking,Pastry chef,5434
+baking,Confectioner,5432
+food,Chef,5434
+food,Food technologist,2129
+food,Kitchen assistant,9263
+food,Butcher,5431
+animals,Veterinary nurse,3240
+animals,Animal care assistant,6129
+animals,Dog groomer,6129
+animals,Kennel assistant,6129
+dogs,Dog groomer,6129
+dogs,Kennel assistant,6129
+dogs,Dog trainer,6129
+horses,Groom,6129
+horses,Stable hand,6129
+horses,Riding instructor,3432
+outdoors,Gardener,5113
+outdoors,Landscape gardener,5113
+outdoors,Tree surgeon,5119
+outdoors,Countryside ranger,5119
+gardening,Gardener,5113
+gardening,Landscape gardener,5113
+gardening,Horticulturist,5112
+farming,Farm worker,9111
+farming,Agricultural worker,9111
+nature,Countryside ranger,5119
+nature,Ecologist,2151
+nature,Environmental technician,2152
+environment,Environmental technician,2152
+environment,Recycling officer,3560
+environment,Sustainability officer,2152
+cars,Motor mechanic,5231
+cars,Vehicle technician,5231
+cars,Car valeter,9226
+cars,Vehicle body repairer,5232
+motorbikes,Motorcycle mechanic,5231
+motorbikes,Motor mechanic,5231
+driving,Delivery driver,8214
+driving,Bus driver,8212
+driving,Lorry driver,8211
+driving,Driving instructor,8215
+building,Bricklayer,5313
+building,Carpenter,5316
+building,Plasterer,5321
+building,Construction worker,9129
+fixing things,Maintenance technician,5223
+fixing things,Maintenance fitter,5223
+fixing things,Motor mechanic,5231
+electrics,Electrician,5241
+electrics,Electrical engineer,5241
+electrics,Electrical technician,3112
+plumbing,Plumber,5315
+plumbing,Heating engineer,5315
+plumbing,Gas engineer,5315
+engineering,Engineering technician,3113
+engineering,Mechanical engineer,2122
+engineering,Maintenance fitter,5223
+engineering,Welder,5213
+making things,CNC machinist,5221
+making things,Welder,5213
+making things,Joiner,5316
+making things,Assembler,8149
+woodwork,Carpenter,5316
+woodwork,Joiner,5316
+woodwork,Cabinet maker,5442
+science,Laboratory technician,3111
+science,Science technician,3119
+science,Chemist,2111
+health,Healthcare assistant,6131
+health,Nursing associate,3213
+health,Pharmacy assistant,7114
+helping people,Care worker,6135
+helping people,Support worker,6135
+helping people,Healthcare assistant,6131
+helping people,Teaching assistant,6112
+care,Care worker,6135
+care,Care assistant,6135
+care,Support worker,6135
+children,Nursery nurse,6111
+children,Teaching assistant,6112
+children,Childminder,6114
+children,Nursery assistant,6111
+teaching,Teaching assistant,6112
+teaching,Learning support assistant,6113
+elderly,Care worker,6135
+elderly,Care assistant,6135
+elderly,Activities coordinator,6135
+talking to people,Customer service assistant,7219
+talking to people,Receptionist,4216
+talking to people,Sales assistant,7111
+talking to people,Call centre operator,7211
+shopping,Sales assistant,7111
+shopping,Retail assistant,7111
+shopping,Store manager,1150
+shopping,Visual merchandiser,7125
+selling,Sales assistant,7111
+selling,Sales executive,3552
+selling,Estate agent,3555
+money,Accounts assistant,4122
+money,Bookkeeper,4122
+money,Bank clerk,4123
+money,Payroll assistant,4122
+numbers,Accounts assistant,4122
+numbers,Data analyst,3544
+numbers,Bookkeeper,4122
+maths,Accounts assistant,4122
+maths,Data analyst,3544
+maths,Actuary,2433
+business,Business administrator,4159
+business,Office manager,4141
+business,Administrative assistant,4159
+organising,Administrative assistant,4159
+organising,Events coordinator,3557
+organising,Office manager,4141
+organising,Receptionist,4216
+events,Events coordinator,3557
+events,Events manager,3557
+events,Wedding planner,3557
+travel,Travel agent,6212
+travel,Air cabin crew,6213
+travel,Tour guide,6219
+hotels,Hotel receptionist,4216
+hotels,Room attendant,9223
+hotels,Hotel manager,1221
+writing,Journalist,2492
+writing,Copywriter,3412
+writing,Content writer,3133
+reading,Librarian,2471
+reading,Library assistant,4135
+reading,Editor,2491
+languages,Interpreter,3412
+languages,Translator,3412
+law,Paralegal,2419
+law,Legal secretary,4212
+law,Solicitor,2412
+police,Police officer,3312
+police,Police community support officer,6311
+security,Security officer,9231
+security,Door supervisor,9231
+armed forces,Soldier,3311
+fire,Firefighter,3313
+warehouses,Warehouse operative,9252
+warehouses,Fork lift truck driver,8222
+warehouses,Stock controller,4133
+logistics,Warehouse operative,9252
+logistics,Logistics coordinator,4134
+logistics,Logistics administrator,4134
+cleaning,Cleaner,9223
+cleaning,Housekeeping assistant,9223
+cleaning,Caretaker,6232

@@ -1,6 +1,7 @@
 // import-ksbs.js - load each apprenticeship standard's duties, knowledge,
-// skills and behaviours (KSBs) from the Skills England occupational maps API
-// into the CAPTURE_DB.SKILLS schema.
+// skills and behaviours (KSBs), its SOC codes (SOC 2020 unit and sub-unit
+// groups, SOC 2010) and its typical job titles and keywords from the Skills
+// England occupational maps API into the CAPTURE_DB.SKILLS schema.
 //
 // Usage:
 //   npm run import:ksbs                         standards our learners are on
@@ -46,6 +47,8 @@ const EXPAND = [
   'occupation.summary',
   'occupation.maphierarchy',
   'occupation.soc',
+  'occupation.typicaljobtitles',
+  'occupation.keywords',
   'occupation.links',
 ].join(',')
 
@@ -190,6 +193,45 @@ export function parseOccupation(json, standard = null) {
     warnings.push(`${unresolved} duty-KSB link(s) point at KSBs not in the response, e.g. ${unresolvedExamples.join('; ')}`)
   }
 
+  // SOC codes: the SOC 2020 unit group, its sub-unit groups (extended SOC
+  // 2020, e.g. 3432/03) and the SOC 2010 unit group. SOC_KEY is the most
+  // specific code on the row, so each row has a key.
+  const socs = []
+  const soc = json.soc ?? {}
+  const unit2020 = int(soc.soc2020Code) === null ? null : String(int(soc.soc2020Code)).padStart(4, '0')
+  if (unit2020) {
+    socs.push({ OCCUPATION_CODE: occupationCode, SOC_VERSION: 'SOC2020', SOC_KEY: unit2020, UNIT_GROUP: unit2020,
+      SUB_UNIT_GROUP: null, IS_PRIMARY: true, DESCRIPTION: text(soc.soc2020Description) })
+  }
+  for (const sug of Array.isArray(soc.soc2020SubUnitGroups) ? soc.soc2020SubUnitGroups : []) {
+    const raw = text(sug?.code)
+    // Accept 3432/03 or 343203; anything else is kept as given, with a warning.
+    const m = /^(\d{4})\/?(\d{2})$/.exec(raw ?? '')
+    if (!m) warnings.push(`SOC 2020 sub-unit group code '${raw}' isn't in the form 1234/56`)
+    const code = m ? `${m[1]}/${m[2]}` : raw
+    if (!code || socs.some((r) => r.SOC_KEY === code)) continue
+    socs.push({ OCCUPATION_CODE: occupationCode, SOC_VERSION: 'SOC2020', SOC_KEY: code, UNIT_GROUP: m ? m[1] : unit2020,
+      SUB_UNIT_GROUP: code, IS_PRIMARY: sug?.isPrimary === true, DESCRIPTION: text(sug?.description) })
+  }
+  const unit2010 = int(soc.soc2010Code) === null ? null : String(int(soc.soc2010Code)).padStart(4, '0')
+  if (unit2010) {
+    socs.push({ OCCUPATION_CODE: occupationCode, SOC_VERSION: 'SOC2010', SOC_KEY: unit2010, UNIT_GROUP: unit2010,
+      SUB_UNIT_GROUP: null, IS_PRIMARY: true, DESCRIPTION: text(soc.soc2010Description) })
+  }
+
+  // Typical job titles and keywords, for matching people's interests to
+  // occupations.
+  const terms = []
+  for (const [kind, list] of [['job title', json.typicalJobTitles], ['keyword', json.keywords]]) {
+    const seen = new Set()
+    for (const item of Array.isArray(list) ? list : []) {
+      const term = text(typeof item === 'string' ? item : item?.name ?? item?.title ?? item?.keyword)
+      if (!term || seen.has(term.toLowerCase())) continue
+      seen.add(term.toLowerCase())
+      terms.push({ OCCUPATION_CODE: occupationCode, KIND: kind, TERM: term })
+    }
+  }
+
   const hierarchy = json.mapHierarchy ?? {}
   const occupation = {
     OCCUPATION_CODE: occupationCode,
@@ -220,8 +262,10 @@ export function parseOccupation(json, standard = null) {
     behaviours: counts.B,
     duty_ksb_links: dutyKsbs.length,
     links_unresolved: unresolved,
+    soc_codes: socs.length,
+    terms: terms.length,
   }
-  return { rows: { occupation, duties, ksbs, dutyKsbs }, stats, problems, warnings }
+  return { rows: { occupation, duties, ksbs, dutyKsbs, socs, terms }, stats, problems, warnings }
 }
 
 // ---------------------------------------------------------------- API
@@ -374,6 +418,28 @@ export const CREATE_TABLES = [
     foreign key (OCCUPATION_CODE, DUTY_REFERENCE) references ${SCHEMA}.DUTY (OCCUPATION_CODE, DUTY_REFERENCE),
     foreign key (OCCUPATION_CODE, KSB_TYPE, KSB_REFERENCE) references ${SCHEMA}.KSB (OCCUPATION_CODE, KSB_TYPE, KSB_REFERENCE)
   )`,
+  // The occupation's SOC codes, so an interest coded to SOC 2020 (REF.SOC2020_INDEX)
+  // leads to the occupations, and so to their standards (ST_REFERENCE).
+  `create table if not exists ${SCHEMA}.OCCUPATION_SOC (
+    OCCUPATION_CODE varchar not null,
+    SOC_VERSION varchar(7) not null comment 'SOC2020 or SOC2010.',
+    SOC_KEY varchar(7) not null comment 'The most specific code on the row: the sub-unit group if there is one, otherwise the unit group.',
+    UNIT_GROUP varchar(4) not null,
+    SUB_UNIT_GROUP varchar(7) comment 'Extended SOC 2020 sub-unit group, e.g. 3432/03.',
+    IS_PRIMARY boolean not null default false,
+    DESCRIPTION varchar,
+    LAST_IMPORT_RUN_ID number(38,0) not null,
+    primary key (OCCUPATION_CODE, SOC_VERSION, SOC_KEY),
+    foreign key (OCCUPATION_CODE) references ${SCHEMA}.OCCUPATION (OCCUPATION_CODE)
+  )`,
+  `create table if not exists ${SCHEMA}.OCCUPATION_TERM (
+    OCCUPATION_CODE varchar not null,
+    KIND varchar not null comment 'job title (typical job titles) or keyword.',
+    TERM varchar not null,
+    LAST_IMPORT_RUN_ID number(38,0) not null,
+    primary key (OCCUPATION_CODE, KIND, TERM),
+    foreign key (OCCUPATION_CODE) references ${SCHEMA}.OCCUPATION (OCCUPATION_CODE)
+  )`,
 ]
 
 // The columns written from parsed rows, per table. RAW_RESPONSE is staged
@@ -387,6 +453,8 @@ const CHILD_TABLES = [
   { table: 'DUTY', rowsKey: 'duties', columns: ['OCCUPATION_CODE', 'DUTY_REFERENCE', 'API_ID', 'DETAIL', 'IS_CORE', 'CRITERIA', 'SORT_ORDER'] },
   { table: 'KSB', rowsKey: 'ksbs', columns: ['OCCUPATION_CODE', 'KSB_TYPE', 'KSB_REFERENCE', 'API_ID', 'DETAIL', 'SORT_ORDER'] },
   { table: 'DUTY_KSB', rowsKey: 'dutyKsbs', columns: ['OCCUPATION_CODE', 'DUTY_REFERENCE', 'KSB_TYPE', 'KSB_REFERENCE'] },
+  { table: 'OCCUPATION_SOC', rowsKey: 'socs', columns: ['OCCUPATION_CODE', 'SOC_VERSION', 'SOC_KEY', 'UNIT_GROUP', 'SUB_UNIT_GROUP', 'IS_PRIMARY', 'DESCRIPTION'] },
+  { table: 'OCCUPATION_TERM', rowsKey: 'terms', columns: ['OCCUPATION_CODE', 'KIND', 'TERM'] },
 ]
 
 // Rows go into the temporary staging tables this many at a time.
@@ -553,7 +621,7 @@ async function knownOccupationCodes(execute, connection) {
 // ---------------------------------------------------------------- output
 
 function describeCounts(stats) {
-  return `${stats.duties} duties, ${stats.knowledge} K, ${stats.skills} S, ${stats.behaviours} B, ${stats.duty_ksb_links} duty-KSB links`
+  return `${stats.duties} duties, ${stats.knowledge} K, ${stats.skills} S, ${stats.behaviours} B, ${stats.duty_ksb_links} duty-KSB links, ${stats.soc_codes} SOC codes, ${stats.terms} job titles and keywords`
 }
 
 function printParsed(parsed) {
@@ -570,6 +638,10 @@ function printParsed(parsed) {
     console.log(`  Skills (S)     ${s.skills}`)
     console.log(`  Behaviours (B) ${s.behaviours}`)
     console.log(`  Duty-KSB links ${s.duty_ksb_links}${s.links_unresolved ? `  (${s.links_unresolved} unresolved)` : ''}`)
+    const socs = parsed.rows.socs.map((r) => `${r.SOC_VERSION} ${r.SOC_KEY}${r.SUB_UNIT_GROUP && r.IS_PRIMARY ? ' (primary)' : ''}`)
+    console.log(`  SOC codes      ${socs.join(', ') || 'none'}`)
+    console.log(`  Job titles     ${parsed.rows.terms.filter((t) => t.KIND === 'job title').map((t) => t.TERM).join('; ') || 'none'}`)
+    console.log(`  Keywords       ${parsed.rows.terms.filter((t) => t.KIND === 'keyword').length}`)
     const sample = parsed.rows.ksbs.slice(0, 1).concat(
       parsed.rows.ksbs.filter((k) => k.KSB_TYPE === 'S').slice(0, 1),
       parsed.rows.ksbs.filter((k) => k.KSB_TYPE === 'B').slice(0, 1),
@@ -613,7 +685,8 @@ async function main() {
     if (rows) {
       console.log(
         `\nWould load: 1 OCCUPATION row (with raw JSON), ${rows.duties.length} DUTY, ` +
-          `${rows.ksbs.length} KSB and ${rows.dutyKsbs.length} DUTY_KSB rows.`,
+          `${rows.ksbs.length} KSB, ${rows.dutyKsbs.length} DUTY_KSB, ${rows.socs.length} OCCUPATION_SOC and ` +
+          `${rows.terms.length} OCCUPATION_TERM rows.`,
       )
     }
     console.log(parsed.problems.length ? '\nThis occupation would be skipped.' : '\nDry run finished. Nothing was written.')
