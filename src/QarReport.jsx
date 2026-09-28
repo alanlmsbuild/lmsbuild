@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { formatDate, standardLabel } from './lookups'
+import { useShell } from './shell/navigation'
 import { StatusBadge } from './ui/components'
 
 const DEFAULT_YEAR = 2025
@@ -116,8 +117,13 @@ function PastPlannedEndWarning({ rows, onOpenLearner }) {
   )
 }
 
-function QarReport({ onOpenLearner }) {
-  const [year, setYear] = useState(DEFAULT_YEAR)
+// The year is in the address (/app/reports/qar?year=2024).
+function QarReport({ year: yearParam, onOpenLearner }) {
+  const { navigate } = useShell()
+  const year = /^\d{4}$/.test(yearParam ?? '') ? Number(yearParam) : DEFAULT_YEAR
+  function setYear(y) {
+    navigate(y === DEFAULT_YEAR ? '/app/reports/qar' : `/app/reports/qar?year=${y}`, { replace: true })
+  }
   const [data, setData] = useState(null)
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)

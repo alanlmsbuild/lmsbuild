@@ -1,0 +1,230 @@
+/* The sign-in page (SignIn.jsx), in the Rarebit area's light colours. */
+
+.signin {
+  flex: 1;
+  background: var(--rb-page);
+  color: var(--rb-body);
+  font-family: var(--rb-font-body);
+}
+
+.signin-page {
+  box-sizing: border-box;
+  display: grid;
+  gap: 24px;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 48px 24px 72px;
+}
+
+.signin h1,
+.signin h2,
+.signin h3 {
+  margin: 0;
+  color: var(--rb-ink);
+  font-family: var(--rb-font-heading);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.signin p {
+  margin: 0;
+}
+
+.signin-intro {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.signin-mark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: var(--rb-crumb);
+}
+
+.signin h1 {
+  font-size: clamp(32px, 5vw, 44px);
+}
+
+.signin-intro > p:first-of-type {
+  font-size: 18px;
+}
+
+.signin-dev {
+  max-width: 560px;
+  padding: 8px 14px;
+  border: 1.5px dashed var(--rb-crust);
+  border-radius: var(--rb-radius-control);
+  color: var(--rb-ink);
+  font-size: 14px;
+}
+
+.signin-current {
+  font-size: 15px;
+}
+
+.signin-alert {
+  padding: 12px 16px;
+  border: 1px solid var(--status-overdue-border);
+  border-radius: var(--rb-radius-control);
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-text);
+}
+
+.signin-search {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+}
+
+.signin-search label {
+  color: var(--rb-ink);
+  font-weight: 500;
+}
+
+.signin-search input {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--rb-input-border);
+  border-radius: var(--rb-radius-control);
+  background: var(--rb-card);
+  color: var(--rb-ink);
+  font: inherit;
+}
+
+.signin-search input:focus-visible,
+.signin-person:focus-visible,
+.signin-more:focus-visible {
+  outline: 3px solid var(--rb-crust);
+  outline-offset: 2px;
+}
+
+.signin-empty {
+  color: var(--rb-muted);
+}
+
+.signin-org {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid var(--rb-rule);
+  border-radius: var(--rb-radius-card);
+  background: var(--rb-card);
+}
+
+.signin h2 {
+  font-size: 24px;
+}
+
+.signin h2 span,
+.signin h3 span {
+  color: var(--rb-muted);
+  font-family: var(--rb-font-body);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.signin-group {
+  display: grid;
+  gap: 10px;
+}
+
+.signin h3 {
+  font-size: 17px;
+}
+
+.signin-people {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.signin-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--rb-rule);
+  border-radius: var(--rb-radius-control);
+  background: var(--rb-page);
+  color: var(--rb-body);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.signin-person:hover:not(:disabled) {
+  border-color: var(--rb-crust);
+  background: var(--rb-crumb);
+}
+
+.signin-person:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.signin-person[aria-current='true'] {
+  border-color: var(--rb-crust);
+}
+
+.signin-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--rb-ink);
+  color: var(--rb-card);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.signin-person-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.signin-person-text strong {
+  color: var(--rb-ink);
+  font-size: 15px;
+}
+
+.signin-person-text span {
+  color: var(--rb-muted);
+  font-size: 13px;
+}
+
+.signin-more {
+  justify-self: start;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--rb-crust);
+  font: 500 14px var(--rb-font-body);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .signin-page {
+    padding: 32px 16px 56px;
+  }
+
+  .signin-org {
+    padding: 16px;
+  }
+}

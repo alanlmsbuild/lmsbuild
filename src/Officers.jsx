@@ -3,7 +3,8 @@ import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
 import { labelFromOptions } from './lookups'
 import { validateOfficerForm } from './validation'
 import OfficerDetail from './OfficerDetail'
-import { StatusBadge } from './ui/components'
+import { useShell } from './shell/navigation'
+import { Notice, StatusBadge } from './ui/components'
 
 const EMPTY_FORM = { name: '', officerType: '', email: '', phone: '' }
 
@@ -20,7 +21,8 @@ function Field({ label, error, required, children }) {
   )
 }
 
-function Officers({ learners, learnersStatus, onOpenLearner }) {
+function Officers({ learners, learnersStatus, officerRef, onOpenLearner }) {
+  const { navigate } = useShell()
   const [officers, setOfficers] = useState([])
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
@@ -31,8 +33,9 @@ function Officers({ learners, learnersStatus, onOpenLearner }) {
   const [serverError, setServerError] = useState(null)
   const [successRef, setSuccessRef] = useState(null)
 
-  // The officer currently shown in the detail side panel, or null if closed.
-  const [detailOfficer, setDetailOfficer] = useState(null)
+  // The officer shown in the detail side panel (/app/officers/<ref>), or
+  // null if it's closed.
+  const detailOfficer = officerRef ? officers.find((o) => o.OFFICERREFNUMBER === officerRef) : null
 
   const loadOfficers = useCallback(async () => {
     try {
@@ -99,6 +102,9 @@ function Officers({ learners, learnersStatus, onOpenLearner }) {
       {status === 'error' && <p role="alert">Couldn't load officers: {error}</p>}
 
       {status === 'ready' && officers.length === 0 && <p>No officers yet.</p>}
+      {status === 'ready' && officerRef && !detailOfficer && (
+        <Notice tone="error">There&apos;s no officer {officerRef} in your organisation.</Notice>
+      )}
 
       {status === 'ready' && officers.length > 0 && (
         <div className="table-wrap">
@@ -117,9 +123,9 @@ function Officers({ learners, learnersStatus, onOpenLearner }) {
                 <tr key={officer.OFFICERREFNUMBER}>
                   <td>{officer.OFFICERREFNUMBER}</td>
                   <td>
-                    <button type="button" className="link-button" onClick={() => setDetailOfficer(officer)}>
+                    <a className="link-button" href={`/app/officers/${encodeURIComponent(officer.OFFICERREFNUMBER)}`}>
                       {officer.OFFICERNAME}
-                    </button>
+                    </a>
                     {!officer.ISACTIVE && (
                       <>
                         {' '}
@@ -188,11 +194,8 @@ function Officers({ learners, learnersStatus, onOpenLearner }) {
           officers={officers}
           learners={learners}
           learnersStatus={learnersStatus}
-          onClose={() => setDetailOfficer(null)}
-          onOpenLearner={(learner) => {
-            setDetailOfficer(null)
-            onOpenLearner(learner)
-          }}
+          onClose={() => navigate('/app/officers')}
+          onOpenLearner={(learner) => onOpenLearner(learner.LEARNREFNUMBER)}
         />
       )}
     </section>

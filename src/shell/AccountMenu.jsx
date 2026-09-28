@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { areasFor } from './navigation'
+import { areasFor, useShell } from './navigation'
 
 const ROLE_LABELS = {
   LEARNER: 'Learner',
@@ -16,10 +16,12 @@ function initials(name) {
 }
 
 // The account menu in the shared header: who's signed in, their
-// organisation and roles, and the areas they can use. It only names an
-// area the person can use.
+// organisation and roles, the areas they can use (it only names an area
+// the person can use), and signing out.
 function AccountMenu({ me }) {
+  const { signOut } = useShell()
   const [open, setOpen] = useState(false)
+  const [signOutError, setSignOutError] = useState(null)
   const wrapRef = useRef(null)
   const buttonRef = useRef(null)
   const panelId = useId()
@@ -89,7 +91,29 @@ function AccountMenu({ me }) {
               )}
             </ul>
           )}
-          <p className="shell-account-note">Signing out comes with real sign-in.</p>
+          {me.canSignOut ? (
+            <button
+              type="button"
+              className="shell-account-signout"
+              onClick={async () => {
+                setSignOutError(null)
+                try {
+                  await signOut()
+                } catch (err) {
+                  setSignOutError(`Couldn’t sign out: ${err.message}`)
+                }
+              }}
+            >
+              Sign out
+            </button>
+          ) : (
+            <p className="shell-account-note">Signing out comes with real sign-in.</p>
+          )}
+          {signOutError && (
+            <p className="shell-account-note" role="alert">
+              {signOutError}
+            </p>
+          )}
         </div>
       )}
     </div>

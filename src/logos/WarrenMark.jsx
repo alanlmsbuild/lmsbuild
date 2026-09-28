@@ -1,5 +1,5 @@
 // The Warren mark: a zigzag of burrow entrances with cheddar centres. The
-// same drawing as src/assets/warren-mark.svg, which the favicon uses.
+// same drawing as src/assets/warren-mark.svg and public/icons/warren.svg (the tab icon).
 const POINTS = [
   [30, 60],
   [65, 146],

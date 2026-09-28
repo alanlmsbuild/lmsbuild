@@ -1,13 +1,14 @@
 // DEVELOPMENT ONLY: switching between test users while there's no real
 // sign-in.
 //
-// With DEV_USER_SWITCHING=true in server/.env, the striped bar at the top
-// of Warren and Burrow lists the test users (ISTESTDATA = TRUE) and picking
-// one sets a cookie. access.js then signs every request in as that user,
-// instead of DEV_USER_ID. Only test users can be picked, so this can never
-// act as a real person. Without the setting the routes here don't exist,
-// the cookie is ignored, and the bar doesn't appear. The server refuses to
-// start with it set when NODE_ENV is production.
+// With DEV_USER_SWITCHING=true in server/.env, the sign-in page (/sign-in)
+// and the "Test user" pill in the header list the test users
+// (ISTESTDATA = TRUE), and picking one sets a cookie: that's signing in.
+// access.js signs every request in as that user, and without the cookie
+// nobody is signed in. Signing out clears it. Only test users can be picked,
+// so this can never act as a real person. Without the setting the routes
+// here don't exist, the cookie is ignored, and everyone is DEV_USER_ID. The
+// server refuses to start with it set when NODE_ENV is production.
 //
 // When real sign-in arrives, this file and signedInUserId() in access.js
 // are what goes.
@@ -83,7 +84,7 @@ export function registerDevUserRoutes(app) {
     try {
       const users = await withConnection((c) => execute(c, TEST_USERS_QUERY))
       res.json({
-        current: switchedUserId(req) ?? process.env.DEV_USER_ID?.trim() ?? null,
+        current: switchedUserId(req),
         users: users.map((u) => ({
           ...u,
           ROLES: u.ROLES ? u.ROLES.split(',') : [],
@@ -114,5 +115,11 @@ export function registerDevUserRoutes(app) {
       console.error('Failed to switch test user:', err.message)
       res.status(500).json({ error: 'Could not switch user.' })
     }
+  })
+
+  // Signs this browser out.
+  app.post('/api/dev/sign-out', devOnly, (req, res) => {
+    res.clearCookie(COOKIE, { path: '/api', httpOnly: true, sameSite: 'strict' })
+    res.json({ signedOut: true })
   })
 }

@@ -14,7 +14,7 @@
 // the session variables can't carry over from one user to another.
 
 import { connect, execute, destroy } from './db.js'
-import { switchedUserId } from './devUsers.js'
+import { devSwitchingEnabled, switchedUserId } from './devUsers.js'
 
 // Only for reading from the ORG_ sources below. Not a table.
 const ORG = '$CURRENT_ORGANISATIONID'
@@ -158,17 +158,24 @@ function sessionValues(user) {
   ]
 }
 
-// There's no sign-in yet. The user is the test user picked in the
-// development-only switcher (devUsers.js), if switching is on, and
-// otherwise DEV_USER_ID from server/.env. Real sign-in replaces this.
+// There's no real sign-in yet. With development switching on, signing in
+// is picking a test user on the sign-in page (devUsers.js), which sets a
+// cookie: no cookie means nobody is signed in. With switching off, everyone
+// is DEV_USER_ID from server/.env. Real sign-in replaces this.
 function signedInUserId(req) {
-  return switchedUserId(req) ?? (process.env.DEV_USER_ID?.trim() || null)
+  if (devSwitchingEnabled()) return switchedUserId(req)
+  return process.env.DEV_USER_ID?.trim() || null
 }
 
 export async function attachUser(req, res, next) {
   const userId = signedInUserId(req)
   if (!userId) {
-    res.status(401).json({ error: 'Nobody is signed in. Set DEV_USER_ID in server/.env and restart the server.' })
+    // signedIn: false tells the app to show the sign-in page, not an error.
+    res.status(401).json(
+      devSwitchingEnabled()
+        ? { error: "You're not signed in.", signedIn: false }
+        : { error: 'Nobody is signed in. Set DEV_USER_ID in server/.env and restart the server.' },
+    )
     return
   }
 

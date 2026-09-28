@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import './App.css'
 import AddLearnerForm from './AddLearnerForm'
@@ -11,20 +11,94 @@ import LearnerDetail from './LearnerDetail'
 import Reports from './Reports'
 import MyDay from './MyDay'
 import IqaSignOffs from './IqaSignOffs'
-import { useShell } from './shell/navigation'
-import { Card, Notice } from './ui/components'
+import { usePageTitle, useShell, warrenHome } from './shell/navigation'
+import { Notice } from './ui/components'
 import { standardLabel } from './lookups'
 import CompletionStatus from './CompletionStatus'
 
-// Warren's tabs, and which roles see each one.
+// Warren's tabs: their addresses (/app/<slug>), and which roles see each
+// one.
 const TABS = [
-  { view: 'myday', label: 'My day', shows: (r) => r.hasCaseload },
-  { view: 'learners', label: 'Learners', shows: () => true },
-  { view: 'dashboard', label: 'Dashboard', shows: () => true },
-  { view: 'officers', label: 'Officers', shows: (r) => r.isManager },
-  { view: 'reports', label: 'Reports', shows: (r) => r.hasCaseload },
-  { view: 'iqa', label: 'Sign-offs to check', shows: (r) => r.isIqa },
+  { slug: 'my-day', label: 'My day', shows: (r) => r.hasCaseload },
+  { slug: 'learners', label: 'Learners', shows: () => true },
+  { slug: 'dashboard', label: 'Dashboard', shows: () => true },
+  { slug: 'officers', label: 'Officers', shows: (r) => r.isManager },
+  { slug: 'reports', label: 'Reports', shows: (r) => r.hasCaseload },
+  { slug: 'sign-offs', label: 'Sign-offs to check', shows: (r) => r.isIqa },
 ]
+
+const LEARNER_ACTIONS = ['edit', 'complete', 'withdraw']
+const REPORTS = ['qar', 'caseload', 'ilr']
+
+// Every Warren view has its own address:
+//   /app/my-day, /app/dashboard, /app/sign-offs
+//   /app/learners?q=&status=         the list, with its search and filter
+//   /app/learners/<ref>              a learner's details, over the list
+//   /app/learners/<ref>?back=<path>  the same, over the page it was opened
+//                                    from (My day, a report...), which
+//                                    closing goes back to
+//   /app/learners/<ref>/edit         (and /complete, /withdraw) the form
+//   /app/officers[/<officer ref>]
+//   /app/reports/qar?year=, /app/reports/caseload[/<officer ref>],
+//   /app/reports/ilr
+// /app goes to the person's first tab (warrenHome), and a tab or form they
+// can't use goes there or back to the learner.
+function parseWarren(path) {
+  const [pathname, search = ''] = path.split('?')
+  const segments = pathname.split('/').filter(Boolean).slice(1)
+  let parts
+  try {
+    parts = segments.map(decodeURIComponent)
+  } catch {
+    parts = segments
+  }
+  return { tab: parts[0] ?? null, rest: parts.slice(1), params: new URLSearchParams(search) }
+}
+
+function learnersQuery(params) {
+  const q = new URLSearchParams()
+  if (params.get('q')) q.set('q', params.get('q'))
+  if (params.get('status') && params.get('status') !== 'all') q.set('status', params.get('status'))
+  const text = q.toString()
+  return text ? `?${text}` : ''
+}
+
+// Where an address should go instead, for this person, or null if it's
+// fine.
+function redirectFor(view, can, me) {
+  const { tab, rest } = view
+  if (!tab) return warrenHome(me)
+  const tabDef = TABS.find((t) => t.slug === tab)
+  if (!tabDef) return null // not found, shown by the page
+  if (!tabDef.shows(can)) return warrenHome(me)
+  if (tab === 'reports') {
+    if (rest.length === 0 || (rest[0] === 'ilr' && !can.isManager)) return '/app/reports/qar'
+  }
+  if (tab === 'learners' && rest[1] && LEARNER_ACTIONS.includes(rest[1]) && !can.isManager) {
+    return `/app/learners/${encodeURIComponent(rest[0])}`
+  }
+  return null
+}
+
+// True when this address is one of Warren's pages (for the not-found note).
+function isKnownView({ tab, rest }) {
+  switch (tab) {
+    case 'my-day':
+    case 'dashboard':
+    case 'sign-offs':
+      return rest.length === 0
+    case 'learners':
+      return rest.length <= 1 || (rest.length === 2 && LEARNER_ACTIONS.includes(rest[1]))
+    case 'officers':
+      return rest.length <= 1
+    case 'reports':
+      return (
+        REPORTS.includes(rest[0]) && (rest.length === 1 || (rest[0] === 'caseload' && rest.length === 2))
+      )
+    default:
+      return false
+  }
+}
 
 function App() {
   const [learners, setLearners] = useState([])
@@ -37,9 +111,6 @@ function App() {
   const [standards, setStandards] = useState([])
   const [standardsStatus, setStandardsStatus] = useState('loading') // 'loading' | 'ready' | 'error'
 
-  // The tab picked, or null for the user's home tab (below).
-  const [pickedView, setView] = useState(null) // 'myday' | 'learners' | 'dashboard' | 'officers' | 'reports' | 'iqa'
-
   // The signed-in user and their roles, for showing the tabs and actions
   // they can use and whose My day to open. The server checks every request
   // itself. Roles add together:
@@ -48,29 +119,64 @@ function App() {
   //   Tutor, Assessor    My day, Reports and their own learners, read only
   //                      apart from recording progress reviews
   //   IQA                Sign-offs to check, and every learner, read only
-  //   Learner, Employer  nothing here: Warren is for staff, they use Burrow
-  // The shell loads the signed-in user, and holds the header's tab slot.
-  const { me, meError, tabSlot } = useShell()
+  // Learners and employers never get here: the shell sends them to Burrow.
+  // The shell also holds the address, and the header's tab slot.
+  const { path, navigate, me, tabSlot } = useShell()
   const roles = me?.roles ?? []
   const isManager = roles.includes('MANAGER')
   const hasCaseload = roles.some((r) => ['MANAGER', 'TUTOR', 'ASSESSOR'].includes(r))
   const isIqa = roles.includes('IQA')
-  const isStaff = hasCaseload || isIqa
-  const homeView = hasCaseload ? 'myday' : isIqa ? 'iqa' : 'learners'
-  const view = pickedView ?? homeView
+  const can = { isManager, hasCaseload, isIqa }
 
-  const [searchText, setSearchText] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'continuing' | 'completed'
+  // What the address asks for. A learner's details sit over the page they
+  // were opened from (?back=) or the learner list.
+  const current = parseWarren(path)
+  const learnerRef = current.tab === 'learners' ? (current.rest[0] ?? null) : null
+  const learnerAction = learnerRef && LEARNER_ACTIONS.includes(current.rest[1]) ? current.rest[1] : null
+  const back = current.params.get('back')
+  const backView = learnerRef && !learnerAction && back?.startsWith('/app/') ? parseWarren(back) : null
+  const backOk = backView && backView.tab !== 'learners' && isKnownView(backView) && !redirectFor(backView, can, me)
+  const view = backOk ? backView : current
+  const listQuery = learnersQuery(current.params)
+  const searchText = current.params.get('q') ?? ''
+  const statusFilter = current.params.get('status') ?? 'all' // 'all' | 'continuing' | 'completed'
 
-  // The learner currently shown in the detail side panel, or null if it's
-  // closed. Kept separate from `panel` below since the detail view is an
-  // overlay on top of the list, not something that replaces it.
-  const [detailLearner, setDetailLearner] = useState(null)
+  const redirect = redirectFor(current, can, me)
+  useEffect(() => {
+    if (redirect) navigate(redirect, { replace: true })
+  }, [redirect, navigate])
 
-  // What the panel below the table is showing: adding a new learner
-  // (the default), editing an existing one, marking an aim completed, or
-  // withdrawing an aim.
-  const [panel, setPanel] = useState({ mode: 'add' })
+  // The learner shown in the detail side panel or a form, once the list
+  // has loaded (the list has a row per aim; any of the learner's rows
+  // will do).
+  const learnerRow = learnerRef ? learners.find((l) => l.LEARNREFNUMBER === learnerRef) : null
+  const learnerMissing = learnerRef && status === 'ready' && !learnerRow
+  const learnerName = learnerRow ? `${learnerRow.GIVENNAMES} ${learnerRow.FAMILYNAME}` : learnerRef
+
+  const tabLabel = TABS.find((t) => t.slug === view.tab)?.label
+  const reportTitles = { qar: 'QAR', caseload: 'Caseload report', ilr: 'ILR return' }
+  const actionTitles = { edit: 'Edit', complete: 'Mark completed', withdraw: 'Withdraw' }
+  usePageTitle(
+    redirect
+      ? null
+      : learnerAction
+        ? `${actionTitles[learnerAction]}: ${learnerName}`
+        : learnerRef
+          ? learnerName
+          : view.tab === 'reports'
+            ? reportTitles[view.rest[0]]
+            : isKnownView(view)
+              ? tabLabel
+              : 'Not found',
+  )
+
+  // A form opened from the table or the details goes below the list, so
+  // bring it into view.
+  const formRef = useRef(null)
+  const formShown = Boolean(learnerAction && learnerRow)
+  useEffect(() => {
+    if (formShown) formRef.current?.scrollIntoView({ block: 'start' })
+  }, [formShown, learnerRef, learnerAction])
 
   // Also used to refresh the list after a learner is added, edited, or an
   // aim is marked completed, so the table stays in place instead of
@@ -90,8 +196,8 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (isStaff) loadLearners()
-  }, [isStaff, loadLearners])
+    loadLearners()
+  }, [loadLearners])
 
   // Only the add and edit forms use standards, and only managers get those.
   useEffect(() => {
@@ -110,19 +216,40 @@ function App() {
     loadStandards()
   }, [isManager])
 
+  function closeForm() {
+    navigate(`/app/learners${listQuery}`)
+  }
+
   function handleSaved() {
-    setPanel({ mode: 'add' })
+    closeForm()
     loadLearners()
   }
 
-  function openLearnerByRef(learnRefNumber) {
-    const learner = learners.find((l) => l.LEARNREFNUMBER === learnRefNumber)
-    if (learner) setDetailLearner(learner)
+  // Opens a learner's details over the page they were picked from.
+  function openLearner(learnRefNumber, backTo = path) {
+    navigate(`/app/learners/${encodeURIComponent(learnRefNumber)}?back=${encodeURIComponent(backTo)}`)
+  }
+
+  function openLearnerAction(learnRefNumber, action) {
+    navigate(`/app/learners/${encodeURIComponent(learnRefNumber)}/${action}${listQuery}`)
+  }
+
+  function closeLearner() {
+    navigate(view === current ? `/app/learners${listQuery}` : back)
+  }
+
+  // The search and filter live in the address, replaced as they change
+  // rather than each adding a step to Back.
+  function setFilters(q, statusValue) {
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    if (statusValue && statusValue !== 'all') params.set('status', statusValue)
+    const text = params.toString()
+    navigate(`${path.split('?')[0]}${text ? `?${text}` : ''}`, { replace: true })
   }
 
   function handleClearFilters() {
-    setSearchText('')
-    setStatusFilter('all')
+    setFilters('', 'all')
   }
 
   const filteredLearners = learners.filter((learner) => {
@@ -141,42 +268,42 @@ function App() {
     return matchesSearch && matchesStatus
   })
 
+  const onLearnersPage = view.tab === 'learners'
+  const tab = view.tab
+  const [report, caseloadOfficer] = tab === 'reports' ? view.rest : []
+
   return (
     <div className="warren">
-      {isStaff &&
-        tabSlot &&
+      {tabSlot &&
         createPortal(
           <nav aria-label="Warren">
-            {TABS.filter((t) => t.shows({ isManager, hasCaseload, isIqa })).map((t) => (
-              <button
-                key={t.view}
-                type="button"
-                className={view === t.view ? 'shell-tab is-active' : 'shell-tab'}
-                aria-current={view === t.view ? 'page' : undefined}
-                onClick={() => setView(t.view)}
+            {TABS.filter((t) => t.shows(can)).map((t) => (
+              <a
+                key={t.slug}
+                href={`/app/${t.slug}`}
+                className={tab === t.slug ? 'shell-tab is-active' : 'shell-tab'}
+                aria-current={tab === t.slug ? 'page' : undefined}
               >
                 {t.label}
-              </button>
+              </a>
             ))}
           </nav>,
           tabSlot,
         )}
 
       <main className="app-main">
-      {meError && (
-        <p className="error-banner" role="alert">
-          {meError}
-        </p>
+      {!redirect && !isKnownView(view) && (
+        <Notice tone="error">
+          There&apos;s nothing at this address in Warren. <a href={warrenHome(me)}>Go to your first page</a>.
+        </Notice>
       )}
-      {me && !isStaff && (
-        <Card title="Warren is for staff">
-          <Notice>
-            Your account can use Burrow, where you&apos;ll find{' '}
-            {roles.includes('LEARNER') ? 'your portfolio' : 'your apprentices'}. <a href="/burrow">Go to Burrow</a>
-          </Notice>
-        </Card>
+      {!redirect && learnerMissing && (
+        <Notice tone="error">
+          There&apos;s no learner {learnerRef} that you can see.{' '}
+          <a href={backOk ? back : `/app/learners${listQuery}`}>Go back</a>
+        </Notice>
       )}
-      {isStaff && view === 'learners' && (
+      {!redirect && onLearnersPage && isKnownView(view) && (
       <>
       <section id="learners">
         <p>Dummy ILR apprenticeship learners and their programme aim details.</p>
@@ -191,7 +318,6 @@ function App() {
         {status === 'error' && (
           <p role="alert">Couldn't load learners: {error}</p>
         )}
-
         {status === 'ready' && (
           <>
             <div className="learner-filters">
@@ -200,12 +326,12 @@ function App() {
                 className="search-input"
                 placeholder="Search by learner ref or name"
                 value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
+                onChange={(e) => setFilters(e.target.value, statusFilter)}
                 aria-label="Search by learner ref or name"
               />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => setFilters(searchText, e.target.value)}
                 aria-label="Filter by status"
               >
                 <option value="all">All</option>
@@ -244,13 +370,12 @@ function App() {
                 <tr key={`${learner.LEARNREFNUMBER}-${learner.LEARNAIMREF}`}>
                   <td>{learner.LEARNREFNUMBER}</td>
                   <td>
-                    <button
-                      type="button"
+                    <a
                       className="link-button"
-                      onClick={() => setDetailLearner(learner)}
+                      href={`/app/learners/${encodeURIComponent(learner.LEARNREFNUMBER)}${listQuery}`}
                     >
                       {learner.GIVENNAMES} {learner.FAMILYNAME}
-                    </button>
+                    </a>
                   </td>
                   <td>{standardLabel(learner, { withLevel: false })}</td>
                   <td>
@@ -258,14 +383,18 @@ function App() {
                   </td>
                   {isManager && (
                     <td className="actions-cell">
-                      <button type="button" className="secondary" onClick={() => setPanel({ mode: 'edit', learner })}>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => openLearnerAction(learner.LEARNREFNUMBER, 'edit')}
+                      >
                         Edit
                       </button>
                       {learner.COMPSTATUS === 1 && (
                         <button
                           type="button"
                           className="secondary"
-                          onClick={() => setPanel({ mode: 'complete', learner })}
+                          onClick={() => openLearnerAction(learner.LEARNREFNUMBER, 'complete')}
                         >
                           Mark completed
                         </button>
@@ -274,7 +403,7 @@ function App() {
                         <button
                           type="button"
                           className="secondary"
-                          onClick={() => setPanel({ mode: 'withdraw', learner })}
+                          onClick={() => openLearnerAction(learner.LEARNREFNUMBER, 'withdraw')}
                         >
                           Withdraw
                         </button>
@@ -289,37 +418,32 @@ function App() {
         )}
       </section>
 
-      {isManager && panel.mode === 'edit' && (
-        <EditLearnerForm
-          learner={panel.learner}
-          standards={standards}
-          standardsStatus={standardsStatus}
-          onSaved={handleSaved}
-          onCancel={() => setPanel({ mode: 'add' })}
-        />
-      )}
-      {isManager && panel.mode === 'complete' && (
-        <MarkCompletedForm
-          learner={panel.learner}
-          onSaved={handleSaved}
-          onCancel={() => setPanel({ mode: 'add' })}
-        />
-      )}
-      {isManager && panel.mode === 'withdraw' && (
-        <WithdrawAimForm
-          learner={panel.learner}
-          onSaved={handleSaved}
-          onCancel={() => setPanel({ mode: 'add' })}
-        />
-      )}
-      {isManager && panel.mode === 'add' && (
-        <AddLearnerForm standards={standards} standardsStatus={standardsStatus} onLearnerAdded={loadLearners} />
-      )}
+      <div ref={formRef}>
+        {isManager && learnerRow && learnerAction === 'edit' && (
+          <EditLearnerForm
+            key={learnerRef}
+            learner={learnerRow}
+            standards={standards}
+            standardsStatus={standardsStatus}
+            onSaved={handleSaved}
+            onCancel={closeForm}
+          />
+        )}
+        {isManager && learnerRow && learnerAction === 'complete' && (
+          <MarkCompletedForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
+        )}
+        {isManager && learnerRow && learnerAction === 'withdraw' && (
+          <WithdrawAimForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
+        )}
+        {isManager && !learnerAction && (
+          <AddLearnerForm standards={standards} standardsStatus={standardsStatus} onLearnerAdded={loadLearners} />
+        )}
+      </div>
 
       </>
       )}
 
-      {isStaff && view === 'dashboard' && (
+      {!redirect && tab === 'dashboard' && (
         <>
           {status === 'loading' && <p className="status-message">Loading dashboard…</p>}
           {status === 'error' && (
@@ -331,39 +455,40 @@ function App() {
         </>
       )}
 
-      {isManager && view === 'officers' && (
-        <Officers learners={learners} learnersStatus={status} onOpenLearner={setDetailLearner} />
+      {/* Learners opened from an officer's details open over the officers
+          list rather than over both panels. */}
+      {!redirect && tab === 'officers' && isKnownView(view) && (
+        <Officers
+          learners={learners}
+          learnersStatus={status}
+          officerRef={view.rest[0] ?? null}
+          onOpenLearner={(ref) => openLearner(ref, '/app/officers')}
+        />
       )}
 
-      {/* My day and Reports link to learners by reference, so look up the
-          full row App already holds for the detail panel. */}
-      {hasCaseload && view === 'myday' && <MyDay me={me} onOpenLearner={openLearnerByRef} />}
-      {hasCaseload && view === 'reports' && <Reports onOpenLearner={openLearnerByRef} isManager={isManager} />}
-      {isIqa && view === 'iqa' && <IqaSignOffs onOpenLearner={openLearnerByRef} />}
+      {!redirect && tab === 'my-day' && <MyDay me={me} onOpenLearner={openLearner} />}
+      {!redirect && tab === 'reports' && isKnownView(view) && (
+        <Reports
+          report={report}
+          caseloadOfficer={caseloadOfficer ?? null}
+          year={view.params.get('year')}
+          onOpenLearner={openLearner}
+          isManager={isManager}
+        />
+      )}
+      {!redirect && tab === 'sign-offs' && <IqaSignOffs onOpenLearner={openLearner} />}
 
-      {/* Rendered outside the tabs since it can be opened from either the
-          Learners list or an officer's detail panel. Edit / Mark completed /
-          Withdraw switch back to the Learners tab, where those forms live. */}
-      {detailLearner && (
+      {/* Over whichever page it was opened from. Edit / Mark completed /
+          Withdraw go to the form under the learner list. */}
+      {!redirect && learnerRow && !learnerAction && (
         <LearnerDetail
-          learner={detailLearner}
+          key={learnerRef}
+          learner={learnerRow}
           canManage={isManager}
-          onClose={() => setDetailLearner(null)}
-          onEdit={(learner) => {
-            setDetailLearner(null)
-            setView('learners')
-            setPanel({ mode: 'edit', learner })
-          }}
-          onComplete={(learner) => {
-            setDetailLearner(null)
-            setView('learners')
-            setPanel({ mode: 'complete', learner })
-          }}
-          onWithdraw={(learner) => {
-            setDetailLearner(null)
-            setView('learners')
-            setPanel({ mode: 'withdraw', learner })
-          }}
+          onClose={closeLearner}
+          onEdit={(learner) => openLearnerAction(learner.LEARNREFNUMBER, 'edit')}
+          onComplete={(learner) => openLearnerAction(learner.LEARNREFNUMBER, 'complete')}
+          onWithdraw={(learner) => openLearnerAction(learner.LEARNREFNUMBER, 'withdraw')}
         />
       )}
       </main>

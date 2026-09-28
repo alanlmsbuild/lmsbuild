@@ -6,8 +6,10 @@ import './DevUserSwitcher.css'
 // nothing unless the server has DEV_USER_SWITCHING=true (the /api/dev
 // routes don't exist otherwise). The pill opens a small panel, marked as
 // development only, with the list of test users. Picking someone reloads
-// the page, so every screen starts again as them. Used by both Warren and
-// Burrow, which share the pick.
+// the page, so every screen starts again as them. The sign-in page
+// (shell/SignIn.jsx) lists the same people; this is the quick way to swap
+// while testing. currentUserId is the shell's signed-in user, so the pill
+// follows signing in and out.
 
 const ROLE_LABELS = {
   LEARNER: 'Learner',
@@ -27,7 +29,7 @@ function describeUser(u) {
   return `${u.DISPLAYNAME} · ${roles}${notes.length ? ` (${notes.join(', ')})` : ''}`
 }
 
-function DevUserSwitcher() {
+function DevUserSwitcher({ currentUserId }) {
   const [state, setState] = useState(null) // { current, users } once loaded
   const [error, setError] = useState(null)
   const [switching, setSwitching] = useState(false)
@@ -50,7 +52,7 @@ function DevUserSwitcher() {
       }
     }
     load()
-  }, [])
+  }, [currentUserId])
 
   // Escape or a click outside closes the panel.
   useEffect(() => {

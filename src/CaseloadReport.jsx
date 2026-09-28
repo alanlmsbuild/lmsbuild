@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
 import { formatDate, labelFromOptions, standardLabel } from './lookups'
 import CompletionStatus from './CompletionStatus'
+import { useShell } from './shell/navigation'
 
 // Placeholder until Burrow is built: evidence awaiting an assessor's review.
 function BurrowPlaceholder() {
@@ -99,11 +100,14 @@ function OfficerLearners({ officer, onClose, onOpenLearner }) {
   )
 }
 
-function CaseloadReport({ onOpenLearner }) {
+// An officer's learners open below the table, at
+// /app/reports/caseload/<officer ref>.
+function CaseloadReport({ officerRef, onOpenLearner }) {
+  const { navigate } = useShell()
   const [officers, setOfficers] = useState([])
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
-  const [selected, setSelected] = useState(null)
+  const selected = officerRef ? officers.find((o) => o.OFFICERREFNUMBER === officerRef) : null
 
   useEffect(() => {
     async function load() {
@@ -149,9 +153,9 @@ function CaseloadReport({ onOpenLearner }) {
               {officers.map((o) => (
                 <tr key={o.OFFICERREFNUMBER} className={selected?.OFFICERREFNUMBER === o.OFFICERREFNUMBER ? 'selected-row' : ''}>
                   <td>
-                    <button type="button" className="link-button" onClick={() => setSelected(o)}>
+                    <a className="link-button" href={`/app/reports/caseload/${encodeURIComponent(o.OFFICERREFNUMBER)}`}>
                       {o.OFFICERNAME}
-                    </button>
+                    </a>
                   </td>
                   <td>{labelFromOptions(OFFICER_TYPE_OPTIONS, o.OFFICERTYPE)}</td>
                   <td className="num">{o.TOTAL}</td>
@@ -167,11 +171,14 @@ function CaseloadReport({ onOpenLearner }) {
         </div>
       )}
 
+      {status === 'ready' && officerRef && !selected && (
+        <p role="alert">There&apos;s no officer {officerRef} in this report.</p>
+      )}
       {selected && (
         <OfficerLearners
           key={selected.OFFICERREFNUMBER}
           officer={selected}
-          onClose={() => setSelected(null)}
+          onClose={() => navigate('/app/reports/caseload')}
           onOpenLearner={onOpenLearner}
         />
       )}

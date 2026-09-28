@@ -261,13 +261,35 @@
   outline-offset: 1px;
 }
 
+.shell-account-signout {
+  justify-self: start;
+  min-height: 36px;
+  padding: 6px 16px;
+  border: 1.5px solid var(--rb-rule);
+  border-radius: var(--rb-radius-button);
+  background: none;
+  color: var(--rb-ink);
+  font: 500 14px var(--rb-font-body);
+  cursor: pointer;
+}
+
+.shell-account-signout:hover {
+  background: var(--area-tint);
+}
+
+.shell-account-signout:focus-visible {
+  outline: 3px solid var(--area-link);
+  outline-offset: 2px;
+}
+
 .shell-account-note {
   margin: 0;
   color: var(--rb-muted);
   font-size: 13px;
 }
 
-/* Keeps the page's height steady while an area's code loads. */
+/* Keeps the page's height steady while an area's code or the signed-in
+   user loads. */
 .shell-loading {
   flex: 1;
   min-height: 60vh;
@@ -313,4 +335,52 @@
   :root[data-area='burrow'] .shell-tabs {
     display: none;
   }
+}
+
+/* ---------------------------------------------------------------- messages */
+
+/* "There's nothing at this address", and "We couldn't open this page". */
+.shell-message {
+  flex: 1;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 64px 24px;
+  color: var(--rb-body);
+  font-family: var(--rb-font-body);
+}
+
+.shell-message h1 {
+  margin: 0 0 12px;
+  color: var(--rb-ink);
+  font-family: var(--rb-font-heading);
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.shell-message p {
+  margin: 0 0 12px;
+}
+
+.shell-message a {
+  color: var(--area-link);
+}
+
+.shell-message-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.shell-message-button {
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: var(--rb-radius-button);
+  background: var(--area-accent);
+  color: var(--area-on-accent);
+  font: 500 15px var(--rb-font-body);
+  cursor: pointer;
 }

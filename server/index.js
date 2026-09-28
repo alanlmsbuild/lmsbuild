@@ -39,7 +39,7 @@ import { registerMyDayRoutes } from './myday.js'
 import { registerBurrowRoutes } from './burrow.js'
 import { registerIqaRoutes } from './iqa.js'
 import { registerEmployerRoutes } from './employer.js'
-import { refuseDevSwitchingInProduction, registerDevUserRoutes } from './devUsers.js'
+import { devSwitchingEnabled, refuseDevSwitchingInProduction, registerDevUserRoutes } from './devUsers.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '.env') })
@@ -871,6 +871,8 @@ app.get('/api/me', allow(LEARNER, EMPLOYER, STAFF), (req, res) => {
     LEARNREFNUMBER: u.LEARNREFNUMBER,
     EMPLOYERID: u.EMPLOYERID,
     roles: u.roles,
+    // Signing out only exists with test-user sign-in (devUsers.js) for now.
+    canSignOut: devSwitchingEnabled(),
   })
 })
 

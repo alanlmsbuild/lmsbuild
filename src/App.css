@@ -16,6 +16,7 @@
   border-radius: 6px;
   background: none;
   color: var(--text-muted);
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -454,7 +455,9 @@ td.num {
   background: var(--rb-overlay);
   display: flex;
   justify-content: flex-end;
-  z-index: 20;
+  /* Over the shared header (30) and its menus (40), so the panel's top,
+     with its Close button, isn't hidden under the header. */
+  z-index: 50;
 }
 
 .detail-panel {
