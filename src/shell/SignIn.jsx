@@ -120,7 +120,7 @@ function SignIn() {
             <RarebitMark size={44} />
           </span>
           <h1>Who are you?</h1>
-          <p>Pick yourself from the list to sign in.</p>
+          {!switchedOff && <p>Pick yourself from the list to sign in.</p>}
           <p className="signin-dev">
             <strong>Test sign-in.</strong> Everyone here is a test user. This page stands in for real sign-in until it
             arrives.
