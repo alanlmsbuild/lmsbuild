@@ -47,6 +47,33 @@ function isUln(value) {
   return remainder !== 0 && digits[9] === 10 - remainder
 }
 
+// An employer identifier (ERN, the ILR's EmpId) is 9 digits whose last
+// digit is a check digit (DfE rule EmpId_02, derived data DD05): weight the
+// first 8 digits 9, 8, ... 2 and add them up, then take 11 minus the
+// remainder after dividing by 11. 11 means 0, and 10 means the number can't
+// be valid. 999999999 is the ILR's value for an employer not on the Employer
+// Data Service, and is always allowed.
+export function isEmployerIdentifier(value) {
+  const text = String(value ?? '').trim()
+  if (!/^[0-9]{9}$/.test(text)) return false
+  if (text === '999999999') return true
+  const sum = [...text].slice(0, 8).reduce((total, d, i) => total + Number(d) * (9 - i), 0)
+  const check = 11 - (sum % 11)
+  if (check === 10) return false
+  return (check === 11 ? 0 : check) === Number(text[8])
+}
+
+// The message a form shows for an employer reference that fails
+// isEmployerIdentifier, for when employer details are captured in the app.
+export function employerIdentifierError(value) {
+  if (value === null || value === undefined || String(value).trim() === '') return null
+  if (!/^[0-9]{9}$/.test(String(value).trim())) return 'The employer reference must be exactly 9 digits.'
+  if (!isEmployerIdentifier(value)) {
+    return "This isn't a valid employer reference: the last digit doesn't match the check digit. Check each digit is typed correctly."
+  }
+  return null
+}
+
 function isPostcode(value) {
   return UK_POSTCODE.test(String(value ?? '').trim())
 }

@@ -1,14 +1,13 @@
 // The ILR 2026 to 2027 validation rules Warren can check itself, by their
 // official names (Validation Rules 2026 to 2027, Version 4, 9 September
-// 2026). Rules that need DfE's reference data (the Learner Register,
-// postcodes, the employer and assessment organisation registers, contracts,
-// the Apprenticeship Service) can only be checked by DfE: those are listed
-// in NOT_CHECKED so the page can say so.
+// 2026). Rules that need DfE's reference data are listed in NOT_CHECKED,
+// with whether FIS runs them.
 //
 // SOF and ACT are checked as the export adds them (see data.js).
 
 import { ILR_YEARS } from './data.js'
 import { ilrTelNo } from './xml.js'
+import { isEmployerIdentifier } from '../../src/validation.js'
 
 // severity: 'Error' stops a file being accepted, 'Warning' doesn't.
 export const RULES = {
@@ -38,6 +37,7 @@ export const RULES = {
   EmpStat_15: ['Error', 'The employment status at the programme start must not be "not known".'],
   EmpStat_12: ['Warning', 'The apprentice should be employed (EmpStat 10) at the programme start.'],
   EmpId_10: ['Error', 'An employed apprentice needs an employer identifier at the programme start.'],
+  EmpId_02: ['Error', 'The employer identifier fails the check digit calculation (999999999 is allowed for an employer not on the Employer Data Service).'],
   ESMType_02: ['Error', 'An employed learner needs an employment intensity indicator (EII).'],
   ESMType_09: ['Error', 'An apprentice employed at the start needs a length of employment indicator (LOE).'],
   ESMType_15: ['Error', 'An employment monitoring type appears more than once on one employment status record.'],
@@ -74,7 +74,10 @@ export const RULES = {
   R_121: ['Error', 'The latest ACT record must end on the achievement date.'],
   R_122: ['Error', 'The latest ACT record must end on the actual end date when there\'s no achievement date.'],
   R_123: ['Error', 'A continuing programme\'s latest ACT record must not have an end date.'],
+  LearnDelFAMDateFrom_01: ['Error', 'Learning support funding (LSF) needs both a date from and a date to - the planned end date while support is expected to last the whole aim.'],
   LearnDelFAMDateFrom_02: ['Error', 'A FAM date from is before the aim\'s start date.'],
+  LearnDelFAMDateTo_01: ['Error', 'A FAM date to is before its date from.'],
+  LearnDelFAMDateTo_02: ['Warning', 'A FAM date to is after the aim\'s planned end date.'],
   LearnDelFAMDateTo_03: ['Error', 'A FAM date to is after the aim\'s actual end date.'],
   R_52: ['Error', 'The same FAM type and code appear twice on one aim.'],
   R_30: ['Error', 'A component aim has no programme aim with the same programme type and standard.'],
@@ -99,14 +102,20 @@ export const RULES = {
   'Warren: TelNo': ['Warning', 'The phone number isn\'t digits only, so it was left out of the file.'],
 }
 
-// Checked by DfE's systems (and FIS) with reference data Warren doesn't hold.
+// Rules Warren can't check, because they need DfE reference data. The
+// validation rules file says which ones FIS runs (its RuleInFis column):
+// fis = true means FIS checks it with its reference data, false means it's
+// only checked when the file is submitted to Submit Learner Data.
 export const NOT_CHECKED = [
-  ['ULN_05', 'the ULN is on the Learner Register'],
-  ['Filename_3, UKPRN_10, UKPRN_21, UKPRN_33', 'the UKPRN, and its apprenticeship funding relationship'],
-  ['Postcode_14, PostcodePrior_01, DelLocPostCode_03', 'postcodes exist (warnings only)'],
-  ['EPAOrgID_01', 'the assessment organisation is on the register for the standard'],
-  ['LearnAimRef_114, LearnAimRef_116, LearnAimRef_132', 'LARS validity categories for component aims'],
-  ['AppSerAgeEligibility_01', 'age eligibility for the standard (starts from 1 August 2026)'],
+  { rules: 'LearnAimRef_114, LearnAimRef_116, LearnAimRef_132', what: 'LARS validity categories for component aims', fis: true },
+  { rules: 'Filename_3', what: 'the UKPRN is on the organisation directory', fis: true },
+  { rules: 'ULN_05', what: 'the ULN is on the Learner Register', fis: false },
+  { rules: 'EmpId_01', what: 'the employer identifier is on the Employer Data Service', fis: false },
+  { rules: 'UKPRN_10, UKPRN_21, UKPRN_33, UKPRN_35', what: 'the UKPRN has an apprenticeship funding relationship and can deliver the standard in the Apprenticeship Service', fis: false },
+  { rules: 'Postcode_14, PostcodePrior_01, DelLocPostCode_03', what: 'postcodes exist (warnings)', fis: false },
+  { rules: 'EPAOrgID_01', what: 'the assessment organisation is on the register for the standard (warning)', fis: false },
+  { rules: 'AppSerAgeEligibility_01', what: 'age eligibility for the standard (starts from 1 August 2026)', fis: false },
+  { rules: 'Filename_2, Filename_8, Inconsistent UKPRN', what: 'the file is newer than earlier submissions and matches the signed-in provider', fis: false },
 ]
 
 const PC = /^[A-Z]{1,2}([0-9]{1,2}|[0-9][A-Z]) [0-9][ABD-HJLNP-UW-Z]{2}$/
@@ -202,6 +211,7 @@ export function checkIlrRules({ learners, standards }, year, filePreparationDate
       }
     }
     for (const e of l.employment) {
+      if (e.EMPID !== null && e.EMPID !== undefined && !isEmployerIdentifier(e.EMPID)) f('EmpId_02')
       const types = e.esm.map((m) => m.ESMTYPE)
       if (e.EMPSTAT === 10 && !types.includes('EII')) f('ESMType_02')
       if (['SEI', 'EII', 'LOU', 'LOE', 'BSI', 'PEI', 'SEM'].some((t) => types.filter((x) => x === t).length > 1)) f('ESMType_15')
@@ -258,6 +268,10 @@ export function checkIlrRules({ learners, standards }, year, filePreparationDate
         }
       }
       for (const x of a.fams) {
+        if (['LSF', 'ALB'].includes(x.LEARNDELFAMTYPE) && (!x.DATEFROM || !x.DATETO)) f('LearnDelFAMDateFrom_01')
+        if (x.DATEFROM && x.DATETO && x.DATETO < x.DATEFROM) f('LearnDelFAMDateTo_01')
+        // Not for an ACT that ends on the programme's achievement date.
+        if (x.DATETO && x.DATETO > a.LEARNPLANENDDATE && !(isProgramme && x.LEARNDELFAMTYPE === 'ACT' && a.ACHDATE)) f('LearnDelFAMDateTo_02')
         if (x.DATEFROM && x.DATEFROM < a.LEARNSTARTDATE) f('LearnDelFAMDateFrom_02')
         // LearnDelFAMDateTo_03 doesn't apply to ACT.
         if (x.LEARNDELFAMTYPE !== 'ACT' && x.DATETO && a.LEARNACTENDDATE && x.DATETO > a.LEARNACTENDDATE) f('LearnDelFAMDateTo_03')

@@ -264,6 +264,12 @@ tbody tr:hover {
   font: inherit;
 }
 
+.ilr-subhead {
+  margin: 12px 0 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
 .ilr-refs {
   display: inline-flex;
   flex-wrap: wrap;

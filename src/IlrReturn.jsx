@@ -210,15 +210,29 @@ function IlrReturn({ onOpenLearner }) {
               <details className="report-details">
                 <summary>Rules only DfE can check</summary>
                 <p className="report-meta">
-                  These need DfE&apos;s reference data. FIS checks most of them.
+                  These need DfE&apos;s reference data, so Warren can&apos;t check them. DfE&apos;s validation rules
+                  file says which ones the FIS desktop tool runs.
                 </p>
+                <p className="ilr-subhead">Checked by FIS</p>
                 <ul className="report-notes">
-                  {result.notChecked.map(([rules, what]) => (
-                    <li key={rules}>
-                      {rules}: {what}
+                  {result.notChecked.filter((r) => r.fis).map((r) => (
+                    <li key={r.rules}>
+                      {r.rules}: {r.what}
                     </li>
                   ))}
                 </ul>
+                <p className="ilr-subhead">Not run by FIS: only checked when the file is submitted</p>
+                <ul className="report-notes">
+                  {result.notChecked.filter((r) => !r.fis).map((r) => (
+                    <li key={r.rules}>
+                      {r.rules}: {r.what}
+                    </li>
+                  ))}
+                </ul>
+                <p className="report-meta">
+                  So a clean FIS result doesn&apos;t mean the ULNs, UKPRN, employers, postcodes or assessment organisation
+                  have been checked. Submit Learner Data checks those.
+                </p>
               </details>
 
               <h3>Download</h3>
@@ -257,7 +271,8 @@ function IlrReturn({ onOpenLearner }) {
                   <li>Choose file, pick the downloaded .XML file, then Process File.</li>
                   <li>
                     When it finishes, open the output folder from the link and read the rule violation report. FIS
-                    checks the rules Warren can&apos;t, with DfE&apos;s reference data.
+                    runs most of DfE&apos;s rules with its reference data, but not the ones listed above as only checked
+                    on submission.
                   </li>
                 </ol>
                 <p className="report-meta">
