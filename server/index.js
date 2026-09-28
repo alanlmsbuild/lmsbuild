@@ -107,6 +107,8 @@ const LEARNERS_QUERY = `
   from ${VISIBLE_LEARNER} l
   join LEARNING_DELIVERY ld
     on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
+   and ld.LEARNAIMREF = 'ZPROG001'
+   and ld.AIMSEQNUMBER = 1
   left join LARS.STANDARD s
     on s.STANDARD_CODE = ld.STDCODE
   order by l.LEARNREFNUMBER
@@ -550,6 +552,16 @@ const WITHDRAW_AIM = `
   where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_ORG_LEARNERS}
 `
 
+// Withdrawing from the programme ends its open component aims (the
+// standard's own aim, English and maths) the same way and on the same
+// date: the ILR doesn't allow open component aims under a closed programme
+// aim (rule R_90), or one ending after it (R_89).
+const WITHDRAW_COMPONENT_AIMS = `
+  update LEARNING_DELIVERY set
+    COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = 3, ACHDATE = null
+  where LEARNREFNUMBER = ? and AIMTYPE = 3 and COMPSTATUS = 1 and ${IN_ORG_LEARNERS}
+`
+
 app.put('/api/learners/:learnRefNumber/withdraw', allow(MANAGER), async (req, res) => {
   const { learnRefNumber } = req.params
   const connection = req.db
@@ -577,6 +589,11 @@ app.put('/api/learners/:learnRefNumber/withdraw', allow(MANAGER), async (req, re
     const v = req.body
     await execute(connection, 'begin')
     await execute(connection, WITHDRAW_AIM, [
+      v.actualEndDate,
+      Number(v.withdrawReason),
+      learnRefNumber,
+    ])
+    await execute(connection, WITHDRAW_COMPONENT_AIMS, [
       v.actualEndDate,
       Number(v.withdrawReason),
       learnRefNumber,

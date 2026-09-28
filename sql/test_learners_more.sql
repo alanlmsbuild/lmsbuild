@@ -62,12 +62,17 @@
 --     2026 onwards, 2 on a break in learning.
 --   How each is recorded, matching what the app writes:
 --     Achieved: COMPSTATUS 2, OUTCOME 1, LEARNACTENDDATE and ACHDATE.
---     Completed but not achieved: COMPSTATUS 2, OUTCOME 3, no ACHDATE.
+--     Completed but not achieved (a failed end-point assessment):
+--       COMPSTATUS 2, OUTCOME 3, no ACHDATE. Not valid for an apprenticeship
+--       standard, which needs the date the assessment ended as its ACHDATE
+--       (rule AchDate_12). ilr_02_test_data.sql adds it.
 --     Withdrawn: COMPSTATUS 3, OUTCOME 3, LEARNACTENDDATE and WITHDRAWREASON.
 --       (The first version of this file left OUTCOME empty, as the app's
 --       Withdraw button did then. withdrawn_outcome.sql fills those in.)
 --     Break in learning: COMPSTATUS 6, LEARNACTENDDATE = the day the break
---       started, OUTCOME left empty.
+--       started, OUTCOME left empty (ilr_02_test_data.sql sets it to 3).
+--   The family names, NI numbers, addresses and a few dates of birth here
+--   fail ILR rules. ilr_02_test_data.sql corrects them.
 --     Continuing: COMPSTATUS 1, no end date.
 --
 -- No evidence, progress reviews or sign-offs.
