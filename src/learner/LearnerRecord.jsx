@@ -32,6 +32,7 @@ import {
   Row,
   Section,
   SupportRecords,
+  changePath,
 } from './IlrRecords'
 
 // Age in whole years as of today, from a 'YYYY-MM-DD' (or similar
@@ -107,6 +108,9 @@ function LearnerRecord({ learner, canManage, back }) {
     }
   }, [learner.LEARNREFNUMBER])
 
+  // A manager's links to change sections and records.
+  const manage = canManage ? { learnRefNumber: learner.LEARNREFNUMBER, back } : null
+
   // Each section's failing checks.
   const rulesFor = (section) => (ilr?.rules ?? []).filter((r) => r.section === section)
   const ilrSection = (render) =>
@@ -177,9 +181,6 @@ function LearnerRecord({ learner, canManage, back }) {
     <>
       {canManage && (
         <div className="learner-actions">
-          <a className="ui-button ui-button--secondary" href={learnerActionPath(learner.LEARNREFNUMBER, 'edit', back)}>
-            Edit
-          </a>
           {learner.COMPSTATUS === 1 && (
             <a className="ui-button ui-button--secondary" href={learnerActionPath(learner.LEARNREFNUMBER, 'complete', back)}>
               Mark completed
@@ -196,7 +197,7 @@ function LearnerRecord({ learner, canManage, back }) {
       <IlrSummary ilr={ilr} status={ilrStatus} error={ilrError} canSeePrices={canManage} />
 
       <div className="learner-record">
-        <Section title="Personal details" rules={rulesFor('personal')}>
+        <Section title="Personal details" rules={rulesFor('personal')} change={changePath(manage, 'personal')}>
           <dl>
             <Row label="Learner reference" value={learner.LEARNREFNUMBER} />
             <Row label="ULN" value={learner.ULN ?? '—'} />
@@ -211,7 +212,7 @@ function LearnerRecord({ learner, canManage, back }) {
           </dl>
         </Section>
 
-        <Section title="Contact details">
+        <Section title="Contact details" change={changePath(manage, 'contact')}>
           <dl>
             <Row label="Title" value={learner.TITLE || '—'} />
             <Row label="Address line 1" value={learner.ADDRESSLINE1 || '—'} />
@@ -234,7 +235,7 @@ function LearnerRecord({ learner, canManage, back }) {
           </dl>
         </Section>
 
-        <Section title="Equality and support" rules={rulesFor('support')}>
+        <Section title="Equality and support" rules={rulesFor('support')} change={changePath(manage, 'support')}>
           <dl>
             {canManage && <Row label="Ethnicity" value={labelFromOptions(ETHNICITY_OPTIONS, learner.ETHNICITY)} />}
             <Row
@@ -242,18 +243,18 @@ function LearnerRecord({ learner, canManage, back }) {
               value={labelFromOptions(LLDD_HEALTH_PROBLEM_OPTIONS, learner.LLDDHEALTHPROB)}
             />
           </dl>
-          {ilrSection((d) => <SupportRecords ilr={d} />)}
+          {ilrSection((d) => <SupportRecords ilr={d} manage={manage} llddHealthProb={learner.LLDDHEALTHPROB} />)}
         </Section>
 
         <Section title="Prior attainment" rules={rulesFor('prior')}>
-          {ilrSection((d) => <PriorRecords ilr={d} />)}
+          {ilrSection((d) => <PriorRecords ilr={d} manage={manage} />)}
         </Section>
 
         <Section title="Employment" rules={rulesFor('employment')}>
           {ilrSection((d) => <EmploymentRecords ilr={d} />)}
         </Section>
 
-        <Section title="Apprenticeship programme" rules={rulesFor('programme')}>
+        <Section title="Apprenticeship programme" rules={rulesFor('programme')} change={changePath(manage, 'programme')}>
           <dl>
             <Row label="Standard" value={standardLabel(learner, { withLevel: false })} />
             <Row label="Start date" value={formatDate(learner.LEARNSTARTDATE)} />

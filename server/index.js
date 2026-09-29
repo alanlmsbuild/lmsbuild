@@ -25,7 +25,9 @@ import {
 } from './access.js'
 import {
   validateLearnerForm,
-  validateLearnerEditForm,
+  validateLearnerSection,
+  normaliseNiNumber,
+  normalisePostcode,
   validateCompleteAimForm,
   validateWithdrawAimForm,
   validateOfficerForm,
@@ -40,6 +42,9 @@ import { registerMyDayRoutes } from './myday.js'
 import { registerBurrowRoutes } from './burrow.js'
 import { registerIqaRoutes } from './iqa.js'
 import { registerEmployerRoutes } from './employer.js'
+import { registerIlrRecordRoutes } from './ilrRecords.js'
+import { inTransaction } from './burrow.js'
+import { logChange } from './recordChange.js'
 import { refuseTestSignInInProduction, registerDevUserRoutes, testSignInEnabled } from './devUsers.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -277,11 +282,19 @@ const INSERT_LEARNER = `
 // The aim fields fixed by the milestone spec (LEARNAIMREF, AIMTYPE,
 // AIMSEQNUMBER, FUNDMODEL, PROGTYPE, COMPSTATUS) are written as literals
 // rather than bound values since they never vary for this form.
+// Records keyed by learner copy the learner's ISTESTDATA, so a test
+// learner's records are always test data (and the reset,
+// sql/test_reset_02_reset.sql, finds them all). Selecting from
+// VISIBLE_LEARNER also means nothing is added for a learner this user
+// can't reach.
 const INSERT_LEARNING_DELIVERY = `
   insert into LEARNING_DELIVERY (
     LEARNREFNUMBER, LEARNAIMREF, AIMTYPE, AIMSEQNUMBER, LEARNSTARTDATE, LEARNPLANENDDATE,
     FUNDMODEL, PROGTYPE, STDCODE, DELLOCPOSTCODE, COMPSTATUS, ISTESTDATA
-  ) values (?, 'ZPROG001', 1, 1, ?, ?, 36, 25, ?, ?, 1, ${CURRENT_ISTESTDATA})
+  )
+  select l.LEARNREFNUMBER, 'ZPROG001', 1, 1, ?, ?, 36, 25, ?, ?, 1, l.ISTESTDATA
+  from ${VISIBLE_LEARNER} l
+  where l.LEARNREFNUMBER = ?
 `
 
 app.post('/api/learners', allow(MANAGER), async (req, res) => {
@@ -347,11 +360,11 @@ app.post('/api/learners', allow(MANAGER), async (req, res) => {
     ])
 
     await execute(connection, INSERT_LEARNING_DELIVERY, [
-      learnRefNumber,
       v.startDate,
       v.plannedEndDate,
       Number(v.stdCode),
       v.dellocPostcode.trim().toUpperCase(),
+      learnRefNumber,
     ])
 
     await execute(connection, 'commit')
@@ -369,121 +382,176 @@ app.post('/api/learners', allow(MANAGER), async (req, res) => {
   }
 })
 
-// Only these columns can ever be written by PUT /api/learners/:learnRefNumber
-// - anything else in the request body is ignored, because these two
-// statements never reference it.
-const UPDATE_LEARNER = `
-  update LEARNER set
-    ULN = ?, FAMILYNAME = ?, GIVENNAMES = ?, DATEOFBIRTH = ?,
-    ETHNICITY = ?, SEX = ?, LLDDHEALTHPROB = ?, NINUMBER = ?,
-    POSTCODEPRIOR = ?, POSTCODE = ?, TELNO = ?, EMAIL = ?,
-    TITLE = ?, ADDRESSLINE1 = ?, ADDRESSLINE2 = ?, ADDRESSLINE3 = ?,
-    WARDORCOUNTY = ?, MOBILENO = ?, CONTACTMETHODSALLOWED = ?, PREFERREDCONTACTMETHOD = ?,
-    NEXTOFKINNAME = ?, NEXTOFKINRELATIONSHIP = ?, NEXTOFKINPHONE = ?, CONTRACTTYPE = ?
-  where LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}
+// ---------------------------------------------------------------- changing a learner, one section at a time
+//
+// PUT /api/learners/:learnRefNumber/details/:section, managers only. The
+// Record tab's sections: personal, contact and support are the learner's
+// own row, programme is the programme aim. Only the section's own columns
+// are written, and only if they changed. Each change keeps the old values
+// in ILR.RECORD_CHANGE with who and when (a correction, decided 28
+// September 2026), and sets UPDATEDAT and UPDATEDBY on the row.
+
+// Each form field, its column, and how its value is stored.
+const text = (v) => (v === undefined || v === null || String(v).trim() === '' ? null : String(v).trim())
+const SECTION_COLUMNS = {
+  personal: {
+    uln: ['ULN', (v) => Number(v)],
+    familyName: ['FAMILYNAME', text],
+    givenNames: ['GIVENNAMES', text],
+    dateOfBirth: ['DATEOFBIRTH', text],
+    sex: ['SEX', text],
+    niNumber: ['NINUMBER', (v) => (text(v) ? normaliseNiNumber(v) : null)],
+    postcodePrior: ['POSTCODEPRIOR', (v) => normalisePostcode(v)],
+    postcode: ['POSTCODE', (v) => normalisePostcode(v)],
+    phone: ['TELNO', text],
+    email: ['EMAIL', text],
+  },
+  contact: {
+    title: ['TITLE', text],
+    addressLine1: ['ADDRESSLINE1', text],
+    addressLine2: ['ADDRESSLINE2', text],
+    addressLine3: ['ADDRESSLINE3', text],
+    wardOrCounty: ['WARDORCOUNTY', text],
+    mobile: ['MOBILENO', text],
+    contactMethodsAllowed: ['CONTACTMETHODSALLOWED', (v) => joinContactMethods(v)],
+    preferredContactMethod: ['PREFERREDCONTACTMETHOD', text],
+    nextOfKinName: ['NEXTOFKINNAME', text],
+    nextOfKinRelationship: ['NEXTOFKINRELATIONSHIP', text],
+    nextOfKinPhone: ['NEXTOFKINPHONE', text],
+    contractType: ['CONTRACTTYPE', text],
+  },
+  support: {
+    ethnicity: ['ETHNICITY', (v) => Number(v)],
+    lldd: ['LLDDHEALTHPROB', (v) => Number(v)],
+  },
+  programme: {
+    startDate: ['LEARNSTARTDATE', text],
+    plannedEndDate: ['LEARNPLANENDDATE', text],
+    stdCode: ['STDCODE', (v) => Number(v)],
+    dellocPostcode: ['DELLOCPOSTCODE', (v) => normalisePostcode(v)],
+  },
+}
+
+// The learner and their programme aim, as a manager sees them.
+const LEARNER_FOR_CHANGE_QUERY = `
+  select l.*, ld.LEARNSTARTDATE, ld.LEARNPLANENDDATE, ld.STDCODE, ld.DELLOCPOSTCODE, ld.COMPSTATUS,
+    (select count(*) from ILR.LLDD_HEALTH_PROBLEM h
+      where h.LEARNREFNUMBER = l.LEARNREFNUMBER and h.REMOVEDAT is null) as ACTIVELLDDCATS
+  from ${VISIBLE_LEARNER} l
+  left join LEARNING_DELIVERY ld
+    on ld.LEARNREFNUMBER = l.LEARNREFNUMBER and ld.LEARNAIMREF = 'ZPROG001' and ld.AIMSEQNUMBER = 1
+  where l.LEARNREFNUMBER = ?
 `
 
-const UPDATE_LEARNING_DELIVERY = `
-  update LEARNING_DELIVERY set
-    LEARNSTARTDATE = ?, LEARNPLANENDDATE = ?, STDCODE = ?, DELLOCPOSTCODE = ?
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
-`
+// The learner as the forms' fields, so a section's new values can be
+// validated together with the rest (e.g. the preferred contact method
+// against the allowed ones).
+function learnerAsForm(row) {
+  const form = {}
+  for (const columns of Object.values(SECTION_COLUMNS)) {
+    for (const [field, [column]] of Object.entries(columns)) {
+      const value = row[column]
+      form[field] = column === 'CONTACTMETHODSALLOWED'
+        ? (value ? String(value).split(',') : [])
+        : value === null || value === undefined
+          ? ''
+          : /DATE|DATEOFBIRTH/.test(column) ? toIsoDateString(value) : String(value)
+    }
+  }
+  return form
+}
 
-app.put('/api/learners/:learnRefNumber', allow(MANAGER), async (req, res) => {
-  const { learnRefNumber } = req.params
+const comparable = (value) => (value instanceof Date ? toIsoDateString(value) : value === undefined ? null : value)
+
+function updateStatement(table, columns) {
+  const scope = table === 'LEARNER'
+    ? `LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}`
+    : `LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}`
+  return `update ${table} set ${columns.map((c) => `${c} = ?`).join(', ')}, UPDATEDAT = current_timestamp(), UPDATEDBY = ? where ${scope}`
+}
+
+app.put('/api/learners/:learnRefNumber/details/:section', allow(MANAGER), async (req, res) => {
+  const { learnRefNumber, section } = req.params
+  const columns = SECTION_COLUMNS[section]
+  if (!columns) {
+    res.status(404).json({ error: 'Not found.' })
+    return
+  }
   const connection = req.db
   try {
-
-    const existing = await findLearnerAim(connection, learnRefNumber)
-    if (!existing) {
+    const [row] = await execute(connection, LEARNER_FOR_CHANGE_QUERY, [learnRefNumber])
+    if (!row) {
       res.status(404).json({ error: 'Learner not found.' })
       return
     }
+    const incoming = Object.fromEntries(Object.keys(columns).map((field) => [field, req.body?.[field]]))
+    const form = { ...learnerAsForm(row), ...incoming }
+    const fieldErrors = validateLearnerSection(section, form)
 
-    // The start date and standard code can only be changed while the aim is
-    // still continuing (COMPSTATUS 1). Once it's completed or withdrawn,
-    // both are locked - the browser disables the fields (see
-    // EditLearnerForm's aimLocked), and this check enforces it server-side
-    // too in case that was bypassed.
-    const aimLocked = existing.COMPSTATUS !== 1
-    const fieldErrors = validateLearnerEditForm(req.body)
-
-    const v = req.body
-    if (aimLocked && v.startDate !== existing.LEARNSTARTDATE) {
-      fieldErrors.startDate = 'Start date cannot be changed because this aim is no longer continuing.'
-    }
-    if (aimLocked && Number(v.stdCode) !== existing.STDCODE) {
-      fieldErrors.stdCode = 'Standard code cannot be changed because this aim is no longer continuing.'
-    }
-    if (!fieldErrors.stdCode) {
-      const standardError = await checkStandard(connection, v.stdCode, existing.STDCODE)
-      if (standardError) fieldErrors.stdCode = standardError
-    }
-
-    if (Object.keys(fieldErrors).length > 0) {
-      res.status(400).json({
-        error: 'Please fix the highlighted fields.',
-        fields: fieldErrors,
-      })
-      return
-    }
-
-    if (await isUlnTaken(connection, Number(v.uln), learnRefNumber)) {
-      res.status(400).json({
-        error: 'Please fix the highlighted fields.',
-        fields: { uln: 'This ULN is already used by another learner.' },
-      })
-      return
-    }
-
-    await execute(connection, 'begin')
-
-    await execute(connection, UPDATE_LEARNER, [
-      Number(v.uln),
-      v.familyName?.trim() || null,
-      v.givenNames?.trim() || null,
-      v.dateOfBirth || null,
-      Number(v.ethnicity),
-      v.sex,
-      Number(v.lldd),
-      v.niNumber ? v.niNumber.trim().toUpperCase() : null,
-      v.postcodePrior.trim().toUpperCase(),
-      v.postcode.trim().toUpperCase(),
-      v.phone?.trim() || null,
-      v.email?.trim() || null,
-      v.title?.trim() || null,
-      v.addressLine1?.trim() || null,
-      v.addressLine2?.trim() || null,
-      v.addressLine3?.trim() || null,
-      v.wardOrCounty?.trim() || null,
-      v.mobile?.trim() || null,
-      joinContactMethods(v.contactMethodsAllowed),
-      v.preferredContactMethod?.trim() || null,
-      v.nextOfKinName?.trim() || null,
-      v.nextOfKinRelationship?.trim() || null,
-      v.nextOfKinPhone?.trim() || null,
-      v.contractType?.trim() || null,
-      learnRefNumber,
-    ])
-
-    await execute(connection, UPDATE_LEARNING_DELIVERY, [
-      aimLocked ? existing.LEARNSTARTDATE : v.startDate,
-      v.plannedEndDate,
-      aimLocked ? existing.STDCODE : Number(v.stdCode),
-      v.dellocPostcode.trim().toUpperCase(),
-      learnRefNumber,
-    ])
-
-    await execute(connection, 'commit')
-    res.json({ learnRefNumber })
-  } catch (err) {
-    if (connection) {
-      try {
-        await execute(connection, 'rollback')
-      } catch (rollbackErr) {
-        console.error('Failed to roll back transaction:', rollbackErr.message)
+    if (section === 'programme') {
+      // The start date and standard can only change while the aim is
+      // continuing (COMPSTATUS 1).
+      const locked = row.COMPSTATUS !== 1
+      if (locked && form.startDate !== toIsoDateString(row.LEARNSTARTDATE)) {
+        fieldErrors.startDate = 'Start date cannot be changed because this aim is no longer continuing.'
+      }
+      if (locked && Number(form.stdCode) !== row.STDCODE) {
+        fieldErrors.stdCode = 'Standard code cannot be changed because this aim is no longer continuing.'
+      }
+      if (!fieldErrors.stdCode) {
+        const standardError = await checkStandard(connection, form.stdCode, row.STDCODE)
+        if (standardError) fieldErrors.stdCode = standardError
       }
     }
+    if (section === 'personal' && !fieldErrors.uln && (await isUlnTaken(connection, Number(form.uln), learnRefNumber))) {
+      fieldErrors.uln = 'This ULN is already used by another learner.'
+    }
+    if (section === 'support' && Number(form.lldd) !== 1 && Number(row.ACTIVELLDDCATS) > 0) {
+      fieldErrors.lldd =
+        "This learner has LLDD categories recorded. Remove them first: a learner without an LLDD or health problem can't have any (rule LLDDHealthProb_04)."
+    }
+    if (Object.keys(fieldErrors).length > 0) {
+      res.status(400).json({ error: 'Please fix the highlighted fields.', fields: fieldErrors })
+      return
+    }
+
+    // Only the columns that change.
+    const oldValues = {}
+    const newValues = {}
+    for (const [field, [column, store]] of Object.entries(columns)) {
+      const next = store(form[field])
+      const before = comparable(row[column])
+      if (JSON.stringify(next ?? null) !== JSON.stringify(before ?? null)) {
+        oldValues[column] = before ?? null
+        newValues[column] = next ?? null
+      }
+    }
+    const changed = Object.keys(newValues)
+    if (changed.length === 0) {
+      res.json({ changed: [] })
+      return
+    }
+
+    const table = section === 'programme' ? 'LEARNING_DELIVERY' : 'LEARNER'
+    await inTransaction(connection, async () => {
+      const rows = await execute(connection, updateStatement(table, changed), [
+        ...changed.map((c) => newValues[c]),
+        req.user.USERID,
+        learnRefNumber,
+      ])
+      if (Number(rows?.[0]?.['number of rows updated']) !== 1) throw new Error('The learner could not be updated.')
+      await logChange(connection, {
+        learnRefNumber,
+        table,
+        key: table === 'LEARNER' ? { LEARNREFNUMBER: learnRefNumber } : { AIMSEQNUMBER: 1, LEARNAIMREF: 'ZPROG001' },
+        type: 'corrected',
+        oldValues,
+        newValues,
+        by: req.user.USERID,
+      })
+    })
+    res.json({ changed })
+  } catch (err) {
     console.error('Failed to update learner:', err.message)
     res.status(500).json({ error: 'Could not save these changes. Please try again.' })
   }
@@ -777,9 +845,12 @@ const END_ASSIGNMENT = `
   where ASSIGNMENTID = ? and ENDEDAT is null
     and ASSIGNMENTID in (select ASSIGNMENTID from ${ORG_OFFICER_ASSIGNMENT})
 `
+// ISTESTDATA is the learner's (see INSERT_LEARNING_DELIVERY).
 const INSERT_ASSIGNMENT = `
   insert into OFFICER_ASSIGNMENT (LEARNREFNUMBER, OFFICERREFNUMBER, ASSIGNMENTROLE, STARTEDBY, ISTESTDATA)
-  values (?, ?, ?, ?, ${CURRENT_ISTESTDATA})
+  select l.LEARNREFNUMBER, ?, ?, ?, l.ISTESTDATA
+  from ${VISIBLE_LEARNER} l
+  where l.LEARNREFNUMBER = ?
 `
 
 // Makes the officer the learner's tutor or assessor. Each learner has
@@ -838,7 +909,7 @@ app.post('/api/learners/:learnRefNumber/officers', allow(MANAGER), async (req, r
     for (const a of current) {
       await execute(connection, END_ASSIGNMENT, [req.user.USERID, a.ASSIGNMENTID])
     }
-    await execute(connection, INSERT_ASSIGNMENT, [learnRefNumber, officerRefNumber, role, req.user.USERID])
+    await execute(connection, INSERT_ASSIGNMENT, [officerRefNumber, role, req.user.USERID, learnRefNumber])
     await execute(connection, 'commit')
 
     res.status(201).json({
@@ -882,6 +953,7 @@ app.get('/api/me', allow(LEARNER, EMPLOYER, STAFF), (req, res) => {
 registerReportRoutes(app)
 registerIlrRoutes(app)
 registerLearnerIlrRoutes(app)
+registerIlrRecordRoutes(app)
 registerMyDayRoutes(app)
 registerBurrowRoutes(app)
 registerEmployerRoutes(app)

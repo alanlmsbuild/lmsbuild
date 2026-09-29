@@ -368,7 +368,7 @@ async function setClaims(connection, evidence, wanted, standard, by) {
   }
 }
 
-async function inTransaction(connection, work) {
+export async function inTransaction(connection, work) {
   await execute(connection, 'begin')
   try {
     const result = await work()

@@ -30,10 +30,23 @@ export function learnerTabPath(learnRefNumber, tab, back) {
   return back ? `${base}?back=${encodeURIComponent(back)}` : base
 }
 
-// A manager's form on the Record tab: edit, complete or withdraw.
+// A manager's form on the Record tab, e.g. 'complete', 'withdraw',
+// 'edit/personal' or 'records/prior/new'.
 export function learnerActionPath(learnRefNumber, action, back) {
   const base = `/app/learners/${encodeURIComponent(learnRefNumber)}/${action}`
   return back ? `${base}?back=${encodeURIComponent(back)}` : base
+}
+
+// Changing a section: personal, contact, support or programme.
+export function learnerEditPath(learnRefNumber, section, back) {
+  return learnerActionPath(learnRefNumber, `edit/${section}`, back)
+}
+
+// Adding (key null), correcting or removing an ILR record: kind is lldd,
+// learner-fam or prior.
+export function learnerRecordPath(learnRefNumber, kind, key, mode, back) {
+  const action = key === null ? `records/${kind}/new` : `records/${kind}/${encodeURIComponent(key)}/${mode}`
+  return learnerActionPath(learnRefNumber, action, back)
 }
 
 // Staff's read-only view of one piece of evidence, on the Portfolio tab.

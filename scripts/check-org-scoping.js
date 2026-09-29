@@ -13,8 +13,12 @@
 // 2. A route that doesn't say which roles may use it: every app.get, post,
 //    put, patch or delete must have allow(...) straight after its path, or
 //    devOnly for the development-only test user switcher.
-// 3. An insert into a table with an ISTESTDATA column that doesn't write
-//    ${CURRENT_ISTESTDATA}, so test users' records are marked as test data.
+// 3. An insert that doesn't mark test data. Organisation-level rows
+//    (learners, officers, employers, users) take ${CURRENT_ISTESTDATA},
+//    the signed-in user's. A learner's records (aims, assignments, the ILR
+//    record tables and ILR.RECORD_CHANGE) copy the learner's own flag:
+//    select l.ISTESTDATA from ${VISIBLE_LEARNER} l, so the test reset
+//    finds every one of them.
 // 4. Learner lookups that skip the one learner scope. ORG_LEARNER and
 //    IN_ORG_LEARNERS (every learner in the organisation, whoever asks) only
 //    in SQL that says why with "-- whole organisation:". Everything else
@@ -33,6 +37,8 @@
 //    select * or alias.* from a table or a scoped source (which would pick
 //    them up without naming them). select * from a query step (a
 //    lower-case with ... as name, built from named columns) is fine.
+// 9. Reads of the ILR record tables leave out records removed as entered
+//    in error (REMOVEDAT is null).
 // 8. Prices and payments are for managers only: outside access.js,
 //    APP_FIN_RECORD may only be read through ORG_APP_FIN_RECORD (which is
 //    empty for anyone else). Naming the table is only allowed to write to
@@ -52,8 +58,21 @@ const SCOPED = /\$\{(ORG_|VISIBLE_|EMPLOYER_APPRENTICE)\w*\}|\$\{IN_(ORG|VISIBLE
 const WHOLE_ORG = /\$\{(ORG_LEARNER|IN_ORG_LEARNERS)\}/
 const MANAGER_ONLY_COLUMNS = ['NINUMBER', 'ETHNICITY']
 const READS_MANAGER_ONLY = new RegExp(`\\b(${MANAGER_ONLY_COLUMNS.join('|')})\\b|select\\s+(\\w+\\.)?\\*`, 'i')
-const TEST_DATA_TABLE =
-  /\binsert\s+into\s+((ILR\.)?(LEARNER|LEARNING_DELIVERY|OFFICER|OFFICER_ASSIGNMENT|EMPLOYER|LEARNER_EMPLOYER)|ACCESS\.\w+)\b/i
+// Tables whose rows belong to the organisation or a user: ISTESTDATA is
+// the signed-in user's.
+const TEST_DATA_TABLE = /\binsert\s+into\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER)|ACCESS\.\w+)\b/i
+// Tables whose rows belong to a learner: ISTESTDATA is the learner's, taken
+// from VISIBLE_LEARNER in the insert itself.
+const LEARNER_RECORD_TABLES = ['LEARNING_DELIVERY', 'OFFICER_ASSIGNMENT', 'LEARNER_EMPLOYER', 'PRIOR_ATTAINMENT',
+  'LLDD_HEALTH_PROBLEM', 'LEARNER_FAM', 'EMPLOYMENT_STATUS', 'EMPLOYMENT_STATUS_MONITORING', 'LEARNING_DELIVERY_FAM',
+  'APP_FIN_RECORD', 'HOURS_RECORD', 'RECORD_CHANGE']
+const LEARNER_RECORD_INSERT = new RegExp(`\\binsert\\s+into\\s+(ILR\\.)?(${LEARNER_RECORD_TABLES.join('|')})\\b`, 'i')
+const FROM_LEARNER_FLAG = /\b\w+\.ISTESTDATA\s+from\s+\$\{VISIBLE_LEARNER\}/i
+// The ILR record tables where a manager can remove a record entered in
+// error: reads must leave removed ones out.
+const REMOVABLE_TABLES = ['PRIOR_ATTAINMENT', 'LLDD_HEALTH_PROBLEM', 'LEARNER_FAM', 'EMPLOYMENT_STATUS',
+  'EMPLOYMENT_STATUS_MONITORING', 'LEARNING_DELIVERY_FAM', 'APP_FIN_RECORD', 'HOURS_RECORD']
+const READS_REMOVABLE = new RegExp(`\\b(from|join)\\s+(ILR\\.)?(${REMOVABLE_TABLES.join('|')})\\b`, 'i')
 const ROUTE = /\bapp\.(get|post|put|patch|delete)\(\s*(['`"])[^'`"]*\2\s*,(?!\s*(allow\(|devOnly\b))/g
 
 let problems = 0
@@ -85,6 +104,14 @@ for (const file of serverFiles) {
     const insert = sql.match(TEST_DATA_TABLE)
     if (insert && !sql.includes('${CURRENT_ISTESTDATA}')) {
       report(file, text, match.index, `inserts into ${insert[1]} without setting ISTESTDATA`)
+    }
+    const learnerInsert = sql.match(LEARNER_RECORD_INSERT)
+    if (learnerInsert && !FROM_LEARNER_FLAG.test(sql)) {
+      report(file, text, match.index, `inserts into ${learnerInsert[2]} without copying the learner's ISTESTDATA (select l.ISTESTDATA from \${VISIBLE_LEARNER} l)`)
+    }
+    const removable = sql.match(READS_REMOVABLE)
+    if (removable && !/\bREMOVEDAT\s+is\s+null\b/i.test(sql)) {
+      report(file, text, match.index, `reads ${removable[3]} without leaving out removed records (REMOVEDAT is null)`)
     }
   }
   for (const match of text.matchAll(ROUTE)) {
@@ -158,4 +185,4 @@ if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, and every insert sets ISTESTDATA.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), and removed ILR records are left out.')

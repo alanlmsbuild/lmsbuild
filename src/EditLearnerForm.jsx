@@ -6,7 +6,7 @@ import {
   CONTACT_METHOD_OPTIONS,
   CONTRACT_TYPE_OPTIONS,
 } from './ilrCodes'
-import { validateLearnerEditForm } from './validation'
+import { LEARNER_SECTIONS, validateLearnerSection } from './validation'
 import StandardPicker from './StandardPicker'
 
 // Turns a learner+aim row from GET /api/learners into the shape this form's
@@ -57,7 +57,18 @@ function Field({ label, error, required, wide, children }) {
   )
 }
 
-function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCancel }) {
+export const EDIT_HEADINGS = {
+  personal: 'Change personal details',
+  contact: 'Change contact details',
+  support: 'Change equality and support',
+  programme: 'Change the apprenticeship programme',
+}
+
+// One section of the learner, on the learner page's Record tab: personal,
+// contact, support (ethnicity and LLDD) or programme. Only that section's
+// fields are shown, checked and sent. The server keeps the old values of
+// anything that changes (ILR.RECORD_CHANGE).
+function EditLearnerForm({ learner, section, standards, standardsStatus, onSaved, onCancel }) {
   const [form, setForm] = useState(() => toFormState(learner))
   const [errors, setErrors] = useState({})
   const [saving, setSaving] = useState(false)
@@ -86,16 +97,17 @@ function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCance
     e.preventDefault()
     setServerError(null)
 
-    const fieldErrors = validateLearnerEditForm(form)
+    const fieldErrors = validateLearnerSection(section, form)
     setErrors(fieldErrors)
     if (Object.keys(fieldErrors).length > 0) return
 
     setSaving(true)
     try {
-      const res = await fetch(`/api/learners/${learner.LEARNREFNUMBER}`, {
+      const values = Object.fromEntries(LEARNER_SECTIONS[section].map((field) => [field, form[field]]))
+      const res = await fetch(`/api/learners/${encodeURIComponent(learner.LEARNREFNUMBER)}/details/${section}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(values),
       })
       const data = await res.json()
 
@@ -115,7 +127,7 @@ function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCance
 
   return (
     <section id="edit-learner">
-      <h2>Edit learner</h2>
+      <h2>{EDIT_HEADINGS[section]}</h2>
       <p className="warning-banner" role="alert">
         Dummy data only. Do not enter real people's details.
       </p>
@@ -127,8 +139,9 @@ function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCance
       )}
 
       <form onSubmit={handleSubmit} noValidate>
+        {section === 'personal' && (
         <fieldset>
-          <legend>Learner details</legend>
+          <legend>Personal details</legend>
 
           <Field label="Learner reference">
             <input type="text" value={learner.LEARNREFNUMBER} disabled />
@@ -143,32 +156,10 @@ function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCance
             />
           </Field>
 
-          <Field label="Ethnicity" error={errors.ethnicity} required>
-            <select value={form.ethnicity} onChange={(e) => updateField('ethnicity', e.target.value)}>
-              <option value="">Select…</option>
-              {ETHNICITY_OPTIONS.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-
           <Field label="Sex" error={errors.sex} required>
             <select value={form.sex} onChange={(e) => updateField('sex', e.target.value)}>
               <option value="">Select…</option>
               {SEX_OPTIONS.map((o) => (
-                <option key={o.code} value={o.code}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="LLDD health problem" error={errors.lldd} required>
-            <select value={form.lldd} onChange={(e) => updateField('lldd', e.target.value)}>
-              <option value="">Select…</option>
-              {LLDD_HEALTH_PROBLEM_OPTIONS.map((o) => (
                 <option key={o.code} value={o.code}>
                   {o.label}
                 </option>
@@ -221,7 +212,41 @@ function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCance
             <input type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} />
           </Field>
         </fieldset>
+        )}
 
+        {section === 'support' && (
+        <fieldset>
+          <legend>Equality and support</legend>
+
+          <Field label="Ethnicity" error={errors.ethnicity} required>
+            <select value={form.ethnicity} onChange={(e) => updateField('ethnicity', e.target.value)}>
+              <option value="">Select…</option>
+              {ETHNICITY_OPTIONS.map((o) => (
+                <option key={o.code} value={o.code}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="LLDD health problem" error={errors.lldd} required>
+            <select value={form.lldd} onChange={(e) => updateField('lldd', e.target.value)}>
+              <option value="">Select…</option>
+              {LLDD_HEALTH_PROBLEM_OPTIONS.map((o) => (
+                <option key={o.code} value={o.code}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <p className="field-hint field-wide">
+            LLDD categories are added and removed on the Record tab, under Equality and support.
+          </p>
+        </fieldset>
+        )}
+
+        {section === 'contact' && (
         <fieldset>
           <legend>Contact details</legend>
 
@@ -229,7 +254,7 @@ function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCance
             <input type="text" value={form.title} onChange={(e) => updateField('title', e.target.value)} />
           </Field>
 
-          <Field label="Address line 1" error={errors.addressLine1}>
+          <Field label="Address line 1" error={errors.addressLine1} required>
             <input
               type="text"
               value={form.addressLine1}
@@ -329,9 +354,11 @@ function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCance
             </select>
           </Field>
         </fieldset>
+        )}
 
+        {section === 'programme' && (
         <fieldset>
-          <legend>Apprenticeship aim</legend>
+          <legend>Apprenticeship programme</legend>
 
           <Field label="Start date" error={errors.startDate} required>
             <input
@@ -377,6 +404,7 @@ function EditLearnerForm({ learner, standards, standardsStatus, onSaved, onCance
             />
           </Field>
         </fieldset>
+        )}
 
         <button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save changes'}

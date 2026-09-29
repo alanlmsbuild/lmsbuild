@@ -15,6 +15,7 @@
     "lint": "oxlint",
     "check:scoping": "node scripts/check-org-scoping.js",
     "check:sign-in": "node scripts/check-sign-in.js",
+    "check:test-flags": "node scripts/check-test-flags.js",
     "preview": "vite preview",
     "import:ref": "node scripts/import-ref.js"
   },

@@ -227,3 +227,25 @@ export const esmLabel = (type, code) => typed(ESM, type, code)
 export const learnerFamLabel = (type, code) => typed(LEARNER_FAM, type, code)
 export const learnDelFamLabel = (type, code) => typed(LEARN_DEL_FAM, type, code)
 export const afinLabel = (type, code) => typed(AFIN, type, code)
+
+// ---------------------------------------------------------------- options for the capture forms
+
+// LLDD categories a manager can record, with the last start date each is
+// valid for (LLDDCat_02: a category can't be used for learning that starts
+// after its "valid to" date).
+export const LLDD_CAT_OPTIONS = Object.entries(LLDD_CAT)
+  .filter(([code]) => code !== '15')
+  .map(([code, label]) => ({ code: Number(code), label }))
+export const LLDD_CAT_VALID_TO = { 15: '2025-07-31' }
+
+export const PRIOR_LEVEL_OPTIONS = Object.entries(PRIOR_LEVEL).map(([code, label]) => ({ code: Number(code), label }))
+
+// The learner FAMs an apprentice can have. The others (high needs, 16-19
+// funding, free meals, learner support) are for other kinds of provision.
+export const LEARNER_FAM_OPTIONS = [
+  { type: 'EHC', code: 1 },
+  { type: 'SEN', code: 1 },
+  { type: 'DLA', code: 1 },
+  { type: 'NLM', code: 17 },
+  { type: 'NLM', code: 18 },
+].map((o) => ({ ...o, key: `${o.type}-${o.code}`, label: `${LEARNER_FAM[o.type].title}: ${LEARNER_FAM[o.type].codes[o.code]}` }))

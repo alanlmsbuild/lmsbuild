@@ -12,6 +12,7 @@ import {
   progTypeLabel,
 } from '../ilrLabels'
 import { COMPLETION_STATUS_LABELS, OUTCOME_LABELS, describe } from '../lookups'
+import { learnerEditPath, learnerRecordPath } from './links'
 
 // The Record tab's ILR parts, read only: each section's records, and the
 // ILR 2026 to 2027 checks that fail for it (from GET
@@ -27,10 +28,18 @@ export function Row({ label, value }) {
 }
 
 // A section card. rules: this section's failing checks, shown first.
-export function Section({ title, rules = [], children, wide = false }) {
+// change: for a manager, the link to change the section.
+export function Section({ title, rules = [], children, wide = false, change }) {
   return (
     <section className={`learner-section${wide ? ' learner-section--wide' : ''}`} aria-label={title}>
-      <h2>{title}</h2>
+      <div className="learner-section-head">
+        <h2>{title}</h2>
+        {change && (
+          <a className="record-change" href={change} aria-label={`Change ${title.toLowerCase()}`}>
+            Change
+          </a>
+        )}
+      </div>
       {rules.length > 0 && <RuleList rules={rules} />}
       {children}
     </section>
@@ -93,7 +102,34 @@ export function IlrSummary({ ilr, status, error, canSeePrices }) {
 
 const empty = (text) => <p className="record-empty">{text}</p>
 
-export function SupportRecords({ ilr }) {
+// For a manager: links to correct or remove a record, and to add one.
+// manage: { learnRefNumber, back }, or null for anyone else.
+export const changePath = (manage, section) => manage && learnerEditPath(manage.learnRefNumber, section, manage.back)
+
+function RecordActions({ manage, kind, recordKey, label }) {
+  if (!manage) return null
+  return (
+    <span className="record-actions">
+      <a href={learnerRecordPath(manage.learnRefNumber, kind, recordKey, 'correct', manage.back)} aria-label={`Correct ${label}`}>
+        Correct
+      </a>
+      <a href={learnerRecordPath(manage.learnRefNumber, kind, recordKey, 'remove', manage.back)} aria-label={`Remove ${label}`}>
+        Remove
+      </a>
+    </span>
+  )
+}
+
+function AddLink({ manage, kind, children }) {
+  if (!manage) return null
+  return (
+    <a className="record-add" href={learnerRecordPath(manage.learnRefNumber, kind, null, 'new', manage.back)}>
+      + {children}
+    </a>
+  )
+}
+
+export function SupportRecords({ ilr, manage, llddHealthProb }) {
   return (
     <>
       <h3 className="record-subhead">LLDD categories</h3>
@@ -105,10 +141,12 @@ export function SupportRecords({ ilr }) {
                 <li key={x.LLDDCAT}>
                   {llddCatLabel(x.LLDDCAT)}
                   {x.PRIMARYLLDD && <span className="record-tag">Primary</span>}
+                  <RecordActions manage={manage} kind="lldd" recordKey={String(x.LLDDCAT)} label={llddCatLabel(x.LLDDCAT)} />
                 </li>
               ))}
             </ul>
           )}
+      {llddHealthProb === 1 && <AddLink manage={manage} kind="lldd">Add a category</AddLink>}
       <h3 className="record-subhead">Learner funding and monitoring</h3>
       {ilr.learnerFams.length === 0
         ? empty('None recorded.')
@@ -116,22 +154,55 @@ export function SupportRecords({ ilr }) {
             <dl>
               {ilr.learnerFams.map((f) => {
                 const l = learnerFamLabel(f.LEARNFAMTYPE, f.LEARNFAMCODE)
-                return <Row key={`${f.LEARNFAMTYPE}-${f.LEARNFAMCODE}`} label={l.type} value={l.code} />
+                const key = `${f.LEARNFAMTYPE}-${Number(f.LEARNFAMCODE)}`
+                return (
+                  <Row
+                    key={key}
+                    label={l.type}
+                    value={
+                      <>
+                        {l.code}
+                        <RecordActions manage={manage} kind="learner-fam" recordKey={key} label={l.type} />
+                      </>
+                    }
+                  />
+                )
               })}
             </dl>
           )}
+      <AddLink manage={manage} kind="learner-fam">Add funding and monitoring</AddLink>
     </>
   )
 }
 
-export function PriorRecords({ ilr }) {
-  if (ilr.prior.length === 0) return empty('No prior attainment recorded.')
+export function PriorRecords({ ilr, manage }) {
   return (
-    <dl>
-      {ilr.prior.map((p) => (
-        <Row key={p.DATELEVELAPP} label={`Recorded ${formatDate(p.DATELEVELAPP)}`} value={priorLevelLabel(p.PRIORLEVEL)} />
-      ))}
-    </dl>
+    <>
+      {ilr.prior.length === 0
+        ? empty('No prior attainment recorded.')
+        : (
+            <dl>
+              {ilr.prior.map((p) => (
+                <Row
+                  key={p.DATELEVELAPP}
+                  label={`Recorded ${formatDate(p.DATELEVELAPP)}`}
+                  value={
+                    <>
+                      {priorLevelLabel(p.PRIORLEVEL)}
+                      <RecordActions
+                        manage={manage}
+                        kind="prior"
+                        recordKey={p.DATELEVELAPP}
+                        label={`prior attainment recorded ${formatDate(p.DATELEVELAPP)}`}
+                      />
+                    </>
+                  }
+                />
+              ))}
+            </dl>
+          )}
+      <AddLink manage={manage} kind="prior">Add prior attainment</AddLink>
+    </>
   )
 }
 

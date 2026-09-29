@@ -33,6 +33,11 @@ export const RULES = {
   PrimaryLLDD_03: ['Error', 'Only one LLDD category can be marked primary.'],
   LLDDCat_01: ['Error', 'The LLDD category isn\'t a valid code for this year.'],
   R_131: ['Error', 'There must be a prior attainment record on or before the earliest start date.'],
+  PriorAttain_10: ['Error', 'Two prior attainment records have the same date.'],
+  LLDDCat_02: ['Error', 'An LLDD category is past its "valid to" date for this learner\'s earliest start.'],
+  LearnFAMType_09: ['Error', 'There is more than one EHC, SEN or DLA record (only one of each is allowed).'],
+  LearnFAMType_11: ['Error', 'There are more than two NLM records.'],
+  LearnFAMType_14: ['Error', 'The learner has both SEN and an EHC plan: only one can be recorded.'],
   EmpStat_09: ['Error', 'There must be an employment status record dated before the programme start.'],
   EmpStat_15: ['Error', 'The employment status at the programme start must not be "not known".'],
   EmpStat_12: ['Warning', 'The apprentice should be employed (EmpStat 10) at the programme start.'],
@@ -122,8 +127,9 @@ export const NOT_CHECKED = [
 const SECTION_RULES = {
   personal: ['ULN_04', 'R_59', 'FamilyName_01', 'GivenNames_01', 'DateOfBirth_01', 'DateOfBirth_48', 'AddLine1_03',
     'Postcode_15', 'PostcodePrior_02', 'NINumber_01', 'NINumber_02', 'Warren: TelNo'],
-  support: ['LLDDHealthProb_06', 'LLDDHealthProb_04', 'PrimaryLLDD_01', 'PrimaryLLDD_03', 'LLDDCat_01'],
-  prior: ['R_131'],
+  support: ['LLDDHealthProb_06', 'LLDDHealthProb_04', 'PrimaryLLDD_01', 'PrimaryLLDD_03', 'LLDDCat_01', 'LLDDCat_02',
+    'LearnFAMType_09', 'LearnFAMType_11', 'LearnFAMType_14'],
+  prior: ['R_131', 'PriorAttain_10'],
   employment: ['EmpStat_09', 'EmpStat_15', 'EmpStat_12', 'EmpId_10', 'EmpId_02', 'ESMType_02', 'ESMType_09', 'ESMType_15', 'R_43'],
   programme: ['DateOfBirth_46', 'DateOfBirth_57', 'AimSeqNumber_02', 'R_07', 'LearnAimRef_01', 'LearnStartDate_03',
     'LearnStartDate_13', 'LearnStartDate_17', 'LearnStartDate_18', 'LearnPlanEndDate_02', 'StdCode_01', 'DelLocPostCode_11',
@@ -150,7 +156,7 @@ export const MANAGER_ONLY_RULES = new Set(['NINumber_01', 'NINumber_02', ...SECT
 const PC = /^[A-Z]{1,2}([0-9]{1,2}|[0-9][A-Z]) [0-9][ABD-HJLNP-UW-Z]{2}$/
 const NAME = /^[^0-9\r\n\t|"]{1,100}$/
 const NI = /^[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z][0-9]{6}[ABCD ]$/
-const LLDD_CODES = new Set([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 93, 94, 95, 96, 97, 98, 99])
+const LLDD_CODES = new Set([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 93, 94, 95, 96, 97, 98, 99])
 
 const d = (s) => new Date(`${s}T00:00:00Z`)
 const days = (a, b) => Math.round((d(b) - d(a)) / 86400000)
@@ -213,6 +219,13 @@ export function checkIlrRules({ learners, standards }, year, filePreparationDate
       if (l.lldd.some((x) => !LLDD_CODES.has(Number(x.LLDDCAT)))) f('LLDDCat_01')
     }
     if (!l.prior.some((p) => p.DATELEVELAPP <= l.earliestStart)) f('R_131')
+    if (new Set(l.prior.map((p) => p.DATELEVELAPP)).size !== l.prior.length) f('PriorAttain_10')
+    if (l.lldd.some((x) => Number(x.LLDDCAT) === 15) && l.earliestStart > '2025-07-31') f('LLDDCat_02')
+    const famCount = (type) => l.learnerFams.filter((x) => x.LEARNFAMTYPE === type).length
+    if (['HNS', 'EHC', 'DLA', 'SEN', 'MCF', 'ECF', 'FME', 'MMH', 'EMH'].some((type) => famCount(type) > 1)) f('LearnFAMType_09')
+    if (famCount('NLM') > 2 || famCount('EDF') > 2) f('LearnFAMType_11')
+    if (l.learnerFams.some((x) => x.LEARNFAMTYPE === 'SEN' && Number(x.LEARNFAMCODE) === 1) &&
+      l.learnerFams.some((x) => x.LEARNFAMTYPE === 'EHC' && Number(x.LEARNFAMCODE) === 1)) f('LearnFAMType_14')
 
     if (programme && l.DATEOFBIRTH) {
       const start = programme.LEARNSTARTDATE

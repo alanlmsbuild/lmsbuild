@@ -244,3 +244,37 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
 }
+
+/* ---------------------------------------------------------------- a manager's changes on the Record tab */
+
+.learner-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.record-change,
+.record-add,
+.record-actions a {
+  color: var(--area-link);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.record-add {
+  display: inline-block;
+  margin-top: 8px;
+  text-decoration: none;
+}
+
+.record-add:hover {
+  text-decoration: underline;
+}
+
+.record-actions {
+  display: inline-flex;
+  gap: 10px;
+  margin-left: 10px;
+}

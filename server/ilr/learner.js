@@ -48,9 +48,11 @@ const AIMS_QUERY = `
   order by ld.AIMSEQNUMBER
 `
 
+// Leaves out records a manager removed as entered in error.
 const forLearner = (source, columns, order) => `
   select ${columns} from ${source}
   where LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}
+    and REMOVEDAT is null
   order by ${order}
 `
 const PRIOR_QUERY = forLearner('ILR.PRIOR_ATTAINMENT', 'LEARNREFNUMBER, PRIORLEVEL, DATELEVELAPP', 'DATELEVELAPP')
@@ -71,6 +73,7 @@ const EMPLOYMENT_QUERY = `
   left join ${ORG_EMPLOYER} em
     on em.EMPLOYERID = es.EMPLOYERID
   where es.LEARNREFNUMBER = ? and es.${IN_VISIBLE_LEARNERS}
+    and es.REMOVEDAT is null
   order by es.DATEEMPSTATAPP
 `
 

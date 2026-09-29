@@ -16,8 +16,17 @@ import {
 } from './ilrCodes.js'
 import { EVIDENCE_TYPE_OPTIONS, IQA_OUTCOME_OPTIONS, TYPES_NEEDING_A_FILE, WITNESS_OUTCOME_OPTIONS } from './burrowCodes.js'
 
+import { LEARNER_FAM_OPTIONS, LLDD_CAT_OPTIONS, LLDD_CAT_VALID_TO, PRIOR_LEVEL_OPTIONS } from './ilrLabels.js'
+
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
-const NI_NUMBER = /^[A-Za-z]{2}\d{6}[A-Da-d]$/
+// The ILR's NI number format (rule NINumber_01): the first letter isn't D,
+// F, I, Q, U or V, the second isn't D, F, I, O, Q, U or V, then 6 digits and
+// A, B, C, D or a space.
+const NI_NUMBER = /^[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z][0-9]{6}[ABCD ]$/
+// The ILR's postcode format (rules Postcode_15, PostcodePrior_02,
+// DelLocPostCode_11): outward code, one space, then a digit and two letters
+// other than C, I, K, M, O and V.
+const ILR_POSTCODE = /^[A-Z]{1,2}([0-9]{1,2}|[0-9][A-Z]) [0-9][ABD-HJLNP-UW-Z]{2}$/
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE = /^[+\d][\d\s]{6,19}$/
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -78,6 +87,20 @@ function isPostcode(value) {
   return UK_POSTCODE.test(String(value ?? '').trim())
 }
 
+// A postcode as the ILR wants it: capitals, one space before the last 3
+// characters ("zz11aa" -> "ZZ1 1AA").
+export function normalisePostcode(value) {
+  const text = String(value ?? '').toUpperCase().replace(/\s+/g, '')
+  if (text.length < 5) return text
+  return `${text.slice(0, -3)} ${text.slice(-3)}`
+}
+
+// An NI number as stored: capitals, no spaces except a final space suffix.
+export function normaliseNiNumber(value) {
+  const text = String(value ?? '').toUpperCase().replace(/\s+/g, '')
+  return text.length === 8 ? `${text} ` : text
+}
+
 function isValidDateString(value) {
   if (!ISO_DATE.test(value ?? '')) return false
   return !Number.isNaN(new Date(value).getTime())
@@ -91,7 +114,7 @@ export function todayString() {
 
 // The learner fields (as opposed to the aim fields) are the same whether
 // you're adding a new learner or editing an existing one, so both
-// validateLearnerForm and validateLearnerEditForm call this.
+// validateLearnerForm and validateLearnerSection call this.
 function validateLearnerFields(v, errors) {
   if (!/^[1-9]\d{9}$/.test(String(v.uln ?? '').trim())) {
     errors.uln = 'ULN must be exactly 10 digits, between 1000000000 and 9999999999.'
@@ -109,16 +132,27 @@ function validateLearnerFields(v, errors) {
   }
   if (!isPostcode(v.postcodePrior)) {
     errors.postcodePrior = 'Enter a valid UK postcode.'
+  } else if (!ILR_POSTCODE.test(normalisePostcode(v.postcodePrior))) {
+    errors.postcodePrior = "The ILR doesn't accept this postcode's last part (C, I, K, M, O and V aren't used there)."
   }
   if (!isPostcode(v.postcode)) {
     errors.postcode = 'Enter a valid UK postcode.'
+  } else if (!ILR_POSTCODE.test(normalisePostcode(v.postcode))) {
+    errors.postcode = "The ILR doesn't accept this postcode's last part (C, I, K, M, O and V aren't used there)."
+  }
+  if (v.familyName && /[0-9]/.test(v.familyName)) {
+    errors.familyName = "The ILR doesn't allow digits in a family name."
+  }
+  if (v.givenNames && /[0-9]/.test(v.givenNames)) {
+    errors.givenNames = "The ILR doesn't allow digits in given names."
   }
 
   if (v.dateOfBirth && !isValidDateString(v.dateOfBirth)) {
     errors.dateOfBirth = 'Enter a valid date.'
   }
-  if (v.niNumber && !NI_NUMBER.test(String(v.niNumber).trim())) {
-    errors.niNumber = 'NI number must be 2 letters, 6 digits, then a letter A to D (e.g. AB123456C).'
+  if (v.niNumber && !NI_NUMBER.test(normaliseNiNumber(v.niNumber))) {
+    errors.niNumber =
+      "This isn't an NI number the ILR accepts: 2 letters, 6 digits, then A, B, C or D (e.g. AB123456C). Some letters, like D, F, I, Q, U and V, are never used at the start."
   }
   if (v.phone && !PHONE.test(String(v.phone).trim())) {
     errors.phone = 'Enter a valid phone number.'
@@ -177,11 +211,11 @@ function validateLearnerFields(v, errors) {
 
 // The aim fields (as opposed to the learner fields) are the same whether
 // you're adding a new learner or editing an existing one, so both
-// validateLearnerForm and validateLearnerEditForm call this. Whether the
+// validateLearnerForm and validateLearnerSection call this. Whether the
 // start date is actually allowed to change (only when the aim is still
 // continuing, COMPSTATUS 1) is checked separately by the server against
 // the database, never against anything the browser sends - see the
-// PUT /api/learners/:learnRefNumber route. Likewise, whether the standard
+// PUT /api/learners/:learnRefNumber/details/programme route. Likewise, whether the standard
 // code is in LARS and open for new starts needs the database, so only its
 // shape is checked here and the server's checkStandard does the rest.
 function validateAimFields(v, errors) {
@@ -198,23 +232,40 @@ function validateAimFields(v, errors) {
   }
   if (!isPostcode(v.dellocPostcode)) {
     errors.dellocPostcode = 'Enter a valid UK postcode.'
+  } else if (!ILR_POSTCODE.test(normalisePostcode(v.dellocPostcode))) {
+    errors.dellocPostcode = "The ILR doesn't accept this postcode's last part (C, I, K, M, O and V aren't used there)."
   }
+}
+
+// The Record tab's sections a manager can change, and the form fields in
+// each (the same names the add and edit forms use).
+export const LEARNER_SECTIONS = {
+  personal: ['uln', 'familyName', 'givenNames', 'dateOfBirth', 'sex', 'niNumber', 'postcodePrior', 'postcode', 'phone', 'email'],
+  contact: ['title', 'addressLine1', 'addressLine2', 'addressLine3', 'wardOrCounty', 'mobile', 'contactMethodsAllowed',
+    'preferredContactMethod', 'nextOfKinName', 'nextOfKinRelationship', 'nextOfKinPhone', 'contractType'],
+  support: ['ethnicity', 'lldd'],
+  programme: ['startDate', 'plannedEndDate', 'stdCode', 'dellocPostcode'],
+}
+
+// Validates one section of the learner: v is the whole form (the section's
+// new values over the rest as they are), and only the section's own fields
+// are checked, so an old problem elsewhere doesn't block a change here.
+export function validateLearnerSection(section, input) {
+  const fields = LEARNER_SECTIONS[section]
+  if (!fields) return { section: 'Unknown section.' }
+  const errors = {}
+  const v = input ?? {}
+  validateLearnerFields(v, errors)
+  validateAimFields(v, errors)
+  if (section === 'contact' && !String(v.addressLine1 ?? '').trim()) {
+    errors.addressLine1 = 'Address line 1 is needed for the ILR (rule AddLine1_03).'
+  }
+  return Object.fromEntries(Object.entries(errors).filter(([field]) => fields.includes(field)))
 }
 
 // Returns an object mapping field name to error message.
 // An empty object means the form is valid.
 export function validateLearnerForm(input) {
-  const errors = {}
-  const v = input ?? {}
-
-  validateLearnerFields(v, errors)
-  validateAimFields(v, errors)
-
-  return errors
-}
-
-// Validates the "edit a learner" form.
-export function validateLearnerEditForm(input) {
   const errors = {}
   const v = input ?? {}
 
@@ -423,4 +474,48 @@ export function validateWitnessConfirmationForm(input) {
   }
 
   return errors
+}
+
+// ---------------------------------------------------------------- the learner's ILR records (Record tab)
+
+// An LLDD category. earliestStart: the learner's earliest aim start, for
+// LLDDCat_02.
+export function validateLlddRecord(input, { earliestStart } = {}) {
+  const errors = {}
+  const code = Number(input?.llddCat)
+  if (!LLDD_CAT_OPTIONS.some((o) => o.code === code) && !LLDD_CAT_VALID_TO[code]) {
+    errors.llddCat = 'Choose a category from the list.'
+  } else if (LLDD_CAT_VALID_TO[code] && earliestStart && earliestStart > LLDD_CAT_VALID_TO[code]) {
+    errors.llddCat = `This category can't be used for learning that started after ${LLDD_CAT_VALID_TO[code]} (rule LLDDCat_02).`
+  }
+  return errors
+}
+
+// A learner funding and monitoring record, as "TYPE-CODE".
+export function validateLearnerFamRecord(input) {
+  const errors = {}
+  if (!LEARNER_FAM_OPTIONS.some((o) => o.key === input?.fam)) errors.fam = 'Choose one from the list.'
+  return errors
+}
+
+// A prior attainment record.
+export function validatePriorRecord(input) {
+  const errors = {}
+  if (!PRIOR_LEVEL_OPTIONS.some((o) => o.code === Number(input?.priorLevel))) {
+    errors.priorLevel = 'Choose a level from the list.'
+  }
+  if (!isValidDateString(input?.dateLevelApp)) {
+    errors.dateLevelApp = 'Enter a valid date.'
+  } else if (input.dateLevelApp > todayString()) {
+    errors.dateLevelApp = "The date can't be in the future (rule PriorAttain_09)."
+  }
+  return errors
+}
+
+// Why a record is being removed: required.
+export function validateRemoval(input) {
+  const reason = String(input?.reason ?? '').trim()
+  if (!reason) return { reason: 'Say why this record is being removed.' }
+  if (reason.length > 500) return { reason: 'Keep the reason to 500 characters or fewer.' }
+  return {}
 }

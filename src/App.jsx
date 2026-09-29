@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import './App.css'
 import AddLearnerForm from './AddLearnerForm'
-import EditLearnerForm from './EditLearnerForm'
+import EditLearnerForm, { EDIT_HEADINGS } from './EditLearnerForm'
+import IlrRecordForm, { recordFormTitle } from './learner/IlrRecordForm'
 import MarkCompletedForm from './MarkCompletedForm'
 import WithdrawAimForm from './WithdrawAimForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
 import LearnerRecord from './learner/LearnerRecord'
 import LearnerHeader from './learner/LearnerHeader'
-import { learnerPath, learnerActionPath, safeBack } from './learner/links'
+import { learnerPath, learnerActionPath, learnerEditPath, safeBack } from './learner/links'
 import Reports from './Reports'
 import MyDay from './MyDay'
 import IqaSignOffs from './IqaSignOffs'
@@ -29,7 +30,29 @@ const TABS = [
   { slug: 'sign-offs', label: 'Sign-offs to check', shows: (r) => r.isIqa },
 ]
 
-const LEARNER_ACTIONS = ['edit', 'complete', 'withdraw']
+const EDIT_SECTIONS = ['personal', 'contact', 'support', 'programme']
+const RECORD_KINDS = ['lldd', 'learner-fam', 'prior']
+
+// What follows a learner's reference in /app/learners/<ref>/...: undefined
+// for the Record tab itself, a manager's form, or null for no such page.
+//   /edit/<section>                     change a section (/edit on its own
+//                                       was step 3's address: personal)
+//   /complete, /withdraw
+//   /records/<kind>/new                 add an LLDD category, learner FAM
+//   /records/<kind>/<key>/correct         or prior attainment record, or
+//   /records/<kind>/<key>/remove          correct or remove one
+function learnerActionOf(rest) {
+  const [, a, b, c, d] = rest
+  if (rest.length <= 1) return undefined
+  if ((a === 'complete' || a === 'withdraw') && rest.length === 2) return { type: a }
+  if (a === 'edit' && rest.length === 2) return { type: 'edit', section: null }
+  if (a === 'edit' && rest.length === 3 && EDIT_SECTIONS.includes(b)) return { type: 'edit', section: b }
+  if (a === 'records' && RECORD_KINDS.includes(b)) {
+    if (rest.length === 4 && c === 'new') return { type: 'record', kind: b, key: null, mode: 'new' }
+    if (rest.length === 5 && (d === 'correct' || d === 'remove')) return { type: 'record', kind: b, key: c, mode: d }
+  }
+  return null
+}
 const REPORTS = ['qar', 'caseload', 'ilr']
 
 // Every Warren view has its own address:
@@ -78,8 +101,11 @@ function redirectFor(view, can, me) {
   if (tab === 'reports') {
     if (rest.length === 0 || (rest[0] === 'ilr' && !can.isManager)) return '/app/reports/qar'
   }
-  if (tab === 'learners' && rest[1] && LEARNER_ACTIONS.includes(rest[1]) && !can.isManager) {
-    return `/app/learners/${encodeURIComponent(rest[0])}`
+  const action = tab === 'learners' ? learnerActionOf(rest) : undefined
+  if (action && !can.isManager) return `/app/learners/${encodeURIComponent(rest[0])}`
+  if (action?.type === 'edit' && !action.section) {
+    const query = view.params.toString()
+    return `/app/learners/${encodeURIComponent(rest[0])}/edit/personal${query ? `?${query}` : ''}`
   }
   return null
 }
@@ -92,7 +118,7 @@ function isKnownView({ tab, rest }) {
     case 'sign-offs':
       return rest.length === 0
     case 'learners':
-      return rest.length <= 1 || (rest.length === 2 && LEARNER_ACTIONS.includes(rest[1]))
+      return rest.length <= 1 || Boolean(learnerActionOf(rest))
     case 'officers':
       return rest.length <= 1
     case 'reports':
@@ -136,7 +162,7 @@ function App() {
   // one Back goes to (Learners unless it's another Warren tab).
   const current = parseWarren(path)
   const learnerRef = current.tab === 'learners' ? (current.rest[0] ?? null) : null
-  const learnerAction = learnerRef && LEARNER_ACTIONS.includes(current.rest[1]) ? current.rest[1] : null
+  const learnerAction = learnerRef ? (learnerActionOf(current.rest) ?? null) : null
   const listQuery = learnersQuery(current.params)
   // Step 3's learner addresses carried the list's filters instead of ?back=.
   const back = safeBack(current.params.get('back')) ?? `/app/learners${listQuery}`
@@ -159,12 +185,17 @@ function App() {
 
   const tabLabel = TABS.find((t) => t.slug === view.tab)?.label
   const reportTitles = { qar: 'QAR', caseload: 'Caseload report', ilr: 'ILR return' }
-  const actionTitles = { edit: 'Edit', complete: 'Mark completed', withdraw: 'Withdraw' }
+  const actionTitle = (a) =>
+    a.type === 'edit'
+      ? EDIT_HEADINGS[a.section]
+      : a.type === 'record'
+        ? recordFormTitle(a.kind, a.mode)
+        : { complete: 'Mark completed', withdraw: 'Withdraw' }[a.type]
   usePageTitle(
     redirect
       ? null
       : learnerAction
-        ? `${actionTitles[learnerAction]}: ${learnerName}`
+        ? `${actionTitle(learnerAction)}: ${learnerName}`
         : learnerRef
           ? learnerName
           : view.tab === 'reports'
@@ -306,9 +337,10 @@ function App() {
             back={back}
           />
           {!learnerAction && <LearnerRecord key={learnerRef} learner={learnerRow} canManage={isManager} back={back} />}
-          {isManager && learnerAction === 'edit' && (
+          {isManager && learnerAction?.type === 'edit' && learnerAction.section && (
             <EditLearnerForm
-              key={learnerRef}
+              key={`${learnerRef}-${learnerAction.section}`}
+              section={learnerAction.section}
               learner={learnerRow}
               standards={standards}
               standardsStatus={standardsStatus}
@@ -316,10 +348,21 @@ function App() {
               onCancel={closeForm}
             />
           )}
-          {isManager && learnerAction === 'complete' && (
+          {isManager && learnerAction?.type === 'record' && (
+            <IlrRecordForm
+              key={`${learnerRef}-${learnerAction.kind}-${learnerAction.key}-${learnerAction.mode}`}
+              learnRefNumber={learnerRef}
+              kind={learnerAction.kind}
+              recordKey={learnerAction.key}
+              mode={learnerAction.mode}
+              onSaved={handleSaved}
+              onCancel={closeForm}
+            />
+          )}
+          {isManager && learnerAction?.type === 'complete' && (
             <MarkCompletedForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
           )}
-          {isManager && learnerAction === 'withdraw' && (
+          {isManager && learnerAction?.type === 'withdraw' && (
             <WithdrawAimForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
           )}
         </div>
@@ -404,7 +447,7 @@ function App() {
                       <button
                         type="button"
                         className="secondary"
-                        onClick={() => navigate(learnerActionPath(learner.LEARNREFNUMBER, 'edit', listPath))}
+                        onClick={() => navigate(learnerEditPath(learner.LEARNREFNUMBER, 'personal', listPath))}
                       >
                         Edit
                       </button>

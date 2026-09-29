@@ -56,9 +56,12 @@ export const STANDARDS_QUERY = `
   group by STANDARD_CODE
 `
 
+// Records a manager removed as entered in error are kept, but never
+// returned (REMOVEDAT is set).
 const byLearner = (table, columns, order) => `
   select ${columns} from ${table}
   where ${IN_ORG_LEARNERS} -- whole organisation: the ILR return covers everyone
+    and REMOVEDAT is null
   order by LEARNREFNUMBER${order ? `, ${order}` : ''}
 `
 const PRIOR_QUERY = byLearner('ILR.PRIOR_ATTAINMENT', 'LEARNREFNUMBER, PRIORLEVEL, DATELEVELAPP', 'DATELEVELAPP')
