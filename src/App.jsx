@@ -31,7 +31,7 @@ const TABS = [
 ]
 
 const EDIT_SECTIONS = ['personal', 'contact', 'support', 'programme']
-const RECORD_KINDS = ['lldd', 'learner-fam', 'prior']
+const RECORD_KINDS = ['lldd', 'learner-fam', 'prior', 'employment']
 
 // What follows a learner's reference in /app/learners/<ref>/...: undefined
 // for the Record tab itself, a manager's form, or null for no such page.

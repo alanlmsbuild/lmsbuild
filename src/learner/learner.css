@@ -278,3 +278,11 @@
   gap: 10px;
   margin-left: 10px;
 }
+
+/* Checkboxes on the record forms sit on their own line, with room around them. */
+.ilr-record-form .checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 10px;
+}

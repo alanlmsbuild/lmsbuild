@@ -16,7 +16,17 @@ import {
 } from './ilrCodes.js'
 import { EVIDENCE_TYPE_OPTIONS, IQA_OUTCOME_OPTIONS, TYPES_NEEDING_A_FILE, WITNESS_OUTCOME_OPTIONS } from './burrowCodes.js'
 
-import { LEARNER_FAM_OPTIONS, LLDD_CAT_OPTIONS, LLDD_CAT_VALID_TO, PRIOR_LEVEL_OPTIONS } from './ilrLabels.js'
+import {
+  BSI_OPTIONS,
+  EII_OPTIONS,
+  EMP_STAT_OPTIONS,
+  LEARNER_FAM_OPTIONS,
+  LLDD_CAT_OPTIONS,
+  LLDD_CAT_VALID_TO,
+  LOE_OPTIONS,
+  LOU_OPTIONS,
+  PRIOR_LEVEL_OPTIONS,
+} from './ilrLabels.js'
 
 const UK_POSTCODE = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
 // The ILR's NI number format (rule NINumber_01): the first letter isn't D,
@@ -518,4 +528,74 @@ export function validateRemoval(input) {
   if (!reason) return { reason: 'Say why this record is being removed.' }
   if (reason.length > 500) return { reason: 'Keep the reason to 500 characters or fewer.' }
   return {}
+}
+
+// An employment status record. The form's fields: dateEmpStatApp, empStat,
+// employer (an EMPLOYERID from the organisation's employers, or 'other'),
+// empId (the employer's ERN, when 'other'), agreemId, and the monitoring
+// codes eii, loe and sei (in paid employment) or lou, bsi and pei (not).
+// teachingYearEnd: the last day of the current teaching year (rule
+// DateEmpStatApp_01).
+export function validateEmploymentRecord(input, { teachingYearEnd } = {}) {
+  const errors = {}
+  const v = input ?? {}
+  const has = (options, value) => options.some((o) => o.code === Number(value))
+  if (!isValidDateString(v.dateEmpStatApp)) {
+    errors.dateEmpStatApp = 'Enter a valid date.'
+  } else if (v.dateEmpStatApp < '1990-08-01') {
+    errors.dateEmpStatApp = "The date can't be before 1 August 1990 (rule DateEmpStatApp_02)."
+  } else if (teachingYearEnd && v.dateEmpStatApp > teachingYearEnd) {
+    errors.dateEmpStatApp = "The date can't be after this teaching year (rule DateEmpStatApp_01)."
+  }
+  if (!has(EMP_STAT_OPTIONS, v.empStat)) {
+    errors.empStat = 'Choose an employment status.'
+    return errors
+  }
+  const employed = Number(v.empStat) === 10
+  if (employed) {
+    if (!v.employer) {
+      errors.employer = 'Choose the employer (rule EmpId_10).'
+    } else if (v.employer === 'other') {
+      const message = employerIdentifierError(v.empId)
+      if (!String(v.empId ?? '').trim()) errors.empId = "Enter the employer's ERN, or 999999999 if they're not on the Employer Data Service."
+      else if (message) errors.empId = message
+    }
+    if (!has(EII_OPTIONS, v.eii)) errors.eii = 'Choose the hours a week (rule ESMType_02).'
+    if (!has(LOE_OPTIONS, v.loe)) errors.loe = 'Choose how long they have been employed (rule ESMType_09).'
+  } else {
+    if (Number(v.empStat) === 11 && !has(LOU_OPTIONS, v.lou)) {
+      errors.lou = 'Choose how long they have been unemployed (rule ESMType_08).'
+    } else if (v.lou && !has(LOU_OPTIONS, v.lou)) {
+      errors.lou = 'Choose from the list.'
+    }
+    if (v.bsi && !has(BSI_OPTIONS, v.bsi)) errors.bsi = 'Choose from the list.'
+  }
+  const agreemId = String(v.agreemId ?? '').trim()
+  if (agreemId && !/^[A-Za-z0-9]{1,7}$/.test(agreemId)) {
+    errors.agreemId = 'The agreement ID is up to 7 letters and digits, as shown in the Apprenticeship Service.'
+  }
+  return errors
+}
+
+// The last day of the teaching year (1 August to 31 July) a date is in.
+export function teachingYearEnd(date = todayString()) {
+  const year = Number(date.slice(0, 4))
+  return date.slice(5) >= '08-01' ? `${year + 1}-07-31` : `${year}-07-31`
+}
+
+// The monitoring records an employment status form describes, by the
+// ILR's rules: only the ones that fit the status (ESMType_05, 10, 12).
+export function employmentMonitoring(input) {
+  const v = input ?? {}
+  const esm = []
+  if (Number(v.empStat) === 10) {
+    if (v.eii) esm.push({ ESMTYPE: 'EII', ESMCODE: Number(v.eii) })
+    if (v.loe) esm.push({ ESMTYPE: 'LOE', ESMCODE: Number(v.loe) })
+    if (v.sei === true) esm.push({ ESMTYPE: 'SEI', ESMCODE: 1 })
+  } else if ([11, 12].includes(Number(v.empStat))) {
+    if (v.lou) esm.push({ ESMTYPE: 'LOU', ESMCODE: Number(v.lou) })
+    if (v.bsi) esm.push({ ESMTYPE: 'BSI', ESMCODE: Number(v.bsi) })
+    if (v.pei === true) esm.push({ ESMTYPE: 'PEI', ESMCODE: 1 })
+  }
+  return esm
 }

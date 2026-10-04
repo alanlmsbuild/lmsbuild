@@ -249,3 +249,18 @@ export const LEARNER_FAM_OPTIONS = [
   { type: 'NLM', code: 17 },
   { type: 'NLM', code: 18 },
 ].map((o) => ({ ...o, key: `${o.type}-${o.code}`, label: `${LEARNER_FAM[o.type].title}: ${LEARNER_FAM[o.type].codes[o.code]}` }))
+
+// Employment status, and the monitoring codes the employment form offers.
+// In paid employment: hours a week (EII) and length of employment (LOE),
+// and whether they're self-employed (SEI). Not in paid employment: length
+// of unemployment (LOU), benefits (BSI, current codes only) and whether
+// they were in full-time education before (PEI). The small employer
+// indicator (SEM) isn't offered: it was only for starts up to 31 March 2024.
+const codes = (map, only) => Object.entries(map)
+  .filter(([code]) => !only || only.includes(Number(code)))
+  .map(([code, label]) => ({ code: Number(code), label }))
+export const EMP_STAT_OPTIONS = codes(EMP_STAT)
+export const EII_OPTIONS = codes(ESM.EII.codes)
+export const LOE_OPTIONS = codes(ESM.LOE.codes)
+export const LOU_OPTIONS = codes(ESM.LOU.codes)
+export const BSI_OPTIONS = codes(ESM.BSI.codes, [1, 4, 5, 6])

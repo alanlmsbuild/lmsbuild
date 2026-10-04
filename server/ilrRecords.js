@@ -7,7 +7,8 @@
 //   POST /api/learners/:ref/ilr/:kind/:key/remove     remove (entered in error)
 //
 // kind is lldd (key: the category), learner-fam (key: TYPE-CODE, e.g.
-// EHC-1) or prior (key: the date the level applies). Managers only.
+// EHC-1), prior (key: the date the level applies) or employment (key: the
+// date the status applies, with its monitoring codes). Managers only.
 //
 // The rules (decided 28 September 2026): a correction changes the record in
 // place and keeps the old values in ILR.RECORD_CHANGE with who and when. A
@@ -17,10 +18,13 @@
 // through the one learner scope, so a learner outside it is "not found".
 
 import { execute } from './db.js'
-import { allow, IN_VISIBLE_LEARNERS, MANAGER, VISIBLE_LEARNER } from './access.js'
+import { allow, IN_VISIBLE_LEARNERS, MANAGER, ORG_EMPLOYER, VISIBLE_LEARNER } from './access.js'
 import { inTransaction, RequestError, sendError } from './burrow.js'
 import { logChange } from './recordChange.js'
 import {
+  employmentMonitoring,
+  teachingYearEnd,
+  validateEmploymentRecord,
   validateLearnerFamRecord,
   validateLlddRecord,
   validatePriorRecord,
@@ -340,7 +344,177 @@ const prior = {
   },
 }
 
-const KINDS = { lldd, 'learner-fam': learnerFam, prior }
+// ---------------------------------------------------------------- employment status
+//
+// A change of employment (a new job, different hours) is a new record from
+// the date it applies, as the ILR expects. Correct is for a record entered
+// in error. Each status has its monitoring codes (EMPLOYMENT_STATUS_MONITORING,
+// keyed by the same date), which are added, corrected and removed with it.
+
+const ES_ACTIVE = `
+  select DATEEMPSTATAPP, EMPSTAT, EMPID, AGREEMID, EMPLOYERID
+  from ILR.EMPLOYMENT_STATUS
+  where LEARNREFNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const ESM_ACTIVE = `
+  select DATEEMPSTATAPP, ESMTYPE, ESMCODE
+  from ILR.EMPLOYMENT_STATUS_MONITORING
+  where LEARNREFNUMBER = ? and DATEEMPSTATAPP = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const EMPLOYER_QUERY = `select EMPLOYERID, NAME, EMPLOYERREF from ${ORG_EMPLOYER} where EMPLOYERID = ?`
+const ES_INSERT = `
+  insert into ILR.EMPLOYMENT_STATUS (LEARNREFNUMBER, DATEEMPSTATAPP, EMPSTAT, EMPID, AGREEMID, EMPLOYERID, CREATEDBY, ISTESTDATA)
+  select l.LEARNREFNUMBER, ?, ?, ?, ?, ?, ?, l.ISTESTDATA
+  from ${VISIBLE_LEARNER} l
+  where l.LEARNREFNUMBER = ?
+`
+const ES_UPDATE = `
+  update ILR.EMPLOYMENT_STATUS
+  set DATEEMPSTATAPP = ?, EMPSTAT = ?, EMPID = ?, AGREEMID = ?, EMPLOYERID = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
+  where LEARNREFNUMBER = ? and DATEEMPSTATAPP = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const ES_REMOVE = `
+  update ILR.EMPLOYMENT_STATUS
+  set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
+  where LEARNREFNUMBER = ? and DATEEMPSTATAPP = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const ESM_INSERT = `
+  insert into ILR.EMPLOYMENT_STATUS_MONITORING (LEARNREFNUMBER, DATEEMPSTATAPP, ESMTYPE, ESMCODE, CREATEDBY, ISTESTDATA)
+  select l.LEARNREFNUMBER, ?, ?, ?, ?, l.ISTESTDATA
+  from ${VISIBLE_LEARNER} l
+  where l.LEARNREFNUMBER = ?
+`
+const ESM_UPDATE = `
+  update ILR.EMPLOYMENT_STATUS_MONITORING
+  set DATEEMPSTATAPP = ?, ESMCODE = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
+  where LEARNREFNUMBER = ? and DATEEMPSTATAPP = ? and ESMTYPE = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const ESM_REMOVE = `
+  update ILR.EMPLOYMENT_STATUS_MONITORING
+  set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
+  where LEARNREFNUMBER = ? and DATEEMPSTATAPP = ? and ESMTYPE = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+
+// The record's columns from the form: the employer's ERN comes from the
+// organisation's employer when one is picked.
+async function employmentColumns(connection, body) {
+  checkFields(validateEmploymentRecord(body, { teachingYearEnd: teachingYearEnd() }))
+  const employed = Number(body.empStat) === 10
+  let employerId = null
+  let empId = null
+  if (employed && body.employer === 'other') {
+    empId = Number(String(body.empId).trim())
+  } else if (employed) {
+    const [employer] = await execute(connection, EMPLOYER_QUERY, [body.employer])
+    if (!employer) throw new RequestError('Please fix the highlighted fields.', 400, { employer: 'Choose an employer from the list.' })
+    if (!employer.EMPLOYERREF) {
+      throw new RequestError('Please fix the highlighted fields.', 400, {
+        employer: `${employer.NAME} has no employer reference (ERN) in Warren. Choose "Another employer" and enter it.`,
+      })
+    }
+    employerId = employer.EMPLOYERID
+    empId = Number(employer.EMPLOYERREF)
+  }
+  return {
+    DATEEMPSTATAPP: body.dateEmpStatApp,
+    EMPSTAT: Number(body.empStat),
+    EMPID: empId,
+    // The agreement is the employer's, so only while in paid employment.
+    AGREEMID: employed ? String(body.agreemId ?? '').trim().toUpperCase() || null : null,
+    EMPLOYERID: employerId,
+    esm: employmentMonitoring(body),
+  }
+}
+
+const esmObject = (rows) => Object.fromEntries(rows.map((m) => [m.ESMTYPE, Number(m.ESMCODE)]))
+const statusValues = (row, esm) => ({
+  DATEEMPSTATAPP: isoDate(row.DATEEMPSTATAPP),
+  EMPSTAT: Number(row.EMPSTAT),
+  EMPID: row.EMPID === null ? null : Number(row.EMPID),
+  AGREEMID: row.AGREEMID ?? null,
+  EMPLOYERID: row.EMPLOYERID ?? null,
+  ESM: esmObject(esm),
+})
+const sameDateStatus = 'Another employment status starts on this date (rule R_43). Correct that one instead.'
+
+const employment = {
+  async add(connection, ref, body, by) {
+    await findLearner(connection, ref)
+    const next = await employmentColumns(connection, body)
+    const active = await execute(connection, ES_ACTIVE, [ref])
+    if (active.some((x) => isoDate(x.DATEEMPSTATAPP) === next.DATEEMPSTATAPP)) {
+      throw new RequestError('Please fix the highlighted fields.', 400, { dateEmpStatApp: sameDateStatus })
+    }
+    await inTransaction(connection, async () => {
+      await execute(connection, ES_INSERT, [next.DATEEMPSTATAPP, next.EMPSTAT, next.EMPID, next.AGREEMID, next.EMPLOYERID, by, ref])
+      for (const m of next.esm) await execute(connection, ESM_INSERT, [next.DATEEMPSTATAPP, m.ESMTYPE, m.ESMCODE, by, ref])
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'EMPLOYMENT_STATUS', key: { DATEEMPSTATAPP: next.DATEEMPSTATAPP }, type: 'added',
+        newValues: statusValues(next, next.esm), by,
+      })
+    })
+  },
+
+  async correct(connection, ref, key, body, by) {
+    await findLearner(connection, ref)
+    const active = await execute(connection, ES_ACTIVE, [ref])
+    const current = active.find((x) => isoDate(x.DATEEMPSTATAPP) === key)
+    if (!current) throw new RequestError('Record not found.', 404)
+    const next = await employmentColumns(connection, body)
+    if (next.DATEEMPSTATAPP !== key && active.some((x) => isoDate(x.DATEEMPSTATAPP) === next.DATEEMPSTATAPP)) {
+      throw new RequestError('Please fix the highlighted fields.', 400, { dateEmpStatApp: sameDateStatus })
+    }
+    const oldEsm = await execute(connection, ESM_ACTIVE, [ref, key])
+    const before = statusValues(current, oldEsm)
+    const after = statusValues(next, next.esm)
+    if (JSON.stringify(before) === JSON.stringify(after)) return
+    await inTransaction(connection, async () => {
+      checkUpdated(await execute(connection, ES_UPDATE, [
+        next.DATEEMPSTATAPP, next.EMPSTAT, next.EMPID, next.AGREEMID, next.EMPLOYERID, by, ref, key,
+      ]))
+      // Monitoring codes move with the status: kept types are corrected (and
+      // moved to the new date), types that no longer fit are removed, new
+      // ones added.
+      for (const old of oldEsm) {
+        const kept = next.esm.find((m) => m.ESMTYPE === old.ESMTYPE)
+        if (kept) {
+          if (kept.ESMCODE !== Number(old.ESMCODE) || next.DATEEMPSTATAPP !== key) {
+            checkUpdated(await execute(connection, ESM_UPDATE, [next.DATEEMPSTATAPP, kept.ESMCODE, by, ref, key, old.ESMTYPE]))
+          }
+        } else {
+          checkUpdated(await execute(connection, ESM_REMOVE, [by, 'Corrected: no longer applies to this employment status', ref, key, old.ESMTYPE]))
+        }
+      }
+      for (const m of next.esm.filter((x) => !oldEsm.some((old) => old.ESMTYPE === x.ESMTYPE))) {
+        await execute(connection, ESM_INSERT, [next.DATEEMPSTATAPP, m.ESMTYPE, m.ESMCODE, by, ref])
+      }
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'EMPLOYMENT_STATUS', key: { DATEEMPSTATAPP: key }, type: 'corrected',
+        oldValues: before, newValues: after, reason: body.reason?.trim() || null, by,
+      })
+    })
+  },
+
+  async remove(connection, ref, key, body, by) {
+    await findLearner(connection, ref)
+    checkFields(validateRemoval(body))
+    const active = await execute(connection, ES_ACTIVE, [ref])
+    const current = active.find((x) => isoDate(x.DATEEMPSTATAPP) === key)
+    if (!current) throw new RequestError('Record not found.', 404)
+    const oldEsm = await execute(connection, ESM_ACTIVE, [ref, key])
+    const reason = body.reason.trim()
+    await inTransaction(connection, async () => {
+      checkUpdated(await execute(connection, ES_REMOVE, [by, reason, ref, key]))
+      for (const m of oldEsm) checkUpdated(await execute(connection, ESM_REMOVE, [by, reason, ref, key, m.ESMTYPE]))
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'EMPLOYMENT_STATUS', key: { DATEEMPSTATAPP: key }, type: 'removed',
+        oldValues: statusValues(current, oldEsm), reason, by,
+      })
+    })
+  },
+}
+
+const KINDS = { lldd, 'learner-fam': learnerFam, prior, employment }
 
 function kindOf(req) {
   const kind = KINDS[req.params.kind]

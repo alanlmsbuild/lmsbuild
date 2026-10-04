@@ -84,6 +84,9 @@ const ULN_COUNT_QUERY = `
 
 const ORGANISATION_QUERY = `select ISTESTDATA from ${ORG_ORGANISATION}`
 
+// For a manager's employment form: the organisation's employers.
+const EMPLOYERS_QUERY = `select EMPLOYERID, NAME, EMPLOYERREF from ${ORG_EMPLOYER} order by NAME, EMPLOYERID`
+
 // The learner's own row and every record, read as this user may see them.
 // Null if they can't see the learner.
 export async function loadLearnerRecords(connection, learnRefNumber) {
@@ -141,9 +144,12 @@ export async function learnerIlr(connection, user, learnRefNumber) {
     }
   }
 
+  const employers = isManager ? await execute(connection, EMPLOYERS_QUERY) : []
+
   return {
     year: YEAR,
     yearLabel: year.label,
+    employers,
     notInReturn,
     rules,
     // Non-managers don't see NI number, prices and payments, or their checks.

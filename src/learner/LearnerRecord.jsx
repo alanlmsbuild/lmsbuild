@@ -251,7 +251,7 @@ function LearnerRecord({ learner, canManage, back }) {
         </Section>
 
         <Section title="Employment" rules={rulesFor('employment')}>
-          {ilrSection((d) => <EmploymentRecords ilr={d} />)}
+          {ilrSection((d) => <EmploymentRecords ilr={d} manage={manage} />)}
         </Section>
 
         <Section title="Apprenticeship programme" rules={rulesFor('programme')} change={changePath(manage, 'programme')}>

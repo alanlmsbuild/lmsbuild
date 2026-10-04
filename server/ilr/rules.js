@@ -34,6 +34,13 @@ export const RULES = {
   LLDDCat_01: ['Error', 'The LLDD category isn\'t a valid code for this year.'],
   R_131: ['Error', 'There must be a prior attainment record on or before the earliest start date.'],
   PriorAttain_10: ['Error', 'Two prior attainment records have the same date.'],
+  DateEmpStatApp_01: ['Error', 'An employment status applies from a date after the current teaching year.'],
+  DateEmpStatApp_02: ['Error', 'An employment status applies from a date before 1 August 1990.'],
+  EmpId_14: ['Error', 'An employment status that is not in paid employment has an employer identifier.'],
+  ESMType_05: ['Error', 'An employment status in paid employment has a length of unemployment.'],
+  ESMType_08: ['Error', 'An employment status not in paid employment and looking for work has no length of unemployment.'],
+  ESMType_10: ['Error', 'An employment status not in paid employment has a length of employment.'],
+  ESMType_12: ['Error', 'An employment status not in paid employment has hours a week or self-employment recorded.'],
   LLDDCat_02: ['Error', 'An LLDD category is past its "valid to" date for this learner\'s earliest start.'],
   LearnFAMType_09: ['Error', 'There is more than one EHC, SEN or DLA record (only one of each is allowed).'],
   LearnFAMType_11: ['Error', 'There are more than two NLM records.'],
@@ -130,7 +137,8 @@ const SECTION_RULES = {
   support: ['LLDDHealthProb_06', 'LLDDHealthProb_04', 'PrimaryLLDD_01', 'PrimaryLLDD_03', 'LLDDCat_01', 'LLDDCat_02',
     'LearnFAMType_09', 'LearnFAMType_11', 'LearnFAMType_14'],
   prior: ['R_131', 'PriorAttain_10'],
-  employment: ['EmpStat_09', 'EmpStat_15', 'EmpStat_12', 'EmpId_10', 'EmpId_02', 'ESMType_02', 'ESMType_09', 'ESMType_15', 'R_43'],
+  employment: ['EmpStat_09', 'EmpStat_15', 'EmpStat_12', 'EmpId_10', 'EmpId_02', 'ESMType_02', 'ESMType_09', 'ESMType_15', 'R_43',
+    'DateEmpStatApp_01', 'DateEmpStatApp_02', 'EmpId_14', 'ESMType_05', 'ESMType_08', 'ESMType_10', 'ESMType_12'],
   programme: ['DateOfBirth_46', 'DateOfBirth_57', 'AimSeqNumber_02', 'R_07', 'LearnAimRef_01', 'LearnStartDate_03',
     'LearnStartDate_13', 'LearnStartDate_17', 'LearnStartDate_18', 'LearnPlanEndDate_02', 'StdCode_01', 'DelLocPostCode_11',
     'LearnDelFAMType_01', 'LearnDelFAMType_64', 'R_102', 'R_121', 'R_122', 'R_123', 'LearnDelFAMDateFrom_01',
@@ -258,6 +266,14 @@ export function checkIlrRules({ learners, standards }, year, filePreparationDate
       if (e.EMPID !== null && e.EMPID !== undefined && !isEmployerIdentifier(e.EMPID)) f('EmpId_02')
       const types = e.esm.map((m) => m.ESMTYPE)
       if (e.EMPSTAT === 10 && !types.includes('EII')) f('ESMType_02')
+      const notEmployed = e.EMPSTAT === 11 || e.EMPSTAT === 12
+      if (e.DATEEMPSTATAPP > yearEnd) f('DateEmpStatApp_01')
+      if (e.DATEEMPSTATAPP < '1990-08-01') f('DateEmpStatApp_02')
+      if (notEmployed && e.EMPID !== null && e.EMPID !== undefined) f('EmpId_14')
+      if (e.EMPSTAT === 10 && types.includes('LOU')) f('ESMType_05')
+      if (e.EMPSTAT === 11 && e.DATEEMPSTATAPP >= '2012-08-01' && !types.includes('LOU')) f('ESMType_08')
+      if (notEmployed && types.includes('LOE')) f('ESMType_10')
+      if (notEmployed && e.DATEEMPSTATAPP >= '2013-08-01' && (types.includes('EII') || types.includes('SEI'))) f('ESMType_12')
       if (['SEI', 'EII', 'LOU', 'LOE', 'BSI', 'PEI', 'SEM'].some((t) => types.filter((x) => x === t).length > 1)) f('ESMType_15')
     }
     if (new Set(l.employment.map((e) => e.DATEEMPSTATAPP)).size !== l.employment.length) f('R_43')

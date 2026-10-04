@@ -206,13 +206,29 @@ export function PriorRecords({ ilr, manage }) {
   )
 }
 
-export function EmploymentRecords({ ilr }) {
-  if (ilr.employment.length === 0) return empty('No employment status recorded.')
+export function EmploymentRecords({ ilr, manage }) {
+  return (
+    <>
+      {ilr.employment.length === 0 ? empty('No employment status recorded.') : <EmploymentList ilr={ilr} manage={manage} />}
+      <AddLink manage={manage} kind="employment">Add an employment status</AddLink>
+    </>
+  )
+}
+
+function EmploymentList({ ilr, manage }) {
   return (
     <ol className="record-history">
       {ilr.employment.map((e) => (
         <li key={e.DATEEMPSTATAPP}>
-          <p className="record-history-head">From {formatDate(e.DATEEMPSTATAPP)}</p>
+          <p className="record-history-head">
+            From {formatDate(e.DATEEMPSTATAPP)}
+            <RecordActions
+              manage={manage}
+              kind="employment"
+              recordKey={e.DATEEMPSTATAPP}
+              label={`employment status from ${formatDate(e.DATEEMPSTATAPP)}`}
+            />
+          </p>
           <dl>
             <Row label="Employment status" value={`${empStatLabel(e.EMPSTAT)} (${e.EMPSTAT})`} />
             {e.EMPLOYERNAME && <Row label="Employer" value={e.EMPLOYERNAME} />}
