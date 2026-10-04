@@ -51,8 +51,9 @@ export const QAR_AIMS = `
       datediff(day, ld.LEARNSTARTDATE, ld.LEARNACTENDDATE) as ACTUAL_DAYS,
       -- Past its planned end date with no outcome: still continuing, or on
       -- a break in learning. Not leavers (see IS_LEAVER below), but shown
-      -- on the Reports page as a data quality warning.
-      coalesce(ld.COMPSTATUS in (1, 6) and ld.LEARNPLANENDDATE < :1::date, false) as IS_PAST_PLANNED_END
+      -- on the Reports page as a data quality warning. Training finished and
+      -- waiting for the end-point assessment (Outcome 8) isn't a warning.
+      coalesce(ld.COMPSTATUS in (1, 6) and ld.LEARNPLANENDDATE < :1::date and coalesce(ld.OUTCOME, 0) <> 8, false) as IS_PAST_PLANNED_END
     from LEARNING_DELIVERY ld
     join ${VISIBLE_LEARNER} l
       on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
@@ -99,6 +100,8 @@ export const QAR_AIMS = `
           then 'Excluded: ' || EXCLUSION || ', past planned end date with no outcome (see the data quality warning)'
         when EXCLUSION is not null
           then 'Excluded: ' || EXCLUSION
+        when not IS_LEAVER and COMPSTATUS = 1 and OUTCOME = 8
+          then 'Not counted yet: training finished, waiting for the end-point assessment'
         when not IS_LEAVER and IS_PAST_PLANNED_END
           then 'Not counted: still continuing past planned end date with no outcome (see the data quality warning)'
         when not IS_LEAVER
@@ -165,6 +168,7 @@ export const QAR_PAST_PLANNED_END_QUERY = `
     ld.LEARNSTARTDATE,
     ld.LEARNPLANENDDATE,
     ld.COMPSTATUS,
+    ld.OUTCOME,
     ld.LEARNACTENDDATE,
     datediff(day, ld.LEARNPLANENDDATE, ?::date) as DAYS_PAST,
     ${academicYear('ld.LEARNPLANENDDATE')} as PLANNED_END_YEAR,
@@ -183,6 +187,7 @@ export const QAR_PAST_PLANNED_END_QUERY = `
   where ld.AIMTYPE = 1
     and ld.PROGTYPE in (${APPRENTICESHIP_PROGRAMME_TYPES})
     and ld.COMPSTATUS in (1, 6)
+    and coalesce(ld.OUTCOME, 0) <> 8
     and ld.LEARNPLANENDDATE < ?::date
   order by ld.LEARNPLANENDDATE, l.LEARNREFNUMBER
 `
@@ -244,7 +249,7 @@ export const CASELOAD_QUERY = `
     count_if(ld.COMPSTATUS = 1) as CONTINUING,
     count_if(ld.COMPSTATUS = 2) as COMPLETED,
     count_if(ld.COMPSTATUS = 3) as WITHDRAWN,
-    count_if(ld.COMPSTATUS = 1 and ld.LEARNPLANENDDATE < ?::date) as OVERDUE
+    count_if(ld.COMPSTATUS = 1 and coalesce(ld.OUTCOME, 0) <> 8 and ld.LEARNPLANENDDATE < ?::date) as OVERDUE
   from ${VISIBLE_OFFICER} o
   left join ${ORG_OFFICER_ASSIGNMENT} a
     on a.OFFICERREFNUMBER = o.OFFICERREFNUMBER
@@ -269,7 +274,8 @@ export const CASELOAD_LEARNERS_QUERY = `
     ld.LEARNSTARTDATE,
     ld.LEARNPLANENDDATE,
     ld.COMPSTATUS,
-    coalesce(ld.COMPSTATUS = 1 and ld.LEARNPLANENDDATE < ?::date, false) as IS_OVERDUE
+    ld.OUTCOME,
+    coalesce(ld.COMPSTATUS = 1 and coalesce(ld.OUTCOME, 0) <> 8 and ld.LEARNPLANENDDATE < ?::date, false) as IS_OVERDUE
   from ${ORG_OFFICER_ASSIGNMENT} a
   join ${VISIBLE_OFFICER} o
     on o.OFFICERREFNUMBER = a.OFFICERREFNUMBER

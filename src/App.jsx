@@ -5,13 +5,12 @@ import AddLearnerForm from './AddLearnerForm'
 import EditLearnerForm, { EDIT_HEADINGS } from './EditLearnerForm'
 import IlrRecordForm, { recordFormTitle } from './learner/IlrRecordForm'
 import HoursForm, { HOURS_HEADING } from './learner/HoursForm'
-import MarkCompletedForm from './MarkCompletedForm'
-import WithdrawAimForm from './WithdrawAimForm'
+import OutcomeForm, { OUTCOME_ACTIONS, OUTCOME_HEADINGS } from './learner/OutcomeForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
 import LearnerRecord from './learner/LearnerRecord'
 import LearnerHeader from './learner/LearnerHeader'
-import { learnerPath, learnerActionPath, learnerEditPath, safeBack } from './learner/links'
+import { learnerPath, learnerEditPath, safeBack } from './learner/links'
 import Reports from './Reports'
 import MyDay from './MyDay'
 import IqaSignOffs from './IqaSignOffs'
@@ -38,14 +37,18 @@ const RECORD_KINDS = ['lldd', 'learner-fam', 'prior', 'employment', 'aim-fam', '
 // for the Record tab itself, a manager's form, or null for no such page.
 //   /edit/<section>                     change a section (/edit on its own
 //                                       was step 3's address: personal)
-//   /complete, /withdraw
+//   /outcome/<action>                    record the programme's outcome
+//                                       (/complete and /withdraw were
+//                                       step 3's addresses)
 //   /records/<kind>/new                 add an LLDD category, learner FAM
 //   /records/<kind>/<key>/correct         or prior attainment record, or
 //   /records/<kind>/<key>/remove          correct or remove one
 function learnerActionOf(rest) {
   const [, a, b, c, d] = rest
   if (rest.length <= 1) return undefined
-  if ((a === 'complete' || a === 'withdraw') && rest.length === 2) return { type: a }
+  if (a === 'complete' && rest.length === 2) return { type: 'outcome', action: 'learning-complete' }
+  if (a === 'withdraw' && rest.length === 2) return { type: 'outcome', action: 'withdraw' }
+  if (a === 'outcome' && rest.length === 3 && OUTCOME_ACTIONS.includes(b)) return { type: 'outcome', action: b }
   if (a === 'edit' && rest.length === 2) return { type: 'edit', section: null }
   if (a === 'edit' && rest.length === 3 && EDIT_SECTIONS.includes(b)) return { type: 'edit', section: b }
   if (a === 'records' && RECORD_KINDS.includes(b)) {
@@ -64,7 +67,7 @@ const REPORTS = ['qar', 'caseload', 'ilr']
 //                                    (the list, My day, a report...). The
 //                                    Portfolio tab is Burrow's
 //                                    /burrow/learners/<ref>.
-//   /app/learners/<ref>/edit         (and /complete, /withdraw) a manager's
+//   /app/learners/<ref>/edit         (and /outcome/<action>...) a manager's
 //                                    form on the learner page
 //   /app/officers[/<officer ref>]
 //   /app/reports/qar?year=, /app/reports/caseload[/<officer ref>],
@@ -107,6 +110,10 @@ function redirectFor(view, can, me) {
   if (action?.type === 'edit' && !action.section) {
     const query = view.params.toString()
     return `/app/learners/${encodeURIComponent(rest[0])}/edit/personal${query ? `?${query}` : ''}`
+  }
+  if (action?.type === 'outcome' && rest[1] !== 'outcome') {
+    const query = view.params.toString()
+    return `/app/learners/${encodeURIComponent(rest[0])}/outcome/${action.action}${query ? `?${query}` : ''}`
   }
   return null
 }
@@ -191,7 +198,7 @@ function App() {
       ? (a.section === 'hours' ? HOURS_HEADING : EDIT_HEADINGS[a.section])
       : a.type === 'record'
         ? recordFormTitle(a.kind, a.mode)
-        : { complete: 'Mark completed', withdraw: 'Withdraw' }[a.type]
+        : OUTCOME_HEADINGS[a.action]
   usePageTitle(
     redirect
       ? null
@@ -363,11 +370,14 @@ function App() {
               onCancel={closeForm}
             />
           )}
-          {isManager && learnerAction?.type === 'complete' && (
-            <MarkCompletedForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
-          )}
-          {isManager && learnerAction?.type === 'withdraw' && (
-            <WithdrawAimForm key={learnerRef} learner={learnerRow} onSaved={handleSaved} onCancel={closeForm} />
+          {isManager && learnerAction?.type === 'outcome' && (
+            <OutcomeForm
+              key={`${learnerRef}-${learnerAction.action}`}
+              learnRefNumber={learnerRef}
+              action={learnerAction.action}
+              onSaved={handleSaved}
+              onCancel={closeForm}
+            />
           )}
         </div>
       )}
@@ -444,7 +454,7 @@ function App() {
                   </td>
                   <td>{standardLabel(learner, { withLevel: false })}</td>
                   <td>
-                    <CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} />
+                    <CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} outcome={learner.OUTCOME} />
                   </td>
                   {isManager && (
                     <td className="actions-cell">
@@ -455,24 +465,6 @@ function App() {
                       >
                         Edit
                       </button>
-                      {learner.COMPSTATUS === 1 && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={() => navigate(learnerActionPath(learner.LEARNREFNUMBER, 'complete', listPath))}
-                        >
-                          Mark completed
-                        </button>
-                      )}
-                      {learner.COMPSTATUS === 1 && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={() => navigate(learnerActionPath(learner.LEARNREFNUMBER, 'withdraw', listPath))}
-                        >
-                          Withdraw
-                        </button>
-                      )}
                     </td>
                   )}
                 </tr>

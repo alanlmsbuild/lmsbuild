@@ -28,12 +28,9 @@ import {
   validateLearnerSection,
   normaliseNiNumber,
   normalisePostcode,
-  validateCompleteAimForm,
-  validateWithdrawAimForm,
   validateOfficerForm,
   todayString,
 } from '../src/validation.js'
-import { OUTCOME_ACHIEVED } from '../src/ilrCodes.js'
 import { standardLabel } from '../src/lookups.js'
 import { registerReportRoutes } from './reports.js'
 import { registerIlrRoutes } from './ilr/routes.js'
@@ -43,6 +40,7 @@ import { registerBurrowRoutes } from './burrow.js'
 import { registerIqaRoutes } from './iqa.js'
 import { registerEmployerRoutes } from './employer.js'
 import { registerIlrRecordRoutes } from './ilrRecords.js'
+import { registerOutcomeRoutes } from './outcomes.js'
 import { inTransaction } from './burrow.js'
 import { logChange } from './recordChange.js'
 import { refuseTestSignInInProduction, registerDevUserRoutes, testSignInEnabled } from './devUsers.js'
@@ -111,6 +109,7 @@ const LEARNERS_QUERY = `
     ld.COMPSTATUS,
     ld.OUTCOME,
     ld.ACHDATE,
+    ld.OUTGRADE,
     ld.WITHDRAWREASON
   from ${VISIBLE_LEARNER} l
   join LEARNING_DELIVERY ld
@@ -227,34 +226,6 @@ const ULN_CONFLICT_QUERY = `
 async function isUlnTaken(connection, uln, excludeLearnRefNumber) {
   const rows = await execute(connection, ULN_CONFLICT_QUERY, [uln, excludeLearnRefNumber])
   return rows.length > 0
-}
-
-// The one row (learner joined with their aim) that the edit,
-// mark-completed, and withdraw routes all need to read before they can
-// validate or update anything.
-const LEARNER_BY_REF_QUERY = `
-  select
-    l.LEARNREFNUMBER,
-    ld.LEARNSTARTDATE,
-    ld.STDCODE,
-    ld.COMPSTATUS
-  from ${VISIBLE_LEARNER} l
-  join LEARNING_DELIVERY ld
-    on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
-   and ld.LEARNAIMREF = 'ZPROG001'
-   and ld.AIMSEQNUMBER = 1
-  where l.LEARNREFNUMBER = ?
-`
-
-async function findLearnerAim(connection, learnRefNumber) {
-  const rows = await execute(connection, LEARNER_BY_REF_QUERY, [learnRefNumber])
-  const row = rows[0]
-  if (!row) return null
-  // The Snowflake driver can hand back a DATE column as either a Date
-  // object or a 'YYYY-MM-DD' string depending on driver settings, but the
-  // rest of this file compares dates as plain ISO strings, so normalise it
-  // once here.
-  return { ...row, LEARNSTARTDATE: toIsoDateString(row.LEARNSTARTDATE) }
 }
 
 function toIsoDateString(value) {
@@ -559,132 +530,6 @@ app.put('/api/learners/:learnRefNumber/details/:section', allow(MANAGER), async 
   }
 })
 
-// Only these columns can ever be written by
-// PUT /api/learners/:learnRefNumber/complete.
-const COMPLETE_AIM = `
-  update LEARNING_DELIVERY set
-    COMPSTATUS = 2, OUTCOME = ?, LEARNACTENDDATE = ?, ACHDATE = ?
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
-`
-
-app.put('/api/learners/:learnRefNumber/complete', allow(MANAGER), async (req, res) => {
-  const { learnRefNumber } = req.params
-  const connection = req.db
-  try {
-
-    const existing = await findLearnerAim(connection, learnRefNumber)
-    if (!existing) {
-      res.status(404).json({ error: 'Learner not found.' })
-      return
-    }
-    if (existing.COMPSTATUS !== 1) {
-      res.status(409).json({ error: 'This aim has already been completed.' })
-      return
-    }
-
-    const fieldErrors = validateCompleteAimForm(req.body, existing.LEARNSTARTDATE)
-    if (Object.keys(fieldErrors).length > 0) {
-      res.status(400).json({
-        error: 'Please fix the highlighted fields.',
-        fields: fieldErrors,
-      })
-      return
-    }
-
-    const v = req.body
-    await execute(connection, 'begin')
-    await execute(connection, COMPLETE_AIM, [
-      OUTCOME_ACHIEVED,
-      v.actualEndDate,
-      v.achievementDate,
-      learnRefNumber,
-    ])
-    await execute(connection, 'commit')
-    res.json({ learnRefNumber })
-  } catch (err) {
-    if (connection) {
-      try {
-        await execute(connection, 'rollback')
-      } catch (rollbackErr) {
-        console.error('Failed to roll back transaction:', rollbackErr.message)
-      }
-    }
-    console.error('Failed to mark aim completed:', err.message)
-    res.status(500).json({ error: 'Could not save this. Please try again.' })
-  }
-})
-
-// Only these columns can ever be written by
-// PUT /api/learners/:learnRefNumber/withdraw. OUTCOME is 3 (no
-// achievement), as the ILR expects once an aim has an actual end date, and
-// ACHDATE is left empty, since a withdrawn aim was never achieved.
-const WITHDRAW_AIM = `
-  update LEARNING_DELIVERY set
-    COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = 3, ACHDATE = null
-  where LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
-`
-
-// Withdrawing from the programme ends its open component aims (the
-// standard's own aim, English and maths) the same way and on the same
-// date: the ILR doesn't allow open component aims under a closed programme
-// aim (rule R_90), or one ending after it (R_89).
-const WITHDRAW_COMPONENT_AIMS = `
-  update LEARNING_DELIVERY set
-    COMPSTATUS = 3, LEARNACTENDDATE = ?, WITHDRAWREASON = ?, OUTCOME = 3, ACHDATE = null
-  where LEARNREFNUMBER = ? and AIMTYPE = 3 and COMPSTATUS = 1 and ${IN_VISIBLE_LEARNERS}
-`
-
-app.put('/api/learners/:learnRefNumber/withdraw', allow(MANAGER), async (req, res) => {
-  const { learnRefNumber } = req.params
-  const connection = req.db
-  try {
-
-    const existing = await findLearnerAim(connection, learnRefNumber)
-    if (!existing) {
-      res.status(404).json({ error: 'Learner not found.' })
-      return
-    }
-    if (existing.COMPSTATUS !== 1) {
-      res.status(409).json({ error: 'This aim is not currently continuing, so it cannot be withdrawn.' })
-      return
-    }
-
-    const fieldErrors = validateWithdrawAimForm(req.body, existing.LEARNSTARTDATE)
-    if (Object.keys(fieldErrors).length > 0) {
-      res.status(400).json({
-        error: 'Please fix the highlighted fields.',
-        fields: fieldErrors,
-      })
-      return
-    }
-
-    const v = req.body
-    await execute(connection, 'begin')
-    await execute(connection, WITHDRAW_AIM, [
-      v.actualEndDate,
-      Number(v.withdrawReason),
-      learnRefNumber,
-    ])
-    await execute(connection, WITHDRAW_COMPONENT_AIMS, [
-      v.actualEndDate,
-      Number(v.withdrawReason),
-      learnRefNumber,
-    ])
-    await execute(connection, 'commit')
-    res.json({ learnRefNumber })
-  } catch (err) {
-    if (connection) {
-      try {
-        await execute(connection, 'rollback')
-      } catch (rollbackErr) {
-        console.error('Failed to roll back transaction:', rollbackErr.message)
-      }
-    }
-    console.error('Failed to withdraw aim:', err.message)
-    res.status(500).json({ error: 'Could not save this. Please try again.' })
-  }
-})
-
 // An officer is inactive when their user account is (APP_USER.ISACTIVE is
 // FALSE): their access has ended, so they can't be given learners. An
 // officer with no user account yet counts as active.
@@ -956,6 +801,7 @@ registerReportRoutes(app)
 registerIlrRoutes(app)
 registerLearnerIlrRoutes(app)
 registerIlrRecordRoutes(app)
+registerOutcomeRoutes(app)
 registerMyDayRoutes(app)
 registerBurrowRoutes(app)
 registerEmployerRoutes(app)

@@ -290,56 +290,6 @@ export function validateLearnerForm(input) {
   return errors
 }
 
-// Validates the "mark aim as completed" form. startDate is the aim's
-// existing start date (from the database), used to check the end and
-// achievement dates aren't before it.
-export function validateCompleteAimForm(input, startDate) {
-  const errors = {}
-  const v = input ?? {}
-  const today = todayString()
-
-  if (!isValidDateString(v.actualEndDate)) {
-    errors.actualEndDate = 'Enter a valid end date.'
-  } else if (v.actualEndDate < startDate) {
-    errors.actualEndDate = 'End date cannot be before the start date.'
-  } else if (v.actualEndDate > today) {
-    errors.actualEndDate = 'End date cannot be in the future.'
-  }
-
-  if (!isValidDateString(v.achievementDate)) {
-    errors.achievementDate = 'Enter a valid achievement date.'
-  } else if (v.achievementDate < startDate) {
-    errors.achievementDate = 'Achievement date cannot be before the start date.'
-  } else if (v.achievementDate > today) {
-    errors.achievementDate = 'Achievement date cannot be in the future.'
-  }
-
-  return errors
-}
-
-// Validates the "withdraw an aim" form. startDate is the aim's existing
-// start date (from the database), used to check the end date isn't before
-// it, the same way validateCompleteAimForm does.
-export function validateWithdrawAimForm(input, startDate) {
-  const errors = {}
-  const v = input ?? {}
-  const today = todayString()
-
-  if (!isValidDateString(v.actualEndDate)) {
-    errors.actualEndDate = 'Enter a valid end date.'
-  } else if (v.actualEndDate < startDate) {
-    errors.actualEndDate = 'End date cannot be before the start date.'
-  } else if (v.actualEndDate > today) {
-    errors.actualEndDate = 'End date cannot be in the future.'
-  }
-
-  if (!WITHDRAW_REASON_CODES.has(Number(v.withdrawReason))) {
-    errors.withdrawReason = 'Choose a withdrawal reason from the list.'
-  }
-
-  return errors
-}
-
 // Validates the "add an officer" form.
 export function validateOfficerForm(input) {
   const errors = {}
@@ -710,5 +660,94 @@ export function validateComponentAim(input, { programmeStart } = {}) {
   if (plfa && !/^\d{1,2}$/.test(plfa)) errors.priorLearnFundAdj = 'A percentage from 0 to 99, or leave it empty if all the learning is delivered.'
   const ofa = String(v.otherFundAdj ?? '').trim()
   if (ofa && !/^\d{1,3}$/.test(ofa)) errors.otherFundAdj = 'A number from 0 to 999, only if DfE has told you to use one.'
+  return errors
+}
+
+// ---------------------------------------------------------------- the programme's outcome (docs/ilr-outcomes.md)
+
+export const EPA_GRADES = [
+  { code: 'PA', label: 'Pass' },
+  { code: 'ME', label: 'Merit' },
+  { code: 'DS', label: 'Distinction' },
+]
+
+// What can be recorded next for a programme aim: { compStatus, outcome,
+// actualEndDate }.
+export function outcomeActions(programme) {
+  if (!programme) return []
+  const { compStatus, outcome, actualEndDate } = programme
+  if (compStatus === 1 && !actualEndDate) return ['learning-complete', 'break', 'withdraw']
+  if (compStatus === 1 && outcome === 8) return ['epa-result', 'withdraw']
+  if (compStatus === 6) return ['withdraw']
+  return []
+}
+
+// One outcome. ctx: { programme: { startDate, compStatus, outcome,
+// actualEndDate }, components: [{ seq, startDate }] (the open ones),
+// latestComponentEnd (for a correction), today }. input fields by action:
+//   learning-complete  endDate, actualHours, components: { [seq]: { endDate, outcome } }
+//   epa-result         result ('passed' | 'failed'), achDate, grade
+//   withdraw           endDate (unless the programme already has one), reason, actualHours
+//   break              endDate
+//   correct            endDate, achDate, grade, reason (the withdrawal reason), why
+export function validateOutcome(action, input, ctx) {
+  const errors = {}
+  const v = input ?? {}
+  const p = ctx?.programme ?? {}
+  const today = ctx?.today ?? todayString()
+  if (action !== 'correct' && !outcomeActions(p).includes(action)) {
+    return { action: "That can't be recorded for this programme now." }
+  }
+  const date = (field, { min, max = today, minWhy, maxWhy } = {}) => {
+    if (!isValidDateString(v[field])) errors[field] = 'Enter a valid date.'
+    else if (min && v[field] < min) errors[field] = minWhy
+    else if (max && v[field] > max) errors[field] = maxWhy
+  }
+  const hours = (required, why) => {
+    const text = String(v.actualHours ?? '').trim()
+    if (!text && required) errors.actualHours = why
+    else if (text && !/^\d{1,4}$/.test(text)) errors.actualHours = 'Enter whole hours, from 0 to 9999.'
+  }
+  const notBeforeStart = "It can't be before the programme started."
+  const notFuture = "It can't be in the future (rule LearnActEndDate_04)."
+  if (action === 'learning-complete') {
+    date('endDate', { min: p.startDate, minWhy: notBeforeStart, maxWhy: notFuture })
+    hours(true, 'Record the off-the-job hours delivered: they go on the ILR at the end of the practical period (funding rules, paragraph 90).')
+    for (const c of ctx?.components ?? []) {
+      const cv = v.components?.[c.seq] ?? {}
+      const key = `component-${c.seq}`
+      if (!isValidDateString(cv.endDate)) errors[key] = 'Enter the date of its last learning activity.'
+      else if (cv.endDate < c.startDate) errors[key] = "It can't end before it started."
+      else if (isValidDateString(v.endDate) && cv.endDate > v.endDate) errors[key] = "It can't end after the programme's training (rule R_89)."
+      else if (![1, 3].includes(Number(cv.outcome))) errors[key] = 'Say whether it was achieved.'
+    }
+  }
+  if (action === 'epa-result') {
+    if (!['passed', 'failed'].includes(v.result)) errors.result = 'Choose the result.'
+    date('achDate', { min: p.actualEndDate, minWhy: "It can't be before the end of training (rule AchDate_05).", maxWhy: "It can't be in the future (rule AchDate_07)." })
+    if (v.result === 'passed' && !EPA_GRADES.some((g) => g.code === v.grade)) errors.grade = 'Choose the grade.'
+  }
+  if (action === 'withdraw') {
+    if (!p.actualEndDate) date('endDate', { min: p.startDate, minWhy: notBeforeStart, maxWhy: notFuture })
+    if (!WITHDRAW_REASON_CODES.has(Number(v.reason))) errors.reason = 'Choose the reason (rule WithdrawReason_03).'
+    hours(p.startDate >= '2022-08-01', 'Record the off-the-job hours delivered (rule HRSType_09).')
+  }
+  if (action === 'break') {
+    date('endDate', { min: p.startDate, minWhy: notBeforeStart, maxWhy: notFuture })
+    const later = (ctx?.components ?? []).find((c) => isValidDateString(v.endDate) && c.startDate > v.endDate)
+    if (!errors.endDate && later) errors.endDate = `A component aim started after this (${later.startDate}), and none can end after the programme (rule R_89).`
+  }
+  if (action === 'correct') {
+    if (!p.actualEndDate) return { action: 'There is no outcome to correct yet.' }
+    date('endDate', { min: p.startDate, minWhy: notBeforeStart, maxWhy: notFuture })
+    const latest = ctx?.latestComponentEnd
+    if (!errors.endDate && latest && v.endDate < latest) errors.endDate = `A component aim ends on ${latest}, and none can end after the programme (rule R_89).`
+    if (p.compStatus === 2) {
+      date('achDate', { min: isValidDateString(v.endDate) ? v.endDate : p.actualEndDate, minWhy: "It can't be before the end of training (rule AchDate_05).", maxWhy: "It can't be in the future (rule AchDate_07)." })
+      if (p.outcome === 1 && !EPA_GRADES.some((g) => g.code === v.grade)) errors.grade = 'Choose the grade.'
+    }
+    if (p.compStatus === 3 && !WITHDRAW_REASON_CODES.has(Number(v.reason))) errors.reason = 'Choose the reason.'
+    if (!String(v.why ?? '').trim()) errors.why = 'Say what was wrong.'
+  }
   return errors
 }

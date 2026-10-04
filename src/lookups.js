@@ -19,7 +19,7 @@ export const OUTCOME_LABELS = {
   1: 'Achieved',
   2: 'Partially achieved',
   3: 'No achievement',
-  8: 'Achieved, not certificated',
+  8: 'Training finished, outcome not yet known',
 }
 
 export function describe(map, code) {

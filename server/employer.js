@@ -33,7 +33,8 @@ const APPRENTICES_QUERY = `
       s.NAME as STDNAME,
       ld.LEARNSTARTDATE,
       ld.LEARNPLANENDDATE,
-      ld.COMPSTATUS
+      ld.COMPSTATUS,
+      ld.OUTCOME
     from ${EMPLOYER_APPRENTICE} l
     left join LEARNING_DELIVERY ld
       on ld.LEARNREFNUMBER = l.LEARNREFNUMBER

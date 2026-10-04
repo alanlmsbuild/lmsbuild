@@ -315,3 +315,29 @@
   color: var(--rb-ink);
   font-weight: 600;
 }
+
+/* Recording the programme's outcome. */
+.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.radio-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.outcome-component {
+  padding: 12px 0;
+  border-top: 1px solid var(--rb-rule);
+}
+
+.outcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}

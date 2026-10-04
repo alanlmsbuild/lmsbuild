@@ -19,7 +19,8 @@ const INSERT_CHANGE = `
 
 const json = (value) => (value === null || value === undefined ? null : JSON.stringify(value))
 
-// type: 'added' | 'corrected' | 'removed'. key: the record's key columns,
+// type: 'added' | 'corrected' | 'removed', or 'outcome' for a programme
+// outcome recorded (server/outcomes.js). key: the record's key columns,
 // e.g. { LLDDCAT: 12 }. oldValues / newValues: the columns before and after
 // (null when there are none, e.g. no old values for an added record).
 export async function logChange(connection, { learnRefNumber, table, key, type, oldValues = null, newValues = null, reason = null, by }) {

@@ -80,7 +80,7 @@ function OfficerLearners({ officer, onClose, onOpenLearner }) {
                   <td>{formatDate(l.LEARNSTARTDATE)}</td>
                   <td>{formatDate(l.LEARNPLANENDDATE)}</td>
                   <td>
-                    <CompletionStatus compstatus={l.COMPSTATUS} plannedEndDate={l.LEARNPLANENDDATE} />
+                    <CompletionStatus compstatus={l.COMPSTATUS} plannedEndDate={l.LEARNPLANENDDATE} outcome={l.OUTCOME} />
                   </td>
                 </tr>
               ))}

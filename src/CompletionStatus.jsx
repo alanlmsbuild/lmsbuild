@@ -15,8 +15,10 @@ function monthsPast(date) {
 }
 
 // "5 months past planned end", for an aim still continuing (or on a break)
-// after its planned end date with no outcome. Null otherwise.
-export function pastPlannedEndNote(compstatus, plannedEndDate) {
+// after its planned end date with no outcome. "Waiting for the EPA" once
+// training has finished (Outcome 8). Null otherwise.
+export function pastPlannedEndNote(compstatus, plannedEndDate, outcome = null) {
+  if (compstatus === 1 && outcome === 8) return 'Training finished, waiting for the EPA'
   if (compstatus !== 1 && compstatus !== 6) return null
   const months = monthsPast(plannedEndDate)
   if (months === null) return null
@@ -27,9 +29,9 @@ export function pastPlannedEndNote(compstatus, plannedEndDate) {
 // A programme aim's completion status as a status chip: its word and its
 // status colour. Given the planned end date, it also says when a
 // continuing aim (or a break) is past it, as the QAR's data quality warning
-// does.
-function CompletionStatus({ compstatus, plannedEndDate }) {
-  const note = pastPlannedEndNote(compstatus, plannedEndDate)
+// does, and given the outcome, when training has finished.
+function CompletionStatus({ compstatus, plannedEndDate, outcome }) {
+  const note = pastPlannedEndNote(compstatus, plannedEndDate, outcome)
   const badge = <StatusBadge tone={completionTone(compstatus)}>{describe(COMPLETION_STATUS_LABELS, compstatus)}</StatusBadge>
   if (!note) return badge
   return (

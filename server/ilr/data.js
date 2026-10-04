@@ -98,9 +98,21 @@ function group(rows) {
 
 // An aim belongs in the year's return if it's still open at the start of the
 // year, or ended or was achieved during the year or later.
+//
+// Carried over from earlier years (Appendix B, migration specification
+// 2026 to 2027, version 1): aims still continuing, aims closed for a break
+// in learning (CompStatus 6) and aims whose outcome isn't known yet
+// (Outcome 8: training finished, waiting for the EPA), if their planned
+// end date is no more than 2 years before the year starts. A learner who
+// has restarted after a break leaves the break aim behind (part 7 step
+// 4g-2).
 export function aimInYear(aim, year) {
   const { start } = ILR_YEARS[year]
-  return aim.LEARNACTENDDATE === null || aim.LEARNACTENDDATE >= start || (aim.ACHDATE !== null && aim.ACHDATE >= start)
+  if (aim.LEARNACTENDDATE !== null && aim.LEARNACTENDDATE >= start) return true
+  if (aim.ACHDATE !== null && aim.ACHDATE >= start) return true
+  const recent = aim.LEARNPLANENDDATE >= `${Number(start.slice(0, 4)) - 2}${start.slice(4)}`
+  if (aim.LEARNACTENDDATE === null) return recent
+  return recent && (aim.COMPSTATUS === 6 || aim.OUTCOME === 8)
 }
 
 // The source of funding (always 105, adult) and the contract type (always
@@ -110,7 +122,9 @@ export function aimInYear(aim, year) {
 function derivedFams(aim) {
   const fams = [{ LEARNDELFAMTYPE: 'SOF', LEARNDELFAMCODE: '105', DATEFROM: null, DATETO: null, DERIVED: true }]
   if (aim.AIMTYPE === 1 || aim.IS_ENGLISH_OR_MATHS) {
-    const to = aim.AIMTYPE === 1 && aim.ACHDATE ? aim.ACHDATE : aim.LEARNACTENDDATE
+    // A programme still at CompStatus 1 (training finished, waiting for the
+    // EPA: Outcome 8) keeps its ACT open (R_123).
+    const to = aim.AIMTYPE === 1 && aim.ACHDATE ? aim.ACHDATE : aim.AIMTYPE === 1 && aim.COMPSTATUS === 1 ? null : aim.LEARNACTENDDATE
     fams.push({ LEARNDELFAMTYPE: 'ACT', LEARNDELFAMCODE: '1', DATEFROM: aim.LEARNSTARTDATE, DATETO: to, DERIVED: true })
   }
   return fams

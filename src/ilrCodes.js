@@ -51,10 +51,18 @@ export const OUTCOME_ACHIEVED = 1
 // checked against the ILR 2026 to 2027 specification before it is used for
 // anything real.
 export const WITHDRAW_REASON_OPTIONS = [
+  // ILR Specification 2026 to 2027, WithdrawReason: the codes that apply to
+  // apprenticeships (not 41, which is for leaving other provision for an
+  // apprenticeship, 42 and 45, HE only, or 48, industry placements).
+  { code: 2, label: 'Transferred to another provider' },
   { code: 3, label: 'Learner injury or illness' },
+  { code: 7, label: 'Transferred between providers by intervention or with written agreement of the DfE' },
   { code: 29, label: 'Learner made redundant' },
+  { code: 40, label: 'Transferred to a new learning aim with the same provider' },
   { code: 43, label: 'Financial reasons' },
   { code: 44, label: 'Other personal reasons' },
+  { code: 46, label: 'Exclusion' },
+  { code: 47, label: 'Transferred to another provider due to merger' },
   { code: 97, label: 'Other' },
   { code: 98, label: 'Reason not known' },
 ]

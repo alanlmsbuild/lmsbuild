@@ -21,6 +21,7 @@ import {
 } from '../lookups'
 import CompletionStatus from '../CompletionStatus'
 import { learnerActionPath } from './links'
+import { EPA_GRADES, outcomeActions } from '../validation'
 import {
   ComponentRecords,
   EmploymentRecords,
@@ -34,6 +35,34 @@ import {
   SupportRecords,
   changePath,
 } from './IlrRecords'
+
+const gradeLabel = (code) => EPA_GRADES.find((g) => g.code === code)?.label ?? (code === 'FL' ? 'Fail' : code)
+
+// What a manager can record next for the programme (docs/ilr-outcomes.md).
+const OUTCOME_LINK_LABELS = {
+  'learning-complete': 'Training finished',
+  'epa-result': 'Record the EPA result',
+  break: 'Break in learning',
+  withdraw: 'Withdraw',
+}
+function OutcomeLinks({ learner, back }) {
+  const actions = outcomeActions({
+    compStatus: learner.COMPSTATUS,
+    outcome: learner.OUTCOME,
+    actualEndDate: learner.LEARNACTENDDATE,
+  }).map((a) => [a, OUTCOME_LINK_LABELS[a]])
+  if (learner.LEARNACTENDDATE) actions.push(['correct', 'Correct the outcome'])
+  if (actions.length === 0) return null
+  return (
+    <div className="outcome-actions">
+      {actions.map(([action, label]) => (
+        <a key={action} className="ui-button ui-button--secondary" href={learnerActionPath(learner.LEARNREFNUMBER, `outcome/${action}`, back)}>
+          {label}
+        </a>
+      ))}
+    </div>
+  )
+}
 
 // Age in whole years as of today, from a 'YYYY-MM-DD' (or similar
 // parseable) date of birth string.
@@ -179,21 +208,6 @@ function LearnerRecord({ learner, canManage, back }) {
 
   return (
     <>
-      {canManage && (
-        <div className="learner-actions">
-          {learner.COMPSTATUS === 1 && (
-            <a className="ui-button ui-button--secondary" href={learnerActionPath(learner.LEARNREFNUMBER, 'complete', back)}>
-              Mark completed
-            </a>
-          )}
-          {learner.COMPSTATUS === 1 && (
-            <a className="ui-button ui-button--secondary" href={learnerActionPath(learner.LEARNREFNUMBER, 'withdraw', back)}>
-              Withdraw
-            </a>
-          )}
-        </div>
-      )}
-
       <IlrSummary ilr={ilr} status={ilrStatus} error={ilrError} canSeePrices={canManage} />
 
       <div className="learner-record">
@@ -282,15 +296,20 @@ function LearnerRecord({ learner, canManage, back }) {
           <dl>
             <Row
               label="Status"
-              value={<CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} />}
+              value={<CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} outcome={learner.OUTCOME} />}
             />
-            <Row label="Actual end date" value={formatDate(learner.LEARNACTENDDATE)} />
+            <Row
+              label={learner.COMPSTATUS === 6 ? 'Last day before the break' : 'Actual end date'}
+              value={formatDate(learner.LEARNACTENDDATE)}
+            />
             <Row label="Outcome" value={describe(OUTCOME_LABELS, learner.OUTCOME)} />
-            <Row label="Achievement date" value={formatDate(learner.ACHDATE)} />
+            <Row label="End of the EPA period" value={formatDate(learner.ACHDATE)} />
+            {learner.OUTGRADE && <Row label="Grade" value={gradeLabel(learner.OUTGRADE)} />}
             {learner.COMPSTATUS === 3 && (
               <Row label="Withdrawal reason" value={labelFromOptions(WITHDRAW_REASON_OPTIONS, learner.WITHDRAWREASON)} />
             )}
           </dl>
+          {canManage && <OutcomeLinks learner={learner} back={back} />}
         </Section>
 
         <section className="learner-section" aria-label="Officers">

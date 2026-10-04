@@ -216,7 +216,7 @@ function OfficerDetail({ officer, officers, learners, learnersStatus, onClose, o
                         </span>
                       </div>
                       <div className="officer-learner-side">
-                        <CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} />
+                        <CompletionStatus compstatus={learner.COMPSTATUS} plannedEndDate={learner.LEARNPLANENDDATE} outcome={learner.OUTCOME} />
                         <button
                           type="button"
                           className="link-button"
