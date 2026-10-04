@@ -95,12 +95,18 @@ function formatDuration(months) {
 }
 
 // Time on programme runs from the aim's start date to today if it's still
-// continuing, or to its actual end date if it's completed or withdrawn.
+// continuing, or to its actual end date once it has one: completed,
+// withdrawn, on a break, or training finished and waiting for the EPA
+// (Outcome 8), which also says how long they've been waiting.
 function timeOnPlacement(learner) {
   if (!learner.LEARNSTARTDATE) return null
   const start = new Date(learner.LEARNSTARTDATE)
-  const end = learner.COMPSTATUS === 1 || !learner.LEARNACTENDDATE ? new Date() : new Date(learner.LEARNACTENDDATE)
-  return formatDuration(wholeMonthsBetween(start, end))
+  if (!learner.LEARNACTENDDATE) return formatDuration(wholeMonthsBetween(start, new Date()))
+  const end = new Date(learner.LEARNACTENDDATE)
+  const training = formatDuration(wholeMonthsBetween(start, end))
+  if (learner.COMPSTATUS !== 1 || learner.OUTCOME !== 8) return training
+  const waiting = formatDuration(wholeMonthsBetween(end, new Date())).toLowerCase()
+  return `${training} to the end of training, waiting for the EPA for ${waiting}`
 }
 
 // The learner page's Record tab (Warren): everything Warren holds about the
