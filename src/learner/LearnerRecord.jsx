@@ -264,7 +264,7 @@ function LearnerRecord({ learner, canManage, back }) {
           {ilrSection((d) => <ProgrammeRecords ilr={d} />)}
         </Section>
 
-        <Section title="Off-the-job hours" rules={rulesFor('hours')}>
+        <Section title="Off-the-job hours" rules={rulesFor('hours')} change={changePath(manage, 'hours')}>
           {ilrSection((d) => <HoursRecords ilr={d} />)}
         </Section>
 

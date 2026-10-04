@@ -106,6 +106,7 @@ const LEARNERS_QUERY = `
     ld.LEARNSTARTDATE,
     ld.LEARNPLANENDDATE,
     ld.DELLOCPOSTCODE,
+    ld.EPAORGID,
     ld.LEARNACTENDDATE,
     ld.COMPSTATUS,
     ld.OUTCOME,
@@ -429,12 +430,13 @@ const SECTION_COLUMNS = {
     plannedEndDate: ['LEARNPLANENDDATE', text],
     stdCode: ['STDCODE', (v) => Number(v)],
     dellocPostcode: ['DELLOCPOSTCODE', (v) => normalisePostcode(v)],
+    epaOrgId: ['EPAORGID', (v) => (text(v) ? text(v).toUpperCase() : null)],
   },
 }
 
 // The learner and their programme aim, as a manager sees them.
 const LEARNER_FOR_CHANGE_QUERY = `
-  select l.*, ld.LEARNSTARTDATE, ld.LEARNPLANENDDATE, ld.STDCODE, ld.DELLOCPOSTCODE, ld.COMPSTATUS,
+  select l.*, ld.LEARNSTARTDATE, ld.LEARNPLANENDDATE, ld.STDCODE, ld.DELLOCPOSTCODE, ld.EPAORGID, ld.COMPSTATUS,
     (select count(*) from ILR.LLDD_HEALTH_PROBLEM h
       where h.LEARNREFNUMBER = l.LEARNREFNUMBER and h.REMOVEDAT is null) as ACTIVELLDDCATS
   from ${VISIBLE_LEARNER} l

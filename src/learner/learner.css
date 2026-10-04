@@ -286,3 +286,9 @@
   gap: 8px;
   margin: 2px 0 10px;
 }
+
+.record-note {
+  margin: 0 0 8px;
+  color: var(--rb-muted);
+  font-size: 14px;
+}

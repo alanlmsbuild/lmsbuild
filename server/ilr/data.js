@@ -9,6 +9,7 @@
 
 import { execute } from '../db.js'
 import { IN_ORG_LEARNERS, ORG_APP_FIN_RECORD, ORG_LEARNER, ORG_ORGANISATION } from '../access.js'
+import { loadStandardVersions } from './standards.js'
 
 // DfE's dummy UKPRN from its sample ILR file, and a second one for the other
 // test organisation. Neither is on the UK Register of Learning Providers.
@@ -148,7 +149,8 @@ export function aimWithRecords(a, rows) {
   }
 }
 
-// Returns { organisation, learners, standards, excluded, problem }. When
+// Returns { organisation, learners, standards, standardVersions, excluded,
+// problem }. When
 // problem is set, no file may be made (for example, no UKPRN, or a test
 // organisation without a dummy UKPRN).
 export async function loadIlrData(connection, year) {
@@ -209,6 +211,7 @@ export async function loadIlrData(connection, year) {
     organisation: { ...organisation, UKPRN: ukprn, ISTESTDATA: isTest },
     learners: included,
     standards: new Map(standards.map((s) => [s.STANDARD_CODE, s])),
+    standardVersions: await loadStandardVersions(connection),
     excluded,
   }
 }

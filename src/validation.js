@@ -240,6 +240,9 @@ function validateAimFields(v, errors) {
   if (!STANDARD_CODE.test(String(v.stdCode ?? '').trim())) {
     errors.stdCode = 'Choose a standard from the list.'
   }
+  if (v.epaOrgId && !/^(EPA\d{4}|\d{8})$/i.test(String(v.epaOrgId).trim())) {
+    errors.epaOrgId = "Enter the assessment organisation's ID from the register (EPA and 4 digits, e.g. EPA0123) or its 8-digit UKPRN."
+  }
   if (!isPostcode(v.dellocPostcode)) {
     errors.dellocPostcode = 'Enter a valid UK postcode.'
   } else if (!ILR_POSTCODE.test(normalisePostcode(v.dellocPostcode))) {
@@ -254,7 +257,7 @@ export const LEARNER_SECTIONS = {
   contact: ['title', 'addressLine1', 'addressLine2', 'addressLine3', 'wardOrCounty', 'mobile', 'contactMethodsAllowed',
     'preferredContactMethod', 'nextOfKinName', 'nextOfKinRelationship', 'nextOfKinPhone', 'contractType'],
   support: ['ethnicity', 'lldd'],
-  programme: ['startDate', 'plannedEndDate', 'stdCode', 'dellocPostcode'],
+  programme: ['startDate', 'plannedEndDate', 'stdCode', 'dellocPostcode', 'epaOrgId'],
 }
 
 // Validates one section of the learner: v is the whole form (the section's
@@ -598,4 +601,39 @@ export function employmentMonitoring(input) {
     if (v.pei === true) esm.push({ ESMTYPE: 'PEI', ESMCODE: 1 })
   }
   return esm
+}
+
+// Off-the-job hours on the programme: planned (HRS 1), removed for prior
+// learning (HRS 4) and actual (HRS 3), each '' (none) or whole hours.
+// startDate: the programme's start, for the ILR's floors (HRSAmount_02 and
+// 03). existing: the current values { 1: 300, 4: null, 3: null }; changing
+// or clearing one is a correction, so it needs a reason.
+export const OTJ_FIELDS = { planned: 1, priorLearning: 4, actual: 3 }
+
+export function validateOtjHours(input, { startDate, existing = {} } = {}) {
+  const errors = {}
+  const v = input ?? {}
+  for (const field of Object.keys(OTJ_FIELDS)) {
+    const text = String(v[field] ?? '').trim()
+    if (text && (!/^\d{1,4}$/.test(text))) errors[field] = 'Enter whole hours, from 0 to 9999.'
+  }
+  const planned = String(v.planned ?? '').trim()
+  if (!errors.planned) {
+    if (!planned && startDate >= '2019-08-01') {
+      errors.planned = 'Planned hours are needed for the ILR (rule HRSType_01).'
+    } else if (planned && startDate >= '2025-08-01' && Number(planned) < 187) {
+      errors.planned = 'For starts from 1 August 2025, planned hours must be at least 187 (rule HRSAmount_03).'
+    } else if (planned && startDate >= '2022-08-01' && startDate <= '2025-07-31' && Number(planned) < 278) {
+      errors.planned = 'For starts from 1 August 2022 to 31 July 2025, planned hours must be at least 278 (rule HRSAmount_02).'
+    }
+  }
+  const changed = Object.entries(OTJ_FIELDS).some(([field, code]) => {
+    const before = existing[code]
+    const text = String(v[field] ?? '').trim()
+    return before !== null && before !== undefined && String(before) !== text
+  })
+  if (changed && !String(v.reason ?? '').trim()) {
+    errors.reason = 'Say what was wrong: changing or clearing hours already recorded is a correction.'
+  }
+  return errors
 }

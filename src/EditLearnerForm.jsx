@@ -41,6 +41,7 @@ function toFormState(learner) {
     plannedEndDate: learner.LEARNPLANENDDATE ? String(learner.LEARNPLANENDDATE).slice(0, 10) : '',
     stdCode: String(learner.STDCODE ?? ''),
     dellocPostcode: learner.DELLOCPOSTCODE ?? '',
+    epaOrgId: learner.EPAORGID ?? '',
   }
 }
 
@@ -402,6 +403,19 @@ function EditLearnerForm({ learner, section, standards, standardsStatus, onSaved
               value={form.dellocPostcode}
               onChange={(e) => updateField('dellocPostcode', e.target.value)}
             />
+          </Field>
+
+          <Field label="End-point assessment organisation" error={errors.epaOrgId}>
+            <input
+              type="text"
+              value={form.epaOrgId}
+              placeholder="e.g. EPA0123"
+              onChange={(e) => updateField('epaOrgId', e.target.value)}
+            />
+            <span className="field-hint">
+              Once it&apos;s known: its ID on the register of end-point assessment organisations, or its UKPRN. It goes
+              with the assessment price (rules EPAOrgID_02 and 03).
+            </span>
           </Field>
         </fieldset>
         )}

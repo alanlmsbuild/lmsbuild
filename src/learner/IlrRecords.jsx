@@ -298,15 +298,38 @@ export function ProgrammeRecords({ ilr }) {
   )
 }
 
+// What the minimum off-the-job hours are for this programme, and where the
+// figure comes from (GET /api/learners/:ref/ilr's otj, server/ilr/standards.js).
+export function otjMinimumText(otj) {
+  if (!otj) return 'No programme aim.'
+  const prior = otj.priorLearning ? `, less ${otj.priorLearning} hours of prior learning` : ''
+  switch (otj.policy) {
+    case 'published':
+      return `Minimum: ${otj.minimum} hours. ${otj.stReference} version ${otj.version} publishes ${otj.published} hours (Skills England, "minimum hours for compliance")${prior}${otj.minimum === 187 && otj.published - otj.priorLearning < 187 ? ', but never below 187' : ''}.`
+    case 'floor':
+      return `Minimum: 187 hours. ${otj.stReference ? `${otj.stReference} version ${otj.version} has` : 'This standard has'} no published minimum for this start date, so only the 187-hour floor applies (funding rules 2026 to 2027, paragraph 86.2).`
+    case 'old':
+      return 'Started before 1 August 2025, so the earlier rule applies: 20% of normal working hours (capped at 30 a week) over the planned duration. The ILR checks at least 278 hours.'
+    default:
+      return "The standards' published minimums aren't loaded yet (npm run import:standards), so only the 187-hour floor is checked."
+  }
+}
+
 export function HoursRecords({ ilr }) {
   const a = programmeAim(ilr)
-  if (!a || a.hours.length === 0) return empty('No off-the-job hours recorded.')
   return (
-    <dl>
-      {a.hours.map((h) => (
-        <Row key={h.HRSCODE} label={hrsLabel(h.HRSCODE)} value={`${h.HRSAMOUNT} hours`} />
-      ))}
-    </dl>
+    <>
+      <p className="record-note">{otjMinimumText(ilr.otj)}</p>
+      {!a || a.hours.length === 0
+        ? empty('No off-the-job hours recorded.')
+        : (
+            <dl>
+              {[...a.hours].sort((x, y) => [1, 4, 3].indexOf(Number(x.HRSCODE)) - [1, 4, 3].indexOf(Number(y.HRSCODE))).map((h) => (
+                <Row key={h.HRSCODE} label={hrsLabel(h.HRSCODE)} value={`${h.HRSAMOUNT} hours`} />
+              ))}
+            </dl>
+          )}
+    </>
   )
 }
 

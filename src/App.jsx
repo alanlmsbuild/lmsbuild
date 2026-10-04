@@ -4,6 +4,7 @@ import './App.css'
 import AddLearnerForm from './AddLearnerForm'
 import EditLearnerForm, { EDIT_HEADINGS } from './EditLearnerForm'
 import IlrRecordForm, { recordFormTitle } from './learner/IlrRecordForm'
+import HoursForm, { HOURS_HEADING } from './learner/HoursForm'
 import MarkCompletedForm from './MarkCompletedForm'
 import WithdrawAimForm from './WithdrawAimForm'
 import Dashboard from './Dashboard'
@@ -30,7 +31,7 @@ const TABS = [
   { slug: 'sign-offs', label: 'Sign-offs to check', shows: (r) => r.isIqa },
 ]
 
-const EDIT_SECTIONS = ['personal', 'contact', 'support', 'programme']
+const EDIT_SECTIONS = ['personal', 'contact', 'support', 'programme', 'hours']
 const RECORD_KINDS = ['lldd', 'learner-fam', 'prior', 'employment']
 
 // What follows a learner's reference in /app/learners/<ref>/...: undefined
@@ -187,7 +188,7 @@ function App() {
   const reportTitles = { qar: 'QAR', caseload: 'Caseload report', ilr: 'ILR return' }
   const actionTitle = (a) =>
     a.type === 'edit'
-      ? EDIT_HEADINGS[a.section]
+      ? (a.section === 'hours' ? HOURS_HEADING : EDIT_HEADINGS[a.section])
       : a.type === 'record'
         ? recordFormTitle(a.kind, a.mode)
         : { complete: 'Mark completed', withdraw: 'Withdraw' }[a.type]
@@ -337,7 +338,10 @@ function App() {
             back={back}
           />
           {!learnerAction && <LearnerRecord key={learnerRef} learner={learnerRow} canManage={isManager} back={back} />}
-          {isManager && learnerAction?.type === 'edit' && learnerAction.section && (
+          {isManager && learnerAction?.type === 'edit' && learnerAction.section === 'hours' && (
+            <HoursForm key={`${learnerRef}-hours`} learnRefNumber={learnerRef} onSaved={handleSaved} onCancel={closeForm} />
+          )}
+          {isManager && learnerAction?.type === 'edit' && learnerAction.section && learnerAction.section !== 'hours' && (
             <EditLearnerForm
               key={`${learnerRef}-${learnerAction.section}`}
               section={learnerAction.section}

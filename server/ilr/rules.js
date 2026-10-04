@@ -7,6 +7,7 @@
 
 import { ILR_YEARS } from './data.js'
 import { ilrTelNo } from './xml.js'
+import { otjMinimum } from './standards.js'
 import { isEmployerIdentifier } from '../../src/validation.js'
 
 // severity: 'Error' stops a file being accepted, 'Warning' doesn't.
@@ -34,6 +35,8 @@ export const RULES = {
   LLDDCat_01: ['Error', 'The LLDD category isn\'t a valid code for this year.'],
   R_131: ['Error', 'There must be a prior attainment record on or before the earliest start date.'],
   PriorAttain_10: ['Error', 'Two prior attainment records have the same date.'],
+  'Warren: OTJ minimum': ['Warning', "Planned off-the-job hours are below the minimum published on the standard, less hours removed for prior learning (funding rules 2026 to 2027, paragraphs 86 and 89.1)."],
+  'Warren: OTJ delivered': ['Warning', 'The completed programme delivered fewer off-the-job hours than its minimum, less prior learning, or under 187 (funding rules 2026 to 2027, paragraphs 86 and 86.2).'],
   DateEmpStatApp_01: ['Error', 'An employment status applies from a date after the current teaching year.'],
   DateEmpStatApp_02: ['Error', 'An employment status applies from a date before 1 August 1990.'],
   EmpId_14: ['Error', 'An employment status that is not in paid employment has an employer identifier.'],
@@ -144,7 +147,8 @@ const SECTION_RULES = {
     'LearnDelFAMType_01', 'LearnDelFAMType_64', 'R_102', 'R_121', 'R_122', 'R_123', 'LearnDelFAMDateFrom_01',
     'LearnDelFAMDateFrom_02', 'LearnDelFAMDateTo_01', 'LearnDelFAMDateTo_02', 'LearnDelFAMDateTo_03', 'R_52',
     'EPAOrgID_02', 'EPAOrgID_03'],
-  hours: ['HRSType_01', 'HRSType_08', 'HRSType_09', 'HRSAmount_02', 'HRSAmount_03', 'HRSType_18'],
+  hours: ['HRSType_01', 'HRSType_08', 'HRSType_09', 'HRSAmount_02', 'HRSAmount_03', 'HRSType_18', 'Warren: OTJ minimum',
+    'Warren: OTJ delivered'],
   prices: ['AFinType_12', 'AFinType_13', 'AFinType_10', 'R_100', 'R_119', 'AFinDate_13', 'R_68'],
   components: ['R_30', 'R_31', 'R_89', 'R_90', 'AchDate_14'],
   outcome: ['DateOfBirth_47', 'DateOfBirth_58', 'LearnActEndDate_01', 'LearnActEndDate_04', 'Outcome_05', 'Outcome_10',
@@ -191,7 +195,9 @@ function ulnPasses(uln) {
 // first, then by number of learners. ulnCounts: how many learners in the
 // file have each ULN, when learners isn't the whole file (one learner's
 // checks), for R_59.
-export function checkIlrRules({ learners, standards }, year, filePreparationDate, { ulnCounts } = {}) {
+// standardVersions: from loadStandardVersions (null until the standards
+// import has run, when the published-minimum checks are skipped).
+export function checkIlrRules({ learners, standards, standardVersions = null }, year, filePreparationDate, { ulnCounts } = {}) {
   const { end: yearEnd } = ILR_YEARS[year]
   const found = new Map()
   const fail = (rule, ref) => {
@@ -378,6 +384,13 @@ export function checkIlrRules({ learners, standards }, year, filePreparationDate
         if (start >= '2022-08-01' && start <= '2025-07-31' && h.HRSAMOUNT < 278) f('HRSAmount_02')
       }
       if (new Set(codes).size !== codes.length) f('HRSType_18')
+      // The minimum published on the standard (Warren's own checks, from
+      // the funding rules rather than the ILR rules).
+      const otj = otjMinimum(standardVersions, programme)
+      const hoursOf = (code) => programme.hours.find((h) => Number(h.HRSCODE) === code)
+      if (otj?.policy === 'published' && hoursOf(1) && Number(hoursOf(1).HRSAMOUNT) < otj.minimum) f('Warren: OTJ minimum')
+      if ((otj?.policy === 'published' || otj?.policy === 'floor') && programme.COMPSTATUS === 2 && hoursOf(3) &&
+        Number(hoursOf(3).HRSAMOUNT) < otj.minimum) f('Warren: OTJ delivered')
     }
   }
 

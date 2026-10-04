@@ -25,6 +25,7 @@ import {
 import { ILR_YEARS, STANDARDS_QUERY, aimInYear, aimWithRecords, assembleLearner, clean } from './data.js'
 import { MANAGER_ONLY_RULES, RULE_SECTION, checkIlrRules } from './rules.js'
 import { ukNow } from './xml.js'
+import { loadStandardVersions, otjMinimum } from './standards.js'
 
 const YEAR = 2026
 
@@ -112,6 +113,7 @@ export async function loadLearnerRecords(connection, learnRefNumber) {
     learnerRow,
     rows: { aims, prior, lldd, learnerFams, employment, esm, aimFams, hours, fin },
     standards: new Map(standards.map((s) => [s.STANDARD_CODE, s])),
+    standardVersions: await loadStandardVersions(connection),
     ulnCount: Number(ulnCount),
     organisationIsTest: organisation?.ISTESTDATA === true,
   }
@@ -120,7 +122,7 @@ export async function loadLearnerRecords(connection, learnRefNumber) {
 export async function learnerIlr(connection, user, learnRefNumber) {
   const records = await loadLearnerRecords(connection, learnRefNumber)
   if (!records) return null
-  const { learnerRow, rows, standards, ulnCount, organisationIsTest } = records
+  const { learnerRow, rows, standards, standardVersions, ulnCount, organisationIsTest } = records
   const isManager = user.roles.includes(MANAGER)
 
   // In this year's return? The same test as the return: an aim in the year,
@@ -137,7 +139,7 @@ export async function learnerIlr(connection, user, learnRefNumber) {
     if (!assembled) {
       notInReturn = `None of their aims is in the ${year.label} return: they all ended before ${year.start.split('-').reverse().join('/')}.`
     } else {
-      const found = checkIlrRules({ learners: [assembled], standards }, YEAR, ukNow().date, {
+      const found = checkIlrRules({ learners: [assembled], standards, standardVersions }, YEAR, ukNow().date, {
         ulnCounts: new Map([[String(learnerRow.ULN), ulnCount]]),
       })
       rules = found.filter((r) => isManager || !MANAGER_ONLY_RULES.has(r.rule)).map(({ rule, severity, description }) => ({ rule, severity, description, section: RULE_SECTION[rule] }))
@@ -145,11 +147,14 @@ export async function learnerIlr(connection, user, learnRefNumber) {
   }
 
   const employers = isManager ? await execute(connection, EMPLOYERS_QUERY) : []
+  const programme = rows.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1) ?? rows.aims.find((a) => a.AIMTYPE === 1)
 
   return {
     year: YEAR,
     yearLabel: year.label,
     employers,
+    // The off-the-job minimum for the programme (standards.js).
+    otj: programme ? otjMinimum(standardVersions, aimWithRecords(programme, rows)) : null,
     notInReturn,
     rules,
     // Non-managers don't see NI number, prices and payments, or their checks.

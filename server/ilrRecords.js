@@ -22,6 +22,8 @@ import { allow, IN_VISIBLE_LEARNERS, MANAGER, ORG_EMPLOYER, VISIBLE_LEARNER } fr
 import { inTransaction, RequestError, sendError } from './burrow.js'
 import { logChange } from './recordChange.js'
 import {
+  OTJ_FIELDS,
+  validateOtjHours,
   employmentMonitoring,
   teachingYearEnd,
   validateEmploymentRecord,
@@ -516,6 +518,76 @@ const employment = {
 
 const KINDS = { lldd, 'learner-fam': learnerFam, prior, employment }
 
+// ---------------------------------------------------------------- off-the-job hours
+//
+// PUT /api/learners/:ref/ilr-hours: planned (HRS 1), removed for prior
+// learning (HRS 4) and actual (HRS 3) on the programme aim, all at once. A
+// new value is added; a changed or cleared one is a correction (or a
+// removal), with a reason, and the old value kept. Planned hours shouldn't
+// change once returned, except for an input error at the start (funding
+// rules 2026 to 2027, paragraph 89.2).
+
+const PROGRAMME_START = `
+  select LEARNSTARTDATE from LEARNING_DELIVERY
+  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
+`
+const HRS_ACTIVE = `
+  select HRSCODE, HRSAMOUNT from ILR.HOURS_RECORD
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and HRSTYPE = 'HRS' and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const HRS_INSERT = `
+  insert into ILR.HOURS_RECORD (LEARNREFNUMBER, AIMSEQNUMBER, HRSTYPE, HRSCODE, HRSAMOUNT, CREATEDBY, ISTESTDATA)
+  select l.LEARNREFNUMBER, 1, 'HRS', ?, ?, ?, l.ISTESTDATA
+  from ${VISIBLE_LEARNER} l
+  where l.LEARNREFNUMBER = ?
+`
+const HRS_UPDATE = `
+  update ILR.HOURS_RECORD
+  set HRSAMOUNT = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and HRSTYPE = 'HRS' and HRSCODE = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const HRS_REMOVE = `
+  update ILR.HOURS_RECORD
+  set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and HRSTYPE = 'HRS' and HRSCODE = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+
+async function saveHours(connection, ref, body, by) {
+  await findLearner(connection, ref)
+  const [programme] = await execute(connection, PROGRAMME_START, [ref])
+  if (!programme) throw new RequestError('This learner has no programme aim.', 409)
+  const existing = Object.fromEntries((await execute(connection, HRS_ACTIVE, [ref])).map((h) => [Number(h.HRSCODE), Number(h.HRSAMOUNT)]))
+  checkFields(validateOtjHours(body, { startDate: isoDate(programme.LEARNSTARTDATE), existing }))
+  const reason = String(body.reason ?? '').trim() || null
+  const key = (code) => ({ AIMSEQNUMBER: 1, HRSTYPE: 'HRS', HRSCODE: code })
+  const steps = []
+  for (const [field, code] of Object.entries(OTJ_FIELDS)) {
+    const text = String(body[field] ?? '').trim()
+    const next = text === '' ? null : Number(text)
+    const before = existing[code] ?? null
+    if (next === before) continue
+    steps.push({ code, before, next })
+  }
+  if (steps.length === 0) return
+  await inTransaction(connection, async () => {
+    for (const { code, before, next } of steps) {
+      if (before === null) {
+        await execute(connection, HRS_INSERT, [code, next, by, ref])
+        await logChange(connection, { learnRefNumber: ref, table: 'HOURS_RECORD', key: key(code), type: 'added', newValues: { HRSAMOUNT: next }, reason, by })
+      } else if (next === null) {
+        checkUpdated(await execute(connection, HRS_REMOVE, [by, reason, ref, code]))
+        await logChange(connection, { learnRefNumber: ref, table: 'HOURS_RECORD', key: key(code), type: 'removed', oldValues: { HRSAMOUNT: before }, reason, by })
+      } else {
+        checkUpdated(await execute(connection, HRS_UPDATE, [next, by, ref, code]))
+        await logChange(connection, {
+          learnRefNumber: ref, table: 'HOURS_RECORD', key: key(code), type: 'corrected',
+          oldValues: { HRSAMOUNT: before }, newValues: { HRSAMOUNT: next }, reason, by,
+        })
+      }
+    }
+  })
+}
+
 function kindOf(req) {
   const kind = KINDS[req.params.kind]
   if (!kind) throw new RequestError('Not found.', 404)
@@ -523,6 +595,15 @@ function kindOf(req) {
 }
 
 export function registerIlrRecordRoutes(app) {
+  app.put('/api/learners/:learnRefNumber/ilr-hours', allow(MANAGER), async (req, res) => {
+    try {
+      await saveHours(req.db, req.params.learnRefNumber, req.body ?? {}, req.user.USERID)
+      res.json({ saved: true })
+    } catch (err) {
+      sendError(res, err, 'Could not save the off-the-job hours')
+    }
+  })
+
   app.post('/api/learners/:learnRefNumber/ilr/:kind', allow(MANAGER), async (req, res) => {
     try {
       await kindOf(req).add(req.db, req.params.learnRefNumber, req.body ?? {}, req.user.USERID)
