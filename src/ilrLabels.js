@@ -264,3 +264,22 @@ export const EII_OPTIONS = codes(ESM.EII.codes)
 export const LOE_OPTIONS = codes(ESM.LOE.codes)
 export const LOU_OPTIONS = codes(ESM.LOU.codes)
 export const BSI_OPTIONS = codes(ESM.BSI.codes, [1, 4, 5, 6])
+
+// Funding and monitoring codes a manager can add to an apprenticeship
+// programme aim. SOF and ACT aren't here: Warren works those out. Restart
+// (RES) goes with the original start date. LSF has dates.
+export const AIM_FAM_OPTIONS = [
+  { type: 'LSF', code: 1 },
+  { type: 'EEF', code: 2 },
+  { type: 'EEF', code: 3 },
+  { type: 'EEF', code: 4 },
+  { type: 'RES', code: 1 },
+  ...Object.keys(LEARN_DEL_FAM.LDM.codes).filter((c) => c !== '118').map((c) => ({ type: 'LDM', code: Number(c) })),
+].map((o) => ({ ...o, key: `${o.type}-${o.code}`, label: `${LEARN_DEL_FAM[o.type].title}: ${LEARN_DEL_FAM[o.type].codes[o.code]}` }))
+
+// Prices and payments on an apprenticeship programme aim.
+export const PRICE_OPTIONS = [
+  ...[1, 2, 3, 4].map((code) => ({ type: 'TNP', code })),
+  ...[1, 2, 3].map((code) => ({ type: 'PMR', code })),
+  { type: 'RIP', code: 1 },
+].map((o) => ({ ...o, key: `${o.type}-${o.code}`, label: `${AFIN[o.type].title}: ${AFIN[o.type].codes[o.code]}` }))

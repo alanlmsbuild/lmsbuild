@@ -35,6 +35,23 @@ export const RULES = {
   LLDDCat_01: ['Error', 'The LLDD category isn\'t a valid code for this year.'],
   R_131: ['Error', 'There must be a prior attainment record on or before the earliest start date.'],
   PriorAttain_10: ['Error', 'Two prior attainment records have the same date.'],
+  LearnDelFAMType_18: ['Error', 'An aim has more than one EEF or RES (or SOF or FFI) code.'],
+  LearnDelFAMType_31: ['Error', 'An aim has more than six LDM codes.'],
+  LearnDelFAMType_67: ['Error', 'Learning support (LSF) is recorded on a component aim: it belongs on the programme aim.'],
+  R_61: ['Error', 'Two learning support (LSF) periods on an aim overlap.'],
+  OrigLearnStartDate_01: ['Error', 'The original start date is more than 10 years before this start.'],
+  OrigLearnStartDate_02: ['Error', 'The original start date is not before this start date.'],
+  OrigLearnStartDate_04: ['Error', 'There is an original start date but no restart indicator (RES).'],
+  AFinType_07: ['Error', 'There is an assessment payment but no assessment price.'],
+  AFinType_14: ['Error', 'There is a training payment but no training price.'],
+  AFinType_15: ['Error', 'The price reduction for prior learning is over £18,000.'],
+  AFinType_16: ['Error', 'The price reduction for prior learning is under £5.'],
+  AFinDate_07: ['Error', 'A total and a residual training price apply from the same date.'],
+  AFinDate_08: ['Error', 'A total and a residual assessment price apply from the same date.'],
+  AFinDate_09: ['Error', 'A price or payment is dated more than a year before the programme starts.'],
+  AFinDate_14: ['Error', 'A payment is dated after today (the file preparation date).'],
+  R_161: ['Error', 'Hours are removed for prior learning (HRS 4) but there is no price reduction for prior learning (RIP 1).'],
+  R_162: ['Error', 'There is a price reduction for prior learning (RIP 1) but no hours removed for prior learning (HRS 4).'],
   'Warren: OTJ minimum': ['Warning', "Planned off-the-job hours are below the minimum published on the standard, less hours removed for prior learning (funding rules 2026 to 2027, paragraphs 86 and 89.1)."],
   'Warren: OTJ delivered': ['Warning', 'The completed programme delivered fewer off-the-job hours than its minimum, less prior learning, or under 187 (funding rules 2026 to 2027, paragraphs 86 and 86.2).'],
   DateEmpStatApp_01: ['Error', 'An employment status applies from a date after the current teaching year.'],
@@ -146,11 +163,13 @@ const SECTION_RULES = {
     'LearnStartDate_13', 'LearnStartDate_17', 'LearnStartDate_18', 'LearnPlanEndDate_02', 'StdCode_01', 'DelLocPostCode_11',
     'LearnDelFAMType_01', 'LearnDelFAMType_64', 'R_102', 'R_121', 'R_122', 'R_123', 'LearnDelFAMDateFrom_01',
     'LearnDelFAMDateFrom_02', 'LearnDelFAMDateTo_01', 'LearnDelFAMDateTo_02', 'LearnDelFAMDateTo_03', 'R_52',
+    'LearnDelFAMType_18', 'LearnDelFAMType_31', 'R_61', 'OrigLearnStartDate_01', 'OrigLearnStartDate_02', 'OrigLearnStartDate_04',
     'EPAOrgID_02', 'EPAOrgID_03'],
   hours: ['HRSType_01', 'HRSType_08', 'HRSType_09', 'HRSAmount_02', 'HRSAmount_03', 'HRSType_18', 'Warren: OTJ minimum',
     'Warren: OTJ delivered'],
-  prices: ['AFinType_12', 'AFinType_13', 'AFinType_10', 'R_100', 'R_119', 'AFinDate_13', 'R_68'],
-  components: ['R_30', 'R_31', 'R_89', 'R_90', 'AchDate_14'],
+  prices: ['AFinType_12', 'AFinType_13', 'AFinType_10', 'R_100', 'R_119', 'AFinDate_13', 'R_68', 'AFinType_07', 'AFinType_14',
+    'AFinType_15', 'AFinType_16', 'AFinDate_07', 'AFinDate_08', 'AFinDate_09', 'AFinDate_14', 'R_161', 'R_162'],
+  components: ['R_30', 'R_31', 'R_89', 'R_90', 'AchDate_14', 'LearnDelFAMType_67'],
   outcome: ['DateOfBirth_47', 'DateOfBirth_58', 'LearnActEndDate_01', 'LearnActEndDate_04', 'Outcome_05', 'Outcome_10',
     'Outcome_11', 'Outcome_12', 'CompStatus_03', 'CompStatus_04', 'CompStatus_06', 'CompStatus_07', 'AchDate_04',
     'AchDate_05', 'AchDate_07', 'AchDate_12', 'WithdrawReason_03', 'WithdrawReason_04'],
@@ -342,8 +361,19 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
         // LearnDelFAMDateTo_03 doesn't apply to ACT.
         if (x.LEARNDELFAMTYPE !== 'ACT' && x.DATETO && a.LEARNACTENDDATE && x.DATETO > a.LEARNACTENDDATE) f('LearnDelFAMDateTo_03')
       }
-      const famKeys = a.fams.map((x) => `${x.LEARNDELFAMTYPE}:${x.LEARNDELFAMCODE}`)
+      // R_52 doesn't apply to LSF, ACT or ALB, which repeat for different dates.
+      const famKeys = a.fams.filter((x) => !['LSF', 'ACT', 'ALB'].includes(x.LEARNDELFAMTYPE)).map((x) => `${x.LEARNDELFAMTYPE}:${x.LEARNDELFAMCODE}`)
       if (new Set(famKeys).size !== famKeys.length) f('R_52')
+      if (['EEF', 'RES', 'SOF', 'FFI'].some((type) => a.fams.filter((x) => x.LEARNDELFAMTYPE === type).length > 1)) f('LearnDelFAMType_18')
+      if (a.fams.filter((x) => x.LEARNDELFAMTYPE === 'LDM').length > 6) f('LearnDelFAMType_31')
+      if (a.AIMTYPE === 3 && a.FUNDMODEL === 36 && a.fams.some((x) => x.LEARNDELFAMTYPE === 'LSF')) f('LearnDelFAMType_67')
+      const lsf = a.fams.filter((x) => x.LEARNDELFAMTYPE === 'LSF' && x.DATEFROM && x.DATETO).sort((x, y) => (x.DATEFROM < y.DATEFROM ? -1 : 1))
+      if (lsf.some((x, i) => i > 0 && lsf[i - 1].DATETO >= x.DATEFROM)) f('R_61')
+      if (a.ORIGLEARNSTARTDATE) {
+        if (!a.fams.some((x) => x.LEARNDELFAMTYPE === 'RES')) f('OrigLearnStartDate_04')
+        if (a.ORIGLEARNSTARTDATE >= a.LEARNSTARTDATE) f('OrigLearnStartDate_02')
+        if (a.ORIGLEARNSTARTDATE < addYears(a.LEARNSTARTDATE, -10)) f('OrigLearnStartDate_01')
+      }
       if (a.AIMTYPE === 3 && !l.aims.some((p) => p.AIMTYPE === 1 && p.PROGTYPE === a.PROGTYPE && p.STDCODE === a.STDCODE)) f('R_30')
     }
 
@@ -373,6 +403,19 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
       }
       const finKeys = programme.fin.map((x) => `${x.AFINTYPE}:${x.AFINCODE}:${x.AFINDATE}`)
       if (new Set(finKeys).size !== finKeys.length) f('R_68')
+      const fin = (type, codes) => programme.fin.filter((x) => x.AFINTYPE === type && codes.includes(Number(x.AFINCODE)))
+      if (fin('PMR', [2]).length > 0 && fin('TNP', [2, 4]).length === 0) f('AFinType_07')
+      if (fin('PMR', [1]).length > 0 && fin('TNP', [1, 3]).length === 0) f('AFinType_14')
+      if (fin('RIP', [1]).some((x) => Number(x.AFINAMOUNT) > 18000)) f('AFinType_15')
+      if (fin('RIP', [1]).some((x) => Number(x.AFINAMOUNT) < 5)) f('AFinType_16')
+      if (programme.fin.some((x) => x.AFINDATE < addYears(programme.LEARNSTARTDATE, -1))) f('AFinDate_09')
+      if (fin('PMR', [1, 2, 3]).some((x) => x.AFINDATE > filePreparationDate)) f('AFinDate_14')
+      const sameDate = (a, b) => fin('TNP', [a]).some((x) => fin('TNP', [b]).some((y) => y.AFINDATE === x.AFINDATE))
+      if (sameDate(1, 3)) f('AFinDate_07')
+      if (sameDate(2, 4)) f('AFinDate_08')
+      const priorLearningHours = programme.hours.some((h) => Number(h.HRSCODE) === 4)
+      if (priorLearningHours && fin('RIP', [1]).length === 0) f('R_161')
+      if (fin('RIP', [1]).length > 0 && !priorLearningHours) f('R_162')
 
       const start = programme.LEARNSTARTDATE
       const codes = programme.hours.map((h) => h.HRSCODE)

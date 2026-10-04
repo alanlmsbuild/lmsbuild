@@ -261,7 +261,7 @@ function LearnerRecord({ learner, canManage, back }) {
             <Row label="Planned end date" value={formatDate(learner.LEARNPLANENDDATE)} />
             <Row label="Time on programme" value={timeOnProgramme ?? '—'} />
           </dl>
-          {ilrSection((d) => <ProgrammeRecords ilr={d} />)}
+          {ilrSection((d) => <ProgrammeRecords ilr={d} manage={manage} />)}
         </Section>
 
         <Section title="Off-the-job hours" rules={rulesFor('hours')} change={changePath(manage, 'hours')}>
@@ -270,12 +270,12 @@ function LearnerRecord({ learner, canManage, back }) {
 
         {canManage && (
           <Section title="Prices and payments" rules={rulesFor('prices')}>
-            {ilrSection((d) => <PriceRecords ilr={d} />)}
+            {ilrSection((d) => <PriceRecords ilr={d} manage={manage} />)}
           </Section>
         )}
 
         <Section title="Component aims" rules={rulesFor('components')}>
-          {ilrSection((d) => <ComponentRecords ilr={d} />)}
+          {ilrSection((d) => <ComponentRecords ilr={d} manage={manage} />)}
         </Section>
 
         <Section title="Outcome" rules={rulesFor('outcome')}>

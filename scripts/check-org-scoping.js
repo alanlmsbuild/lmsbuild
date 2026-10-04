@@ -152,6 +152,8 @@ for (const file of serverFiles) {
   for (const m of text.matchAll(/\bAPP_FIN_RECORD\b/g)) {
     const before = text.slice(Math.max(0, m.index - 30), m.index)
     if (/ORG_$/.test(before) || /(insert\s+into|update)\s+(ILR\.)?$/i.test(before)) continue
+    // The table's name as a label in the change history (logChange), not SQL.
+    if (/\btable:\s*'$/.test(before)) continue
     if (file === 'qarExport.js' || file === 'reports.js') continue // check 7 reports these
     report(file, text, m.index, 'reads APP_FIN_RECORD directly: use ORG_APP_FIN_RECORD, so prices stay managers only')
   }

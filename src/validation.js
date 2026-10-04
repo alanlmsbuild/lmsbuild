@@ -17,6 +17,8 @@ import {
 import { EVIDENCE_TYPE_OPTIONS, IQA_OUTCOME_OPTIONS, TYPES_NEEDING_A_FILE, WITNESS_OUTCOME_OPTIONS } from './burrowCodes.js'
 
 import {
+  AIM_FAM_OPTIONS,
+  PRICE_OPTIONS,
   BSI_OPTIONS,
   EII_OPTIONS,
   EMP_STAT_OPTIONS,
@@ -635,5 +637,78 @@ export function validateOtjHours(input, { startDate, existing = {} } = {}) {
   if (changed && !String(v.reason ?? '').trim()) {
     errors.reason = 'Say what was wrong: changing or clearing hours already recorded is a correction.'
   }
+  return errors
+}
+
+const addYears = (date, years) => `${Number(date.slice(0, 4)) + years}${date.slice(4)}`
+
+// A funding and monitoring code on the programme aim. aim: { startDate,
+// plannedEndDate, actualEndDate }. LSF needs its dates (LearnDelFAMDateFrom_01),
+// a restart its original start date (OrigLearnStartDate_02, 01, 09).
+export function validateAimFamRecord(input, aim = {}) {
+  const errors = {}
+  const v = input ?? {}
+  const option = AIM_FAM_OPTIONS.find((o) => o.key === v.fam)
+  if (!option) return { fam: 'Choose one from the list.' }
+  if (option.type === 'LSF') {
+    if (!isValidDateString(v.dateFrom)) errors.dateFrom = 'Enter the date learning support starts (rule LearnDelFAMDateFrom_01).'
+    else if (aim.startDate && v.dateFrom < aim.startDate) errors.dateFrom = "It can't be before the programme starts (rule LearnDelFAMDateFrom_02)."
+    if (!isValidDateString(v.dateTo)) errors.dateTo = 'Enter the date it ends (rule LearnDelFAMDateFrom_01).'
+    else if (isValidDateString(v.dateFrom) && v.dateTo < v.dateFrom) errors.dateTo = "It can't end before it starts (rule LearnDelFAMDateTo_01)."
+    else if (aim.actualEndDate && v.dateTo > aim.actualEndDate) errors.dateTo = "It can't end after the programme ended (rule LearnDelFAMDateTo_03)."
+  }
+  if (option.type === 'RES') {
+    if (!isValidDateString(v.origStartDate)) {
+      errors.origStartDate = 'Enter the date the learner first started this apprenticeship.'
+    } else if (aim.startDate && v.origStartDate >= aim.startDate) {
+      errors.origStartDate = 'It must be before this programme start date (rule OrigLearnStartDate_02).'
+    } else if (aim.startDate && v.origStartDate < addYears(aim.startDate, -10)) {
+      errors.origStartDate = "It can't be more than 10 years before this programme start (rule OrigLearnStartDate_01)."
+    } else if (v.origStartDate < '2017-05-01') {
+      errors.origStartDate = "For apprenticeships funded since May 2017, it can't be before 1 May 2017 (rule OrigLearnStartDate_09)."
+    }
+  }
+  return errors
+}
+
+// A price or payment. aim: { startDate }. today: for payments
+// (AFinDate_14).
+export function validatePriceRecord(input, { startDate, today = todayString() } = {}) {
+  const errors = {}
+  const v = input ?? {}
+  const option = PRICE_OPTIONS.find((o) => o.key === v.fin)
+  if (!option) errors.fin = 'Choose one from the list.'
+  if (!isValidDateString(v.date)) {
+    errors.date = 'Enter a valid date.'
+  } else if (startDate && v.date < addYears(startDate, -1)) {
+    errors.date = "It can't be more than a year before the programme starts (rule AFinDate_09)."
+  } else if (option?.type === 'TNP' && startDate && v.date < startDate) {
+    errors.date = "A price can't apply from before the programme starts (rule R_119)."
+  } else if (option?.type === 'PMR' && v.date > today) {
+    errors.date = "A payment can't be dated in the future (rule AFinDate_14)."
+  }
+  const text = String(v.amount ?? '').trim()
+  if (!/^\d{1,6}$/.test(text)) {
+    errors.amount = 'Enter whole pounds, without a £ sign or pence.'
+  } else if (option?.type === 'RIP' && (Number(text) < 5 || Number(text) > 18000)) {
+    errors.amount = 'A price reduction for prior learning must be from £5 to £18,000 (rules AFinType_15 and 16).'
+  }
+  return errors
+}
+
+// A component aim (the standard's own aim, English or maths). programme:
+// { startDate } of the programme aim.
+export function validateComponentAim(input, { programmeStart } = {}) {
+  const errors = {}
+  const v = input ?? {}
+  if (!/^[A-Z0-9]{8}$/i.test(String(v.learnAimRef ?? '').trim())) errors.learnAimRef = 'Choose the learning aim from LARS (8 characters).'
+  if (!isValidDateString(v.startDate)) errors.startDate = 'Enter a valid start date.'
+  else if (programmeStart && v.startDate < programmeStart) errors.startDate = "A component aim can't start before the programme."
+  if (!isValidDateString(v.plannedEndDate)) errors.plannedEndDate = 'Enter a valid planned end date.'
+  else if (isValidDateString(v.startDate) && v.plannedEndDate < v.startDate) errors.plannedEndDate = "It can't end before it starts (rule LearnPlanEndDate_02)."
+  const plfa = String(v.priorLearnFundAdj ?? '').trim()
+  if (plfa && !/^\d{1,2}$/.test(plfa)) errors.priorLearnFundAdj = 'A percentage from 0 to 99, or leave it empty if all the learning is delivered.'
+  const ofa = String(v.otherFundAdj ?? '').trim()
+  if (ofa && !/^\d{1,3}$/.test(ofa)) errors.otherFundAdj = 'A number from 0 to 999, only if DfE has told you to use one.'
   return errors
 }

@@ -106,16 +106,18 @@ const empty = (text) => <p className="record-empty">{text}</p>
 // manage: { learnRefNumber, back }, or null for anyone else.
 export const changePath = (manage, section) => manage && learnerEditPath(manage.learnRefNumber, section, manage.back)
 
-function RecordActions({ manage, kind, recordKey, label }) {
+function RecordActions({ manage, kind, recordKey, label, canRemove = true }) {
   if (!manage) return null
   return (
     <span className="record-actions">
       <a href={learnerRecordPath(manage.learnRefNumber, kind, recordKey, 'correct', manage.back)} aria-label={`Correct ${label}`}>
         Correct
       </a>
-      <a href={learnerRecordPath(manage.learnRefNumber, kind, recordKey, 'remove', manage.back)} aria-label={`Remove ${label}`}>
-        Remove
-      </a>
+      {canRemove && (
+        <a href={learnerRecordPath(manage.learnRefNumber, kind, recordKey, 'remove', manage.back)} aria-label={`Remove ${label}`}>
+          Remove
+        </a>
+      )}
     </span>
   )
 }
@@ -245,7 +247,7 @@ function EmploymentList({ ilr, manage }) {
   )
 }
 
-function FamRows({ fams }) {
+function FamRows({ fams, manage }) {
   if (fams.length === 0) return empty('None.')
   return (
     <dl>
@@ -261,6 +263,7 @@ function FamRows({ fams }) {
                 {l.code}
                 {dates}
                 {f.DERIVED && <span className="record-tag">Worked out by Warren</span>}
+                {!f.DERIVED && f.FAMID && <RecordActions manage={manage} kind="aim-fam" recordKey={f.FAMID} label={l.type} />}
               </>
             }
           />
@@ -276,7 +279,7 @@ export function programmeAim(ilr) {
 
 // The programme aim's ILR fields that the Apprenticeship aim rows above
 // don't already show.
-export function ProgrammeRecords({ ilr }) {
+export function ProgrammeRecords({ ilr, manage }) {
   const a = programmeAim(ilr)
   if (!a) return empty('No programme aim.')
   return (
@@ -293,7 +296,8 @@ export function ProgrammeRecords({ ilr }) {
         <Row label="Software supplier aim ID" value={<span className="record-id">{a.SWSUPAIMID ?? '—'}</span>} />
       </dl>
       <h3 className="record-subhead">Funding and monitoring</h3>
-      <FamRows fams={a.fams} />
+      <FamRows fams={a.fams} manage={manage} />
+      <AddLink manage={manage} kind="aim-fam">Add a funding and monitoring code</AddLink>
     </>
   )
 }
@@ -335,40 +339,70 @@ export function HoursRecords({ ilr }) {
 
 const pounds = (n) => `£${Number(n).toLocaleString('en-GB')}`
 
-export function PriceRecords({ ilr }) {
+export function PriceRecords({ ilr, manage }) {
   const a = programmeAim(ilr)
-  if (!a || a.fin.length === 0) return empty('No prices or payments recorded.')
   return (
-    <dl>
-      {a.fin.map((f) => {
-        const l = afinLabel(f.AFINTYPE, f.AFINCODE)
-        return (
-          <Row
-            key={`${f.AFINTYPE}-${f.AFINCODE}-${f.AFINDATE}`}
-            label={`${l.code}, from ${formatDate(f.AFINDATE)}`}
-            value={pounds(f.AFINAMOUNT)}
-          />
-        )
-      })}
-    </dl>
+    <>
+      {!a || a.fin.length === 0
+        ? empty('No prices or payments recorded.')
+        : (
+            <dl>
+              {a.fin.map((f) => {
+                const l = afinLabel(f.AFINTYPE, f.AFINCODE)
+                const key = `${f.AFINTYPE}-${Number(f.AFINCODE)}-${f.AFINDATE}`
+                const what = `${l.code}, ${f.AFINTYPE === 'PMR' ? 'paid' : 'from'} ${formatDate(f.AFINDATE)}`
+                return (
+                  <Row
+                    key={key}
+                    label={what}
+                    value={
+                      <>
+                        {pounds(f.AFINAMOUNT)}
+                        <RecordActions manage={manage} kind="price" recordKey={key} label={what} />
+                      </>
+                    }
+                  />
+                )
+              })}
+            </dl>
+          )}
+      <AddLink manage={manage} kind="price">Add a price or payment</AddLink>
+    </>
   )
 }
 
-export function ComponentRecords({ ilr }) {
+export function ComponentRecords({ ilr, manage }) {
   const components = ilr.aims.filter((a) => a.AIMTYPE === 3)
-  if (components.length === 0) return empty('No component aims.')
+  return (
+    <>
+      {components.length === 0 ? empty('No component aims.') : <ComponentList components={components} manage={manage} />}
+      <AddLink manage={manage} kind="component">Add a component aim</AddLink>
+    </>
+  )
+}
+
+function ComponentList({ components, manage }) {
   return (
     <ol className="record-history">
       {components.map((a) => (
         <li key={a.AIMSEQNUMBER}>
           <p className="record-history-head">
             {a.AIMTITLE ?? a.LEARNAIMREF} <span className="record-id">{a.LEARNAIMREF}</span>
+            <RecordActions
+              manage={manage}
+              kind="component"
+              recordKey={String(a.AIMSEQNUMBER)}
+              label={a.AIMTITLE ?? a.LEARNAIMREF}
+              canRemove={false}
+            />
           </p>
           <dl>
             <Row label="Start and planned end" value={`${formatDate(a.LEARNSTARTDATE)} to ${formatDate(a.LEARNPLANENDDATE)}`} />
             <Row label="Status" value={describe(COMPLETION_STATUS_LABELS, a.COMPSTATUS)} />
             {a.LEARNACTENDDATE && <Row label="Actual end date" value={formatDate(a.LEARNACTENDDATE)} />}
             {a.OUTCOME !== null && <Row label="Outcome" value={describe(OUTCOME_LABELS, a.OUTCOME)} />}
+            {a.PRIORLEARNFUNDADJ !== null && <Row label="Funding adjustment for prior learning" value={`${a.PRIORLEARNFUNDADJ}%`} />}
+            {a.OTHERFUNDADJ !== null && <Row label="Other funding adjustment" value={a.OTHERFUNDADJ} />}
             {a.fams.length > 0 && (
               <Row
                 label="Funding and monitoring"

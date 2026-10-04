@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
 import {
+  AIM_FAM_OPTIONS,
+  PRICE_OPTIONS,
+  afinLabel,
+  learnDelFamLabel,
   BSI_OPTIONS,
   EII_OPTIONS,
   EMP_STAT_OPTIONS,
@@ -15,6 +19,9 @@ import {
 } from '../ilrLabels'
 import { formatDate } from '../lookups'
 import {
+  validateAimFamRecord,
+  validateComponentAim,
+  validatePriceRecord,
   teachingYearEnd,
   validateEmploymentRecord,
   validateLearnerFamRecord,
@@ -36,7 +43,12 @@ const KINDS = {
   'learner-fam': { name: 'a funding and monitoring record', plural: 'funding and monitoring records' },
   prior: { name: 'a prior attainment record', plural: 'prior attainment records' },
   employment: { name: 'an employment status', plural: 'employment statuses' },
+  'aim-fam': { name: 'a programme funding and monitoring code', plural: 'funding and monitoring codes' },
+  price: { name: 'a price or payment', plural: 'prices and payments' },
+  component: { name: 'a component aim', plural: 'component aims' },
 }
+
+const programmeOf = (ilr) => ilr.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1)
 
 export function recordFormTitle(kind, mode) {
   const verb = { new: 'Add', correct: 'Correct', remove: 'Remove' }[mode]
@@ -48,6 +60,9 @@ function findRecord(ilr, kind, key) {
   if (kind === 'lldd') return ilr.lldd.find((x) => String(x.LLDDCAT) === key)
   if (kind === 'learner-fam') return ilr.learnerFams.find((x) => `${x.LEARNFAMTYPE}-${Number(x.LEARNFAMCODE)}` === key)
   if (kind === 'employment') return ilr.employment.find((x) => x.DATEEMPSTATAPP === key)
+  if (kind === 'aim-fam') return programmeOf(ilr)?.fams.find((x) => x.FAMID === key)
+  if (kind === 'price') return programmeOf(ilr)?.fin.find((x) => `${x.AFINTYPE}-${Number(x.AFINCODE)}-${x.AFINDATE}` === key)
+  if (kind === 'component') return ilr.aims.find((a) => a.AIMTYPE === 3 && String(a.AIMSEQNUMBER) === key)
   return ilr.prior.find((x) => x.DATELEVELAPP === key)
 }
 
@@ -58,10 +73,48 @@ function describeRecord(kind, record) {
     return `${l.type}: ${l.code}`
   }
   if (kind === 'employment') return `${empStatLabel(record.EMPSTAT)}, from ${formatDate(record.DATEEMPSTATAPP)}`
+  if (kind === 'aim-fam') {
+    const l = learnDelFamLabel(record.LEARNDELFAMTYPE, record.LEARNDELFAMCODE)
+    return `${l.type}: ${l.code}${record.DATEFROM ? `, ${formatDate(record.DATEFROM)} to ${formatDate(record.DATETO)}` : ''}`
+  }
+  if (kind === 'price') {
+    const l = afinLabel(record.AFINTYPE, record.AFINCODE)
+    return `${l.code}: £${Number(record.AFINAMOUNT).toLocaleString('en-GB')}, ${formatDate(record.AFINDATE)}`
+  }
+  if (kind === 'component') return `${record.AIMTITLE ?? record.LEARNAIMREF} (${record.LEARNAIMREF})`
   return `${priorLevelLabel(record.PRIORLEVEL)}, recorded ${formatDate(record.DATELEVELAPP)}`
 }
 
 function initialForm(kind, record, ilr) {
+  if (kind === 'aim-fam') {
+    return {
+      fam: record ? `${record.LEARNDELFAMTYPE}-${Number(record.LEARNDELFAMCODE)}` : '',
+      dateFrom: record?.DATEFROM ?? '',
+      dateTo: record?.DATETO ?? '',
+      origStartDate: programmeOf(ilr)?.ORIGLEARNSTARTDATE ?? '',
+      reason: '',
+    }
+  }
+  if (kind === 'price') {
+    return {
+      fin: record ? `${record.AFINTYPE}-${Number(record.AFINCODE)}` : '',
+      date: record?.AFINDATE ?? '',
+      amount: record ? String(record.AFINAMOUNT) : '',
+      reason: '',
+    }
+  }
+  if (kind === 'component') {
+    const programme = programmeOf(ilr)
+    return {
+      learnAimRef: record?.LEARNAIMREF ?? '',
+      title: record?.AIMTITLE ?? '',
+      startDate: record?.LEARNSTARTDATE ?? programme?.LEARNSTARTDATE ?? '',
+      plannedEndDate: record?.LEARNPLANENDDATE ?? programme?.LEARNPLANENDDATE ?? '',
+      priorLearnFundAdj: record?.PRIORLEARNFUNDADJ === null || record?.PRIORLEARNFUNDADJ === undefined ? '' : String(record.PRIORLEARNFUNDADJ),
+      otherFundAdj: record?.OTHERFUNDADJ === null || record?.OTHERFUNDADJ === undefined ? '' : String(record.OTHERFUNDADJ),
+      reason: '',
+    }
+  }
   if (kind === 'employment') {
     const code = (type) => {
       const m = record?.esm.find((x) => x.ESMTYPE === type)
@@ -88,11 +141,17 @@ function initialForm(kind, record, ilr) {
   return { priorLevel: record ? String(record.PRIORLEVEL) : '', dateLevelApp: record?.DATELEVELAPP ?? '', reason: '' }
 }
 
-function validate(kind, mode, form, earliestStart) {
+function validate(kind, mode, form, earliestStart, ilr) {
   if (mode === 'remove') return validateRemoval(form)
   if (kind === 'lldd') return validateLlddRecord(form, { earliestStart })
   if (kind === 'learner-fam') return validateLearnerFamRecord(form)
   if (kind === 'employment') return validateEmploymentRecord(form, { teachingYearEnd: teachingYearEnd() })
+  if (kind === 'aim-fam') {
+    const p = programmeOf(ilr)
+    return validateAimFamRecord(form, { startDate: p?.LEARNSTARTDATE, plannedEndDate: p?.LEARNPLANENDDATE, actualEndDate: p?.LEARNACTENDDATE })
+  }
+  if (kind === 'price') return validatePriceRecord(form, { startDate: programmeOf(ilr)?.LEARNSTARTDATE })
+  if (kind === 'component') return validateComponentAim(form, { programmeStart: programmeOf(ilr)?.LEARNSTARTDATE })
   return validatePriorRecord(form)
 }
 
@@ -233,6 +292,183 @@ function EmploymentFields({ form, errors, update, employers, earliestStart, mode
   )
 }
 
+function Select({ value, onChange, options, placeholder = 'Select…' }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">{placeholder}</option>
+      {options.map((o) => (
+        <option key={o.key ?? o.code} value={o.key ?? o.code}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+// A funding and monitoring code on the programme aim. Learning support has
+// dates; a restart has the date the learner first started.
+function AimFamFields({ form, errors, update }) {
+  const type = form.fam.split('-')[0]
+  return (
+    <>
+      <Field
+        label="Funding and monitoring code"
+        error={errors.fam}
+        required
+        hint="Source of funding and contract type aren't here: Warren works those out."
+      >
+        <Select value={form.fam} onChange={(v) => update('fam', v)} options={AIM_FAM_OPTIONS} />
+      </Field>
+      {type === 'LSF' && (
+        <>
+          <Field label="Learning support from" error={errors.dateFrom} required>
+            <input type="date" value={form.dateFrom} onChange={(e) => update('dateFrom', e.target.value)} />
+          </Field>
+          <Field label="Learning support to" error={errors.dateTo} required hint="Periods mustn't overlap (rule R_61).">
+            <input type="date" value={form.dateTo} onChange={(e) => update('dateTo', e.target.value)} />
+          </Field>
+        </>
+      )}
+      {type === 'RES' && (
+        <Field
+          label="Original start date"
+          error={errors.origStartDate}
+          required
+          hint="When the learner first started this apprenticeship, before the restart."
+        >
+          <input type="date" value={form.origStartDate} onChange={(e) => update('origStartDate', e.target.value)} />
+        </Field>
+      )}
+    </>
+  )
+}
+
+// A price or payment on the programme aim (managers only).
+function PriceFields({ form, errors, update, mode }) {
+  const type = form.fin.split('-')[0]
+  return (
+    <>
+      {mode === 'new' && (
+        <p className="field-hint field-wide">
+          When a price changes, add a new price from the date it changed: the earlier one stays. To fix a mistake,
+          correct the record instead.
+        </p>
+      )}
+      <Field label="Price or payment" error={errors.fin} required>
+        <Select value={form.fin} onChange={(v) => update('fin', v)} options={PRICE_OPTIONS} />
+      </Field>
+      <Field
+        label={type === 'PMR' ? 'Date paid' : 'Applies from'}
+        error={errors.date}
+        required
+        hint={type === 'TNP' ? 'The first training and assessment prices apply from the programme start date (rule AFinType_13).' : null}
+      >
+        <input type="date" value={form.date} onChange={(e) => update('date', e.target.value)} />
+      </Field>
+      <Field label="Amount (£, whole pounds, excluding VAT)" error={errors.amount} required>
+        <input type="text" inputMode="numeric" value={form.amount} onChange={(e) => update('amount', e.target.value)} />
+      </Field>
+      {type === 'RIP' && (
+        <p className="field-hint field-wide">
+          A price reduction for prior learning goes with the hours removed for prior learning, under Off-the-job hours
+          (rules R_161 and R_162).
+        </p>
+      )}
+    </>
+  )
+}
+
+// A component aim, found in LARS by reference or title.
+function ComponentFields({ form, errors, update }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState(null)
+  const [searching, setSearching] = useState(false)
+  async function search() {
+    setSearching(true)
+    try {
+      const res = await fetch(`/api/lars/aims?q=${encodeURIComponent(query)}`)
+      setResults(res.ok ? await res.json() : [])
+    } finally {
+      setSearching(false)
+    }
+  }
+  return (
+    <>
+      <Field label="Learning aim" error={errors.learnAimRef} required>
+        <span className="record-chosen-aim">
+          {form.learnAimRef ? `${form.title || 'LARS aim'} (${form.learnAimRef})` : 'None chosen yet'}
+        </span>
+      </Field>
+      <div className="field field-wide lars-search">
+        <span>Find it in LARS</span>
+        <div className="lars-search-row">
+          <input
+            type="search"
+            value={query}
+            aria-label="Find a learning aim in LARS"
+            placeholder="Reference (e.g. 6035060X) or words from the title"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                search()
+              }
+            }}
+          />
+          <button type="button" className="secondary" onClick={search} disabled={searching || query.trim().length < 3}>
+            {searching ? 'Finding…' : 'Find'}
+          </button>
+        </div>
+        {results && results.length === 0 && <span className="field-hint">Nothing found.</span>}
+        {results && results.length > 0 && (
+          <ul className="lars-results">
+            {results.map((r) => (
+              <li key={r.LEARN_AIM_REF}>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    update('learnAimRef', r.LEARN_AIM_REF)
+                    update('title', r.TITLE)
+                    setResults(null)
+                  }}
+                >
+                  {r.TITLE}
+                </button>{' '}
+                <span className="record-id">
+                  {r.LEARN_AIM_REF}
+                  {r.LEVEL ? ` · level ${r.LEVEL}` : ''}
+                  {r.OPERATIONAL_END_DATE ? ` · closed ${formatDate(r.OPERATIONAL_END_DATE)}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <Field label="Start date" error={errors.startDate} required>
+        <input type="date" value={form.startDate} onChange={(e) => update('startDate', e.target.value)} />
+      </Field>
+      <Field label="Planned end date" error={errors.plannedEndDate} required>
+        <input type="date" value={form.plannedEndDate} onChange={(e) => update('plannedEndDate', e.target.value)} />
+      </Field>
+      <Field
+        label="Funding adjustment for prior learning (%, optional)"
+        error={errors.priorLearnFundAdj}
+        hint="The proportion of this aim still to be delivered, only when prior learning means not all of it is."
+      >
+        <input type="text" inputMode="numeric" value={form.priorLearnFundAdj} onChange={(e) => update('priorLearnFundAdj', e.target.value)} />
+      </Field>
+      <Field
+        label="Other funding adjustment (optional)"
+        error={errors.otherFundAdj}
+        hint="Only if DfE has told you to use one, for English and maths aims."
+      >
+        <input type="text" inputMode="numeric" value={form.otherFundAdj} onChange={(e) => update('otherFundAdj', e.target.value)} />
+      </Field>
+    </>
+  )
+}
+
 function IlrRecordForm({ learnRefNumber, kind, recordKey, mode, onSaved, onCancel }) {
   const [ilr, setIlr] = useState(null)
   const [loadError, setLoadError] = useState(null)
@@ -268,7 +504,7 @@ function IlrRecordForm({ learnRefNumber, kind, recordKey, mode, onSaved, onCance
   async function handleSubmit(e) {
     e.preventDefault()
     setServerError(null)
-    const fieldErrors = validate(kind, mode, form, earliestStart)
+    const fieldErrors = validate(kind, mode, form, earliestStart, ilr)
     setErrors(fieldErrors)
     if (Object.keys(fieldErrors).length > 0) return
     const base = `/api/learners/${encodeURIComponent(learnRefNumber)}/ilr/${kind}`
@@ -315,7 +551,10 @@ function IlrRecordForm({ learnRefNumber, kind, recordKey, mode, onSaved, onCance
         </p>
       )}
 
-      {form && (mode === 'new' || record) && (
+      {kind === 'component' && mode === 'remove' && (
+        <p role="alert">A component aim can&apos;t be removed. Correct it instead.</p>
+      )}
+      {form && (mode === 'new' || record) && !(kind === 'component' && mode === 'remove') && (
         <form onSubmit={handleSubmit} noValidate>
           <fieldset>
             <legend>{recordFormTitle(kind, mode)}</legend>
@@ -409,6 +648,10 @@ function IlrRecordForm({ learnRefNumber, kind, recordKey, mode, onSaved, onCance
             {mode !== 'remove' && kind === 'employment' && (
               <EmploymentFields form={form} errors={errors} update={update} employers={ilr.employers} earliestStart={earliestStart} mode={mode} />
             )}
+
+            {mode !== 'remove' && kind === 'aim-fam' && <AimFamFields form={form} errors={errors} update={update} />}
+            {mode !== 'remove' && kind === 'price' && <PriceFields form={form} errors={errors} update={update} mode={mode} />}
+            {mode !== 'remove' && kind === 'component' && <ComponentFields form={form} errors={errors} update={update} />}
 
             {mode === 'correct' && (
               <Field label="What was wrong? (optional)" error={errors.reason}>

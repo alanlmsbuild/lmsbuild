@@ -7,8 +7,12 @@
 //   POST /api/learners/:ref/ilr/:kind/:key/remove     remove (entered in error)
 //
 // kind is lldd (key: the category), learner-fam (key: TYPE-CODE, e.g.
-// EHC-1), prior (key: the date the level applies) or employment (key: the
-// date the status applies, with its monitoring codes). Managers only.
+// EHC-1), prior (key: the date the level applies), employment (key: the
+// date the status applies, with its monitoring codes), aim-fam (key: the
+// FAM's FAMID, on the programme aim), price (key: TYPE-CODE-DATE, e.g.
+// TNP-1-2025-03-10, prices and payments on the programme aim) or component
+// (key: the component aim's AIMSEQNUMBER; add and correct only). Managers
+// only.
 //
 // The rules (decided 28 September 2026): a correction changes the record in
 // place and keeps the old values in ILR.RECORD_CHANGE with who and when. A
@@ -17,11 +21,16 @@
 // Every record added copies the learner's ISTESTDATA. Every query goes
 // through the one learner scope, so a learner outside it is "not found".
 
+import crypto from 'node:crypto'
 import { execute } from './db.js'
-import { allow, IN_VISIBLE_LEARNERS, MANAGER, ORG_EMPLOYER, VISIBLE_LEARNER } from './access.js'
+import { allow, IN_VISIBLE_LEARNERS, MANAGER, ORG_APP_FIN_RECORD, ORG_EMPLOYER, VISIBLE_LEARNER } from './access.js'
 import { inTransaction, RequestError, sendError } from './burrow.js'
 import { logChange } from './recordChange.js'
 import {
+  todayString as teachingDay,
+  validateAimFamRecord,
+  validateComponentAim,
+  validatePriceRecord,
   OTJ_FIELDS,
   validateOtjHours,
   employmentMonitoring,
@@ -516,7 +525,363 @@ const employment = {
   },
 }
 
-const KINDS = { lldd, 'learner-fam': learnerFam, prior, employment }
+// ---------------------------------------------------------------- the programme aim
+
+const PROGRAMME = `
+  select LEARNSTARTDATE, LEARNPLANENDDATE, LEARNACTENDDATE, ACHDATE, ORIGLEARNSTARTDATE, STDCODE, DELLOCPOSTCODE
+  from LEARNING_DELIVERY
+  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
+`
+async function findProgramme(connection, ref) {
+  const [p] = await execute(connection, PROGRAMME, [ref])
+  if (!p) throw new RequestError('This learner has no programme aim.', 409)
+  return {
+    startDate: isoDate(p.LEARNSTARTDATE),
+    plannedEndDate: isoDate(p.LEARNPLANENDDATE),
+    actualEndDate: isoDate(p.LEARNACTENDDATE),
+    achDate: isoDate(p.ACHDATE),
+    origStartDate: isoDate(p.ORIGLEARNSTARTDATE),
+    stdCode: p.STDCODE,
+    dellocPostcode: p.DELLOCPOSTCODE,
+  }
+}
+
+// ---------------------------------------------------------------- funding and monitoring on the programme aim
+//
+// LSF (learning support, with dates), EEF, LDM and RES (restart, with the
+// original start date, which lives on the aim). SOF and ACT are worked out
+// by Warren, not stored.
+
+const AIM_FAM_ACTIVE = `
+  select FAMID, LEARNDELFAMTYPE, LEARNDELFAMCODE, DATEFROM, DATETO
+  from ILR.LEARNING_DELIVERY_FAM
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const AIM_FAM_INSERT = `
+  insert into ILR.LEARNING_DELIVERY_FAM (FAMID, LEARNREFNUMBER, AIMSEQNUMBER, LEARNDELFAMTYPE, LEARNDELFAMCODE, DATEFROM, DATETO, CREATEDBY, ISTESTDATA)
+  select ?, l.LEARNREFNUMBER, 1, ?, ?, ?, ?, ?, l.ISTESTDATA
+  from ${VISIBLE_LEARNER} l
+  where l.LEARNREFNUMBER = ?
+`
+const AIM_FAM_UPDATE = `
+  update ILR.LEARNING_DELIVERY_FAM
+  set LEARNDELFAMTYPE = ?, LEARNDELFAMCODE = ?, DATEFROM = ?, DATETO = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
+  where FAMID = ? and LEARNREFNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const AIM_FAM_REMOVE = `
+  update ILR.LEARNING_DELIVERY_FAM
+  set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
+  where FAMID = ? and LEARNREFNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const ORIG_START_UPDATE = `
+  update LEARNING_DELIVERY
+  set ORIGLEARNSTARTDATE = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
+  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
+`
+
+const famValues = (f) => ({
+  LEARNDELFAMTYPE: f.LEARNDELFAMTYPE,
+  LEARNDELFAMCODE: String(f.LEARNDELFAMCODE),
+  DATEFROM: isoDate(f.DATEFROM),
+  DATETO: isoDate(f.DATETO),
+})
+
+// The ILR's limits across the aim's FAMs (others = the rest of them).
+function checkAimFamRules(others, next) {
+  const fail = (field, message) => {
+    throw new RequestError('Please fix the highlighted fields.', 400, { [field]: message })
+  }
+  if (['EEF', 'RES'].includes(next.LEARNDELFAMTYPE) && others.some((x) => x.LEARNDELFAMTYPE === next.LEARNDELFAMTYPE)) {
+    fail('fam', `Only one ${next.LEARNDELFAMTYPE} code is allowed on an aim (rule LearnDelFAMType_18). Correct that one instead.`)
+  }
+  if (next.LEARNDELFAMTYPE === 'LDM') {
+    if (others.some((x) => x.LEARNDELFAMTYPE === 'LDM' && String(x.LEARNDELFAMCODE) === next.LEARNDELFAMCODE)) fail('fam', 'This code is already recorded (rule R_52).')
+    if (others.filter((x) => x.LEARNDELFAMTYPE === 'LDM').length >= 6) fail('fam', 'An aim can have at most six LDM codes (rule LearnDelFAMType_31).')
+  }
+  if (next.LEARNDELFAMTYPE === 'LSF') {
+    const overlap = others.find((x) => x.LEARNDELFAMTYPE === 'LSF' && isoDate(x.DATEFROM) <= next.DATETO && isoDate(x.DATETO) >= next.DATEFROM)
+    if (overlap) fail('dateFrom', `This overlaps learning support from ${isoDate(overlap.DATEFROM)} to ${isoDate(overlap.DATETO)} (rules R_61 and R_106).`)
+  }
+}
+
+function famFromBody(body) {
+  const [type, code] = String(body.fam).split('-')
+  return {
+    LEARNDELFAMTYPE: type,
+    LEARNDELFAMCODE: code.padStart(type === 'LDM' ? 3 : 1, '0'),
+    DATEFROM: type === 'LSF' ? body.dateFrom : null,
+    DATETO: type === 'LSF' ? body.dateTo : null,
+  }
+}
+
+async function setOrigStart(connection, ref, programme, next, by, reason) {
+  if ((programme.origStartDate ?? null) === (next ?? null)) return
+  checkUpdated(await execute(connection, ORIG_START_UPDATE, [next, by, ref]))
+  await logChange(connection, {
+    learnRefNumber: ref, table: 'LEARNING_DELIVERY', key: { AIMSEQNUMBER: 1, LEARNAIMREF: 'ZPROG001' }, type: 'corrected',
+    oldValues: { ORIGLEARNSTARTDATE: programme.origStartDate ?? null }, newValues: { ORIGLEARNSTARTDATE: next ?? null }, reason, by,
+  })
+}
+
+const aimFam = {
+  async add(connection, ref, body, by) {
+    await findLearner(connection, ref)
+    const programme = await findProgramme(connection, ref)
+    checkFields(validateAimFamRecord(body, programme))
+    const next = famFromBody(body)
+    checkAimFamRules(await execute(connection, AIM_FAM_ACTIVE, [ref]), next)
+    const famId = crypto.randomUUID()
+    await inTransaction(connection, async () => {
+      await execute(connection, AIM_FAM_INSERT, [famId, next.LEARNDELFAMTYPE, next.LEARNDELFAMCODE, next.DATEFROM, next.DATETO, by, ref])
+      await logChange(connection, { learnRefNumber: ref, table: 'LEARNING_DELIVERY_FAM', key: { FAMID: famId }, type: 'added', newValues: next, by })
+      if (next.LEARNDELFAMTYPE === 'RES') await setOrigStart(connection, ref, programme, body.origStartDate, by, 'Restart recorded')
+    })
+  },
+
+  async correct(connection, ref, key, body, by) {
+    await findLearner(connection, ref)
+    const programme = await findProgramme(connection, ref)
+    const active = await execute(connection, AIM_FAM_ACTIVE, [ref])
+    const current = active.find((x) => x.FAMID === key)
+    if (!current) throw new RequestError('Record not found.', 404)
+    checkFields(validateAimFamRecord(body, programme))
+    const next = famFromBody(body)
+    if (next.LEARNDELFAMTYPE !== current.LEARNDELFAMTYPE && [next.LEARNDELFAMTYPE, current.LEARNDELFAMTYPE].includes('RES')) {
+      throw new RequestError('Please fix the highlighted fields.', 400, { fam: 'A restart can only be corrected to another restart. Remove this record and add the right one.' })
+    }
+    checkAimFamRules(active.filter((x) => x.FAMID !== key), next)
+    const before = famValues(current)
+    const origChanges = next.LEARNDELFAMTYPE === 'RES' && body.origStartDate !== programme.origStartDate
+    if (JSON.stringify(before) === JSON.stringify(next) && !origChanges) return
+    await inTransaction(connection, async () => {
+      if (JSON.stringify(before) !== JSON.stringify(next)) {
+        checkUpdated(await execute(connection, AIM_FAM_UPDATE, [next.LEARNDELFAMTYPE, next.LEARNDELFAMCODE, next.DATEFROM, next.DATETO, by, key, ref]))
+        await logChange(connection, {
+          learnRefNumber: ref, table: 'LEARNING_DELIVERY_FAM', key: { FAMID: key }, type: 'corrected',
+          oldValues: before, newValues: next, reason: body.reason?.trim() || null, by,
+        })
+      }
+      if (origChanges) await setOrigStart(connection, ref, programme, body.origStartDate, by, body.reason?.trim() || null)
+    })
+  },
+
+  async remove(connection, ref, key, body, by) {
+    await findLearner(connection, ref)
+    checkFields(validateRemoval(body))
+    const programme = await findProgramme(connection, ref)
+    const current = (await execute(connection, AIM_FAM_ACTIVE, [ref])).find((x) => x.FAMID === key)
+    if (!current) throw new RequestError('Record not found.', 404)
+    const reason = body.reason.trim()
+    await inTransaction(connection, async () => {
+      checkUpdated(await execute(connection, AIM_FAM_REMOVE, [by, reason, key, ref]))
+      await logChange(connection, { learnRefNumber: ref, table: 'LEARNING_DELIVERY_FAM', key: { FAMID: key }, type: 'removed', oldValues: famValues(current), reason, by })
+      // The original start date only goes with a restart (OrigLearnStartDate_04).
+      if (current.LEARNDELFAMTYPE === 'RES') await setOrigStart(connection, ref, programme, null, by, reason)
+    })
+  },
+}
+
+// ---------------------------------------------------------------- prices and payments (managers only)
+//
+// A price that changes is a new record from the date it changed; correct is
+// for one entered in error. Reads go through ORG_APP_FIN_RECORD.
+
+const FIN_ACTIVE = `
+  select AFINTYPE, AFINCODE, AFINDATE, AFINAMOUNT
+  from ${ORG_APP_FIN_RECORD}
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const FIN_INSERT = `
+  insert into ILR.APP_FIN_RECORD (LEARNREFNUMBER, AIMSEQNUMBER, AFINTYPE, AFINCODE, AFINDATE, AFINAMOUNT, CREATEDBY, ISTESTDATA)
+  select l.LEARNREFNUMBER, 1, ?, ?, ?, ?, ?, l.ISTESTDATA
+  from ${VISIBLE_LEARNER} l
+  where l.LEARNREFNUMBER = ?
+`
+const FIN_UPDATE = `
+  update ILR.APP_FIN_RECORD
+  set AFINTYPE = ?, AFINCODE = ?, AFINDATE = ?, AFINAMOUNT = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and AFINTYPE = ? and AFINCODE = ? and AFINDATE = ?
+    and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const FIN_REMOVE = `
+  update ILR.APP_FIN_RECORD
+  set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and AFINTYPE = ? and AFINCODE = ? and AFINDATE = ?
+    and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+
+const finKey = (x) => `${x.AFINTYPE}-${Number(x.AFINCODE)}-${isoDate(x.AFINDATE)}`
+const finValues = (x) => ({ AFINTYPE: x.AFINTYPE, AFINCODE: Number(x.AFINCODE), AFINDATE: isoDate(x.AFINDATE), AFINAMOUNT: Number(x.AFINAMOUNT) })
+function finFromBody(body) {
+  const [type, code] = String(body.fin).split('-')
+  return { AFINTYPE: type, AFINCODE: Number(code), AFINDATE: body.date, AFINAMOUNT: Number(String(body.amount).trim()) }
+}
+function splitFinKey(key) {
+  const [type, code, ...date] = String(key).split('-')
+  return { type, code: Number(code), date: date.join('-') }
+}
+
+function checkPriceRules(others, next) {
+  const fail = (field, message) => {
+    throw new RequestError('Please fix the highlighted fields.', 400, { [field]: message })
+  }
+  if (others.some((x) => finKey(x) === finKey(next))) fail('date', 'There is already one of these on this date (rule R_68). Correct that one instead.')
+  if (next.AFINTYPE === 'TNP') {
+    const pair = { 1: 3, 3: 1, 2: 4, 4: 2 }[next.AFINCODE]
+    if (others.some((x) => x.AFINTYPE === 'TNP' && Number(x.AFINCODE) === pair && isoDate(x.AFINDATE) === next.AFINDATE)) {
+      fail('date', "A total and a residual price of the same kind can't both apply from the same date (rules AFinDate_07 and 08).")
+    }
+  }
+}
+
+const price = {
+  async add(connection, ref, body, by) {
+    await findLearner(connection, ref)
+    const programme = await findProgramme(connection, ref)
+    checkFields(validatePriceRecord(body, { startDate: programme.startDate, today: teachingDay() }))
+    const next = finFromBody(body)
+    checkPriceRules(await execute(connection, FIN_ACTIVE, [ref]), next)
+    await inTransaction(connection, async () => {
+      await execute(connection, FIN_INSERT, [next.AFINTYPE, next.AFINCODE, next.AFINDATE, next.AFINAMOUNT, by, ref])
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: 1, AFINTYPE: next.AFINTYPE, AFINCODE: next.AFINCODE, AFINDATE: next.AFINDATE },
+        type: 'added', newValues: next, by,
+      })
+    })
+  },
+
+  async correct(connection, ref, key, body, by) {
+    await findLearner(connection, ref)
+    const programme = await findProgramme(connection, ref)
+    const active = await execute(connection, FIN_ACTIVE, [ref])
+    const current = active.find((x) => finKey(x) === key)
+    if (!current) throw new RequestError('Record not found.', 404)
+    checkFields(validatePriceRecord(body, { startDate: programme.startDate, today: teachingDay() }))
+    const next = finFromBody(body)
+    checkPriceRules(active.filter((x) => finKey(x) !== key), next)
+    const before = finValues(current)
+    if (JSON.stringify(before) === JSON.stringify(next)) return
+    const k = splitFinKey(key)
+    await inTransaction(connection, async () => {
+      checkUpdated(await execute(connection, FIN_UPDATE, [next.AFINTYPE, next.AFINCODE, next.AFINDATE, next.AFINAMOUNT, by, ref, k.type, k.code, k.date]))
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: 1, AFINTYPE: k.type, AFINCODE: k.code, AFINDATE: k.date },
+        type: 'corrected', oldValues: before, newValues: next, reason: body.reason?.trim() || null, by,
+      })
+    })
+  },
+
+  async remove(connection, ref, key, body, by) {
+    await findLearner(connection, ref)
+    checkFields(validateRemoval(body))
+    const current = (await execute(connection, FIN_ACTIVE, [ref])).find((x) => finKey(x) === key)
+    if (!current) throw new RequestError('Record not found.', 404)
+    const k = splitFinKey(key)
+    const reason = body.reason.trim()
+    await inTransaction(connection, async () => {
+      checkUpdated(await execute(connection, FIN_REMOVE, [by, reason, ref, k.type, k.code, k.date]))
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: 1, AFINTYPE: k.type, AFINCODE: k.code, AFINDATE: k.date },
+        type: 'removed', oldValues: finValues(current), reason, by,
+      })
+    })
+  },
+}
+
+// ---------------------------------------------------------------- component aims
+//
+// Added and corrected here. There's no removing an aim: LEARNING_DELIVERY
+// has no "removed" columns. Outcomes (completing or withdrawing) are 4g.
+
+const COMPONENTS = `
+  select AIMSEQNUMBER, LEARNAIMREF, LEARNSTARTDATE, LEARNPLANENDDATE, PRIORLEARNFUNDADJ, OTHERFUNDADJ
+  from LEARNING_DELIVERY
+  where LEARNREFNUMBER = ? and AIMTYPE = 3 and ${IN_VISIBLE_LEARNERS}
+`
+const NEXT_SEQ = `
+  select coalesce(max(AIMSEQNUMBER), 0) + 1 as N from LEARNING_DELIVERY
+  where LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}
+`
+const LARS_AIM = `select LEARN_AIM_REF, TITLE from LARS.LEARNING_AIM where LEARN_AIM_REF = ?`
+const COMPONENT_INSERT = `
+  insert into LEARNING_DELIVERY (LEARNREFNUMBER, LEARNAIMREF, AIMTYPE, AIMSEQNUMBER, LEARNSTARTDATE, LEARNPLANENDDATE, FUNDMODEL,
+    PROGTYPE, STDCODE, DELLOCPOSTCODE, COMPSTATUS, PRIORLEARNFUNDADJ, OTHERFUNDADJ, SWSUPAIMID, UPDATEDAT, UPDATEDBY, ISTESTDATA)
+  select l.LEARNREFNUMBER, ?, 3, ?, ?, ?, 36, 25, ?, ?, 1, ?, ?, uuid_string(), current_timestamp(), ?, l.ISTESTDATA
+  from ${VISIBLE_LEARNER} l
+  where l.LEARNREFNUMBER = ?
+`
+const COMPONENT_UPDATE = `
+  update LEARNING_DELIVERY
+  set LEARNAIMREF = ?, LEARNSTARTDATE = ?, LEARNPLANENDDATE = ?, PRIORLEARNFUNDADJ = ?, OTHERFUNDADJ = ?,
+    UPDATEDAT = current_timestamp(), UPDATEDBY = ?
+  where LEARNREFNUMBER = ? and AIMTYPE = 3 and AIMSEQNUMBER = ? and ${IN_VISIBLE_LEARNERS}
+`
+
+const optionalNumber = (v) => (String(v ?? '').trim() === '' ? null : Number(String(v).trim()))
+async function componentFromBody(connection, body, programme) {
+  checkFields(validateComponentAim(body, { programmeStart: programme.startDate }))
+  const ref = String(body.learnAimRef).trim().toUpperCase()
+  const [lars] = await execute(connection, LARS_AIM, [ref])
+  if (!lars) throw new RequestError('Please fix the highlighted fields.', 400, { learnAimRef: `${ref} isn't in LARS (rule LearnAimRef_01).` })
+  return {
+    LEARNAIMREF: ref,
+    LEARNSTARTDATE: body.startDate,
+    LEARNPLANENDDATE: body.plannedEndDate,
+    PRIORLEARNFUNDADJ: optionalNumber(body.priorLearnFundAdj),
+    OTHERFUNDADJ: optionalNumber(body.otherFundAdj),
+  }
+}
+const componentValues = (a) => ({
+  LEARNAIMREF: a.LEARNAIMREF,
+  LEARNSTARTDATE: isoDate(a.LEARNSTARTDATE),
+  LEARNPLANENDDATE: isoDate(a.LEARNPLANENDDATE),
+  PRIORLEARNFUNDADJ: a.PRIORLEARNFUNDADJ === null ? null : Number(a.PRIORLEARNFUNDADJ),
+  OTHERFUNDADJ: a.OTHERFUNDADJ === null ? null : Number(a.OTHERFUNDADJ),
+})
+
+const component = {
+  async add(connection, ref, body, by) {
+    await findLearner(connection, ref)
+    const programme = await findProgramme(connection, ref)
+    const next = await componentFromBody(connection, body, programme)
+    const [{ N: seq }] = await execute(connection, NEXT_SEQ, [ref])
+    await inTransaction(connection, async () => {
+      await execute(connection, COMPONENT_INSERT, [
+        next.LEARNAIMREF, Number(seq), next.LEARNSTARTDATE, next.LEARNPLANENDDATE, programme.stdCode, programme.dellocPostcode,
+        next.PRIORLEARNFUNDADJ, next.OTHERFUNDADJ, by, ref,
+      ])
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'LEARNING_DELIVERY', key: { AIMSEQNUMBER: Number(seq), LEARNAIMREF: next.LEARNAIMREF },
+        type: 'added', newValues: { ...next, AIMTYPE: 3 }, by,
+      })
+    })
+  },
+
+  async correct(connection, ref, key, body, by) {
+    await findLearner(connection, ref)
+    const programme = await findProgramme(connection, ref)
+    const current = (await execute(connection, COMPONENTS, [ref])).find((a) => String(a.AIMSEQNUMBER) === String(key))
+    if (!current) throw new RequestError('Component aim not found.', 404)
+    const next = await componentFromBody(connection, body, programme)
+    const before = componentValues(current)
+    if (JSON.stringify(before) === JSON.stringify(next)) return
+    await inTransaction(connection, async () => {
+      checkUpdated(await execute(connection, COMPONENT_UPDATE, [
+        next.LEARNAIMREF, next.LEARNSTARTDATE, next.LEARNPLANENDDATE, next.PRIORLEARNFUNDADJ, next.OTHERFUNDADJ, by, ref, Number(key),
+      ]))
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'LEARNING_DELIVERY', key: { AIMSEQNUMBER: Number(key), LEARNAIMREF: current.LEARNAIMREF },
+        type: 'corrected', oldValues: before, newValues: next, reason: body.reason?.trim() || null, by,
+      })
+    })
+  },
+
+  async remove() {
+    throw new RequestError("Component aims can't be removed. Correct it instead.", 405)
+  },
+}
+
+const KINDS = { lldd, 'learner-fam': learnerFam, prior, employment, 'aim-fam': aimFam, price, component }
 
 // ---------------------------------------------------------------- off-the-job hours
 //
@@ -594,7 +959,31 @@ function kindOf(req) {
   return kind
 }
 
+// Finding a learning aim in LARS for a component aim: by its reference, or
+// words in its title. Reference data, not the organisation's.
+const LARS_SEARCH = `
+  select LEARN_AIM_REF, TITLE, NOTIONAL_NVQ_LEVEL_V2 as LEVEL, OPERATIONAL_END_DATE
+  from LARS.LEARNING_AIM
+  where LEARN_AIM_REF = upper(?) or TITLE ilike ?
+  order by iff(LEARN_AIM_REF = upper(?), 0, 1), OPERATIONAL_END_DATE is not null, TITLE
+  limit 20
+`
+
 export function registerIlrRecordRoutes(app) {
+  app.get('/api/lars/aims', allow(MANAGER), async (req, res) => {
+    const q = String(req.query.q ?? '').trim()
+    if (q.length < 3) {
+      res.json([])
+      return
+    }
+    try {
+      const words = `%${q.replace(/[%_\\]/g, '').split(/\s+/).join('%')}%`
+      res.json(await execute(req.db, LARS_SEARCH, [q, words, q]))
+    } catch (err) {
+      sendError(res, err, 'Could not search LARS')
+    }
+  })
+
   app.put('/api/learners/:learnRefNumber/ilr-hours', allow(MANAGER), async (req, res) => {
     try {
       await saveHours(req.db, req.params.learnRefNumber, req.body ?? {}, req.user.USERID)

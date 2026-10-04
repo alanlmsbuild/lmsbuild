@@ -292,3 +292,26 @@
   color: var(--rb-muted);
   font-size: 14px;
 }
+
+/* Finding a component aim in LARS. */
+.lars-search-row {
+  display: flex;
+  gap: 8px;
+}
+
+.lars-search-row input {
+  flex: 1;
+}
+
+.lars-results {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record-chosen-aim {
+  color: var(--rb-ink);
+  font-weight: 600;
+}
