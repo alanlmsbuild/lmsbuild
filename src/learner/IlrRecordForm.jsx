@@ -1,3 +1,4 @@
+import { currentProgramme } from '../programme'
 import { useEffect, useState } from 'react'
 import {
   AIM_FAM_OPTIONS,
@@ -48,7 +49,7 @@ const KINDS = {
   component: { name: 'a component aim', plural: 'component aims' },
 }
 
-const programmeOf = (ilr) => ilr.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1)
+const programmeOf = (ilr) => currentProgramme(ilr.aims)
 
 export function recordFormTitle(kind, mode) {
   const verb = { new: 'Add', correct: 'Correct', remove: 'Remove' }[mode]

@@ -26,6 +26,7 @@ import { ILR_YEARS, STANDARDS_QUERY, aimInYear, aimWithRecords, assembleLearner,
 import { MANAGER_ONLY_RULES, RULE_SECTION, checkIlrRules } from './rules.js'
 import { ukNow } from './xml.js'
 import { loadStandardVersions, otjMinimum } from './standards.js'
+import { currentProgramme } from '../../src/programme.js'
 
 const YEAR = 2026
 
@@ -147,7 +148,7 @@ export async function learnerIlr(connection, user, learnRefNumber) {
   }
 
   const employers = isManager ? await execute(connection, EMPLOYERS_QUERY) : []
-  const programme = rows.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1) ?? rows.aims.find((a) => a.AIMTYPE === 1)
+  const programme = currentProgramme(rows.aims)
 
   return {
     year: YEAR,

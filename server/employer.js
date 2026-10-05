@@ -12,7 +12,7 @@
 
 import crypto from 'node:crypto'
 import { execute } from './db.js'
-import { allow, EMPLOYER, EMPLOYER_APPRENTICE } from './access.js'
+import { allow, CURRENT_PROGRAMME, EMPLOYER, EMPLOYER_APPRENTICE } from './access.js'
 import { RequestError, sendError, sendStageFile } from './burrow.js'
 import { REVIEW_WINDOW_DAYS } from './myday.js'
 import { todayString, validateWitnessConfirmationForm } from '../src/validation.js'
@@ -36,11 +36,8 @@ const APPRENTICES_QUERY = `
       ld.COMPSTATUS,
       ld.OUTCOME
     from ${EMPLOYER_APPRENTICE} l
-    left join LEARNING_DELIVERY ld
+    left join ${CURRENT_PROGRAMME} ld
       on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
-     and ld.LEARNAIMREF = 'ZPROG001'
-     and ld.AIMSEQNUMBER = 1
-     and ld.REMOVEDAT is null
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
   ),

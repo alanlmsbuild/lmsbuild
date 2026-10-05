@@ -22,7 +22,7 @@
 
 import crypto from 'node:crypto'
 import { execute } from './db.js'
-import { allow, IN_VISIBLE_LEARNERS, MANAGER, ORG_APP_FIN_RECORD, ORG_EMPLOYER, VISIBLE_LEARNER } from './access.js'
+import { allow, CURRENT_PROGRAMME, IN_VISIBLE_LEARNERS, MANAGER, ORG_APP_FIN_RECORD, ORG_EMPLOYER, VISIBLE_LEARNER } from './access.js'
 import { inTransaction, RequestError, sendError } from './burrow.js'
 import { logChange } from './recordChange.js'
 import {
@@ -526,15 +526,18 @@ const employment = {
 
 // ---------------------------------------------------------------- the programme aim
 
+// The learner's current programme aim (CURRENT_PROGRAMME): programme-level
+// records (funding and monitoring, prices, hours) go on it.
 const PROGRAMME = `
-  select LEARNSTARTDATE, LEARNPLANENDDATE, LEARNACTENDDATE, ACHDATE, ORIGLEARNSTARTDATE, STDCODE, DELLOCPOSTCODE
-  from LEARNING_DELIVERY
-  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  select AIMSEQNUMBER, LEARNSTARTDATE, LEARNPLANENDDATE, LEARNACTENDDATE, ACHDATE, ORIGLEARNSTARTDATE, STDCODE, DELLOCPOSTCODE
+  from ${CURRENT_PROGRAMME}
+  where LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}
 `
 async function findProgramme(connection, ref) {
   const [p] = await execute(connection, PROGRAMME, [ref])
   if (!p) throw new RequestError('This learner has no programme aim.', 409)
   return {
+    seq: p.AIMSEQNUMBER,
     startDate: isoDate(p.LEARNSTARTDATE),
     plannedEndDate: isoDate(p.LEARNPLANENDDATE),
     actualEndDate: isoDate(p.LEARNACTENDDATE),
@@ -554,11 +557,11 @@ async function findProgramme(connection, ref) {
 const AIM_FAM_ACTIVE = `
   select FAMID, LEARNDELFAMTYPE, LEARNDELFAMCODE, DATEFROM, DATETO
   from ILR.LEARNING_DELIVERY_FAM
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 const AIM_FAM_INSERT = `
   insert into ILR.LEARNING_DELIVERY_FAM (FAMID, LEARNREFNUMBER, AIMSEQNUMBER, LEARNDELFAMTYPE, LEARNDELFAMCODE, DATEFROM, DATETO, CREATEDBY, ISTESTDATA)
-  select ?, l.LEARNREFNUMBER, 1, ?, ?, ?, ?, ?, l.ISTESTDATA
+  select ?, l.LEARNREFNUMBER, ?, ?, ?, ?, ?, ?, l.ISTESTDATA
   from ${VISIBLE_LEARNER} l
   where l.LEARNREFNUMBER = ?
 `
@@ -575,7 +578,7 @@ const AIM_FAM_REMOVE = `
 const ORIG_START_UPDATE = `
   update LEARNING_DELIVERY
   set ORIGLEARNSTARTDATE = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
-  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 
 const famValues = (f) => ({
@@ -615,9 +618,9 @@ function famFromBody(body) {
 
 async function setOrigStart(connection, ref, programme, next, by, reason) {
   if ((programme.origStartDate ?? null) === (next ?? null)) return
-  checkUpdated(await execute(connection, ORIG_START_UPDATE, [next, by, ref]))
+  checkUpdated(await execute(connection, ORIG_START_UPDATE, [next, by, ref, programme.seq]))
   await logChange(connection, {
-    learnRefNumber: ref, table: 'LEARNING_DELIVERY', key: { AIMSEQNUMBER: 1, LEARNAIMREF: 'ZPROG001' }, type: 'corrected',
+    learnRefNumber: ref, table: 'LEARNING_DELIVERY', key: { AIMSEQNUMBER: programme.seq, LEARNAIMREF: 'ZPROG001' }, type: 'corrected',
     oldValues: { ORIGLEARNSTARTDATE: programme.origStartDate ?? null }, newValues: { ORIGLEARNSTARTDATE: next ?? null }, reason, by,
   })
 }
@@ -628,10 +631,10 @@ const aimFam = {
     const programme = await findProgramme(connection, ref)
     checkFields(validateAimFamRecord(body, programme))
     const next = famFromBody(body)
-    checkAimFamRules(await execute(connection, AIM_FAM_ACTIVE, [ref]), next)
+    checkAimFamRules(await execute(connection, AIM_FAM_ACTIVE, [ref, programme.seq]), next)
     const famId = crypto.randomUUID()
     await inTransaction(connection, async () => {
-      await execute(connection, AIM_FAM_INSERT, [famId, next.LEARNDELFAMTYPE, next.LEARNDELFAMCODE, next.DATEFROM, next.DATETO, by, ref])
+      await execute(connection, AIM_FAM_INSERT, [famId, programme.seq, next.LEARNDELFAMTYPE, next.LEARNDELFAMCODE, next.DATEFROM, next.DATETO, by, ref])
       await logChange(connection, { learnRefNumber: ref, table: 'LEARNING_DELIVERY_FAM', key: { FAMID: famId }, type: 'added', newValues: next, by })
       if (next.LEARNDELFAMTYPE === 'RES') await setOrigStart(connection, ref, programme, body.origStartDate, by, 'Restart recorded')
     })
@@ -640,7 +643,7 @@ const aimFam = {
   async correct(connection, ref, key, body, by) {
     await findLearner(connection, ref)
     const programme = await findProgramme(connection, ref)
-    const active = await execute(connection, AIM_FAM_ACTIVE, [ref])
+    const active = await execute(connection, AIM_FAM_ACTIVE, [ref, programme.seq])
     const current = active.find((x) => x.FAMID === key)
     if (!current) throw new RequestError('Record not found.', 404)
     checkFields(validateAimFamRecord(body, programme))
@@ -668,7 +671,7 @@ const aimFam = {
     await findLearner(connection, ref)
     checkFields(validateRemoval(body))
     const programme = await findProgramme(connection, ref)
-    const current = (await execute(connection, AIM_FAM_ACTIVE, [ref])).find((x) => x.FAMID === key)
+    const current = (await execute(connection, AIM_FAM_ACTIVE, [ref, programme.seq])).find((x) => x.FAMID === key)
     if (!current) throw new RequestError('Record not found.', 404)
     const reason = body.reason.trim()
     await inTransaction(connection, async () => {
@@ -688,24 +691,24 @@ const aimFam = {
 const FIN_ACTIVE = `
   select AFINTYPE, AFINCODE, AFINDATE, AFINAMOUNT
   from ${ORG_APP_FIN_RECORD}
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 const FIN_INSERT = `
   insert into ILR.APP_FIN_RECORD (LEARNREFNUMBER, AIMSEQNUMBER, AFINTYPE, AFINCODE, AFINDATE, AFINAMOUNT, CREATEDBY, ISTESTDATA)
-  select l.LEARNREFNUMBER, 1, ?, ?, ?, ?, ?, l.ISTESTDATA
+  select l.LEARNREFNUMBER, ?, ?, ?, ?, ?, ?, l.ISTESTDATA
   from ${VISIBLE_LEARNER} l
   where l.LEARNREFNUMBER = ?
 `
 const FIN_UPDATE = `
   update ILR.APP_FIN_RECORD
   set AFINTYPE = ?, AFINCODE = ?, AFINDATE = ?, AFINAMOUNT = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and AFINTYPE = ? and AFINCODE = ? and AFINDATE = ?
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and AFINTYPE = ? and AFINCODE = ? and AFINDATE = ?
     and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 const FIN_REMOVE = `
   update ILR.APP_FIN_RECORD
   set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and AFINTYPE = ? and AFINCODE = ? and AFINDATE = ?
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and AFINTYPE = ? and AFINCODE = ? and AFINDATE = ?
     and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 
@@ -739,11 +742,11 @@ const price = {
     const programme = await findProgramme(connection, ref)
     checkFields(validatePriceRecord(body, { startDate: programme.startDate, today: teachingDay() }))
     const next = finFromBody(body)
-    checkPriceRules(await execute(connection, FIN_ACTIVE, [ref]), next)
+    checkPriceRules(await execute(connection, FIN_ACTIVE, [ref, programme.seq]), next)
     await inTransaction(connection, async () => {
-      await execute(connection, FIN_INSERT, [next.AFINTYPE, next.AFINCODE, next.AFINDATE, next.AFINAMOUNT, by, ref])
+      await execute(connection, FIN_INSERT, [programme.seq, next.AFINTYPE, next.AFINCODE, next.AFINDATE, next.AFINAMOUNT, by, ref])
       await logChange(connection, {
-        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: 1, AFINTYPE: next.AFINTYPE, AFINCODE: next.AFINCODE, AFINDATE: next.AFINDATE },
+        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: programme.seq, AFINTYPE: next.AFINTYPE, AFINCODE: next.AFINCODE, AFINDATE: next.AFINDATE },
         type: 'added', newValues: next, by,
       })
     })
@@ -752,7 +755,7 @@ const price = {
   async correct(connection, ref, key, body, by) {
     await findLearner(connection, ref)
     const programme = await findProgramme(connection, ref)
-    const active = await execute(connection, FIN_ACTIVE, [ref])
+    const active = await execute(connection, FIN_ACTIVE, [ref, programme.seq])
     const current = active.find((x) => finKey(x) === key)
     if (!current) throw new RequestError('Record not found.', 404)
     checkFields(validatePriceRecord(body, { startDate: programme.startDate, today: teachingDay() }))
@@ -762,9 +765,9 @@ const price = {
     if (JSON.stringify(before) === JSON.stringify(next)) return
     const k = splitFinKey(key)
     await inTransaction(connection, async () => {
-      checkUpdated(await execute(connection, FIN_UPDATE, [next.AFINTYPE, next.AFINCODE, next.AFINDATE, next.AFINAMOUNT, by, ref, k.type, k.code, k.date]))
+      checkUpdated(await execute(connection, FIN_UPDATE, [next.AFINTYPE, next.AFINCODE, next.AFINDATE, next.AFINAMOUNT, by, ref, programme.seq, k.type, k.code, k.date]))
       await logChange(connection, {
-        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: 1, AFINTYPE: k.type, AFINCODE: k.code, AFINDATE: k.date },
+        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: programme.seq, AFINTYPE: k.type, AFINCODE: k.code, AFINDATE: k.date },
         type: 'corrected', oldValues: before, newValues: next, reason: body.reason?.trim() || null, by,
       })
     })
@@ -773,14 +776,15 @@ const price = {
   async remove(connection, ref, key, body, by) {
     await findLearner(connection, ref)
     checkFields(validateRemoval(body))
-    const current = (await execute(connection, FIN_ACTIVE, [ref])).find((x) => finKey(x) === key)
+    const programme = await findProgramme(connection, ref)
+    const current = (await execute(connection, FIN_ACTIVE, [ref, programme.seq])).find((x) => finKey(x) === key)
     if (!current) throw new RequestError('Record not found.', 404)
     const k = splitFinKey(key)
     const reason = body.reason.trim()
     await inTransaction(connection, async () => {
-      checkUpdated(await execute(connection, FIN_REMOVE, [by, reason, ref, k.type, k.code, k.date]))
+      checkUpdated(await execute(connection, FIN_REMOVE, [by, reason, ref, programme.seq, k.type, k.code, k.date]))
       await logChange(connection, {
-        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: 1, AFINTYPE: k.type, AFINCODE: k.code, AFINDATE: k.date },
+        learnRefNumber: ref, table: 'APP_FIN_RECORD', key: { AIMSEQNUMBER: programme.seq, AFINTYPE: k.type, AFINCODE: k.code, AFINDATE: k.date },
         type: 'removed', oldValues: finValues(current), reason, by,
       })
     })
@@ -920,39 +924,34 @@ const KINDS = { lldd, 'learner-fam': learnerFam, prior, employment, 'aim-fam': a
 // change once returned, except for an input error at the start (funding
 // rules 2026 to 2027, paragraph 89.2).
 
-const PROGRAMME_START = `
-  select LEARNSTARTDATE from LEARNING_DELIVERY
-  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
-`
 const HRS_ACTIVE = `
   select HRSCODE, HRSAMOUNT from ILR.HOURS_RECORD
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and HRSTYPE = 'HRS' and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and HRSTYPE = 'HRS' and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 const HRS_INSERT = `
   insert into ILR.HOURS_RECORD (LEARNREFNUMBER, AIMSEQNUMBER, HRSTYPE, HRSCODE, HRSAMOUNT, CREATEDBY, ISTESTDATA)
-  select l.LEARNREFNUMBER, 1, 'HRS', ?, ?, ?, l.ISTESTDATA
+  select l.LEARNREFNUMBER, ?, 'HRS', ?, ?, ?, l.ISTESTDATA
   from ${VISIBLE_LEARNER} l
   where l.LEARNREFNUMBER = ?
 `
 const HRS_UPDATE = `
   update ILR.HOURS_RECORD
   set HRSAMOUNT = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and HRSTYPE = 'HRS' and HRSCODE = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and HRSTYPE = 'HRS' and HRSCODE = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 const HRS_REMOVE = `
   update ILR.HOURS_RECORD
   set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and HRSTYPE = 'HRS' and HRSCODE = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and HRSTYPE = 'HRS' and HRSCODE = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 
 async function saveHours(connection, ref, body, by) {
   await findLearner(connection, ref)
-  const [programme] = await execute(connection, PROGRAMME_START, [ref])
-  if (!programme) throw new RequestError('This learner has no programme aim.', 409)
-  const existing = Object.fromEntries((await execute(connection, HRS_ACTIVE, [ref])).map((h) => [Number(h.HRSCODE), Number(h.HRSAMOUNT)]))
-  checkFields(validateOtjHours(body, { startDate: isoDate(programme.LEARNSTARTDATE), existing }))
+  const programme = await findProgramme(connection, ref)
+  const existing = Object.fromEntries((await execute(connection, HRS_ACTIVE, [ref, programme.seq])).map((h) => [Number(h.HRSCODE), Number(h.HRSAMOUNT)]))
+  checkFields(validateOtjHours(body, { startDate: programme.startDate, existing }))
   const reason = String(body.reason ?? '').trim() || null
-  const key = (code) => ({ AIMSEQNUMBER: 1, HRSTYPE: 'HRS', HRSCODE: code })
+  const key = (code) => ({ AIMSEQNUMBER: programme.seq, HRSTYPE: 'HRS', HRSCODE: code })
   const steps = []
   for (const [field, code] of Object.entries(OTJ_FIELDS)) {
     const text = String(body[field] ?? '').trim()
@@ -965,13 +964,13 @@ async function saveHours(connection, ref, body, by) {
   await inTransaction(connection, async () => {
     for (const { code, before, next } of steps) {
       if (before === null) {
-        await execute(connection, HRS_INSERT, [code, next, by, ref])
+        await execute(connection, HRS_INSERT, [programme.seq, code, next, by, ref])
         await logChange(connection, { learnRefNumber: ref, table: 'HOURS_RECORD', key: key(code), type: 'added', newValues: { HRSAMOUNT: next }, reason, by })
       } else if (next === null) {
-        checkUpdated(await execute(connection, HRS_REMOVE, [by, reason, ref, code]))
+        checkUpdated(await execute(connection, HRS_REMOVE, [by, reason, ref, programme.seq, code]))
         await logChange(connection, { learnRefNumber: ref, table: 'HOURS_RECORD', key: key(code), type: 'removed', oldValues: { HRSAMOUNT: before }, reason, by })
       } else {
-        checkUpdated(await execute(connection, HRS_UPDATE, [next, by, ref, code]))
+        checkUpdated(await execute(connection, HRS_UPDATE, [next, by, ref, programme.seq, code]))
         await logChange(connection, {
           learnRefNumber: ref, table: 'HOURS_RECORD', key: key(code), type: 'corrected',
           oldValues: { HRSAMOUNT: before }, newValues: { HRSAMOUNT: next }, reason, by,

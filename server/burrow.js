@@ -25,7 +25,7 @@ import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import busboy from 'busboy'
 import { execute } from './db.js'
-import { allow, IN_VISIBLE_LEARNERS, LEARNER, STAFF, VISIBLE_LEARNER } from './access.js'
+import { allow, CURRENT_PROGRAMME, IN_VISIBLE_LEARNERS, LEARNER, STAFF, VISIBLE_LEARNER } from './access.js'
 import { validateEvidenceForm, validateEvidenceSubmission } from '../src/validation.js'
 import {
   EDITABLE_STATUSES,
@@ -71,11 +71,8 @@ const LEARNER_QUERY = `
     s.NOTIONAL_END_LEVEL as STDLEVEL,
     ld.COMPSTATUS
   from ${VISIBLE_LEARNER} l
-  left join LEARNING_DELIVERY ld
+  left join ${CURRENT_PROGRAMME} ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
-   and ld.LEARNAIMREF = 'ZPROG001'
-   and ld.AIMSEQNUMBER = 1
-   and ld.REMOVEDAT is null
   left join LARS.STANDARD s
     on s.STANDARD_CODE = ld.STDCODE
   where l.LEARNREFNUMBER = ?
@@ -89,11 +86,8 @@ const LEARNERS_QUERY = `
     s.REFERENCE as STDREFERENCE,
     s.NAME as STDNAME
   from ${VISIBLE_LEARNER} l
-  left join LEARNING_DELIVERY ld
+  left join ${CURRENT_PROGRAMME} ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
-   and ld.LEARNAIMREF = 'ZPROG001'
-   and ld.AIMSEQNUMBER = 1
-   and ld.REMOVEDAT is null
   left join LARS.STANDARD s
     on s.STANDARD_CODE = ld.STDCODE
   order by l.LEARNREFNUMBER

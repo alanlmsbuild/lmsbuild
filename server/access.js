@@ -113,6 +113,18 @@ export const VISIBLE_LEARNER = `(
 // user can reach.
 export const IN_VISIBLE_LEARNERS = `LEARNREFNUMBER in (select LEARNREFNUMBER from ${VISIBLE_LEARNER})`
 
+// Each learner's current programme aim: the latest programme aim that
+// hasn't been removed. A learner who returned from a break has more than
+// one, and the aims before the break stay, but aren't current. Every learner
+// across all organisations: only use it joined to a scoped source or with
+// IN_VISIBLE_LEARNERS (check:scoping makes sure). currentProgramme() in
+// src/programme.js picks the same aim from aims already loaded.
+export const CURRENT_PROGRAMME = `(
+    select * from LEARNING_DELIVERY
+    where AIMTYPE = 1 and REMOVEDAT is null
+    qualify AIMSEQNUMBER = max(AIMSEQNUMBER) over (partition by LEARNREFNUMBER)
+  )`
+
 // The current apprentices of the signed-in user's own employer (by
 // EMPLOYERID only), whatever other roles they hold. For the employer
 // screens, which show only what an employer may see of each apprentice.

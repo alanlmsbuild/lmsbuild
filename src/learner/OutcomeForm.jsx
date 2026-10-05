@@ -1,3 +1,4 @@
+import { currentComponents, currentProgramme } from '../programme'
 import { useEffect, useState } from 'react'
 import { WITHDRAW_REASON_OPTIONS } from '../ilrCodes'
 import { EPA_GRADES, outcomeActions, todayString, validateOutcome } from '../validation'
@@ -47,7 +48,7 @@ function OutcomeForm({ learnRefNumber, action, onSaved, onCancel }) {
         if (!res.ok) throw new Error(data.error || `Server responded with ${res.status}`)
         if (cancelled) return
         setIlr(data)
-        const p = data.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1)
+        const p = currentProgramme(data.aims)
         const actual = p?.hours.find((h) => Number(h.HRSCODE) === 3)?.HRSAMOUNT
         setForm({
           endDate: action === 'correct' ? iso(p?.LEARNACTENDDATE) : '',
@@ -69,15 +70,16 @@ function OutcomeForm({ learnRefNumber, action, onSaved, onCancel }) {
     }
   }, [learnRefNumber, action])
 
-  const p = ilr?.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1)
+  const p = ilr && currentProgramme(ilr.aims)
   const programme = p && {
     startDate: iso(p.LEARNSTARTDATE),
     compStatus: p.COMPSTATUS,
     outcome: p.OUTCOME,
     actualEndDate: iso(p.LEARNACTENDDATE) || null,
   }
-  const open = (ilr?.aims ?? []).filter((a) => a.AIMTYPE === 3 && a.COMPSTATUS === 1 && !a.LEARNACTENDDATE)
-  const closedEnds = (ilr?.aims ?? []).filter((a) => a.AIMTYPE === 3 && a.LEARNACTENDDATE).map((a) => iso(a.LEARNACTENDDATE))
+  const components = ilr ? currentComponents(ilr.aims) : []
+  const open = components.filter((a) => a.COMPSTATUS === 1 && !a.LEARNACTENDDATE)
+  const closedEnds = components.filter((a) => a.LEARNACTENDDATE).map((a) => iso(a.LEARNACTENDDATE))
   const allowed = programme && (action === 'correct' ? Boolean(programme.actualEndDate) : outcomeActions(programme).includes(action))
   const update = (field, value) => setForm((f) => ({ ...f, [field]: value }))
   const updateComponent = (seq, field, value) =>

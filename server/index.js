@@ -7,6 +7,7 @@ import { execute } from './db.js'
 import {
   allow,
   ASSESSOR,
+  CURRENT_PROGRAMME,
   attachUser,
   CURRENT_ISTESTDATA,
   CURRENT_ORGANISATIONID,
@@ -112,11 +113,8 @@ const LEARNERS_QUERY = `
     ld.OUTGRADE,
     ld.WITHDRAWREASON
   from ${VISIBLE_LEARNER} l
-  join LEARNING_DELIVERY ld
+  join ${CURRENT_PROGRAMME} ld
     on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
-   and ld.LEARNAIMREF = 'ZPROG001'
-   and ld.AIMSEQNUMBER = 1
-   and ld.REMOVEDAT is null
   left join LARS.STANDARD s
     on s.STANDARD_CODE = ld.STDCODE
   order by l.LEARNREFNUMBER
@@ -397,14 +395,14 @@ const SECTION_COLUMNS = {
   },
 }
 
-// The learner and their programme aim, as a manager sees them.
+// The learner and their current programme aim, as a manager sees them.
 const LEARNER_FOR_CHANGE_QUERY = `
-  select l.*, ld.LEARNSTARTDATE, ld.LEARNPLANENDDATE, ld.STDCODE, ld.DELLOCPOSTCODE, ld.EPAORGID, ld.COMPSTATUS,
+  select l.*, ld.AIMSEQNUMBER as PROGRAMMEAIMSEQ, ld.LEARNSTARTDATE, ld.LEARNPLANENDDATE, ld.STDCODE, ld.DELLOCPOSTCODE, ld.EPAORGID, ld.COMPSTATUS,
     (select count(*) from ILR.LLDD_HEALTH_PROBLEM h
       where h.LEARNREFNUMBER = l.LEARNREFNUMBER and h.REMOVEDAT is null) as ACTIVELLDDCATS
   from ${VISIBLE_LEARNER} l
-  left join LEARNING_DELIVERY ld
-    on ld.LEARNREFNUMBER = l.LEARNREFNUMBER and ld.LEARNAIMREF = 'ZPROG001' and ld.AIMSEQNUMBER = 1 and ld.REMOVEDAT is null
+  left join ${CURRENT_PROGRAMME} ld
+    on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
   where l.LEARNREFNUMBER = ?
 `
 
@@ -431,7 +429,7 @@ const comparable = (value) => (value instanceof Date ? toIsoDateString(value) : 
 function updateStatement(table, columns) {
   const scope = table === 'LEARNER'
     ? `LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}`
-    : `LEARNREFNUMBER = ? and LEARNAIMREF = 'ZPROG001' and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}`
+    : `LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and AIMTYPE = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}`
   return `update ${table} set ${columns.map((c) => `${c} = ?`).join(', ')}, UPDATEDAT = current_timestamp(), UPDATEDBY = ? where ${scope}`
 }
 
@@ -503,12 +501,13 @@ app.put('/api/learners/:learnRefNumber/details/:section', allow(MANAGER), async 
         ...changed.map((c) => newValues[c]),
         req.user.USERID,
         learnRefNumber,
+        ...(table === 'LEARNER' ? [] : [row.PROGRAMMEAIMSEQ]),
       ])
       if (Number(rows?.[0]?.['number of rows updated']) !== 1) throw new Error('The learner could not be updated.')
       await logChange(connection, {
         learnRefNumber,
         table,
-        key: table === 'LEARNER' ? { LEARNREFNUMBER: learnRefNumber } : { AIMSEQNUMBER: 1, LEARNAIMREF: 'ZPROG001' },
+        key: table === 'LEARNER' ? { LEARNREFNUMBER: learnRefNumber } : { AIMSEQNUMBER: row.PROGRAMMEAIMSEQ, LEARNAIMREF: 'ZPROG001' },
         type: 'corrected',
         oldValues,
         newValues,

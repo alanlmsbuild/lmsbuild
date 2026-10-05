@@ -6,7 +6,7 @@
 // report shows only their own row.
 
 import { execute } from './db.js'
-import { allow, ASSESSOR, MANAGER, ORG_OFFICER, ORG_OFFICER_ASSIGNMENT, TUTOR, VISIBLE_LEARNER, VISIBLE_OFFICER } from './access.js'
+import { allow, ASSESSOR, CURRENT_PROGRAMME, MANAGER, ORG_OFFICER, ORG_OFFICER_ASSIGNMENT, TUTOR, VISIBLE_LEARNER, VISIBLE_OFFICER } from './access.js'
 import { buildQarWorkbook } from './qarExport.js'
 import { todayString } from '../src/validation.js'
 
@@ -256,11 +256,8 @@ export const CASELOAD_QUERY = `
   left join ${ORG_OFFICER_ASSIGNMENT} a
     on a.OFFICERREFNUMBER = o.OFFICERREFNUMBER
    and a.ENDEDAT is null
-  left join LEARNING_DELIVERY ld
+  left join ${CURRENT_PROGRAMME} ld
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
-   and ld.LEARNAIMREF = 'ZPROG001'
-   and ld.AIMSEQNUMBER = 1
-   and ld.REMOVEDAT is null
   group by o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE
   order by o.OFFICERNAME
 `
@@ -284,11 +281,8 @@ export const CASELOAD_LEARNERS_QUERY = `
     on o.OFFICERREFNUMBER = a.OFFICERREFNUMBER
   join ${VISIBLE_LEARNER} l
     on l.LEARNREFNUMBER = a.LEARNREFNUMBER
-  left join LEARNING_DELIVERY ld
+  left join ${CURRENT_PROGRAMME} ld
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
-   and ld.LEARNAIMREF = 'ZPROG001'
-   and ld.AIMSEQNUMBER = 1
-   and ld.REMOVEDAT is null
   left join LARS.STANDARD s
     on s.STANDARD_CODE = ld.STDCODE
   where a.OFFICERREFNUMBER = ?

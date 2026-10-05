@@ -48,6 +48,14 @@
 // 11. No hand-written transactions: begin, commit and rollback only in
 //    inTransaction (server/burrow.js) and the pool's clean-up, so a failed
 //    request always rolls back.
+// 13. The programme aim is the learner's current one, never a fixed number:
+//    no AIMSEQNUMBER = 1 (or === 1, or a key of AIMSEQNUMBER: 1, or an
+//    insert writing 1 as the aim number) in server/ or src/, and no picking
+//    the programme with find(a => a.AIMTYPE === 1): use CURRENT_PROGRAMME
+//    (server/access.js) or currentProgramme() (src/programme.js). A learner
+//    who returned from a break has more than one programme aim. SQL using
+//    CURRENT_PROGRAMME, which covers every learner, must also use a scoped
+//    source.
 // 12. Every session variable a query reads ($NAME) is in SESSION_VARIABLES
 //    (server/sessionPool.js), the list that's set on every request and
 //    unset when a reused session comes back.
@@ -236,8 +244,41 @@ for (const file of serverFiles) {
   }
 }
 
+// Check 13, in server/ and src/.
+{
+  const srcDir = path.join(serverDir, '..', 'src')
+  const FIXED_AIM = [
+    [/\bAIMSEQNUMBER\s*={1,3}\s*1\b/g, 'picks aim number 1'],
+    [/\bAIMSEQNUMBER:\s*1\b/g, 'records aim number 1'],
+    [/\bselect\s+(\?,\s*)?l\.LEARNREFNUMBER,\s*1,/gi, 'writes aim number 1'],
+    [/\.find\(\s*\(?\w+\)?\s*=>\s*\w+\.AIMTYPE\s*===\s*1\s*\)/g, 'picks the first programme aim'],
+  ]
+  const files = [
+    ...serverFiles.concat('access.js').map((f) => ['server', path.join(serverDir, f), f]),
+    ...fs.readdirSync(srcDir, { recursive: true }).map((f) => f.split(path.sep).join('/'))
+      .filter((f) => /\.(js|jsx)$/.test(f) && f !== 'programme.js').map((f) => ['src', path.join(srcDir, f), f]),
+  ]
+  for (const [area, full, file] of files) {
+    const text = fs.readFileSync(full, 'utf8')
+    for (const [pattern, what] of FIXED_AIM) {
+      for (const m of text.matchAll(pattern)) {
+        const line = text.slice(0, m.index).split('\n').length
+        console.log(`${area}/${file}:${line}  ${what}: use the current programme aim (CURRENT_PROGRAMME or currentProgramme())`)
+        problems++
+      }
+    }
+    if (area === 'server' && file !== 'access.js') {
+      for (const match of text.matchAll(/`[^`]*`/g)) {
+        if (match[0].includes('${CURRENT_PROGRAMME}') && !SCOPED.test(match[0])) {
+          report(file, text, match.index, 'reads CURRENT_PROGRAMME (every learner) without organisation scoping')
+        }
+      }
+    }
+  }
+}
+
 if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, and every session variable is in SESSION_VARIABLES.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, and the programme aim is always the current one.')

@@ -3,7 +3,7 @@
 
 import crypto from 'node:crypto'
 import { execute } from './db.js'
-import { allow, ASSESSOR, MANAGER, ORG_OFFICER_ASSIGNMENT, TUTOR, VISIBLE_LEARNER, VISIBLE_OFFICER } from './access.js'
+import { allow, ASSESSOR, CURRENT_PROGRAMME, MANAGER, ORG_OFFICER_ASSIGNMENT, TUTOR, VISIBLE_LEARNER, VISIBLE_OFFICER } from './access.js'
 import { todayString, validateProgressReviewForm } from '../src/validation.js'
 import { QAR_AIMS, DEFAULT_QAR_YEAR } from './reports.js'
 
@@ -37,11 +37,8 @@ const MY_CONTINUING_LEARNERS = `
     from ${ORG_OFFICER_ASSIGNMENT} a
     join ${VISIBLE_LEARNER} l
       on l.LEARNREFNUMBER = a.LEARNREFNUMBER
-    join LEARNING_DELIVERY ld
+    join ${CURRENT_PROGRAMME} ld
       on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
-     and ld.LEARNAIMREF = 'ZPROG001'
-     and ld.AIMSEQNUMBER = 1
-     and ld.REMOVEDAT is null
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
     where a.OFFICERREFNUMBER = :2
@@ -150,11 +147,8 @@ export const MY_CASELOAD_QUERY = `
     coalesce(count_if(ld.COMPSTATUS = 2), 0) as COMPLETED,
     coalesce(count_if(ld.COMPSTATUS = 3), 0) as WITHDRAWN
   from ${ORG_OFFICER_ASSIGNMENT} a
-  left join LEARNING_DELIVERY ld
+  left join ${CURRENT_PROGRAMME} ld
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
-   and ld.LEARNAIMREF = 'ZPROG001'
-   and ld.AIMSEQNUMBER = 1
-   and ld.REMOVEDAT is null
   where a.OFFICERREFNUMBER = ?
     and a.ENDEDAT is null
 `
@@ -186,11 +180,8 @@ const OFFICER_QUERY = `
 const LEARNER_START_QUERY = `
   select l.LEARNREFNUMBER, ld.LEARNSTARTDATE
   from ${VISIBLE_LEARNER} l
-  left join LEARNING_DELIVERY ld
+  left join ${CURRENT_PROGRAMME} ld
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
-   and ld.LEARNAIMREF = 'ZPROG001'
-   and ld.AIMSEQNUMBER = 1
-   and ld.REMOVEDAT is null
   where l.LEARNREFNUMBER = ?
 `
 

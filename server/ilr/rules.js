@@ -9,6 +9,7 @@ import { ILR_YEARS } from './data.js'
 import { ilrTelNo } from './xml.js'
 import { otjMinimum } from './standards.js'
 import { isEmployerIdentifier } from '../../src/validation.js'
+import { currentProgramme } from '../../src/programme.js'
 
 // severity: 'Error' stops a file being accepted, 'Warning' doesn't.
 export const RULES = {
@@ -230,7 +231,7 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
   for (const l of learners) {
     const ref = l.LEARNREFNUMBER
     const f = (rule) => fail(rule, ref)
-    const programme = l.aims.find((a) => a.AIMTYPE === 1)
+    const programme = currentProgramme(l.aims)
     // learner
     if (!ulnPasses(l.ULN)) f('ULN_04')
     if (ulnCount.get(String(l.ULN)) > 1) f('R_59')

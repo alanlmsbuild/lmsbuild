@@ -1,3 +1,4 @@
+import { currentProgramme } from '../programme'
 import { useEffect, useState } from 'react'
 import { OTJ_FIELDS, validateOtjHours } from '../validation'
 import { otjMinimumText } from './IlrRecords'
@@ -37,7 +38,7 @@ function HoursForm({ learnRefNumber, onSaved, onCancel }) {
         if (!res.ok) throw new Error(data.error || `Server responded with ${res.status}`)
         if (cancelled) return
         setIlr(data)
-        const hours = data.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1)?.hours ?? []
+        const hours = currentProgramme(data.aims)?.hours ?? []
         const value = (code) => String(hours.find((h) => Number(h.HRSCODE) === code)?.HRSAMOUNT ?? '')
         setForm({ planned: value(1), priorLearning: value(4), actual: value(3), reason: '' })
       } catch (err) {
@@ -50,7 +51,7 @@ function HoursForm({ learnRefNumber, onSaved, onCancel }) {
     }
   }, [learnRefNumber])
 
-  const programme = ilr?.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1)
+  const programme = ilr && currentProgramme(ilr.aims)
   const existing = Object.fromEntries((programme?.hours ?? []).map((h) => [Number(h.HRSCODE), Number(h.HRSAMOUNT)]))
   const update = (field, value) => setForm((f) => ({ ...f, [field]: value }))
   const changingRecorded = form && Object.entries(OTJ_FIELDS).some(([field, code]) =>

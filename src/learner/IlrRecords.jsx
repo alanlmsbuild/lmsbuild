@@ -1,3 +1,4 @@
+import { currentProgramme } from '../programme'
 import { formatDate } from '../lookups'
 import {
   afinLabel,
@@ -274,7 +275,7 @@ function FamRows({ fams, manage }) {
 }
 
 export function programmeAim(ilr) {
-  return ilr.aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1) ?? ilr.aims.find((a) => a.AIMTYPE === 1)
+  return currentProgramme(ilr.aims)
 }
 
 // The programme aim's ILR fields that the Apprenticeship aim rows above

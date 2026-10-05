@@ -24,6 +24,7 @@ import { allow, IN_VISIBLE_LEARNERS, MANAGER, VISIBLE_LEARNER } from './access.j
 import { inTransaction, RequestError, sendError } from './burrow.js'
 import { logChange } from './recordChange.js'
 import { todayString, validateOutcome } from '../src/validation.js'
+import { currentComponents, currentProgramme } from '../src/programme.js'
 
 const iso = (value) => {
   if (value === null || value === undefined) return null
@@ -44,18 +45,18 @@ const SET_AIM = `
 `
 const ACTUAL_HOURS = `
   select HRSAMOUNT from ILR.HOURS_RECORD
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and HRSTYPE = 'HRS' and HRSCODE = 3 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and HRSTYPE = 'HRS' and HRSCODE = 3 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 const HRS3_INSERT = `
   insert into ILR.HOURS_RECORD (LEARNREFNUMBER, AIMSEQNUMBER, HRSTYPE, HRSCODE, HRSAMOUNT, CREATEDBY, ISTESTDATA)
-  select l.LEARNREFNUMBER, 1, 'HRS', 3, ?, ?, l.ISTESTDATA
+  select l.LEARNREFNUMBER, ?, 'HRS', 3, ?, ?, l.ISTESTDATA
   from ${VISIBLE_LEARNER} l
   where l.LEARNREFNUMBER = ?
 `
 const HRS3_UPDATE = `
   update ILR.HOURS_RECORD
   set HRSAMOUNT = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
-  where LEARNREFNUMBER = ? and AIMSEQNUMBER = 1 and HRSTYPE = 'HRS' and HRSCODE = 3 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and HRSTYPE = 'HRS' and HRSCODE = 3 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 // An aim's dated funding and monitoring records (e.g. learning support,
 // LSF) can't run past its actual end date (rule LearnDelFAMDateTo_03).
@@ -84,9 +85,9 @@ async function loadAims(connection, ref) {
   const [learner] = await execute(connection, `select LEARNREFNUMBER from ${VISIBLE_LEARNER} where LEARNREFNUMBER = ?`, [ref])
   if (!learner) throw new RequestError('Learner not found.', 404)
   const aims = (await execute(connection, AIMS, [ref])).map((a) => ({ ...a, ...valuesOf(a), LEARNSTARTDATE: iso(a.LEARNSTARTDATE) }))
-  const programme = aims.find((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER === 1)
+  const programme = currentProgramme(aims)
   if (!programme) throw new RequestError('This learner has no programme aim.', 409)
-  return { programme, components: aims.filter((a) => a.AIMTYPE === 3) }
+  return { programme, components: currentComponents(aims) }
 }
 
 // Sets an aim's outcome fields and logs the ones that change. why: the
@@ -114,17 +115,17 @@ async function setAim(connection, ref, aim, next, by, why = null, type = 'outcom
   }
 }
 
-async function setActualHours(connection, ref, value, by) {
+async function setActualHours(connection, ref, programme, value, by) {
   const text = String(value ?? '').trim()
   if (text === '') return
   const next = Number(text)
-  const [current] = await execute(connection, ACTUAL_HOURS, [ref])
-  const key = { AIMSEQNUMBER: 1, HRSTYPE: 'HRS', HRSCODE: 3 }
+  const [current] = await execute(connection, ACTUAL_HOURS, [ref, programme.AIMSEQNUMBER])
+  const key = { AIMSEQNUMBER: programme.AIMSEQNUMBER, HRSTYPE: 'HRS', HRSCODE: 3 }
   if (!current) {
-    await execute(connection, HRS3_INSERT, [next, by, ref])
+    await execute(connection, HRS3_INSERT, [programme.AIMSEQNUMBER, next, by, ref])
     await logChange(connection, { learnRefNumber: ref, table: 'HOURS_RECORD', key, type: 'added', newValues: { HRSAMOUNT: next }, by })
   } else if (Number(current.HRSAMOUNT) !== next) {
-    await execute(connection, HRS3_UPDATE, [next, by, ref])
+    await execute(connection, HRS3_UPDATE, [next, by, ref, programme.AIMSEQNUMBER])
     await logChange(connection, {
       learnRefNumber: ref, table: 'HOURS_RECORD', key, type: 'outcome',
       oldValues: { HRSAMOUNT: Number(current.HRSAMOUNT) }, newValues: { HRSAMOUNT: next }, by,
@@ -153,7 +154,7 @@ async function record(connection, ref, action, body, by) {
         await setAim(connection, ref, c, { COMPSTATUS: 2, LEARNACTENDDATE: cv.endDate, OUTCOME: Number(cv.outcome) }, by)
       }
       await setAim(connection, ref, programme, { LEARNACTENDDATE: body.endDate, OUTCOME: 8 }, by)
-      await setActualHours(connection, ref, body.actualHours, by)
+      await setActualHours(connection, ref, programme, body.actualHours, by)
     }
     if (action === 'epa-result') {
       const passed = body.result === 'passed'
@@ -173,7 +174,7 @@ async function record(connection, ref, action, body, by) {
       await setAim(connection, ref, programme, {
         COMPSTATUS: 3, LEARNACTENDDATE: endDate, OUTCOME: 3, WITHDRAWREASON: reason, ACHDATE: null, OUTGRADE: null,
       }, by)
-      await setActualHours(connection, ref, body.actualHours, by)
+      await setActualHours(connection, ref, programme, body.actualHours, by)
     }
     if (action === 'break') {
       for (const c of open) {
