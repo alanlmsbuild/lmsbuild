@@ -229,7 +229,7 @@ USING (
   FROM (VALUES
       ('USR-T0001', 'OFF0001', 'off0001@example.com', TRUE),
       ('USR-T0002', 'OFF0002', 'off0002@example.com', TRUE),
-      ('USR-T0003', 'OFF0003', 'curl.testofficer@example.com', TRUE),
+      ('USR-T0003', 'OFF0003', 'cara.testassessor02@example.com', TRUE),
       ('USR-T0004', 'OFF0004', 'tina.testtutor02@example.com', TRUE),
       ('USR-T0005', 'OFF0005', 'toby.testtutor03@example.com', TRUE),
       ('USR-T0006', 'OFF0006', 'ada.testassessoriqa@example.com', TRUE),
