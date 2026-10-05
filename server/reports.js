@@ -60,6 +60,7 @@ export const QAR_AIMS = `
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
     where ld.AIMTYPE = 1
+      and ld.REMOVEDAT is null
       and ld.PROGTYPE in (${APPRENTICESHIP_PROGRAMME_TYPES})
   ),
   flagged as (
@@ -185,6 +186,7 @@ export const QAR_PAST_PLANNED_END_QUERY = `
   left join ${ORG_OFFICER} t
     on t.OFFICERREFNUMBER = a.OFFICERREFNUMBER
   where ld.AIMTYPE = 1
+    and ld.REMOVEDAT is null
     and ld.PROGTYPE in (${APPRENTICESHIP_PROGRAMME_TYPES})
     and ld.COMPSTATUS in (1, 6)
     and coalesce(ld.OUTCOME, 0) <> 8
@@ -258,6 +260,7 @@ export const CASELOAD_QUERY = `
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
    and ld.AIMSEQNUMBER = 1
+   and ld.REMOVEDAT is null
   group by o.OFFICERREFNUMBER, o.OFFICERNAME, o.OFFICERTYPE
   order by o.OFFICERNAME
 `
@@ -285,6 +288,7 @@ export const CASELOAD_LEARNERS_QUERY = `
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
    and ld.AIMSEQNUMBER = 1
+   and ld.REMOVEDAT is null
   left join LARS.STANDARD s
     on s.STANDARD_CODE = ld.STDCODE
   where a.OFFICERREFNUMBER = ?

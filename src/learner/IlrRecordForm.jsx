@@ -551,10 +551,7 @@ function IlrRecordForm({ learnRefNumber, kind, recordKey, mode, onSaved, onCance
         </p>
       )}
 
-      {kind === 'component' && mode === 'remove' && (
-        <p role="alert">A component aim can&apos;t be removed. Correct it instead.</p>
-      )}
-      {form && (mode === 'new' || record) && !(kind === 'component' && mode === 'remove') && (
+      {form && (mode === 'new' || record) && (
         <form onSubmit={handleSubmit} noValidate>
           <fieldset>
             <legend>{recordFormTitle(kind, mode)}</legend>
@@ -568,6 +565,12 @@ function IlrRecordForm({ learnRefNumber, kind, recordKey, mode, onSaved, onCance
                   Only remove a record that was entered in error. It&apos;s kept in the history with your reason, but
                   no longer counts or goes in the ILR return. If something has genuinely changed, add a new record.
                 </p>
+                {kind === 'component' && (
+                  <p className="field-hint field-wide">
+                    Its funding and monitoring records are removed with it. If the apprentice really did start this aim
+                    and then stopped or finished it, don&apos;t remove it: its outcome is recorded with the programme&apos;s.
+                  </p>
+                )}
                 <Field label="Why is it being removed?" error={errors.reason} required>
                   <textarea rows={3} value={form.reason} onChange={(e) => update('reason', e.target.value)} />
                 </Field>

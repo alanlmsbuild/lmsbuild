@@ -37,8 +37,11 @@
 //    select * or alias.* from a table or a scoped source (which would pick
 //    them up without naming them). select * from a query step (a
 //    lower-case with ... as name, built from named columns) is fine.
-// 9. Reads of the ILR record tables leave out records removed as entered
-//    in error (REMOVEDAT is null).
+// 9. Reads of the ILR record tables and aims leave out records removed as
+//    entered in error: REMOVEDAT is null for each table read, by its alias
+//    if it has one. A query that must see removed records too (the next aim
+//    number, so a removed aim's number is never reused) says why with
+//    "-- including removed:".
 // 8. Prices and payments are for managers only: outside access.js,
 //    APP_FIN_RECORD may only be read through ORG_APP_FIN_RECORD (which is
 //    empty for anyone else). Naming the table is only allowed to write to
@@ -70,9 +73,25 @@ const LEARNER_RECORD_INSERT = new RegExp(`\\binsert\\s+into\\s+(ILR\\.)?(${LEARN
 const FROM_LEARNER_FLAG = /\b\w+\.ISTESTDATA\s+from\s+\$\{VISIBLE_LEARNER\}/i
 // The ILR record tables where a manager can remove a record entered in
 // error: reads must leave removed ones out.
-const REMOVABLE_TABLES = ['PRIOR_ATTAINMENT', 'LLDD_HEALTH_PROBLEM', 'LEARNER_FAM', 'EMPLOYMENT_STATUS',
+const REMOVABLE_TABLES = ['LEARNING_DELIVERY', 'PRIOR_ATTAINMENT', 'LLDD_HEALTH_PROBLEM', 'LEARNER_FAM', 'EMPLOYMENT_STATUS',
   'EMPLOYMENT_STATUS_MONITORING', 'LEARNING_DELIVERY_FAM', 'APP_FIN_RECORD', 'HOURS_RECORD']
-const READS_REMOVABLE = new RegExp(`\\b(from|join)\\s+(ILR\\.)?(${REMOVABLE_TABLES.join('|')})\\b`, 'i')
+const SQL_WORDS = new Set(['where', 'on', 'left', 'right', 'inner', 'outer', 'full', 'cross', 'join', 'order', 'group',
+  'limit', 'union', 'set', 'using', 'having', 'qualify', 'natural'])
+const READS_REMOVABLE = new RegExp(`\\b(from|join)\\s+(ILR\\.)?(${REMOVABLE_TABLES.join('|')})\\b(?:\\s+(?:as\\s+)?(\\w+))?`, 'gi')
+// The removable tables a query reads that it doesn't filter for REMOVEDAT
+// is null (by alias, or unqualified when the table has none).
+function unfilteredRemovable(sql) {
+  if (sql.includes('-- including removed:')) return []
+  const missing = []
+  for (const m of sql.matchAll(READS_REMOVABLE)) {
+    const alias = m[4] && !SQL_WORDS.has(m[4].toLowerCase()) ? m[4] : null
+    const filter = alias
+      ? new RegExp(`\\b${alias}\\.REMOVEDAT\\s+is\\s+null\\b`, 'i')
+      : new RegExp(`(?:^|[^.\\w])(?:(?:ILR\\.)?${m[3]}\\.)?REMOVEDAT\\s+is\\s+null\\b`, 'i')
+    if (!filter.test(sql)) missing.push(alias ? `${m[3]} ${alias}` : m[3])
+  }
+  return missing
+}
 const ROUTE = /\bapp\.(get|post|put|patch|delete)\(\s*(['`"])[^'`"]*\2\s*,(?!\s*(allow\(|devOnly\b))/g
 
 let problems = 0
@@ -109,9 +128,8 @@ for (const file of serverFiles) {
     if (learnerInsert && !FROM_LEARNER_FLAG.test(sql)) {
       report(file, text, match.index, `inserts into ${learnerInsert[2]} without copying the learner's ISTESTDATA (select l.ISTESTDATA from \${VISIBLE_LEARNER} l)`)
     }
-    const removable = sql.match(READS_REMOVABLE)
-    if (removable && !/\bREMOVEDAT\s+is\s+null\b/i.test(sql)) {
-      report(file, text, match.index, `reads ${removable[3]} without leaving out removed records (REMOVEDAT is null)`)
+    for (const table of unfilteredRemovable(sql)) {
+      report(file, text, match.index, `reads ${table} without leaving out removed records (REMOVEDAT is null)`)
     }
   }
   for (const match of text.matchAll(ROUTE)) {

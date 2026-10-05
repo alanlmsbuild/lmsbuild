@@ -393,7 +393,6 @@ function ComponentList({ components, manage }) {
               kind="component"
               recordKey={String(a.AIMSEQNUMBER)}
               label={a.AIMTITLE ?? a.LEARNAIMREF}
-              canRemove={false}
             />
           </p>
           <dl>

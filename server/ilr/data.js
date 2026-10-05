@@ -43,7 +43,8 @@ const AIMS_QUERY = `
   from LEARNING_DELIVERY ld
   left join LARS.LEARNING_AIM la
     on la.LEARN_AIM_REF = ld.LEARNAIMREF
-  where ld.${IN_ORG_LEARNERS} -- whole organisation: the ILR return covers everyone
+  where ld.REMOVEDAT is null
+    and ld.${IN_ORG_LEARNERS} -- whole organisation: the ILR return covers everyone
   order by ld.LEARNREFNUMBER, ld.AIMSEQNUMBER
 `
 

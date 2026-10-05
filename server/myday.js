@@ -41,6 +41,7 @@ const MY_CONTINUING_LEARNERS = `
       on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
      and ld.LEARNAIMREF = 'ZPROG001'
      and ld.AIMSEQNUMBER = 1
+     and ld.REMOVEDAT is null
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
     where a.OFFICERREFNUMBER = :2
@@ -153,6 +154,7 @@ export const MY_CASELOAD_QUERY = `
     on ld.LEARNREFNUMBER = a.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
    and ld.AIMSEQNUMBER = 1
+   and ld.REMOVEDAT is null
   where a.OFFICERREFNUMBER = ?
     and a.ENDEDAT is null
 `
@@ -188,6 +190,7 @@ const LEARNER_START_QUERY = `
     on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
    and ld.LEARNAIMREF = 'ZPROG001'
    and ld.AIMSEQNUMBER = 1
+   and ld.REMOVEDAT is null
   where l.LEARNREFNUMBER = ?
 `
 

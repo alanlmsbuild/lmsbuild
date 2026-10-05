@@ -11,8 +11,7 @@
 // date the status applies, with its monitoring codes), aim-fam (key: the
 // FAM's FAMID, on the programme aim), price (key: TYPE-CODE-DATE, e.g.
 // TNP-1-2025-03-10, prices and payments on the programme aim) or component
-// (key: the component aim's AIMSEQNUMBER; add and correct only). Managers
-// only.
+// (key: the component aim's AIMSEQNUMBER). Managers only.
 //
 // The rules (decided 28 September 2026): a correction changes the record in
 // place and keeps the old values in ILR.RECORD_CHANGE with who and when. A
@@ -44,7 +43,7 @@ import {
 
 const LEARNER_QUERY = `
   select l.LEARNREFNUMBER, l.LLDDHEALTHPROB,
-    (select min(ld.LEARNSTARTDATE) from LEARNING_DELIVERY ld where ld.LEARNREFNUMBER = l.LEARNREFNUMBER) as EARLIESTSTART
+    (select min(ld.LEARNSTARTDATE) from LEARNING_DELIVERY ld where ld.LEARNREFNUMBER = l.LEARNREFNUMBER and ld.REMOVEDAT is null) as EARLIESTSTART
   from ${VISIBLE_LEARNER} l
   where l.LEARNREFNUMBER = ?
 `
@@ -530,7 +529,7 @@ const employment = {
 const PROGRAMME = `
   select LEARNSTARTDATE, LEARNPLANENDDATE, LEARNACTENDDATE, ACHDATE, ORIGLEARNSTARTDATE, STDCODE, DELLOCPOSTCODE
   from LEARNING_DELIVERY
-  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 async function findProgramme(connection, ref) {
   const [p] = await execute(connection, PROGRAMME, [ref])
@@ -576,7 +575,7 @@ const AIM_FAM_REMOVE = `
 const ORIG_START_UPDATE = `
   update LEARNING_DELIVERY
   set ORIGLEARNSTARTDATE = ?, UPDATEDAT = current_timestamp(), UPDATEDBY = ?
-  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 
 const famValues = (f) => ({
@@ -790,15 +789,17 @@ const price = {
 
 // ---------------------------------------------------------------- component aims
 //
-// Added and corrected here. There's no removing an aim: LEARNING_DELIVERY
-// has no "removed" columns. Outcomes (completing or withdrawing) are 4g.
+// Added, corrected and removed here (entered in error: the row is marked
+// removed, never deleted, and its funding and monitoring records go with
+// it). Outcomes (finishing, a break, withdrawing) are server/outcomes.js.
 
 const COMPONENTS = `
   select AIMSEQNUMBER, LEARNAIMREF, LEARNSTARTDATE, LEARNPLANENDDATE, PRIORLEARNFUNDADJ, OTHERFUNDADJ
   from LEARNING_DELIVERY
-  where LEARNREFNUMBER = ? and AIMTYPE = 3 and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMTYPE = 3 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 const NEXT_SEQ = `
+  -- including removed: a removed aim's number is never used again
   select coalesce(max(AIMSEQNUMBER), 0) + 1 as N from LEARNING_DELIVERY
   where LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}
 `
@@ -814,7 +815,18 @@ const COMPONENT_UPDATE = `
   update LEARNING_DELIVERY
   set LEARNAIMREF = ?, LEARNSTARTDATE = ?, LEARNPLANENDDATE = ?, PRIORLEARNFUNDADJ = ?, OTHERFUNDADJ = ?,
     UPDATEDAT = current_timestamp(), UPDATEDBY = ?
-  where LEARNREFNUMBER = ? and AIMTYPE = 3 and AIMSEQNUMBER = ? and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMTYPE = 3 and AIMSEQNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+
+const COMPONENT_REMOVE = `
+  update LEARNING_DELIVERY
+  set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
+  where LEARNREFNUMBER = ? and AIMTYPE = 3 and AIMSEQNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
+const COMPONENT_FAMS = `
+  select FAMID, LEARNDELFAMTYPE, LEARNDELFAMCODE, DATEFROM, DATETO
+  from ILR.LEARNING_DELIVERY_FAM
+  where LEARNREFNUMBER = ? and AIMSEQNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 
 const optionalNumber = (v) => (String(v ?? '').trim() === '' ? null : Number(String(v).trim()))
@@ -876,8 +888,24 @@ const component = {
     })
   },
 
-  async remove() {
-    throw new RequestError("Component aims can't be removed. Correct it instead.", 405)
+  async remove(connection, ref, key, body, by) {
+    await findLearner(connection, ref)
+    checkFields(validateRemoval(body))
+    const current = (await execute(connection, COMPONENTS, [ref])).find((a) => String(a.AIMSEQNUMBER) === String(key))
+    if (!current) throw new RequestError('Component aim not found.', 404)
+    const reason = body.reason.trim()
+    const seq = Number(key)
+    await inTransaction(connection, async () => {
+      checkUpdated(await execute(connection, COMPONENT_REMOVE, [by, reason, ref, seq]))
+      await logChange(connection, {
+        learnRefNumber: ref, table: 'LEARNING_DELIVERY', key: { AIMSEQNUMBER: seq, LEARNAIMREF: current.LEARNAIMREF },
+        type: 'removed', oldValues: componentValues(current), reason, by,
+      })
+      for (const fam of await execute(connection, COMPONENT_FAMS, [ref, seq])) {
+        checkUpdated(await execute(connection, AIM_FAM_REMOVE, [by, reason, fam.FAMID, ref]))
+        await logChange(connection, { learnRefNumber: ref, table: 'LEARNING_DELIVERY_FAM', key: { FAMID: fam.FAMID }, type: 'removed', oldValues: famValues(fam), reason, by })
+      }
+    })
   },
 }
 
@@ -894,7 +922,7 @@ const KINDS = { lldd, 'learner-fam': learnerFam, prior, employment, 'aim-fam': a
 
 const PROGRAMME_START = `
   select LEARNSTARTDATE from LEARNING_DELIVERY
-  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and ${IN_VISIBLE_LEARNERS}
+  where LEARNREFNUMBER = ? and AIMTYPE = 1 and AIMSEQNUMBER = 1 and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 const HRS_ACTIVE = `
   select HRSCODE, HRSAMOUNT from ILR.HOURS_RECORD

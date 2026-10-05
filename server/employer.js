@@ -40,6 +40,7 @@ const APPRENTICES_QUERY = `
       on ld.LEARNREFNUMBER = l.LEARNREFNUMBER
      and ld.LEARNAIMREF = 'ZPROG001'
      and ld.AIMSEQNUMBER = 1
+     and ld.REMOVEDAT is null
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
   ),
