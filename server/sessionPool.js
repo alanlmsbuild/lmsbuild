@@ -1,7 +1,7 @@
-// Reusing Snowflake sessions between requests (DB_POOL=on in server/.env;
-// off by default). Opening a session and signing in took about 65% of each
-// request's time, so with DB_POOL on, attachUser borrows an open session
-// instead of logging in on every request.
+// Reusing Snowflake sessions between requests: the default, unless
+// DB_POOL=off in server/.env. Opening a session and signing in took about
+// 65% of each request's time, so attachUser borrows an open session instead
+// of logging in on every request.
 //
 // What stops one user's session state reaching the next:
 //
@@ -28,7 +28,7 @@
 
 import { connect, destroy, CONNECT_TIMEOUT_MS, ConnectTimeoutError } from './db.js'
 
-export const POOL_ON = process.env.DB_POOL === 'on'
+export const POOL_ON = process.env.DB_POOL !== 'off'
 const MAX_SESSIONS = Number(process.env.DB_POOL_MAX) || 8
 const MAX_AGE_MS = 30 * 60 * 1000
 const MAX_USES = 500

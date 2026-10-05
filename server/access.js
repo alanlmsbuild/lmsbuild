@@ -10,10 +10,10 @@
 // through these sources, never the raw tables (npm run check:scoping looks
 // for slips, and for routes that don't say which roles they allow).
 //
-// Each request has its own session: opened for it and closed when the
-// response ends, or with DB_POOL=on, borrowed from a pool of open sessions
+// Each request has its own session: borrowed from a pool of open sessions
 // (sessionPool.js), where every variable is set afresh on each request and
-// unset when the session comes back. Either way the user and their roles
+// unset when the session comes back, or with DB_POOL=off, opened for it and
+// closed when the response ends. Either way the user and their roles
 // are looked up on every request, so deactivating someone or changing
 // their roles takes effect on their next request.
 
@@ -232,8 +232,8 @@ function timeRequest(req, res) {
   }
 }
 
-// The request's database session: borrowed from the pool with DB_POOL=on,
-// otherwise opened just for this request. end({ reuse, why }) returns it
+// The request's database session: borrowed from the pool, or with
+// DB_POOL=off opened just for this request. end({ reuse, why }) returns it
 // to the pool, or throws it away; without the pool it's always closed.
 async function sessionForRequest(res) {
   if (!POOL_ON) {
