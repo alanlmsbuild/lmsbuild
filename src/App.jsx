@@ -6,6 +6,7 @@ import EditLearnerForm, { EDIT_HEADINGS } from './EditLearnerForm'
 import IlrRecordForm, { recordFormTitle } from './learner/IlrRecordForm'
 import HoursForm, { HOURS_HEADING } from './learner/HoursForm'
 import OutcomeForm, { OUTCOME_ACTIONS, OUTCOME_HEADINGS } from './learner/OutcomeForm'
+import ReturnForm from './learner/ReturnForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
 import LearnerRecord from './learner/LearnerRecord'
@@ -370,7 +371,16 @@ function App() {
               onCancel={closeForm}
             />
           )}
-          {isManager && learnerAction?.type === 'outcome' && (
+          {isManager && learnerAction?.type === 'outcome' && ['return', 'undo-return'].includes(learnerAction.action) && (
+            <ReturnForm
+              key={`${learnerRef}-${learnerAction.action}`}
+              learnRefNumber={learnerRef}
+              action={learnerAction.action}
+              onSaved={handleSaved}
+              onCancel={closeForm}
+            />
+          )}
+          {isManager && learnerAction?.type === 'outcome' && !['return', 'undo-return'].includes(learnerAction.action) && (
             <OutcomeForm
               key={`${learnerRef}-${learnerAction.action}`}
               learnRefNumber={learnerRef}

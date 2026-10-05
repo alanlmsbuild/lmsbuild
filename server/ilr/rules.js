@@ -43,6 +43,14 @@ export const RULES = {
   OrigLearnStartDate_01: ['Error', 'The original start date is more than 10 years before this start.'],
   OrigLearnStartDate_02: ['Error', 'The original start date is not before this start date.'],
   OrigLearnStartDate_04: ['Error', 'There is an original start date but no restart indicator (RES).'],
+  OrigLearnStartDate_07: ['Error', "The original start date is outside the standard's dates in LARS."],
+  OrigLearnStartDate_09: ['Error', 'The original start date is before 1 May 2017 (funding model 36).'],
+  R_124: ['Error', 'Programme aims overlap: a restart must start after the aim on the break ended.'],
+  R_142: ['Error', 'A price on the aim before the break is dated on or after the restart.'],
+  AFinDate_05: ['Error', 'A total training price (TNP 1) is dated after a residual training price (TNP 3).'],
+  AFinDate_06: ['Error', 'A total assessment price (TNP 2) is dated after a residual assessment price (TNP 4).'],
+  AFinType_08: ['Error', 'Residual prices (TNP 3 and 4) are only for funding model 36.'],
+  'Warren: minimum duration across spells': ['Error', 'The spells of learning before and after the break add up to less than the minimum duration (funding rules 2026 to 2027, paragraphs 78.4 and 79).'],
   AFinType_07: ['Error', 'There is an assessment payment but no assessment price.'],
   AFinType_14: ['Error', 'There is a training payment but no training price.'],
   AFinType_15: ['Error', 'The price reduction for prior learning is over £18,000.'],
@@ -164,17 +172,20 @@ const SECTION_RULES = {
     'LearnStartDate_13', 'LearnStartDate_17', 'LearnStartDate_18', 'LearnPlanEndDate_02', 'StdCode_01', 'DelLocPostCode_11',
     'LearnDelFAMType_01', 'LearnDelFAMType_64', 'R_102', 'R_121', 'R_122', 'R_123', 'LearnDelFAMDateFrom_01',
     'LearnDelFAMDateFrom_02', 'LearnDelFAMDateTo_01', 'LearnDelFAMDateTo_02', 'LearnDelFAMDateTo_03', 'R_52',
-    'LearnDelFAMType_18', 'LearnDelFAMType_31', 'R_61', 'OrigLearnStartDate_01', 'OrigLearnStartDate_02', 'OrigLearnStartDate_04',
+    'LearnDelFAMType_18', 'LearnDelFAMType_31', 'R_61', 'OrigLearnStartDate_01', 'OrigLearnStartDate_02', 'OrigLearnStartDate_04', 'OrigLearnStartDate_07', 'OrigLearnStartDate_09', 'R_124', 'Warren: minimum duration across spells',
     'EPAOrgID_02', 'EPAOrgID_03'],
   hours: ['HRSType_01', 'HRSType_08', 'HRSType_09', 'HRSAmount_02', 'HRSAmount_03', 'HRSType_18', 'Warren: OTJ minimum',
     'Warren: OTJ delivered'],
   prices: ['AFinType_12', 'AFinType_13', 'AFinType_10', 'R_100', 'R_119', 'AFinDate_13', 'R_68', 'AFinType_07', 'AFinType_14',
-    'AFinType_15', 'AFinType_16', 'AFinDate_07', 'AFinDate_08', 'AFinDate_09', 'AFinDate_14', 'R_161', 'R_162'],
+    'AFinType_15', 'AFinType_16', 'AFinDate_05', 'AFinDate_06', 'AFinDate_07', 'AFinDate_08', 'AFinDate_09', 'AFinType_08', 'R_142', 'AFinDate_14', 'R_161', 'R_162'],
   components: ['R_30', 'R_31', 'R_89', 'R_90', 'AchDate_14', 'LearnDelFAMType_67'],
   outcome: ['DateOfBirth_47', 'DateOfBirth_58', 'LearnActEndDate_01', 'LearnActEndDate_04', 'Outcome_05', 'Outcome_10',
     'Outcome_11', 'Outcome_12', 'CompStatus_03', 'CompStatus_04', 'CompStatus_06', 'CompStatus_07', 'AchDate_04',
     'AchDate_05', 'AchDate_07', 'AchDate_12', 'WithdrawReason_03', 'WithdrawReason_04'],
 }
+// A restart: an aim flagged RES (returning from a break, or after a withdrawal).
+const isRestart = (aim) => aim.fams.some((x) => x.LEARNDELFAMTYPE === 'RES')
+
 export const RULE_SECTION = Object.fromEntries(
   Object.entries(SECTION_RULES).flatMap(([section, rules]) => rules.map((rule) => [rule, section])),
 )
@@ -232,6 +243,17 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
     const ref = l.LEARNREFNUMBER
     const f = (rule) => fail(rule, ref)
     const programme = currentProgramme(l.aims)
+    // Programme aims mustn't overlap (R_124), and a price on an aim that
+    // ended with a withdrawal or a break mustn't be dated on or after a later
+    // open programme's start (R_142, starts from 1 August 2022).
+    const programmes = l.aims.filter((a) => a.AIMTYPE === 1).sort((x, y) => x.AIMSEQNUMBER - y.AIMSEQNUMBER)
+    for (const [i, p] of programmes.entries()) {
+      for (const q of programmes.slice(i + 1)) {
+        if ((p.LEARNACTENDDATE ?? '9999-12-31') >= q.LEARNSTARTDATE && (q.LEARNACTENDDATE ?? '9999-12-31') >= p.LEARNSTARTDATE) f('R_124')
+        if ([3, 6].includes(p.COMPSTATUS) && q.COMPSTATUS === 1 && !q.LEARNACTENDDATE && q.LEARNSTARTDATE >= '2022-08-01' &&
+          p.fin.some((x) => x.AFINTYPE === 'TNP' && x.AFINDATE >= q.LEARNSTARTDATE)) f('R_142')
+      }
+    }
     // learner
     if (!ulnPasses(l.ULN)) f('ULN_04')
     if (ulnCount.get(String(l.ULN)) > 1) f('R_59')
@@ -269,10 +291,20 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
         const academicYearEnd = month >= 9 ? Number(turns16.slice(0, 4)) + 1 : Number(turns16.slice(0, 4))
         if (start <= lastFridayInJune(academicYearEnd)) f('DateOfBirth_48')
       }
-      if (age(l.DATEOFBIRTH, start) >= 16) {
-        const [limit, planned, actual] = start <= '2025-07-31' ? [365, 'DateOfBirth_46', 'DateOfBirth_47'] : [242, 'DateOfBirth_57', 'DateOfBirth_58']
-        if (days(start, programme.LEARNPLANENDDATE) < limit) f(planned)
-        if (programme.COMPSTATUS === 2 && programme.LEARNACTENDDATE && days(start, programme.LEARNACTENDDATE) < limit) f(actual)
+      const original = programme.ORIGLEARNSTARTDATE ?? start
+      if (age(l.DATEOFBIRTH, original) >= 16) {
+        const [limit, planned, actual] = original <= '2025-07-31' ? [365, 'DateOfBirth_46', 'DateOfBirth_47'] : [242, 'DateOfBirth_57', 'DateOfBirth_58']
+        if (!isRestart(programme)) {
+          if (days(start, programme.LEARNPLANENDDATE) < limit) f(planned)
+          if (programme.COMPSTATUS === 2 && programme.LEARNACTENDDATE && days(start, programme.LEARNACTENDDATE) < limit) f(actual)
+        } else {
+          // The spells before the break count towards it (funding rules 78.4, 79).
+          const earlier = l.aims.filter((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER < programme.AIMSEQNUMBER &&
+            (a.ORIGLEARNSTARTDATE ?? a.LEARNSTARTDATE) === original && a.LEARNACTENDDATE)
+          const total = earlier.reduce((n, a) => n + days(a.LEARNSTARTDATE, a.LEARNACTENDDATE), 0) +
+            days(start, programme.LEARNACTENDDATE ?? programme.LEARNPLANENDDATE)
+          if (total < limit) f('Warren: minimum duration across spells')
+        }
       }
     }
 
@@ -305,7 +337,7 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
     if (new Set(l.employment.map((e) => e.DATEEMPSTATAPP)).size !== l.employment.length) f('R_43')
 
     // aims
-    const seqs = l.aims.map((a) => a.AIMSEQNUMBER)
+    const seqs = l.aims.map((a) => a.FILESEQ)
     if (new Set(seqs).size !== seqs.length) f('R_07')
     if (Math.max(...seqs) > l.aims.length) f('AimSeqNumber_02')
     for (const a of l.aims) {
@@ -336,9 +368,12 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
       if (a.PROGTYPE === 25 && a.STDCODE === null) f('StdCode_01')
       if (isProgramme && isStandard && a.STDCODE !== null) {
         const s = standards.get(a.STDCODE)
-        if (s?.EFFECTIVE_FROM && a.LEARNSTARTDATE < s.EFFECTIVE_FROM) f('LearnStartDate_17')
-        if (s?.EFFECTIVE_TO && a.LEARNSTARTDATE > s.EFFECTIVE_TO) f('LearnStartDate_13')
-        if (s?.LAST_DATE_STARTS && a.LEARNSTARTDATE >= '2020-08-01' && a.LEARNSTARTDATE > s.LAST_DATE_STARTS) f('LearnStartDate_18')
+        if (!isRestart(a)) {
+          if (s?.EFFECTIVE_FROM && a.LEARNSTARTDATE < s.EFFECTIVE_FROM) f('LearnStartDate_17')
+          if (s?.EFFECTIVE_TO && a.LEARNSTARTDATE > s.EFFECTIVE_TO) f('LearnStartDate_13')
+          if (s?.LAST_DATE_STARTS && a.LEARNSTARTDATE >= '2020-08-01' && a.LEARNSTARTDATE > s.LAST_DATE_STARTS) f('LearnStartDate_18')
+        }
+        if (a.ORIGLEARNSTARTDATE && ((s?.EFFECTIVE_FROM && a.ORIGLEARNSTARTDATE < s.EFFECTIVE_FROM) || (s?.EFFECTIVE_TO && a.ORIGLEARNSTARTDATE > s.EFFECTIVE_TO))) f('OrigLearnStartDate_07')
       }
       // FAMs
       if (!a.fams.some((x) => x.LEARNDELFAMTYPE === 'SOF')) f('LearnDelFAMType_01')
@@ -374,7 +409,9 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
         if (!a.fams.some((x) => x.LEARNDELFAMTYPE === 'RES')) f('OrigLearnStartDate_04')
         if (a.ORIGLEARNSTARTDATE >= a.LEARNSTARTDATE) f('OrigLearnStartDate_02')
         if (a.ORIGLEARNSTARTDATE < addYears(a.LEARNSTARTDATE, -10)) f('OrigLearnStartDate_01')
+        if (a.FUNDMODEL === 36 && a.ORIGLEARNSTARTDATE < '2017-05-01') f('OrigLearnStartDate_09')
       }
+      if (a.fin?.some((x) => x.AFINTYPE === 'TNP' && [3, 4].includes(Number(x.AFINCODE))) && a.FUNDMODEL !== 36) f('AFinType_08')
       if (a.AIMTYPE === 3 && !l.aims.some((p) => p.AIMTYPE === 1 && p.PROGTYPE === a.PROGTYPE && p.STDCODE === a.STDCODE)) f('R_30')
     }
 
@@ -414,6 +451,9 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
       const sameDate = (a, b) => fin('TNP', [a]).some((x) => fin('TNP', [b]).some((y) => y.AFINDATE === x.AFINDATE))
       if (sameDate(1, 3)) f('AFinDate_07')
       if (sameDate(2, 4)) f('AFinDate_08')
+      const totalAfterResidual = (total, residual) => fin('TNP', [total]).some((x) => fin('TNP', [residual]).some((y) => x.AFINDATE > y.AFINDATE))
+      if (totalAfterResidual(1, 3)) f('AFinDate_05')
+      if (totalAfterResidual(2, 4)) f('AFinDate_06')
       const priorLearningHours = programme.hours.some((h) => Number(h.HRSCODE) === 4)
       if (priorLearningHours && fin('RIP', [1]).length === 0) f('R_161')
       if (fin('RIP', [1]).length > 0 && !priorLearningHours) f('R_162')
@@ -421,9 +461,9 @@ export function checkIlrRules({ learners, standards, standardVersions = null }, 
       const start = programme.LEARNSTARTDATE
       const codes = programme.hours.map((h) => h.HRSCODE)
       if (start >= '2019-08-01' && !codes.includes(1)) f('HRSType_01')
-      if (start >= '2019-08-01' && programme.COMPSTATUS === 2 && !codes.includes(3)) f('HRSType_08')
+      if (start >= '2019-08-01' && programme.COMPSTATUS === 2 && !codes.includes(3) && !isRestart(programme)) f('HRSType_08')
       if (start >= '2022-08-01' && programme.COMPSTATUS === 3 && !codes.includes(3)) f('HRSType_09')
-      for (const h of programme.hours.filter((x) => x.HRSCODE === 1)) {
+      for (const h of programme.hours.filter((x) => x.HRSCODE === 1 && !isRestart(programme))) {
         if (start >= '2025-08-01' && h.HRSAMOUNT < 187) f('HRSAmount_03')
         if (start >= '2022-08-01' && start <= '2025-07-31' && h.HRSAMOUNT < 278) f('HRSAmount_02')
       }

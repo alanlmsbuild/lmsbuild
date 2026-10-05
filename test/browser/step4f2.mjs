@@ -194,7 +194,7 @@ const fileAims = async () => {
   return [...learner.matchAll(/<LearnAimRef>([^<]+)<\/LearnAimRef>\s*<AimType>\d+<\/AimType>\s*<AimSeqNumber>(\d+)</g)].map((m) => `${m[2]}:${m[1]}`).join(' ')
 }
 const qarBefore = await qarOf()
-check('  in the ILR file before removing', (await fileAims()).includes(`${newSeq}:6035060X`), await fileAims())
+check('  in the ILR file before removing (the file numbers aims 1, 2, 3...)', (await fileAims()) === '1:ZPROG001 2:Z0001849 3:6035060X', await fileAims())
 const aimRow = p.locator('.learner-section[aria-label="Component aims"] li', { hasText: '6035060X' })
 await aimRow.getByRole('link', { name: /^Remove/ }).click()
 await p.getByLabel('Why is it being removed?').waitFor()

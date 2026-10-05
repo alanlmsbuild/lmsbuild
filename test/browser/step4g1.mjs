@@ -175,7 +175,7 @@ await save()
 check('  saved: programme and component on a break', (await aims('TESTL0057')).join(' ') === ['1', '2'].map((s) => `${s}:6/3/2026-09-04/-/-/-`).join(' '), (await aims('TESTL0057')).join(' '))
 await recordPage('TESTL0057')
 text = await outcomeSection().innerText()
-check('  Record: Temporarily withdrawn, last day before the break, only Withdraw and Correct', /Temporarily withdrawn/.test(text) && /Last day before the break/.test(text) && (await links()) === 'Withdraw | Correct the outcome', `${await links()}`)
+check('  Record: Temporarily withdrawn, last day before the break, Return, Withdraw and Correct', /Temporarily withdrawn/.test(text) && /Last day before the break/.test(text) && (await links()) === 'Return from the break | Withdraw | Correct the outcome', `${await links()}`)
 
 // ---- Rhys: break, then doesn't come back
 await open('TESTL0075', 'Break in learning')

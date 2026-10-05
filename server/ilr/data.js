@@ -10,6 +10,7 @@
 import { execute } from '../db.js'
 import { IN_ORG_LEARNERS, ORG_APP_FIN_RECORD, ORG_LEARNER, ORG_ORGANISATION } from '../access.js'
 import { loadStandardVersions } from './standards.js'
+import { isEnglishOrMaths } from '../../src/programme.js'
 
 // DfE's dummy UKPRN from its sample ILR file, and a second one for the other
 // test organisation. Neither is on the UK Register of Learning Providers.
@@ -20,9 +21,6 @@ export const ILR_YEARS = {
   2026: { code: '2627', start: '2026-08-01', end: '2027-07-31', label: '2026 to 2027' },
 }
 
-// English and maths component aims carry the contract type (ACT), like the
-// programme aim (rule LearnDelFAMType_64). Recognised by their LARS title.
-const ENGLISH_OR_MATHS = /^(Functional Skills Qualification in (English|Mathematics)|GCSE .*(English|Mathematics))/i
 
 const ORGANISATION_QUERY = `
   select ORGANISATIONID, NAME, UKPRN, ISTESTDATA from ${ORG_ORGANISATION}
@@ -136,9 +134,23 @@ function derivedFams(aim) {
 // employment, esm, aimFams, hours, fin }. Null if none of their aims is in
 // the year's return. Used by the return and by one learner's checks on the
 // Record tab (learner.js), so both check exactly the same thing.
+// An aim on a break that the apprentice has returned from goes with the
+// return: it's in a year's return if it ended in that year, or while its
+// restart is (provider support manual, "Recording apprenticeship
+// programmes": keep returning the aims from before the break until the
+// apprenticeship is completed or the apprentice withdraws). The restart is
+// the later aim for the same learning aim with its original start date.
+export function inYearWithRestarts(aim, allAims, year) {
+  const original = aim.ORIGLEARNSTARTDATE ?? aim.LEARNSTARTDATE
+  const restart = aim.COMPSTATUS === 6 && allAims.find((r) => r.AIMSEQNUMBER > aim.AIMSEQNUMBER &&
+    r.LEARNAIMREF === aim.LEARNAIMREF && r.ORIGLEARNSTARTDATE === original)
+  if (!restart) return aimInYear(aim, year)
+  return (aim.LEARNACTENDDATE !== null && aim.LEARNACTENDDATE >= ILR_YEARS[year].start) || inYearWithRestarts(restart, allAims, year)
+}
+
 export function assembleLearner(l, rows, year) {
   const allAims = rows.aims
-  const yearAims = allAims.filter((a) => aimInYear(a, year))
+  const yearAims = allAims.filter((a) => inYearWithRestarts(a, allAims, year))
   if (yearAims.length === 0) return null
   return {
     ...l,
@@ -147,14 +159,17 @@ export function assembleLearner(l, rows, year) {
     learnerFams: rows.learnerFams,
     employment: rows.employment.map((e) => ({ ...e, esm: rows.esm.filter((m) => m.DATEEMPSTATAPP === e.DATEEMPSTATAPP) })),
     earliestStart: allAims.map((a) => a.LEARNSTARTDATE).sort()[0],
-    aims: yearAims.map((a) => aimWithRecords(a, rows)),
+    // The file numbers the aims it returns consecutively from 1 (ILR
+    // specification 2026 to 2027, AimSeqNumber; rule AimSeqNumber_02).
+    // Warren's own numbers can have gaps: a removed aim keeps its number.
+    aims: yearAims.map((a, i) => ({ ...aimWithRecords(a, rows), FILESEQ: i + 1 })),
   }
 }
 
 // An aim with its FAMs (including the SOF and ACT the export adds), hours
 // and prices.
 export function aimWithRecords(a, rows) {
-  const aim = { ...a, IS_ENGLISH_OR_MATHS: a.AIMTYPE === 3 && ENGLISH_OR_MATHS.test(a.AIMTITLE ?? '') }
+  const aim = { ...a, IS_ENGLISH_OR_MATHS: a.AIMTYPE === 3 && isEnglishOrMaths(a.AIMTITLE) }
   const seq = a.AIMSEQNUMBER
   return {
     ...aim,

@@ -22,11 +22,12 @@ import {
   STAFF,
   VISIBLE_LEARNER,
 } from '../access.js'
-import { ILR_YEARS, STANDARDS_QUERY, aimInYear, aimWithRecords, assembleLearner, clean } from './data.js'
+import { ILR_YEARS, STANDARDS_QUERY, aimWithRecords, assembleLearner, clean, inYearWithRestarts } from './data.js'
 import { MANAGER_ONLY_RULES, RULE_SECTION, checkIlrRules } from './rules.js'
 import { ukNow } from './xml.js'
 import { loadStandardVersions, otjMinimum } from './standards.js'
 import { currentProgramme } from '../../src/programme.js'
+import { checkUndoReturn } from '../returns.js'
 
 const YEAR = 2026
 
@@ -156,6 +157,10 @@ export async function learnerIlr(connection, user, learnRefNumber) {
     employers,
     // The off-the-job minimum for the programme (standards.js).
     otj: programme ? otjMinimum(standardVersions, aimWithRecords(programme, rows)) : null,
+    // Managers: whether the latest return from a break can be undone.
+    returnUndo: isManager && programme?.ORIGLEARNSTARTDATE
+      ? (({ allowed, why }) => ({ allowed, why }))(await checkUndoReturn(connection, learnRefNumber))
+      : null,
     notInReturn,
     rules,
     // Non-managers don't see NI number, prices and payments, or their checks.
@@ -164,7 +169,7 @@ export async function learnerIlr(connection, user, learnRefNumber) {
     lldd: rows.lldd,
     learnerFams: rows.learnerFams,
     employment: rows.employment.map((e) => ({ ...e, esm: rows.esm.filter((m) => m.DATEEMPSTATAPP === e.DATEEMPSTATAPP) })),
-    aims: rows.aims.map((a) => ({ ...aimWithRecords(a, rows), IN_YEAR: aimInYear(a, YEAR) })),
+    aims: rows.aims.map((a) => ({ ...aimWithRecords(a, rows), IN_YEAR: inYearWithRestarts(a, rows.aims, YEAR) })),
   }
 }
 

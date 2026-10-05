@@ -224,7 +224,7 @@ function EmploymentList({ ilr, manage }) {
       {ilr.employment.map((e) => (
         <li key={e.DATEEMPSTATAPP}>
           <p className="record-history-head">
-            From {formatDate(e.DATEEMPSTATAPP)}
+            <span className="record-history-title">From {formatDate(e.DATEEMPSTATAPP)}</span>
             <RecordActions
               manage={manage}
               kind="employment"
@@ -307,6 +307,12 @@ export function ProgrammeRecords({ ilr, manage }) {
 // figure comes from (GET /api/learners/:ref/ilr's otj, server/ilr/standards.js).
 export function otjMinimumText(otj) {
   if (!otj) return 'No programme aim.'
+  const text = otjPolicyText(otj)
+  if (!otj.originalStart) return text
+  return `${text} Returned from a break: this goes by the original start date, ${formatDate(otj.originalStart)}.`
+}
+
+function otjPolicyText(otj) {
   const prior = otj.priorLearning ? `, less ${otj.priorLearning} hours of prior learning` : ''
   switch (otj.policy) {
     case 'published':
@@ -314,7 +320,7 @@ export function otjMinimumText(otj) {
     case 'floor':
       return `Minimum: 187 hours. ${otj.stReference ? `${otj.stReference} version ${otj.version} has` : 'This standard has'} no published minimum for this start date, so only the 187-hour floor applies (funding rules 2026 to 2027, paragraph 86.2).`
     case 'old':
-      return 'Started before 1 August 2025, so the earlier rule applies: 20% of normal working hours (capped at 30 a week) over the planned duration. The ILR checks at least 278 hours.'
+      return `Started before 1 August 2025, so the earlier rule applies: 20% of normal working hours (capped at 30 a week) over the planned duration.${otj.originalStart ? '' : ' The ILR checks at least 278 hours.'}`
     default:
       return "The standards' published minimums aren't loaded yet (npm run import:standards), so only the 187-hour floor is checked."
   }
@@ -388,7 +394,9 @@ function ComponentList({ components, manage }) {
       {components.map((a) => (
         <li key={a.AIMSEQNUMBER}>
           <p className="record-history-head">
-            {a.AIMTITLE ?? a.LEARNAIMREF} <span className="record-id">{a.LEARNAIMREF}</span>
+            <span className="record-history-title">
+              {a.AIMTITLE ?? a.LEARNAIMREF} <span className="record-id">{a.LEARNAIMREF}</span>
+            </span>
             <RecordActions
               manage={manage}
               kind="component"

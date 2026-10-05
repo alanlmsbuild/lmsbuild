@@ -19,3 +19,9 @@ export function currentComponents(aims) {
   if (!programme) return []
   return (aims ?? []).filter((a) => a.AIMTYPE === 3 && !a.REMOVEDAT && a.AIMSEQNUMBER > programme.AIMSEQNUMBER)
 }
+
+// English and maths component aims carry the contract type (ACT) like the
+// programme aim (rule LearnDelFAMType_64), and on a restart record the
+// proportion still to be delivered. Recognised by their LARS title.
+const ENGLISH_OR_MATHS = /^(Functional Skills Qualification in (English|Mathematics)|GCSE .*(English|Mathematics))/i
+export const isEnglishOrMaths = (title) => ENGLISH_OR_MATHS.test(title ?? '')

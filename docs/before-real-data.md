@@ -63,3 +63,16 @@ it. Add to this list rather than keeping these elsewhere.
   ILR return already refuses test learners in a real organisation and real
   learners in a test one. Before real use, decide whether the test
   organisations and their data are removed or kept apart.
+
+## ILR returns
+
+- **Pre-break aims at the year-end rollover** (2026-10-05, Alan). When an
+  apprentice returns from a break, Warren keeps returning the aims from
+  before the break (and their prices) while the restart is open, as the
+  provider support manual says ("Recording apprenticeship programmes":
+  continue to return all aims and financial records, including those
+  before the break, until the apprenticeship is completed or the apprentice
+  withdraws). The migration specification for 2026 to 2027 (Appendix B)
+  only mentions carrying break aims over while the apprentice "has not
+  restarted". Check the first 2027 to 2028 return in FIS next summer for an
+  apprentice who restarted in 2026 to 2027.

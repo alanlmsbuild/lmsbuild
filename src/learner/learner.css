@@ -234,9 +234,24 @@
 }
 
 .record-history-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   margin: 0 0 4px;
   color: var(--rb-ink);
   font-weight: 600;
+}
+
+/* The title wraps on its own; Correct and Remove stay on the right, on the
+   title's first line, however long the title is. */
+.record-history-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.record-history-head .record-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .record-id {

@@ -61,18 +61,25 @@ export async function loadStandardVersions(connection) {
 // with a published figure), 'floor' (from 1 August 2025 but the version has
 // no published figure: only the 187-hour floor), 'old' (started before
 // 1 August 2025), or 'not loaded' (the import hasn't been run).
+//
+// An apprentice returning from a break goes by their original start date:
+// the policy they started under (off-the-job guidance version 6, paragraph
+// 63) and the version of the standard they were on (funding rules 2026 to
+// 2027, paragraph 333). originalStart says which date was used.
 export function otjMinimum(standardVersions, aim) {
   if (!aim?.LEARNSTARTDATE) return null
+  const start = aim.ORIGLEARNSTARTDATE ?? aim.LEARNSTARTDATE
+  const originalStart = aim.ORIGLEARNSTARTDATE ? start : undefined
   const priorLearning = Number(aim.hours?.find((h) => Number(h.HRSCODE) === 4)?.HRSAMOUNT ?? 0)
-  if (aim.LEARNSTARTDATE < PUBLISHED_MINIMUM_FROM) return { policy: 'old', priorLearning }
-  if (!standardVersions) return { policy: 'not loaded', priorLearning, minimum: OTJ_FLOOR }
+  if (start < PUBLISHED_MINIMUM_FROM) return { policy: 'old', priorLearning, originalStart }
+  if (!standardVersions) return { policy: 'not loaded', priorLearning, minimum: OTJ_FLOOR, originalStart }
   const version = (standardVersions.get(Number(aim.STDCODE)) ?? [])
-    .filter((v) => v.EARLIEST_START_DATE && v.EARLIEST_START_DATE <= aim.LEARNSTARTDATE
-      && (!v.LATEST_START_DATE || v.LATEST_START_DATE >= aim.LEARNSTARTDATE))
+    .filter((v) => v.EARLIEST_START_DATE && v.EARLIEST_START_DATE <= start
+      && (!v.LATEST_START_DATE || v.LATEST_START_DATE >= start))
     .sort((a, b) => (a.EARLIEST_START_DATE < b.EARLIEST_START_DATE ? 1 : -1))[0]
   const found = version ? { stReference: version.ST_REFERENCE, version: version.VERSION } : {}
   if (!version || version.MIN_OTJ_HOURS === null) {
-    return { policy: 'floor', ...found, priorLearning, minimum: OTJ_FLOOR }
+    return { policy: 'floor', ...found, priorLearning, minimum: OTJ_FLOOR, originalStart }
   }
   return {
     policy: 'published',
@@ -80,5 +87,6 @@ export function otjMinimum(standardVersions, aim) {
     published: version.MIN_OTJ_HOURS,
     priorLearning,
     minimum: Math.max(version.MIN_OTJ_HOURS - priorLearning, OTJ_FLOOR),
+    originalStart,
   }
 }

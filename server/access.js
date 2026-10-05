@@ -172,21 +172,20 @@ export const VISIBLE_OFFICER = `(
 
 // ---------------------------------------------------------------- the signed-in user
 
+// The user and their roles in one trip. A role counts only while it hasn't
+// been revoked.
 const USER_QUERY = `
   select u.USERID, u.ORGANISATIONID, o.NAME as ORGANISATIONNAME, u.DISPLAYNAME, u.EMAIL, u.OFFICERREFNUMBER,
-    u.LEARNREFNUMBER, u.EMPLOYERID, u.ISACTIVE, u.ISTESTDATA
+    u.LEARNREFNUMBER, u.EMPLOYERID, u.ISACTIVE, u.ISTESTDATA,
+    listagg(distinct r.ROLE, ',') within group (order by r.ROLE) as ROLES
   from ACCESS.APP_USER u
   left join ACCESS.ORGANISATION o
     on o.ORGANISATIONID = u.ORGANISATIONID
+  left join ACCESS.USER_ROLE r
+    on r.USERID = u.USERID and r.REVOKEDAT is null
   where u.USERID = ?
-`
-
-// A role counts only while it hasn't been revoked.
-const ACTIVE_ROLES_QUERY = `
-  select distinct ROLE
-  from ACCESS.USER_ROLE
-  where USERID = ? and REVOKEDAT is null
-  order by ROLE
+  group by u.USERID, u.ORGANISATIONID, o.NAME, u.DISPLAYNAME, u.EMAIL, u.OFFICERREFNUMBER,
+    u.LEARNREFNUMBER, u.EMPLOYERID, u.ISACTIVE, u.ISTESTDATA
 `
 
 // Every variable in SESSION_VARIABLES, in that order, in one statement.
@@ -298,8 +297,8 @@ export async function attachUser(req, res, next) {
     if (!user) return res.status(401).json({ error: `User ${userId} doesn't exist.` })
     if (!user.ISTESTDATA) return res.status(403).json({ error: 'Only test users can sign in with test sign-in.' })
     if (!user.ISACTIVE) return res.status(403).json({ error: 'Your access has ended. Ask a manager if you think this is wrong.' })
-    const roles = await execute(session.db, ACTIVE_ROLES_QUERY, [userId])
-    user.roles = roles.map((r) => r.ROLE)
+    user.roles = user.ROLES ? user.ROLES.split(',') : []
+    delete user.ROLES
     if (user.roles.length === 0) return res.status(403).json({ error: "You don't have any roles yet. Ask a manager to give you one." })
     if (session.lease) session.lease.variablesSet = true
     await execute(session.db, SET_SESSION, sessionValues(user))

@@ -1,3 +1,4 @@
+import { currentProgramme } from '../programme'
 import { useCallback, useEffect, useState } from 'react'
 import {
   SEX_OPTIONS,
@@ -44,14 +45,16 @@ const OUTCOME_LINK_LABELS = {
   'epa-result': 'Record the EPA result',
   break: 'Break in learning',
   withdraw: 'Withdraw',
+  return: 'Return from the break',
 }
-function OutcomeLinks({ learner, back }) {
+function OutcomeLinks({ learner, back, ilr }) {
   const actions = outcomeActions({
     compStatus: learner.COMPSTATUS,
     outcome: learner.OUTCOME,
     actualEndDate: learner.LEARNACTENDDATE,
   }).map((a) => [a, OUTCOME_LINK_LABELS[a]])
   if (learner.LEARNACTENDDATE) actions.push(['correct', 'Correct the outcome'])
+  if (ilr?.returnUndo?.allowed) actions.push(['undo-return', 'Undo the return'])
   if (actions.length === 0) return null
   return (
     <div className="outcome-actions">
@@ -107,6 +110,25 @@ function timeOnPlacement(learner) {
   if (learner.COMPSTATUS !== 1 || learner.OUTCOME !== 8) return training
   const waiting = formatDuration(wholeMonthsBetween(end, new Date())).toLowerCase()
   return `${training} to the end of training, waiting for the EPA for ${waiting}`
+}
+
+// After a return from a break: each spell of learning and the break, e.g.
+// "5 months before the break, then 1 month since returning (break of 1 year
+// 2 months)". Null when the current programme isn't a restart.
+function timeAcrossSpells(learner, ilr) {
+  const programme = ilr && currentProgramme(ilr.aims)
+  if (!programme?.ORIGLEARNSTARTDATE) return null
+  const earlier = ilr.aims
+    .filter((a) => a.AIMTYPE === 1 && a.AIMSEQNUMBER < programme.AIMSEQNUMBER && a.LEARNACTENDDATE &&
+      (a.ORIGLEARNSTARTDATE ?? a.LEARNSTARTDATE) === programme.ORIGLEARNSTARTDATE)
+    .sort((a, b) => a.AIMSEQNUMBER - b.AIMSEQNUMBER)
+  if (earlier.length === 0) return null
+  const months = (from, to) => wholeMonthsBetween(new Date(from), new Date(to))
+  const before = earlier.reduce((n, a) => n + months(a.LEARNSTARTDATE, a.LEARNACTENDDATE), 0)
+  const broke = earlier.at(-1).LEARNACTENDDATE
+  const since = months(programme.LEARNSTARTDATE, programme.LEARNACTENDDATE ?? new Date())
+  const lower = (text) => text.charAt(0).toLowerCase() + text.slice(1)
+  return `${formatDuration(before)} before the break, then ${lower(formatDuration(since))} since returning (break of ${lower(formatDuration(months(broke, programme.LEARNSTARTDATE)))})`
 }
 
 // The learner page's Record tab (Warren): everything Warren holds about the
@@ -279,7 +301,7 @@ function LearnerRecord({ learner, canManage, back }) {
             <Row label="Standard" value={standardLabel(learner, { withLevel: false })} />
             <Row label="Start date" value={formatDate(learner.LEARNSTARTDATE)} />
             <Row label="Planned end date" value={formatDate(learner.LEARNPLANENDDATE)} />
-            <Row label="Time on programme" value={timeOnProgramme ?? '—'} />
+            <Row label="Time on programme" value={timeAcrossSpells(learner, ilr) ?? timeOnProgramme ?? '—'} />
           </dl>
           {ilrSection((d) => <ProgrammeRecords ilr={d} manage={manage} />)}
         </Section>
@@ -315,7 +337,7 @@ function LearnerRecord({ learner, canManage, back }) {
               <Row label="Withdrawal reason" value={labelFromOptions(WITHDRAW_REASON_OPTIONS, learner.WITHDRAWREASON)} />
             )}
           </dl>
-          {canManage && <OutcomeLinks learner={learner} back={back} />}
+          {canManage && <OutcomeLinks learner={learner} back={back} ilr={ilr} />}
         </Section>
 
         <section className="learner-section" aria-label="Officers">

@@ -678,8 +678,53 @@ export function outcomeActions(programme) {
   const { compStatus, outcome, actualEndDate } = programme
   if (compStatus === 1 && !actualEndDate) return ['learning-complete', 'break', 'withdraw']
   if (compStatus === 1 && outcome === 8) return ['epa-result', 'withdraw']
-  if (compStatus === 6) return ['withdraw']
+  if (compStatus === 6) return ['return', 'withdraw']
   return []
+}
+
+// Returning from a break in learning (part 7 step 4g-2): new aims from the
+// restart date for the programme and each component on the break. ctx:
+// { breakAim: { startDate, endDate }, components: [{ seq, startDate,
+// englishOrMaths }], newEmployer, teachingYearEnd, today }. input:
+//   restartDate, plannedEndDate
+//   trainingPrice, assessmentPrice   whole pounds: TNP 1 and 2 for the same
+//                                    employer, residual TNP 3 and 4 for a new one
+//   components: { [seq]: { plannedEndDate, proportion } }  proportion still to
+//                                    be delivered, English and maths only
+//   employer ('same' or a new employer) and, for a new employer, the
+//   employment status fields (validateEmploymentRecord) from the restart date
+export function validateReturn(input, ctx) {
+  const v = input ?? {}
+  const errors = {}
+  const today = ctx?.today ?? todayString()
+  const breakAim = ctx?.breakAim ?? {}
+  if (!isValidDateString(v.restartDate)) errors.restartDate = 'Enter a valid date.'
+  else if (breakAim.endDate && v.restartDate <= breakAim.endDate) {
+    errors.restartDate = `It must be after the last day before the break (${breakAim.endDate}): programme aims can't overlap (rule R_124).`
+  } else if (v.restartDate > today) errors.restartDate = "It can't be in the future."
+  if (!isValidDateString(v.plannedEndDate)) errors.plannedEndDate = 'Enter a valid date.'
+  else if (isValidDateString(v.restartDate) && v.plannedEndDate <= v.restartDate) errors.plannedEndDate = 'It must be after the restart date (rule LearnPlanEndDate_02).'
+  const pounds = (field, label) => {
+    const text = String(v[field] ?? '').trim()
+    if (!/^\d{1,6}$/.test(text) || Number(text) < 1) errors[field] = `Enter the ${label} in whole pounds, without a £ sign or pence.`
+  }
+  pounds('trainingPrice', 'training price')
+  pounds('assessmentPrice', 'assessment price')
+  for (const c of ctx?.components ?? []) {
+    const cv = v.components?.[c.seq] ?? {}
+    const key = `component-${c.seq}`
+    if (!isValidDateString(cv.plannedEndDate)) errors[key] = 'Enter its new planned end date.'
+    else if (isValidDateString(v.restartDate) && cv.plannedEndDate <= v.restartDate) errors[key] = 'Its planned end date must be after the restart date.'
+    const proportion = String(cv.proportion ?? '').trim()
+    if (c.englishOrMaths && proportion && !/^\d{1,2}$/.test(proportion)) errors[key] = 'The proportion still to be delivered is a percentage from 0 to 99, or empty if all of it is.'
+  }
+  if (ctx?.newEmployer) {
+    const employment = validateEmploymentRecord({ ...v, empStat: '10', dateEmpStatApp: v.restartDate }, { teachingYearEnd: ctx.teachingYearEnd })
+    delete employment.dateEmpStatApp
+    delete employment.empStat
+    Object.assign(errors, employment)
+  }
+  return errors
 }
 
 // One outcome. ctx: { programme: { startDate, compStatus, outcome,

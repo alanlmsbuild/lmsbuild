@@ -174,7 +174,7 @@ export const QAR_PAST_PLANNED_END_QUERY = `
     datediff(day, ld.LEARNPLANENDDATE, ?::date) as DAYS_PAST,
     ${academicYear('ld.LEARNPLANENDDATE')} as PLANNED_END_YEAR,
     t.OFFICERNAME as TUTORNAME
-  from LEARNING_DELIVERY ld
+  from ${CURRENT_PROGRAMME} ld -- a break someone has returned from isn't current
   join ${VISIBLE_LEARNER} l
     on l.LEARNREFNUMBER = ld.LEARNREFNUMBER
   left join LARS.STANDARD s
@@ -185,9 +185,7 @@ export const QAR_PAST_PLANNED_END_QUERY = `
    and a.ENDEDAT is null
   left join ${ORG_OFFICER} t
     on t.OFFICERREFNUMBER = a.OFFICERREFNUMBER
-  where ld.AIMTYPE = 1
-    and ld.REMOVEDAT is null
-    and ld.PROGTYPE in (${APPRENTICESHIP_PROGRAMME_TYPES})
+  where ld.PROGTYPE in (${APPRENTICESHIP_PROGRAMME_TYPES})
     and ld.COMPSTATUS in (1, 6)
     and coalesce(ld.OUTCOME, 0) <> 8
     and ld.LEARNPLANENDDATE < ?::date

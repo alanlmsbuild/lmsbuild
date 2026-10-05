@@ -15,6 +15,8 @@ export const OUTCOME_HEADINGS = {
   break: 'Break in learning',
   withdraw: 'Withdraw from the apprenticeship',
   correct: 'Correct the outcome',
+  return: 'Return from the break',
+  'undo-return': 'Undo the return',
 }
 export const OUTCOME_ACTIONS = Object.keys(OUTCOME_HEADINGS)
 

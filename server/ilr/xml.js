@@ -36,7 +36,7 @@ function learningDelivery(aim) {
   return block(2, 'LearningDelivery', [
     ['LearnAimRef', aim.LEARNAIMREF],
     ['AimType', aim.AIMTYPE],
-    ['AimSeqNumber', aim.AIMSEQNUMBER],
+    ['AimSeqNumber', aim.FILESEQ],
     ['LearnStartDate', aim.LEARNSTARTDATE],
     ['OrigLearnStartDate', aim.ORIGLEARNSTARTDATE],
     ['LearnPlanEndDate', aim.LEARNPLANENDDATE],

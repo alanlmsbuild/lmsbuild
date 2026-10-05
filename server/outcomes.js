@@ -25,6 +25,7 @@ import { inTransaction, RequestError, sendError } from './burrow.js'
 import { logChange } from './recordChange.js'
 import { todayString, validateOutcome } from '../src/validation.js'
 import { currentComponents, currentProgramme } from '../src/programme.js'
+import { recordReturn, undoReturn } from './returns.js'
 
 const iso = (value) => {
   if (value === null || value === undefined) return null
@@ -197,12 +198,15 @@ async function record(connection, ref, action, body, by) {
 export function registerOutcomeRoutes(app) {
   app.post('/api/learners/:learnRefNumber/outcome/:action', allow(MANAGER), async (req, res) => {
     const { learnRefNumber, action } = req.params
-    if (!['learning-complete', 'epa-result', 'withdraw', 'break', 'correct'].includes(action)) {
+    if (!['learning-complete', 'epa-result', 'withdraw', 'break', 'correct', 'return', 'undo-return'].includes(action)) {
       res.status(404).json({ error: 'Not found.' })
       return
     }
     try {
-      await record(req.db, learnRefNumber, action, req.body ?? {}, req.user.USERID)
+      const body = req.body ?? {}
+      if (action === 'return') await recordReturn(req.db, learnRefNumber, body, req.user.USERID)
+      else if (action === 'undo-return') await undoReturn(req.db, learnRefNumber, body, req.user.USERID)
+      else await record(req.db, learnRefNumber, action, body, req.user.USERID)
       res.json({ saved: true })
     } catch (err) {
       sendError(res, err, 'Could not record the outcome')

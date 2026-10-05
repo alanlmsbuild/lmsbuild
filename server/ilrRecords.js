@@ -447,22 +447,42 @@ const statusValues = (row, esm) => ({
 })
 const sameDateStatus = 'Another employment status starts on this date (rule R_43). Correct that one instead.'
 
+// For returning from a break (server/returns.js), which adds or removes an
+// employment status inside its own transaction: prepare checks the form and
+// gives the columns; write and remove change the records and log them.
+export async function prepareEmploymentStatus(connection, ref, body) {
+  const next = await employmentColumns(connection, body)
+  const active = await execute(connection, ES_ACTIVE, [ref])
+  if (active.some((x) => isoDate(x.DATEEMPSTATAPP) === next.DATEEMPSTATAPP)) {
+    throw new RequestError('Please fix the highlighted fields.', 400, { dateEmpStatApp: sameDateStatus })
+  }
+  return next
+}
+export async function writeEmploymentStatus(connection, ref, next, by, type = 'added') {
+  await execute(connection, ES_INSERT, [next.DATEEMPSTATAPP, next.EMPSTAT, next.EMPID, next.AGREEMID, next.EMPLOYERID, by, ref])
+  for (const m of next.esm) await execute(connection, ESM_INSERT, [next.DATEEMPSTATAPP, m.ESMTYPE, m.ESMCODE, by, ref])
+  await logChange(connection, {
+    learnRefNumber: ref, table: 'EMPLOYMENT_STATUS', key: { DATEEMPSTATAPP: next.DATEEMPSTATAPP }, type,
+    newValues: statusValues(next, next.esm), by,
+  })
+}
+export async function removeEmploymentStatus(connection, ref, key, reason, by) {
+  const current = (await execute(connection, ES_ACTIVE, [ref])).find((x) => isoDate(x.DATEEMPSTATAPP) === key)
+  if (!current) throw new RequestError('Record not found.', 404)
+  const oldEsm = await execute(connection, ESM_ACTIVE, [ref, key])
+  checkUpdated(await execute(connection, ES_REMOVE, [by, reason, ref, key]))
+  for (const m of oldEsm) checkUpdated(await execute(connection, ESM_REMOVE, [by, reason, ref, key, m.ESMTYPE]))
+  await logChange(connection, {
+    learnRefNumber: ref, table: 'EMPLOYMENT_STATUS', key: { DATEEMPSTATAPP: key }, type: 'removed',
+    oldValues: statusValues(current, oldEsm), reason, by,
+  })
+}
+
 const employment = {
   async add(connection, ref, body, by) {
     await findLearner(connection, ref)
-    const next = await employmentColumns(connection, body)
-    const active = await execute(connection, ES_ACTIVE, [ref])
-    if (active.some((x) => isoDate(x.DATEEMPSTATAPP) === next.DATEEMPSTATAPP)) {
-      throw new RequestError('Please fix the highlighted fields.', 400, { dateEmpStatApp: sameDateStatus })
-    }
-    await inTransaction(connection, async () => {
-      await execute(connection, ES_INSERT, [next.DATEEMPSTATAPP, next.EMPSTAT, next.EMPID, next.AGREEMID, next.EMPLOYERID, by, ref])
-      for (const m of next.esm) await execute(connection, ESM_INSERT, [next.DATEEMPSTATAPP, m.ESMTYPE, m.ESMCODE, by, ref])
-      await logChange(connection, {
-        learnRefNumber: ref, table: 'EMPLOYMENT_STATUS', key: { DATEEMPSTATAPP: next.DATEEMPSTATAPP }, type: 'added',
-        newValues: statusValues(next, next.esm), by,
-      })
-    })
+    const next = await prepareEmploymentStatus(connection, ref, body)
+    await inTransaction(connection, () => writeEmploymentStatus(connection, ref, next, by))
   },
 
   async correct(connection, ref, key, body, by) {
@@ -508,19 +528,7 @@ const employment = {
   async remove(connection, ref, key, body, by) {
     await findLearner(connection, ref)
     checkFields(validateRemoval(body))
-    const active = await execute(connection, ES_ACTIVE, [ref])
-    const current = active.find((x) => isoDate(x.DATEEMPSTATAPP) === key)
-    if (!current) throw new RequestError('Record not found.', 404)
-    const oldEsm = await execute(connection, ESM_ACTIVE, [ref, key])
-    const reason = body.reason.trim()
-    await inTransaction(connection, async () => {
-      checkUpdated(await execute(connection, ES_REMOVE, [by, reason, ref, key]))
-      for (const m of oldEsm) checkUpdated(await execute(connection, ESM_REMOVE, [by, reason, ref, key, m.ESMTYPE]))
-      await logChange(connection, {
-        learnRefNumber: ref, table: 'EMPLOYMENT_STATUS', key: { DATEEMPSTATAPP: key }, type: 'removed',
-        oldValues: statusValues(current, oldEsm), reason, by,
-      })
-    })
+    await inTransaction(connection, () => removeEmploymentStatus(connection, ref, key, body.reason.trim(), by))
   },
 }
 

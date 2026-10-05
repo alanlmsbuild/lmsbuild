@@ -33,7 +33,7 @@ record Warren adds itself (SOF 105 and ACT 1 aren't stored).
 | 5. Withdrawn | 3 | last learning activity | 3 | — | the reason (WithdrawReason_03) | — (PSM) | = LearnActEndDate (R_122) | required for starts from 1 Aug 2022 (HRSType_09) |
 | 6. Break in learning | 6 | last learning activity before the break (the day after, if it falls on the day aims complete) | 3 | — | — (WithdrawReason_04) | — | = LearnActEndDate (R_122) | not required |
 | 7. Doesn't return from a break | 3 | unchanged (the break's date) | 3 | — | the reason | — | = LearnActEndDate (R_122) | required for starts from 1 Aug 2022 |
-| 8. Returns from a break (4g-2) | new programme aim: CompStatus 1, start = restart date, OrigLearnStartDate = original start, new planned end, RES 1, new TNP prices (the same unless renegotiated). The aim on a break stays as it was and is still returned. | | | | | | ACT from the new start (R_102) | |
+| 8. Returns from a break | new programme aim from the restart date: CompStatus 1, OrigLearnStartDate = the original start, new planned end, RES 1, prices TNP 1 and 2 (the same unless renegotiated), or residual TNP 3 and 4 with a new employer; planned hours (HRS 1, HRS 4) and any price reduction (RIP 1) copied. The aim on the break stays as it was and is still returned while the restart is open. | | | | | | ACT from the new start (R_102) | copied from the start (whole programme) |
 
 Notes, with sources:
 
@@ -83,6 +83,29 @@ Notes, with sources:
 | 5. Withdrawn | every open component: CompStatus 3, the same date and reason, Outcome 3 |
 | 6. Break in learning | every open component: CompStatus 6, LearnActEndDate, Outcome 3 |
 | 8. Returns from a break | new component aims with RES 1 and their original start dates (4g-2) |
+
+Returning from a break (sources: provider support manual, "Recording
+apprenticeship programmes"; technical funding guide from August 2026,
+scenario F and "Changes in price"; funding rules 2026 to 2027, version 3,
+paragraphs 78.4, 79, 310 and 333; off-the-job guidance version 6,
+paragraphs 63, 75 and 82):
+
+- Each component on the break gets a new aim too, from the restart date,
+  with RES 1 and its own original start. English and maths record the
+  proportion still to be delivered (funding adjustment for prior learning).
+- EEF is copied; dated records such as learning support (LSF) are entered
+  again if they still apply.
+- A new employer gets an employment status from the restart date.
+- The off-the-job policy and the standard's version go by the original start
+  date; the minimum duration counts the spells before and after the break.
+- Rules for restarts: R_124 (no overlapping programme aims), R_142 (no price
+  on the aim on the break dated on or after the restart), AFinDate_05 and 06,
+  OrigLearnStartDate_01, 02, 04, 07 and 09; restarts are excluded from
+  LearnStartDate_13, 17 and 18, the minimum-duration rules, HRSAmount_02 and
+  03 and HRSType_08.
+- In the ILR file the aims are numbered consecutively from 1 (AimSeqNumber
+  notes; rule AimSeqNumber_02). Warren's own aim numbers can have gaps,
+  because an aim removed as entered in error keeps its number.
 
 A closed programme aim can't have open component aims (R_90), and no
 component can end after the programme (R_89). AchDate is never on a
