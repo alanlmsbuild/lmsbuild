@@ -10,10 +10,15 @@
 // through these sources, never the raw tables (npm run check:scoping looks
 // for slips, and for routes that don't say which roles they allow).
 //
-// Each request has its own connection, closed when the response ends, so
-// the session variables can't carry over from one user to another.
+// Each request has its own session: opened for it and closed when the
+// response ends, or with DB_POOL=on, borrowed from a pool of open sessions
+// (sessionPool.js), where every variable is set afresh on each request and
+// unset when the session comes back. Either way the user and their roles
+// are looked up on every request, so deactivating someone or changing
+// their roles takes effect on their next request.
 
 import { connect, execute, destroy, ConnectTimeoutError } from './db.js'
+import { POOL_ON, SESSION_VARIABLES, borrow, giveBack, leaseFor } from './sessionPool.js'
 import { testUserId } from './devUsers.js'
 
 // Only for reading from the ORG_ sources below. Not a table.
@@ -172,11 +177,8 @@ const ACTIVE_ROLES_QUERY = `
   order by ROLE
 `
 
-const SET_SESSION = `
-  set (CURRENT_ORGANISATIONID, CURRENT_ISTESTDATA, SEES_ALL_LEARNERS, SEES_ALL_OFFICERS, SEES_MANAGER_ONLY,
-       CURRENT_OFFICERREFNUMBER, CASELOAD_OFFICERREFNUMBER, APPRENTICES_OF_EMPLOYERID, OWN_LEARNREFNUMBER)
-    = (?, ?, ?, ?, ?, ?, ?, ?, ?)
-`
+// Every variable in SESSION_VARIABLES, in that order, in one statement.
+const SET_SESSION = `set (${SESSION_VARIABLES.join(', ')}) = (${SESSION_VARIABLES.map(() => '?').join(', ')})`
 
 function sessionValues(user) {
   const holds = (...roles) => user.roles.some((role) => roles.includes(role))
@@ -221,12 +223,27 @@ function timeRequest(req, res) {
     console.log(
       `[timing] ${new Date().toISOString()} ${req.method} ${req.originalUrl} ${req.user?.USERID ?? '-'} status=${res.statusCode}` +
         ` connect=${ms(0, marks.connected === undefined ? undefined : marks.connected - start)} sign-in=${ms(marks.connected, marks.signedIn)}` +
-        ` work=${work} total=${Math.round(total)}ms${gaveUp ? ' (the browser gave up before the response)' : ''}`,
+        ` work=${work} total=${Math.round(total)}ms${res.locals.dbSession ? ` session=${res.locals.dbSession}` : ''}` +
+        `${gaveUp ? ' (the browser gave up before the response)' : ''}`,
     )
   })
   return (name) => {
     marks[name] = performance.now()
   }
+}
+
+// The request's database session: borrowed from the pool with DB_POOL=on,
+// otherwise opened just for this request. end({ reuse, why }) returns it
+// to the pool, or throws it away; without the pool it's always closed.
+async function sessionForRequest(res) {
+  if (!POOL_ON) {
+    const connection = await connect()
+    return { db: connection, end: () => destroy(connection).catch((err) => console.error('Failed to close connection:', err.message)) }
+  }
+  const session = await borrow()
+  res.locals.dbSession = `${session.id}${session.fresh ? ' (new)' : ' (reused)'}`
+  const lease = leaseFor(session)
+  return { db: lease, lease, end: (outcome) => giveBack(lease, outcome) }
 }
 
 export async function attachUser(req, res, next) {
@@ -238,51 +255,55 @@ export async function attachUser(req, res, next) {
     return
   }
 
-  let connection
+  // Watched from the start: the browser can give up while the session is
+  // still being opened (or waited for), and that session must still be
+  // closed or returned. A session whose browser gave up may still be
+  // running a query, and one whose request failed may be in a bad state:
+  // neither is reused.
+  let session = null
+  let closed = false
+  let ended = false
+  const finish = () => {
+    if (!session || ended) return
+    ended = true
+    const gaveUp = !res.writableFinished
+    session.end({
+      reuse: !gaveUp && res.statusCode < 500,
+      why: gaveUp ? 'the browser gave up before the response' : `the request failed (${res.statusCode})`,
+    })
+  }
+  res.on('close', () => {
+    closed = true
+    finish()
+  })
+
   try {
-    connection = await connect()
+    session = await sessionForRequest(res)
     mark('connected')
-    const [user] = await execute(connection, USER_QUERY, [userId])
-    if (!user) {
-      await destroy(connection)
-      res.status(401).json({ error: `User ${userId} doesn't exist.` })
-      return
-    }
-    if (!user.ISTESTDATA) {
-      await destroy(connection)
-      res.status(403).json({ error: 'Only test users can sign in with test sign-in.' })
-      return
-    }
-    if (!user.ISACTIVE) {
-      await destroy(connection)
-      res.status(403).json({ error: 'Your access has ended. Ask a manager if you think this is wrong.' })
-      return
-    }
-    const roles = await execute(connection, ACTIVE_ROLES_QUERY, [userId])
+    if (closed) return finish()
+    // Looked up on every request, pooled or not.
+    const [user] = await execute(session.db, USER_QUERY, [userId])
+    if (!user) return res.status(401).json({ error: `User ${userId} doesn't exist.` })
+    if (!user.ISTESTDATA) return res.status(403).json({ error: 'Only test users can sign in with test sign-in.' })
+    if (!user.ISACTIVE) return res.status(403).json({ error: 'Your access has ended. Ask a manager if you think this is wrong.' })
+    const roles = await execute(session.db, ACTIVE_ROLES_QUERY, [userId])
     user.roles = roles.map((r) => r.ROLE)
-    if (user.roles.length === 0) {
-      await destroy(connection)
-      res.status(403).json({ error: "You don't have any roles yet. Ask a manager to give you one." })
-      return
-    }
-    await execute(connection, SET_SESSION, sessionValues(user))
+    if (user.roles.length === 0) return res.status(403).json({ error: "You don't have any roles yet. Ask a manager to give you one." })
+    if (session.lease) session.lease.variablesSet = true
+    await execute(session.db, SET_SESSION, sessionValues(user))
     mark('signedIn')
+    if (closed) return
     req.user = user
-    req.db = connection
+    req.db = session.db
   } catch (err) {
-    if (connection) await destroy(connection).catch(() => {})
     if (err instanceof ConnectTimeoutError) {
       console.error('Timed out opening a database session:', err.message)
-      res.status(503).json({ error: "Couldn't reach the database just now. Please try again." })
+      if (!closed) res.status(503).json({ error: "Couldn't reach the database just now. Please try again." })
       return
     }
     console.error('Failed to look up the signed-in user:', err.message)
-    res.status(500).json({ error: 'Could not check who is signed in. Please try again.' })
+    if (!closed) res.status(500).json({ error: 'Could not check who is signed in. Please try again.' })
     return
   }
-
-  res.on('close', () => {
-    destroy(connection).catch((err) => console.error('Failed to close connection:', err.message))
-  })
   next()
 }

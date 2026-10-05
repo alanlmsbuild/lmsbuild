@@ -42,6 +42,15 @@
 //    if it has one. A query that must see removed records too (the next aim
 //    number, so a removed aim's number is never reused) says why with
 //    "-- including removed:".
+// 10. No session state that could outlive a request (sessions can be
+//    reused between requests and users, server/sessionPool.js): no
+//    LAST_QUERY_ID, RESULT_SCAN, ALTER SESSION, USE, or temporary tables.
+// 11. No hand-written transactions: begin, commit and rollback only in
+//    inTransaction (server/burrow.js) and the pool's clean-up, so a failed
+//    request always rolls back.
+// 12. Every session variable a query reads ($NAME) is in SESSION_VARIABLES
+//    (server/sessionPool.js), the list that's set on every request and
+//    unset when a reused session comes back.
 // 8. Prices and payments are for managers only: outside access.js,
 //    APP_FIN_RECORD may only be read through ORG_APP_FIN_RECORD (which is
 //    empty for anyone else). Naming the table is only allowed to write to
@@ -201,8 +210,34 @@ for (const file of serverFiles) {
   }
 }
 
+// Checks 10, 11 and 12, in every server file (access.js too).
+{
+  const SESSION_STATE = /\b(last_query_id|result_scan|alter\s+session|use\s+(role|warehouse|database|schema|secondary)|create\s+(or\s+replace\s+)?(temp|temporary)\b)/i
+  const TRANSACTION = /\bexecute\([^,]+,\s*(['`"])\s*(begin|commit|rollback)\b/i
+  const TRANSACTION_ALLOWED = { 'burrow.js': 'export async function inTransaction', 'sessionPool.js': 'export async function giveBack' }
+  const poolText = fs.readFileSync(path.join(serverDir, 'sessionPool.js'), 'utf8')
+  const known = new Set((poolText.match(/SESSION_VARIABLES = \[([^\]]*)\]/)?.[1] ?? '').match(/[A-Z_]+/g) ?? [])
+  if (known.size === 0) report('sessionPool.js', poolText, 0, 'SESSION_VARIABLES not found')
+  for (const file of [...serverFiles, 'access.js']) {
+    const text = fs.readFileSync(path.join(serverDir, file), 'utf8')
+    for (const match of text.matchAll(/`[^`]*`|'[^'\n]*'/g)) {
+      const state = match[0].match(SESSION_STATE)
+      if (state) report(file, text, match.index, `uses ${state[1]}, which keeps session state a reused session would carry to the next user`)
+      for (const v of match[0].matchAll(/\$([A-Z][A-Z0-9_]{2,})\b/g)) {
+        if (!known.has(v[1])) report(file, text, match.index, `reads session variable $${v[1]}, which isn't in SESSION_VARIABLES (sessionPool.js)`)
+      }
+    }
+    for (const m of text.matchAll(new RegExp(TRANSACTION, 'gi'))) {
+      const allowedIn = TRANSACTION_ALLOWED[file]
+      const owner = allowedIn ? text.lastIndexOf(allowedIn, m.index) : -1
+      const inside = owner >= 0 && !/\n(export )?(async )?function /.test(text.slice(owner + allowedIn.length, m.index))
+      if (!inside) report(file, text, m.index, `runs ${m[2]} by hand: use inTransaction (server/burrow.js)`)
+    }
+  }
+}
+
 if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), and removed ILR records are left out.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, and every session variable is in SESSION_VARIABLES.')

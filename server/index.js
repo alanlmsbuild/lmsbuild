@@ -302,54 +302,45 @@ app.post('/api/learners', allow(MANAGER), async (req, res) => {
       return
     }
 
-    await execute(connection, 'begin')
+    await inTransaction(connection, async () => {
+      await execute(connection, INSERT_LEARNER, [
+        learnRefNumber,
+        Number(v.uln),
+        v.familyName?.trim() || null,
+        v.givenNames?.trim() || null,
+        v.dateOfBirth || null,
+        Number(v.ethnicity),
+        v.sex,
+        Number(v.lldd),
+        v.niNumber ? v.niNumber.trim().toUpperCase() : null,
+        v.postcodePrior.trim().toUpperCase(),
+        v.postcode.trim().toUpperCase(),
+        v.phone?.trim() || null,
+        v.email?.trim() || null,
+        v.title?.trim() || null,
+        v.addressLine1?.trim() || null,
+        v.addressLine2?.trim() || null,
+        v.addressLine3?.trim() || null,
+        v.wardOrCounty?.trim() || null,
+        v.mobile?.trim() || null,
+        joinContactMethods(v.contactMethodsAllowed),
+        v.preferredContactMethod?.trim() || null,
+        v.nextOfKinName?.trim() || null,
+        v.nextOfKinRelationship?.trim() || null,
+        v.nextOfKinPhone?.trim() || null,
+        v.contractType?.trim() || null,
+      ])
 
-    await execute(connection, INSERT_LEARNER, [
-      learnRefNumber,
-      Number(v.uln),
-      v.familyName?.trim() || null,
-      v.givenNames?.trim() || null,
-      v.dateOfBirth || null,
-      Number(v.ethnicity),
-      v.sex,
-      Number(v.lldd),
-      v.niNumber ? v.niNumber.trim().toUpperCase() : null,
-      v.postcodePrior.trim().toUpperCase(),
-      v.postcode.trim().toUpperCase(),
-      v.phone?.trim() || null,
-      v.email?.trim() || null,
-      v.title?.trim() || null,
-      v.addressLine1?.trim() || null,
-      v.addressLine2?.trim() || null,
-      v.addressLine3?.trim() || null,
-      v.wardOrCounty?.trim() || null,
-      v.mobile?.trim() || null,
-      joinContactMethods(v.contactMethodsAllowed),
-      v.preferredContactMethod?.trim() || null,
-      v.nextOfKinName?.trim() || null,
-      v.nextOfKinRelationship?.trim() || null,
-      v.nextOfKinPhone?.trim() || null,
-      v.contractType?.trim() || null,
-    ])
-
-    await execute(connection, INSERT_LEARNING_DELIVERY, [
-      v.startDate,
-      v.plannedEndDate,
-      Number(v.stdCode),
-      v.dellocPostcode.trim().toUpperCase(),
-      learnRefNumber,
-    ])
-
-    await execute(connection, 'commit')
+      await execute(connection, INSERT_LEARNING_DELIVERY, [
+        v.startDate,
+        v.plannedEndDate,
+        Number(v.stdCode),
+        v.dellocPostcode.trim().toUpperCase(),
+        learnRefNumber,
+      ])
+    })
     res.status(201).json({ learnRefNumber })
   } catch (err) {
-    if (connection) {
-      try {
-        await execute(connection, 'rollback')
-      } catch (rollbackErr) {
-        console.error('Failed to roll back transaction:', rollbackErr.message)
-      }
-    }
     console.error('Failed to add learner:', err.message)
     res.status(500).json({ error: 'Could not save the new learner. Please try again.' })
   }
@@ -753,12 +744,12 @@ app.post('/api/learners/:learnRefNumber/officers', allow(MANAGER), async (req, r
       return
     }
 
-    await execute(connection, 'begin')
-    for (const a of current) {
-      await execute(connection, END_ASSIGNMENT, [req.user.USERID, a.ASSIGNMENTID])
-    }
-    await execute(connection, INSERT_ASSIGNMENT, [officerRefNumber, role, req.user.USERID, learnRefNumber])
-    await execute(connection, 'commit')
+    await inTransaction(connection, async () => {
+      for (const a of current) {
+        await execute(connection, END_ASSIGNMENT, [req.user.USERID, a.ASSIGNMENTID])
+      }
+      await execute(connection, INSERT_ASSIGNMENT, [officerRefNumber, role, req.user.USERID, learnRefNumber])
+    })
 
     res.status(201).json({
       learnRefNumber,
@@ -767,13 +758,6 @@ app.post('/api/learners/:learnRefNumber/officers', allow(MANAGER), async (req, r
       replaced: current.map((a) => a.OFFICERREFNUMBER),
     })
   } catch (err) {
-    if (connection) {
-      try {
-        await execute(connection, 'rollback')
-      } catch (rollbackErr) {
-        console.error('Failed to roll back transaction:', rollbackErr.message)
-      }
-    }
     console.error('Failed to assign officer to learner:', err.message)
     res.status(500).json({ error: 'Could not assign this officer. Please try again.' })
   }
