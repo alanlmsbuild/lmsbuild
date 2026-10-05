@@ -23,10 +23,29 @@ function createConnection() {
   })
 }
 
-export function connect() {
+// Opening a session must finish within this time (DB_CONNECT_TIMEOUT_MS in
+// server/.env, default 10 seconds). The driver itself keeps retrying a login
+// for at least 5 minutes, so without a limit a stalled network leaves a
+// request hanging with nothing on the page. A session that opens after the
+// limit is closed straight away.
+export const CONNECT_TIMEOUT_MS = Number(process.env.DB_CONNECT_TIMEOUT_MS) || 10000
+
+export class ConnectTimeoutError extends Error {}
+
+export function connect({ timeoutMs = CONNECT_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
     const connection = createConnection()
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      reject(new ConnectTimeoutError(`Opening a Snowflake session took over ${timeoutMs} ms.`))
+    }, timeoutMs)
     connection.connect((err, conn) => {
+      clearTimeout(timer)
+      if (timedOut) {
+        if (!err) conn.destroy(() => {})
+        return
+      }
       if (err) reject(err)
       else resolve(conn)
     })

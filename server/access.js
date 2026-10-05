@@ -13,7 +13,7 @@
 // Each request has its own connection, closed when the response ends, so
 // the session variables can't carry over from one user to another.
 
-import { connect, execute, destroy } from './db.js'
+import { connect, execute, destroy, ConnectTimeoutError } from './db.js'
 import { testUserId } from './devUsers.js'
 
 // Only for reading from the ORG_ sources below. Not a table.
@@ -201,7 +201,36 @@ function signedInUserId(req) {
   return testUserId(req)
 }
 
+// How long each request spends opening its Snowflake session, signing in
+// (the user, their roles and the session variables) and on the route's own
+// work. Logged for requests slower than SLOW_REQUEST_MS (server/.env,
+// default 2 seconds), ones that fail, time out, or that the browser gave up
+// on; DB_TIMING_LOG=all logs every request.
+const SLOW_REQUEST_MS = Number(process.env.SLOW_REQUEST_MS) || 2000
+const LOG_EVERY_REQUEST = process.env.DB_TIMING_LOG === 'all'
+
+function timeRequest(req, res) {
+  const start = performance.now()
+  const marks = {}
+  res.on('close', () => {
+    const total = performance.now() - start
+    const gaveUp = !res.writableFinished
+    if (!(LOG_EVERY_REQUEST || gaveUp || res.statusCode >= 500 || total > SLOW_REQUEST_MS)) return
+    const ms = (from, to) => (from === undefined || to === undefined ? '-' : `${Math.round(to - from)}ms`)
+    const work = marks.signedIn === undefined ? '-' : ms(marks.signedIn, performance.now())
+    console.log(
+      `[timing] ${new Date().toISOString()} ${req.method} ${req.originalUrl} ${req.user?.USERID ?? '-'} status=${res.statusCode}` +
+        ` connect=${ms(0, marks.connected === undefined ? undefined : marks.connected - start)} sign-in=${ms(marks.connected, marks.signedIn)}` +
+        ` work=${work} total=${Math.round(total)}ms${gaveUp ? ' (the browser gave up before the response)' : ''}`,
+    )
+  })
+  return (name) => {
+    marks[name] = performance.now()
+  }
+}
+
 export async function attachUser(req, res, next) {
+  const mark = timeRequest(req, res)
   const userId = signedInUserId(req)
   if (!userId) {
     // signedIn: false tells the app to show the sign-in page, not an error.
@@ -212,6 +241,7 @@ export async function attachUser(req, res, next) {
   let connection
   try {
     connection = await connect()
+    mark('connected')
     const [user] = await execute(connection, USER_QUERY, [userId])
     if (!user) {
       await destroy(connection)
@@ -236,10 +266,16 @@ export async function attachUser(req, res, next) {
       return
     }
     await execute(connection, SET_SESSION, sessionValues(user))
+    mark('signedIn')
     req.user = user
     req.db = connection
   } catch (err) {
     if (connection) await destroy(connection).catch(() => {})
+    if (err instanceof ConnectTimeoutError) {
+      console.error('Timed out opening a database session:', err.message)
+      res.status(503).json({ error: "Couldn't reach the database just now. Please try again." })
+      return
+    }
     console.error('Failed to look up the signed-in user:', err.message)
     res.status(500).json({ error: 'Could not check who is signed in. Please try again.' })
     return
