@@ -1,23 +1,10 @@
 // Browser test for part 7 step 3 (addresses, sign-in and role homes),
 // updated to the step 4a learner page. Reads only: it changes no data.
 //
-// Needs the test servers running, never the dev ones:
-//   PORT=3002 node server/index.js      (with TEST_SIGN_IN=true in server/.env)
-//   vite on port 5199, proxying /api to 3002
-// Then:
-//   node test/browser/step3.mjs <folder for screenshots>
-// playwright-core and a headless Chromium aren't project dependencies; say
-// where they are with PLAYWRIGHT_DIR (a node_modules folder that has
-// playwright-core) and CHROMIUM_PATH. BASE_URL defaults to port 5199.
-import { createRequire } from 'node:module'
-const require = createRequire(process.env.PLAYWRIGHT_DIR ?? process.env.HOME + '/.npm/_npx/e058441c325e062a/node_modules/')
-const { chromium } = require('playwright-core')
-const OUT = process.argv[2] ?? '.'
-const BASE = process.env.BASE_URL ?? 'http://localhost:5199'
-if (/:(3001|5173)\b/.test(BASE)) throw new Error('Ports 3001 and 5173 are the dev servers. Test on 3002 and 5199.')
-const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH ?? process.env.HOME + '/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell',
-})
+// Run against the test servers (test/start-test-servers.sh); see setup.mjs
+// for the settings.
+import { BASE, OUT, launch } from './setup.mjs'
+const browser = await launch()
 
 let failures = 0
 function check(label, ok, detail = '') {
