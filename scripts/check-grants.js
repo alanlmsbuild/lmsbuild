@@ -13,6 +13,10 @@
 //   3. It can UPDATE an add-only table: the history of changes and the
 //      reviews, checks and confirmations behind evidence.
 //   4. It has any access to CAPTURE_DB.TEST_BASELINE (the test snapshot).
+//   5. It can do anything but INSERT on a RAW table (responses from outside
+//      services, add-only; rebuilding EXT from them is an admin job), or has
+//      future grants in RAW or EXT (those are granted table by table), or is
+//      missing a grant the Companies House code needs (REQUIRED below).
 // Needs the Snowflake connection in server/.env.
 //
 // Usage:
@@ -29,12 +33,20 @@ const ADD_ONLY = new Set([
   'CAPTURE_DB.BURROW.EVIDENCE_REVIEW',
   'CAPTURE_DB.BURROW.IQA_CHECK',
   'CAPTURE_DB.BURROW.WITNESS_CONFIRMATION',
+  'CAPTURE_DB.RAW.CH_COMPANY_PROFILE',
+  'CAPTURE_DB.EXT.COMPANY_CHANGE',
 ])
+// Grants the app needs on the RAW and EXT tables (sql/employers_01_companies_house.sql).
+const REQUIRED = {
+  'CAPTURE_DB.RAW.CH_COMPANY_PROFILE': ['INSERT'],
+  'CAPTURE_DB.EXT.COMPANY': ['SELECT', 'INSERT', 'UPDATE'],
+  'CAPTURE_DB.EXT.COMPANY_CHANGE': ['SELECT', 'INSERT'],
+}
 
 // The problems in a list of grants (from SHOW GRANTS TO ROLE) and future
 // grants on ACCESS (from SHOW FUTURE GRANTS IN SCHEMA). Exported so it can be
 // tried on made-up grants.
-export function grantProblems(grants, futureAccessGrants) {
+export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []) {
   const problems = []
   for (const g of grants) {
     const name = String(g.name)
@@ -45,6 +57,17 @@ export function grantProblems(grants, futureAccessGrants) {
     }
     if (privilege === 'DELETE' || privilege === 'TRUNCATE') problems.push(`${privilege} on ${name}: the app never deletes`)
     if (privilege === 'UPDATE' && ADD_ONLY.has(name)) problems.push(`UPDATE on ${name}: it is add-only`)
+    if (g.granted_on === 'TABLE' && name.startsWith('CAPTURE_DB.RAW.') && privilege !== 'INSERT') {
+      problems.push(`${privilege} on ${name}: the app only adds to RAW`)
+    }
+  }
+  for (const [name, privileges] of Object.entries(REQUIRED)) {
+    for (const privilege of privileges) {
+      if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the Companies House code needs it`)
+    }
+  }
+  for (const g of futureLayerGrants.filter((x) => x.grantee_name === ROLE)) {
+    problems.push(`${g.privilege} on future ${g.grant_on} in ${g.name}: RAW and EXT are granted table by table`)
   }
   for (const g of futureAccessGrants.filter((x) => x.grantee_name === ROLE)) {
     if (WRITES.has(String(g.privilege))) problems.push(`${g.privilege} on future tables in CAPTURE_DB.ACCESS: new ACCESS tables would be writable`)
@@ -59,14 +82,18 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   try {
     const grants = await execute(connection, `show grants to role ${ROLE}`)
     const future = await execute(connection, 'show future grants in schema CAPTURE_DB.ACCESS')
-    checked = grants.length + future.length
-    problems = grantProblems(grants, future)
+    const layers = [
+      ...(await execute(connection, 'show future grants in schema CAPTURE_DB.RAW')),
+      ...(await execute(connection, 'show future grants in schema CAPTURE_DB.EXT')),
+    ]
+    checked = grants.length + future.length + layers.length
+    problems = grantProblems(grants, future, layers)
   } finally {
     await destroy(connection)
   }
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, and it can't reach the test snapshot.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, the Companies House grants are in place, and it can't reach the test snapshot.`)
   process.exit(problems.length ? 1 : 0)
 }

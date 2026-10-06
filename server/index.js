@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { registerCompaniesHouseRoutes } from './companiesHouse.js'
 import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
 import express from 'express'
@@ -790,6 +791,7 @@ registerMyDayRoutes(app)
 registerBurrowRoutes(app)
 registerEmployerRoutes(app)
 registerIqaRoutes(app)
+registerCompaniesHouseRoutes(app)
 
 const port = process.env.PORT || 3001
 app.listen(port, () => {

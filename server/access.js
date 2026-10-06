@@ -29,6 +29,21 @@ export const ORG_EMPLOYER = `(select * from ILR.EMPLOYER where ORGANISATIONID = 
 export const ORG_APP_USER = `(select * from ACCESS.APP_USER where ORGANISATIONID = ${ORG})`
 export const ORG_ORGANISATION = `(select * from ACCESS.ORGANISATION where ORGANISATIONID = ${ORG})`
 
+// Companies House details (the EXT schema) are shared across organisations, so
+// they're read only for the organisation's own employers, one row per
+// employer with a company number (npm run check:scoping). The registered
+// office is managers only: for tutors, assessors and IQAs it reads as null.
+export const MANAGER_ONLY_COMPANY_COLUMNS = [
+  'ADDRESSPREMISES', 'ADDRESSLINE1', 'ADDRESSLINE2', 'ADDRESSLOCALITY', 'ADDRESSREGION',
+  'ADDRESSPOSTCODE', 'ADDRESSCOUNTRY', 'ADDRESSPOBOX', 'ADDRESSCAREOF', 'OFFICEINDISPUTE', 'OFFICEUNDELIVERABLE',
+]
+export const ORG_EMPLOYER_COMPANY = `(
+  select e.EMPLOYERID, c.* replace (${MANAGER_ONLY_COMPANY_COLUMNS.map((col) => `iff($SEES_MANAGER_ONLY, c.${col}, null) as ${col}`).join(', ')})
+  from ILR.EMPLOYER e
+  join EXT.COMPANY c on c.COMPANYNUMBER = e.COMPANYNUMBER
+  where e.ORGANISATIONID = ${ORG}
+)`
+
 // The organisation to write on new learners and officers.
 export const CURRENT_ORGANISATIONID = ORG
 
