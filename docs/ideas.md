@@ -19,6 +19,12 @@ built, move it out (or strike it through with where it went).
   whether one should follow the other.
 - 2026-09-28, Claude: other vacancy sources besides Find an apprenticeship
   (Adzuna, Reed). Their terms of use haven't been checked.
+- 2026-10-06, Alan: move the LARS, SKILLS and REF imports to the layered
+  pattern (raw responses in RAW, cleaned tables built from them), like
+  Companies House and the vacancy import.
+- 2026-10-06, Claude: Companies House's Streaming API (real-time changes to
+  every company) instead of the nightly refresh, if the number of employers
+  grows a lot. At most two connections per account.
 ## Ideas from Alan, 5 October 2026
 
 ### Learners and matching

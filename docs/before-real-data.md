@@ -84,3 +84,26 @@ it. Add to this list rather than keeping these elsewhere.
   file. Confirm with DfE's guidance whether an aim's AimSeqNumber may change
   between returns in the same year, or must stay the same once submitted.
 
+
+## Employers and Companies House
+
+- **The rate-limit counter is per server process** (2026-10-06, Alan).
+  Companies House allows 600 requests in five minutes per application.
+  Warren's own counter, capped below that, lives in one server process, so
+  it won't hold if more than one server runs. Share it (for example in
+  Snowflake) or keep to one process.
+- **How long RAW history is kept** (2026-10-06, Alan). Every Companies House
+  response is kept in RAW, add-only. Set a retention period (for example 2
+  years) and a way to clear older rows.
+- **Where scheduled jobs run** (2026-10-06, Claude). The nightly company
+  refresh needs a scheduler: on the server, or inside Snowflake with external
+  access. Nothing runs on a schedule yet.
+- **Separate Companies House keys** (2026-10-06, Claude) for development,
+  testing and real use: the limit is per application, so one shared key
+  shares the 600 requests. Decide who owns the keys and how they're rotated.
+- **Test employers linked to real companies** (2026-10-06, Claude). Testing
+  the add-an-employer screen links test employers (ISTESTDATA) to real,
+  public companies. Remove them before real use.
+- **Registered office addresses** (2026-10-06, Alan). Small companies often
+  use a home address. It's on the public register, but Warren shows it to
+  managers only.
