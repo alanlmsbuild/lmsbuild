@@ -22,6 +22,12 @@
   list-style: none;
 }
 
+/* On an employer's page both boxes use the same label width, so their
+   values line up. */
+.employer-page .employer-details {
+  grid-template-columns: 15.5rem 1fr;
+}
+
 .employer-page .ui-card {
   margin-bottom: var(--ui-space-5);
 }
@@ -73,7 +79,8 @@
 }
 
 @media (max-width: 640px) {
-  .employer-details {
+  .employer-details,
+  .employer-page .employer-details {
     grid-template-columns: 1fr;
     gap: 2px;
   }
