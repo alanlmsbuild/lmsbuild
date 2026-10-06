@@ -224,6 +224,27 @@ try {
   const sam4 = (await api('USR-T0207', '/api/employer/apprentices')).body
   const samSees = (Array.isArray(sam4) ? sam4 : sam4.apprentices ?? []).some((a) => a.LEARNREFNUMBER === 'TESTL0004')
   check('  Sam (Crosspool) no longer sees TESTL0004 once they are at Hillsborough', !samSees)
+
+  // A second move the same day (back to Crosspool) corrects that day's move:
+  // still one link per key, the day's link now at Crosspool, logged.
+  await openWorkplace(max, 'TESTL0004')
+  await max.getByRole('link', { name: 'Change workplace' }).click()
+  await max.locator('#edit-learner form').waitFor({ timeout: 60000 })
+  await max.getByLabel('Site', { exact: true }).selectOption({ label: 'Testco Express Crosspool (S10 5AA)' })
+  await max.getByLabel('Date they moved').fill(today)
+  if (await max.getByText(/Change the delivery location postcode/).count()) await max.getByLabel('No, leave them as they are').check()
+  await max.getByRole('button', { name: 'Save workplace' }).click()
+  await max.waitForURL((u) => u.pathname === '/app/learners/TESTL0004', { timeout: 60000 })
+  const twice = await links('TESTL0004')
+  const keys = twice.map((l) => `${l.EMPLOYERID} ${l.F}`)
+  check('a second move the same day leaves one link per key', keys.length === new Set(keys).size, JSON.stringify(twice))
+  const day = twice.filter((l) => l.F === today && l.EMPLOYERID === 'EMP-T001')
+  check("  the day's link is now at Crosspool, current; the seeded one still ended yesterday",
+    day.length === 1 && day[0].SITEID === 'SITE-T001' && day[0].T === null && twice.find((l) => l.F === now4.F)?.T === yesterday, JSON.stringify(twice))
+  const corrected = await q(`select count(*) as N from ILR.RECORD_CHANGE
+    where LEARNREFNUMBER = 'TESTL0004' and TABLENAME = 'LEARNER_EMPLOYER' and CHANGETYPE = 'corrected'
+      and NEWVALUES:SITEID::string = 'SITE-T001' and CHANGEDAT >= dateadd(minute, -10, current_timestamp())`)
+  check('  and the correction is in the history', Number(corrected[0].N) >= 1, JSON.stringify(corrected[0]))
 } finally {
   await restoreSites(q)
 }

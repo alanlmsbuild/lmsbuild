@@ -35,6 +35,10 @@ built, move it out (or strike it through with where it went).
   their employers ("name changed on 3 October"). The nightly refresh logs
   each employer's changes but doesn't keep them per organisation yet; it
   needs its own table, since EXT.COMPANY_CHANGE is shared.
+- 2026-10-06, Alan: when an employer contact has no access (not head office
+  and no current site assignment), Burrow should say "You haven't been given
+  access to any sites yet; contact your training provider" instead of "You
+  have no current apprentices".
 ## Ideas from Alan, 5 October 2026
 
 ### Learners and matching

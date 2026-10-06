@@ -43,6 +43,9 @@ export async function seedProblems(q) {
     if (derived[user] !== n) problems.push(`${NAMES[user]} would see ${derived[user] ?? 'nothing (no such user)'}, not ${n}`)
   }
   for (const [ref, seed] of Object.entries(SEEDED)) {
+    const [dup] = await q(`select count(*) as N from (select EMPLOYERID, FROMDATE from ILR.LEARNER_EMPLOYER
+      where LEARNREFNUMBER = ? group by 1, 2 having count(*) > 1)`, [ref])
+    if (dup.N > 0) problems.push(`${ref} has more than one link with the same employer and start date`)
     const links = await q(`select to_varchar(FROMDATE) as F, SITEID, LINEMANAGERCONTACTID as LM from ILR.LEARNER_EMPLOYER
       where LEARNREFNUMBER = ? and EMPLOYERID = 'EMP-T001' and (TODATE is null or TODATE >= current_date())`, [ref])
     const l = links[0]

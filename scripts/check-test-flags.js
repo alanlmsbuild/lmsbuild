@@ -82,6 +82,8 @@ const SITE_LINKS_QUERY = `
   union all select 'same email twice among an employer''s current contacts', count(*)
   from (select EMPLOYERID, lower(EMAIL) from CAPTURE_DB.ILR.EMPLOYER_CONTACT where ISCURRENT and EMAIL is not null
         group by 1, 2 having count(*) > 1)
+  union all select 'apprentice links with the same learner, employer and start date', count(*)
+  from (select LEARNREFNUMBER, EMPLOYERID, FROMDATE from CAPTURE_DB.ILR.LEARNER_EMPLOYER group by 1, 2, 3 having count(*) > 1)
   union all select 'head office with current site assignments', count(distinct u.USERID)
   from CAPTURE_DB.ACCESS.APP_USER u join CAPTURE_DB.ACCESS.APP_USER_SITE a on a.USERID = u.USERID and a.ENDEDAT is null
   where u.ISHEADOFFICE

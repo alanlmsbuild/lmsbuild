@@ -170,14 +170,15 @@ export function validateContactForm(input) {
 // An apprentice's workplace: their site and line manager on their current
 // link to an employer. Moving from one site to another starts a new link
 // from the date of the move, so that date is needed; setting a site for the
-// first time or changing only the line manager doesn't. context: { moving,
+// first time or changing only the line manager doesn't. A move dated the day
+// the current link began corrects that day's move. context: { moving,
 // linkFrom (the current link's start, YYYY-MM-DD), today }.
 export function validateWorkplace(input, { moving, linkFrom, today = todayString() }) {
   const errors = {}
   const v = input ?? {}
   if (moving) {
     if (!isValidDateString(v.moveDate)) errors.moveDate = 'Enter the date they moved, for example 2026-10-05.'
-    else if (linkFrom && v.moveDate <= linkFrom) errors.moveDate = `The move must be after they started here (${linkFrom}).`
+    else if (linkFrom && v.moveDate < linkFrom) errors.moveDate = `The move can't be before they started here (${linkFrom}).`
     else if (v.moveDate > today) errors.moveDate = 'The move can\'t be in the future. Record it once it has happened.'
   }
   if (v.updateDelivery && !v.siteId) errors.updateDelivery = 'Choose a site to use its postcode.'

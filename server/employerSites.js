@@ -244,6 +244,17 @@ const LINK = `
   from ILR.LEARNER_EMPLOYER le
   where le.LEARNREFNUMBER = ? and le.EMPLOYERID = ? and le.FROMDATE = ?::date and ${CURRENT_LINK} and le.${IN_VISIBLE_LEARNERS}
 `
+// A link with this key whether or not it's current: a move on a day that
+// already has a link (one the same day's move started) reuses that row.
+const LINK_ON_DAY = `
+  select to_varchar(TODATE, 'YYYY-MM-DD') as TODATE, SITEID, LINEMANAGERCONTACTID
+  from ILR.LEARNER_EMPLOYER
+  where LEARNREFNUMBER = ? and EMPLOYERID = ? and FROMDATE = ?::date and ${IN_VISIBLE_LEARNERS}
+`
+const REOPEN_LINK = `
+  update ILR.LEARNER_EMPLOYER set TODATE = null, SITEID = ?, LINEMANAGERCONTACTID = ?
+  where LEARNREFNUMBER = ? and EMPLOYERID = ? and FROMDATE = ?::date and ${IN_VISIBLE_LEARNERS}
+`
 const SET_LINK = `
   update ILR.LEARNER_EMPLOYER set SITEID = ?, LINEMANAGERCONTACTID = ?
   where LEARNREFNUMBER = ? and EMPLOYERID = ? and FROMDATE = ?::date and ${IN_VISIBLE_LEARNERS}
@@ -283,7 +294,10 @@ const dayBefore = (date) => new Date(Date.parse(`${date}T00:00:00Z`) - 86400000)
 // (body.employerId, body.fromDate). Moving from one site to another ends the
 // link the day before body.moveDate and starts a new one from it; setting a
 // site for the first time, clearing it, or changing only the line manager
-// changes the link as it is. With body.updateDelivery, the open aims'
+// changes the link as it is. There's never a second link with the same key:
+// a move dated the day the current link began (moving again on the day of a
+// move) corrects that link, and a link already starting on the move date
+// (one an earlier move that day started) is reopened, not added again. With body.updateDelivery, the open aims'
 // delivery location postcode becomes the site's (asked, never automatic).
 export async function saveWorkplace(connection, ref, body, by) {
   const [link] = await execute(connection, LINK, [ref, text(body.employerId), text(body.fromDate)])
@@ -298,9 +312,12 @@ export async function saveWorkplace(connection, ref, body, by) {
       throw fieldError(400, 'lineManagerContactId', 'Choose one of this employer\'s current contacts.')
     }
   }
-  const moving = Boolean(link.SITEID && siteId && siteId !== link.SITEID)
-  const errors = validateWorkplace({ ...body, siteId }, { moving, linkFrom: link.FROMDATE })
+  const siteChange = Boolean(link.SITEID && siteId && siteId !== link.SITEID)
+  const errors = validateWorkplace({ ...body, siteId }, { moving: siteChange, linkFrom: link.FROMDATE })
   if (Object.keys(errors).length > 0) throw new RequestError('Please fix the highlighted fields.', 400, errors)
+  // Moving again on the day the current link began is a correction of it.
+  const moving = siteChange && body.moveDate !== link.FROMDATE
+  const [sameDay] = moving ? await execute(connection, LINK_ON_DAY, [ref, link.EMPLOYERID, body.moveDate]) : []
   const aims = body.updateDelivery === true && site ? await execute(connection, OPEN_AIMS, [ref]) : []
   const toChange = aims.filter((a) => a.DELLOCPOSTCODE !== site.POSTCODE)
 
@@ -311,8 +328,15 @@ export async function saveWorkplace(connection, ref, body, by) {
       const to = dayBefore(body.moveDate)
       await execute(connection, END_LINK, [to, ref, link.EMPLOYERID, link.FROMDATE])
       await log('LEARNER_EMPLOYER', key, 'corrected', { TODATE: null }, { TODATE: to })
-      await execute(connection, NEW_LINK, [link.EMPLOYERID, body.moveDate, siteId, lineManagerId, ref])
-      await log('LEARNER_EMPLOYER', { EMPLOYERID: link.EMPLOYERID, FROMDATE: body.moveDate }, 'added', null, { SITEID: siteId, LINEMANAGERCONTACTID: lineManagerId })
+      const newKey = { EMPLOYERID: link.EMPLOYERID, FROMDATE: body.moveDate }
+      if (sameDay) {
+        await execute(connection, REOPEN_LINK, [siteId, lineManagerId, ref, link.EMPLOYERID, body.moveDate])
+        await log('LEARNER_EMPLOYER', newKey, 'corrected', { TODATE: sameDay.TODATE, SITEID: sameDay.SITEID, LINEMANAGERCONTACTID: sameDay.LINEMANAGERCONTACTID },
+          { TODATE: null, SITEID: siteId, LINEMANAGERCONTACTID: lineManagerId })
+      } else {
+        await execute(connection, NEW_LINK, [link.EMPLOYERID, body.moveDate, siteId, lineManagerId, ref])
+        await log('LEARNER_EMPLOYER', newKey, 'added', null, { SITEID: siteId, LINEMANAGERCONTACTID: lineManagerId })
+      }
     } else {
       await execute(connection, SET_LINK, [siteId, lineManagerId, ref, link.EMPLOYERID, link.FROMDATE])
       await log('LEARNER_EMPLOYER', key, 'corrected',
@@ -324,7 +348,7 @@ export async function saveWorkplace(connection, ref, body, by) {
         { DELLOCPOSTCODE: aim.DELLOCPOSTCODE }, { DELLOCPOSTCODE: site.POSTCODE })
     }
   })
-  return { moved: moving, aimsUpdated: toChange.length }
+  return { moved: moving, corrected: siteChange && !moving, aimsUpdated: toChange.length }
 }
 
 export function registerEmployerSiteRoutes(app) {
