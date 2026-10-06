@@ -25,6 +25,7 @@ import { execute } from './db.js'
 import { allow, CURRENT_PROGRAMME, IN_VISIBLE_LEARNERS, MANAGER, ORG_APP_FIN_RECORD, ORG_EMPLOYER, VISIBLE_LEARNER } from './access.js'
 import { inTransaction, RequestError, sendError } from './burrow.js'
 import { logChange } from './recordChange.js'
+import { RESTARTED_AIM, restartOf } from '../src/programme.js'
 import {
   todayString as teachingDay,
   validateAimFamRecord,
@@ -830,6 +831,11 @@ const COMPONENT_UPDATE = `
   where LEARNREFNUMBER = ? and AIMTYPE = 3 and AIMSEQNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
 `
 
+const AIMS_FOR_RESTARTS = `
+  select AIMSEQNUMBER, LEARNAIMREF, COMPSTATUS, LEARNSTARTDATE, ORIGLEARNSTARTDATE
+  from LEARNING_DELIVERY
+  where LEARNREFNUMBER = ? and REMOVEDAT is null and ${IN_VISIBLE_LEARNERS}
+`
 const COMPONENT_REMOVE = `
   update LEARNING_DELIVERY
   set REMOVEDAT = current_timestamp(), REMOVEDBY = ?, REMOVEDREASON = ?
@@ -905,6 +911,11 @@ const component = {
     checkFields(validateRemoval(body))
     const current = (await execute(connection, COMPONENTS, [ref])).find((a) => String(a.AIMSEQNUMBER) === String(key))
     if (!current) throw new RequestError('Component aim not found.', 404)
+    // An aim on a break that has been restarted belongs to the return: taking
+    // it away is undoing the return, not removing the aim.
+    const aims = await execute(connection, AIMS_FOR_RESTARTS, [ref])
+    const aim = aims.find((a) => a.AIMSEQNUMBER === Number(key))
+    if (aim && restartOf(aim, aims)) throw new RequestError(RESTARTED_AIM, 409)
     const reason = body.reason.trim()
     const seq = Number(key)
     await inTransaction(connection, async () => {

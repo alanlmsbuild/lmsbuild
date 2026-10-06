@@ -1,4 +1,4 @@
-import { currentProgramme } from '../programme'
+import { currentProgramme, restartOf } from '../programme'
 import { formatDate } from '../lookups'
 import {
   afinLabel,
@@ -283,9 +283,12 @@ export function programmeAim(ilr) {
 export function ProgrammeRecords({ ilr, manage }) {
   const a = programmeAim(ilr)
   if (!a) return empty('No programme aim.')
+  const back = returnOf(ilr)
   return (
     <>
+      {back && <h3 className="record-subhead">Since returning</h3>}
       <dl>
+        {back && <Row label="Restarted" value={`${formatDate(a.LEARNSTARTDATE)}, after a break in learning`} />}
         <Row label="Learning aim reference" value={a.LEARNAIMREF} />
         <Row label="Funding model" value={fundModelLabel(a.FUNDMODEL)} />
         <Row label="Programme type" value={progTypeLabel(a.PROGTYPE)} />
@@ -299,6 +302,21 @@ export function ProgrammeRecords({ ilr, manage }) {
       <h3 className="record-subhead">Funding and monitoring</h3>
       <FamRows fams={a.fams} manage={manage} />
       <AddLink manage={manage} kind="aim-fam">Add a funding and monitoring code</AddLink>
+      {back && (
+        <>
+          <h3 className="record-subhead">Before the break</h3>
+          {back.earlier.map((e) => (
+            <dl key={e.AIMSEQNUMBER}>
+              <Row label="Started" value={formatDate(e.LEARNSTARTDATE)} />
+              <Row label="Last day before the break" value={formatDate(e.LEARNACTENDDATE)} />
+              <Row label="Status" value={describe(COMPLETION_STATUS_LABELS, e.COMPSTATUS)} />
+              {ilr.canSeePrices && e.fin?.length > 0 && (
+                <Row label="Prices" value={e.fin.map((f) => `${f.AFINTYPE} ${f.AFINCODE}: £${Number(f.AFINAMOUNT).toLocaleString('en-GB')} from ${formatDate(f.AFINDATE)}`).join(', ')} />
+              )}
+            </dl>
+          ))}
+        </>
+      )}
     </>
   )
 }
@@ -378,20 +396,42 @@ export function PriceRecords({ ilr, manage }) {
   )
 }
 
+// After a return from a break: the current programme and the programme aims
+// it restarted. Null when the learner hasn't returned from a break.
+export function returnOf(ilr) {
+  const current = currentProgramme(ilr.aims)
+  const earlier = current ? ilr.aims.filter((a) => a.AIMTYPE === 1 && restartOf(a, ilr.aims)) : []
+  return earlier.length > 0 ? { current, earlier } : null
+}
+
 export function ComponentRecords({ ilr, manage }) {
   const components = ilr.aims.filter((a) => a.AIMTYPE === 3)
+  const back = returnOf(ilr)
+  const list = (items) => <ComponentList components={items} aims={ilr.aims} manage={manage} />
   return (
     <>
-      {components.length === 0 ? empty('No component aims.') : <ComponentList components={components} manage={manage} />}
+      {components.length === 0 && empty('No component aims.')}
+      {components.length > 0 && !back && list(components)}
+      {components.length > 0 && back && (
+        <>
+          <h3 className="record-subhead">Before the break</h3>
+          {list(components.filter((a) => a.AIMSEQNUMBER < back.current.AIMSEQNUMBER))}
+          <h3 className="record-subhead">Since returning</h3>
+          {list(components.filter((a) => a.AIMSEQNUMBER > back.current.AIMSEQNUMBER))}
+        </>
+      )}
       <AddLink manage={manage} kind="component">Add a component aim</AddLink>
     </>
   )
 }
 
-function ComponentList({ components, manage }) {
+function ComponentList({ components, aims, manage }) {
+  if (components.length === 0) return empty('None.')
   return (
     <ol className="record-history">
-      {components.map((a) => (
+      {components.map((a) => {
+        const restart = restartOf(a, aims)
+        return (
         <li key={a.AIMSEQNUMBER}>
           <p className="record-history-head">
             <span className="record-history-title">
@@ -402,8 +442,15 @@ function ComponentList({ components, manage }) {
               kind="component"
               recordKey={String(a.AIMSEQNUMBER)}
               label={a.AIMTITLE ?? a.LEARNAIMREF}
+              canRemove={!restart}
             />
           </p>
+          {restart && manage && (
+            <p className="record-note">
+              Restarted on {formatDate(restart.LEARNSTARTDATE)} when the apprentice returned, so it can&apos;t be removed. If
+              the return was entered in error, undo the return instead.
+            </p>
+          )}
           <dl>
             <Row label="Start and planned end" value={`${formatDate(a.LEARNSTARTDATE)} to ${formatDate(a.LEARNPLANENDDATE)}`} />
             <Row label="Status" value={describe(COMPLETION_STATUS_LABELS, a.COMPSTATUS)} />
@@ -419,7 +466,8 @@ function ComponentList({ components, manage }) {
             )}
           </dl>
         </li>
-      ))}
+        )
+      })}
     </ol>
   )
 }

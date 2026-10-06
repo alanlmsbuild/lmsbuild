@@ -76,3 +76,11 @@ it. Add to this list rather than keeping these elsewhere.
   only mentions carrying break aims over while the apprentice "has not
   restarted". Check the first 2027 to 2028 return in FIS next summer for an
   apprentice who restarted in 2026 to 2027.
+- **Aim sequence numbers between returns** (2026-10-06, Alan). The ILR file
+  numbers each learner's aims 1, 2, 3... in the order Warren holds them
+  (the specification says aims are "numbered consecutively from 1", and
+  rule AimSeqNumber_02). If an aim is removed as entered in error after a
+  return has been submitted, the aims after it get new numbers in the next
+  file. Confirm with DfE's guidance whether an aim's AimSeqNumber may change
+  between returns in the same year, or must stay the same once submitted.
+

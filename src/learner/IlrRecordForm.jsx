@@ -1,4 +1,4 @@
-import { currentProgramme } from '../programme'
+import { RESTARTED_AIM, currentProgramme, restartOf } from '../programme'
 import { useEffect, useState } from 'react'
 import {
   AIM_FAM_OPTIONS,
@@ -552,7 +552,10 @@ function IlrRecordForm({ learnRefNumber, kind, recordKey, mode, onSaved, onCance
         </p>
       )}
 
-      {form && (mode === 'new' || record) && (
+      {kind === 'component' && mode === 'remove' && record && restartOf(record, ilr.aims) && (
+        <p role="alert">{RESTARTED_AIM}</p>
+      )}
+      {form && (mode === 'new' || record) && !(kind === 'component' && mode === 'remove' && restartOf(record, ilr.aims)) && (
         <form onSubmit={handleSubmit} noValidate>
           <fieldset>
             <legend>{recordFormTitle(kind, mode)}</legend>

@@ -11,6 +11,8 @@
 import { execFileSync } from 'node:child_process'
 import { BASE, OUT, REPO, launch } from './setup.mjs'
 import { connect, execute, destroy } from '../../server/db.js'
+import { RESTARTED_AIM } from '../../src/programme.js'
+let programmeTextNow = ''
 
 const browser = await launch()
 const B = BASE
@@ -147,6 +149,21 @@ const qar = (await api('USR-T0008', '/api/reports/qar')).body
 check("  the QAR's past-planned-end warning no longer lists Dev", !qar.pastPlannedEnd.some((r) => r.LEARNREFNUMBER === 'TESTL0051'))
 check("  Dev's evidence from before the break is still in his portfolio", hasEvidence(await portfolio()))
 await p.screenshot({ path: `${OUT}/4g2-dev-returned.png`, fullPage: true })
+
+// ---- The page tells the spells apart, and a restarted aim can't be removed
+await recordPage('TESTL0051')
+const comps = await p.locator('.learner-section[aria-label="Component aims"]').innerText()
+check('  components labelled Before the break and Since returning', /Before the break[\s\S]*Since returning/.test(comps), comps.replace(/\s+/g, ' ').slice(0, 160))
+check('  programme labelled Since returning, with the spell before the break', /Since returning[\s\S]*Before the break[\s\S]*Last day before the break\s+22\/06\/2025/.test(programmeTextNow = await p.locator('.learner-section[aria-label="Apprenticeship programme"]').innerText()),
+  programmeTextNow.replace(/\s+/g, ' ').slice(0, 200))
+const breakRow = p.locator('.learner-section[aria-label="Component aims"] li').first()
+check('  the restarted component has no Remove link, and says to undo the return', (await breakRow.getByRole('link', { name: /^Remove/ }).count()) === 0 && /undo the return instead/.test(await breakRow.innerText()))
+await p.goto(`${B}/app/learners/TESTL0051/records/component/2/remove?back=/app/learners`)
+await p.waitForFunction(() => /undo the return/.test(document.querySelector('#edit-learner, .ilr-record-form')?.innerText ?? ''), null, { timeout: 60000 }).catch(() => {})
+check('  its remove address shows the message, with no form', /undo the return instead/.test(await p.locator('body').innerText()) && (await p.locator('form').count()) === 0)
+const refused = await api('USR-T0008', '/api/learners/TESTL0051/ilr/component/2/remove', { reason: 'TEST: trying to remove a restarted aim' })
+check('  the API refuses it too, with the same message', refused.status === 409 && refused.body?.error === RESTARTED_AIM, `${refused.status} ${refused.body?.error}`)
+check('  and the aim is untouched', (await live('TESTL0051')).includes('2:3:2025-01-20:-:6:live'))
 // ---- Undo it (entered in error), then return him again
 await openLink('TESTL0051', 'Undo the return')
 await save('Undo the return')

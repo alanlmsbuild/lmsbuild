@@ -25,3 +25,17 @@ export function currentComponents(aims) {
 // proportion still to be delivered. Recognised by their LARS title.
 const ENGLISH_OR_MATHS = /^(Functional Skills Qualification in (English|Mathematics)|GCSE .*(English|Mathematics))/i
 export const isEnglishOrMaths = (title) => ENGLISH_OR_MATHS.test(title ?? '')
+
+// The aim that restarted this one after a break: a later aim (not removed)
+// for the same learning aim, with this aim's start as its original start.
+// Null if it hasn't been restarted.
+export function restartOf(aim, aims) {
+  if (aim.COMPSTATUS !== 6) return null
+  const original = String(aim.ORIGLEARNSTARTDATE ?? aim.LEARNSTARTDATE).slice(0, 10)
+  return (aims ?? []).find((r) => !r.REMOVEDAT && r.AIMSEQNUMBER > aim.AIMSEQNUMBER && r.LEARNAIMREF === aim.LEARNAIMREF &&
+    r.ORIGLEARNSTARTDATE && String(r.ORIGLEARNSTARTDATE).slice(0, 10) === original) ?? null
+}
+
+// Why an aim on a break that has been restarted can't be removed (the server
+// refuses it; the page says the same).
+export const RESTARTED_AIM = "This aim was restarted when the apprentice returned from their break, so it can't be removed. If the return was entered in error, undo the return instead."

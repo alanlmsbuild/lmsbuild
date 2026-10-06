@@ -10,7 +10,7 @@
 import { execute } from '../db.js'
 import { IN_ORG_LEARNERS, ORG_APP_FIN_RECORD, ORG_LEARNER, ORG_ORGANISATION } from '../access.js'
 import { loadStandardVersions } from './standards.js'
-import { isEnglishOrMaths } from '../../src/programme.js'
+import { isEnglishOrMaths, restartOf } from '../../src/programme.js'
 
 // DfE's dummy UKPRN from its sample ILR file, and a second one for the other
 // test organisation. Neither is on the UK Register of Learning Providers.
@@ -141,9 +141,7 @@ function derivedFams(aim) {
 // apprenticeship is completed or the apprentice withdraws). The restart is
 // the later aim for the same learning aim with its original start date.
 export function inYearWithRestarts(aim, allAims, year) {
-  const original = aim.ORIGLEARNSTARTDATE ?? aim.LEARNSTARTDATE
-  const restart = aim.COMPSTATUS === 6 && allAims.find((r) => r.AIMSEQNUMBER > aim.AIMSEQNUMBER &&
-    r.LEARNAIMREF === aim.LEARNAIMREF && r.ORIGLEARNSTARTDATE === original)
+  const restart = restartOf(aim, allAims)
   if (!restart) return aimInYear(aim, year)
   return (aim.LEARNACTENDDATE !== null && aim.LEARNACTENDDATE >= ILR_YEARS[year].start) || inYearWithRestarts(restart, allAims, year)
 }
