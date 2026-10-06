@@ -39,6 +39,23 @@ built, move it out (or strike it through with where it went).
   and no current site assignment), Burrow should say "You haven't been given
   access to any sites yet; contact your training provider" instead of "You
   have no current apprentices".
+- 2026-10-06, Alan: dashboards at three levels: site (a site contact sees
+  their site's apprentices: progress, overdue reviews, off-the-job hours,
+  witness statements waiting), company (head office sees every site side by
+  side and drills into one), and across companies (Warren managers compare
+  employers). Built on the existing Burrow and Warren visibility rules, and
+  a natural use for the gold reporting layer.
+  Every dashboard can be broken down and filtered by postcode area (region,
+  local authority, combined authority) from REF.POSTCODE, grouped either by
+  site postcode (where people work) or learner home postcode (where they
+  live, allowing deprivation index reporting).
+  Compare against local area data by local authority code: median pay from
+  ONS ASHE via Nomis, claimant count and unemployment (useful for Restart
+  Scheme context), qualification levels, and the deprivation index. Imported
+  through the RAW/EXT layers like Companies House, refreshed yearly.
+  (Claude: home postcodes are personal data, so group them, never show them,
+  and hide small groups so individuals can't be identified, as for the
+  reporting-by-ethnicity idea.)
 ## Ideas from Alan, 5 October 2026
 
 ### Learners and matching
