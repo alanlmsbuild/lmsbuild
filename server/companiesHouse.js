@@ -5,13 +5,13 @@
 //   GET /api/companies-house/company/:n    one company's profile, to confirm
 //
 // Every profile fetched is stored as returned in RAW.CH_COMPANY_PROFILE
-// (bronze, add-only: the app can only INSERT there). saveCompany() also
+// (bronze, add-only: the app can only INSERT there), and saveProfile()
 // writes the cleaned details to EXT.COMPANY (silver) with MERGE, and any
-// changes to EXT.COMPANY_CHANGE; it's for companies linked to an employer
-// (build step 3). Name searches go live to Companies House and aren't
-// stored. EXT is shared across organisations, so the app reads it only
-// through the organisation's own employers (ORG_EMPLOYER_COMPANY in
-// access.js), or one company by its number (npm run check:scoping).
+// changes to EXT.COMPANY_CHANGE. Name searches go live to Companies House
+// and aren't stored. EXT is shared across organisations, so nothing a page
+// shows comes from it, and saving takes the same steps whether or not
+// another organisation has the company: managers see the live profile, and
+// each employer keeps its own copy (sql/employers_02_own_copy.sql).
 //
 // The key (COMPANIES_HOUSE_API_KEY in server/.env) is used only here, on the
 // server, and never logged or sent to the browser.
@@ -210,32 +210,32 @@ const MERGE = `
   when not matched then insert (${ALL.join(', ')}, LASTCHECKEDAT, LASTCHANGEDAT, SOURCERESPONSEID)
     values (${ALL.map((c) => `s.${c}`).join(', ')}, current_timestamp(), current_timestamp(), s.SOURCERESPONSEID)
 `
+// Always one statement, whatever changed (none is no rows), so a save takes
+// the same time whether or not another organisation saved the company before.
 const CHANGE_INSERT = `
   insert into EXT.COMPANY_CHANGE (COMPANYNUMBER, FIELDNAME, OLDVALUE, NEWVALUE, RESPONSEID)
-  values (?, ?, ?, ?, ?)
+  select ?, f.value:field::string, left(f.value:oldValue::string, 400), left(f.value:newValue::string, 400), ?
+  from table(flatten(input => parse_json(?))) f
 `
 
 // Writes one company's columns to EXT.COMPANY (one row per company, by
-// MERGE), recording what changed since it was last checked. Run inside a
-// transaction. Returns { companyNumber, created, changes }.
+// MERGE), recording what changed since anyone last saved it. Run inside a
+// transaction. EXT is shared: the result depends on other organisations, so
+// it's for tests and the nightly refresh, never for a page or a response.
 export async function writeCompany(connection, cols, responseId) {
   const [old] = await execute(connection, STORED, [cols.COMPANYNUMBER])
   const changes = companyChanges(old, cols)
-  for (const ch of changes) {
-    await execute(connection, CHANGE_INSERT, [cols.COMPANYNUMBER, ch.field, ch.oldValue?.slice(0, 400) ?? null, ch.newValue?.slice(0, 400) ?? null, responseId])
-  }
+  await execute(connection, CHANGE_INSERT, [cols.COMPANYNUMBER, responseId, JSON.stringify(changes)])
   const binds = ALL.map((c) => (JSON_COLUMNS.has(c) ? JSON.stringify(cols[c]) : cols[c]))
   await execute(connection, MERGE, [...binds, responseId, changes.length > 0])
-  return { companyNumber: cols.COMPANYNUMBER, created: !old, changes }
+  return { created: !old, changes }
 }
 
-// Fetches a company from Companies House and saves it. For companies linked
-// to an employer.
-export async function saveCompany(connection, number, by) {
-  const fetched = await fetchProfile(connection, number, by)
-  if (!fetched.profile) throw new RequestError(`Companies House has no company ${number}.`, 404)
+// Saves a profile just fetched live (fetchProfile) to EXT. Returns nothing:
+// what's shown is always the live profile, never what EXT had.
+export async function saveProfile(connection, fetched) {
   const cols = companyColumns(fetched.profile, fetched.etag)
-  return inTransaction(connection, () => writeCompany(connection, cols, fetched.responseId))
+  await inTransaction(connection, () => writeCompany(connection, cols, fetched.responseId))
 }
 
 // Managers only: searching, and one company's details to confirm before
