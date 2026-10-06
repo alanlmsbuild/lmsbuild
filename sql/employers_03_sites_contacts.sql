@@ -110,7 +110,7 @@ GRANT SELECT ON TABLE CAPTURE_DB.ACCESS.APP_USER_SITE TO ROLE ILR_APP_ROLE;
 -- all their employer's apprentices, as today.
 UPDATE CAPTURE_DB.ACCESS.APP_USER SET ISHEADOFFICE = TRUE
 WHERE USERID IN ('USR-T0201', 'USR-T0202', 'USR-T0203', 'USR-T0204', 'USR-T0205', 'USR-T0206')
-  AND ISTESTDATA = TRUE AND ISHEADOFFICE = FALSE;
+  AND ISTESTDATA = TRUE;
 
 -- Four new contacts at Testco Retail Ltd (EMP-T001, ORG-T001), none head
 -- office: one site, two sites, an ended assignment, and no assignments.
@@ -121,8 +121,8 @@ USING (SELECT * FROM (VALUES
     ('USR-T0209', 'Lee Testendedsite09', 'lee.testendedsite09@example.com'),
     ('USR-T0210', 'Kai Testnosites10', 'kai.testnosites10@example.com')) AS v (USERID, DISPLAYNAME, EMAIL)) s
   ON t.USERID = s.USERID
-WHEN NOT MATCHED THEN INSERT (USERID, ORGANISATIONID, DISPLAYNAME, EMAIL, EMPLOYERID, ISACTIVE, ISHEADOFFICE, ISTESTDATA, CREATEDBY)
-  VALUES (s.USERID, 'ORG-T001', s.DISPLAYNAME, s.EMAIL, 'EMP-T001', TRUE, FALSE, TRUE, 'test-data-seed');
+WHEN NOT MATCHED THEN INSERT (USERID, ORGANISATIONID, DISPLAYNAME, EMAIL, EMPLOYERID, ISACTIVE, ISTESTDATA, CREATEDBY)
+  VALUES (s.USERID, 'ORG-T001', s.DISPLAYNAME, s.EMAIL, 'EMP-T001', TRUE, TRUE, 'test-data-seed');
 
 MERGE INTO CAPTURE_DB.ACCESS.USER_ROLE t
 USING (SELECT * FROM (VALUES ('USR-T0207'), ('USR-T0208'), ('USR-T0209'), ('USR-T0210')) AS v (USERID)) s
@@ -307,24 +307,43 @@ UNION ALL SELECT 'head office with current site assignments', COUNT(DISTINCT u.U
 FROM CAPTURE_DB.ACCESS.APP_USER u JOIN CAPTURE_DB.ACCESS.APP_USER_SITE a ON a.USERID = u.USERID AND a.ENDEDAT IS NULL
 WHERE u.ISHEADOFFICE;
 
--- 6. Who would see which apprentices in Burrow, by the rule the app will use
---    (head office, or a current assignment to the apprentice's site; nothing
---    else). Expected: USR-T0201 Erin 17 (all of Testco's current
---    apprentices, as today), USR-T0207 Sam 3 (Crosspool), USR-T0208 Ari 5
---    (Crosspool and Hillsborough), USR-T0209 Lee 0 (assignment ended),
+-- 6. Who would see which apprentices in Burrow, by the rule the app uses:
+--    an active user who is head office, or an active user with a current
+--    assignment to the apprentice's site at their own employer; nothing
+--    else. (A CTE: a correlated subquery in a join condition gave Snowflake
+--    internal error 300010.) Expected: USR-T0201 Erin 17 (all of Testco's
+--    current apprentices, as today), USR-T0207 Sam 3 (Crosspool), USR-T0208
+--    Ari 5 (Crosspool and Hillsborough), USR-T0209 Lee 0 (assignment ended),
 --    USR-T0210 Kai 0 (no assignments).
-SELECT u.USERID, u.DISPLAYNAME, COUNT(le.LEARNREFNUMBER) AS SEES
-FROM CAPTURE_DB.ACCESS.APP_USER u
-LEFT JOIN CAPTURE_DB.ILR.LEARNER_EMPLOYER le
-  ON le.EMPLOYERID = u.EMPLOYERID
- AND (le.TODATE IS NULL OR le.TODATE >= CURRENT_DATE())
- AND (
-   (u.ISACTIVE AND u.ISHEADOFFICE = TRUE)
-   OR le.SITEID IN (SELECT a.SITEID FROM CAPTURE_DB.ACCESS.APP_USER_SITE a
-                    JOIN CAPTURE_DB.ILR.EMPLOYER_SITE s ON s.SITEID = a.SITEID
-                    WHERE a.USERID = u.USERID AND a.ENDEDAT IS NULL AND s.EMPLOYERID = u.EMPLOYERID)
- )
-WHERE u.USERID IN ('USR-T0201', 'USR-T0207', 'USR-T0208', 'USR-T0209', 'USR-T0210')
+WITH users AS (
+  SELECT USERID, DISPLAYNAME, EMPLOYERID, ISACTIVE, ISHEADOFFICE
+  FROM CAPTURE_DB.ACCESS.APP_USER
+  WHERE USERID IN ('USR-T0201', 'USR-T0207', 'USR-T0208', 'USR-T0209', 'USR-T0210')
+),
+current_links AS (
+  SELECT LEARNREFNUMBER, EMPLOYERID, SITEID
+  FROM CAPTURE_DB.ILR.LEARNER_EMPLOYER
+  WHERE TODATE IS NULL OR TODATE >= CURRENT_DATE()
+),
+site_access AS (
+  SELECT a.USERID, a.SITEID, s.EMPLOYERID
+  FROM CAPTURE_DB.ACCESS.APP_USER_SITE a
+  JOIN CAPTURE_DB.ILR.EMPLOYER_SITE s ON s.SITEID = a.SITEID
+  WHERE a.ENDEDAT IS NULL
+),
+visible AS (
+  SELECT u.USERID, l.LEARNREFNUMBER
+  FROM users u JOIN current_links l ON l.EMPLOYERID = u.EMPLOYERID
+  WHERE u.ISACTIVE AND u.ISHEADOFFICE = TRUE
+  UNION
+  SELECT u.USERID, l.LEARNREFNUMBER
+  FROM users u
+  JOIN site_access a ON a.USERID = u.USERID AND a.EMPLOYERID = u.EMPLOYERID
+  JOIN current_links l ON l.EMPLOYERID = u.EMPLOYERID AND l.SITEID = a.SITEID
+  WHERE u.ISACTIVE
+)
+SELECT u.USERID, u.DISPLAYNAME, COUNT(v.LEARNREFNUMBER) AS SEES
+FROM users u LEFT JOIN visible v ON v.USERID = u.USERID
 GROUP BY u.USERID, u.DISPLAYNAME
 ORDER BY u.USERID;
 
