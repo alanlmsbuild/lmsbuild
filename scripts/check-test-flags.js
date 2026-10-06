@@ -48,6 +48,8 @@ const EMPLOYER_REFERENCES = [
   ['ILR.EMPLOYER_SITE', '', 'e.ORGANISATIONID', ''],
   // A contact with a Burrow sign-in: the sign-in's organisation.
   ['ILR.EMPLOYER_CONTACT', 'left join CAPTURE_DB.ACCESS.APP_USER u on u.USERID = t.USERID', 'coalesce(u.ORGANISATIONID, e.ORGANISATIONID)', ''],
+  // An advert's link to an employer: the link's own organisation.
+  ['ILR.EMPLOYER_VACANCY', '', 't.ORGANISATIONID', ''],
 ]
 
 // Sites, contacts and site assignments point within the same employer, and
@@ -82,6 +84,9 @@ const SITE_LINKS_QUERY = `
   union all select 'same email twice among an employer''s current contacts', count(*)
   from (select EMPLOYERID, lower(EMAIL) from CAPTURE_DB.ILR.EMPLOYER_CONTACT where ISCURRENT and EMAIL is not null
         group by 1, 2 having count(*) > 1)
+  union all select 'advert linked to a site of another employer, or a site that does not exist', count(*)
+  from CAPTURE_DB.ILR.EMPLOYER_VACANCY v left join CAPTURE_DB.ILR.EMPLOYER_SITE s on s.SITEID = v.SITEID
+  where v.SITEID is not null and (s.SITEID is null or s.EMPLOYERID <> v.EMPLOYERID)
   union all select 'apprentice links with the same learner, employer and start date', count(*)
   from (select LEARNREFNUMBER, EMPLOYERID, FROMDATE from CAPTURE_DB.ILR.LEARNER_EMPLOYER group by 1, 2, 3 having count(*) > 1)
   union all select 'head office with current site assignments', count(distinct u.USERID)
