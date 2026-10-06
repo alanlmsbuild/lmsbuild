@@ -25,6 +25,12 @@ built, move it out (or strike it through with where it went).
 - 2026-10-06, Claude: Companies House's Streaming API (real-time changes to
   every company) instead of the nightly refresh, if the number of employers
   grows a lot. At most two connections per account.
+- 2026-10-06, Alan: a CRM for employers, kept in mind but not built yet. So
+  that it fits later: one employer table for prospects and clients (a
+  status, not a second table), room for a parent employer link (group
+  companies and franchises), and permanent IDs (EMPLOYERID, SITEID,
+  CONTACTID never reused or changed) so an outside CRM could be matched up.
+  Contacts are already one record per person (ILR.EMPLOYER_CONTACT, step 5).
 ## Ideas from Alan, 5 October 2026
 
 ### Learners and matching
@@ -38,7 +44,7 @@ built, move it out (or strike it through with where it went).
 - Signposting Learners if they have issues or needs ie Confidence issues, find a company nearby that can help
 
 ### Staff and organisation
-- Add sites. (Claude: fits with part 8 teams and regions; decide how sites relate to teams.)
+- Add sites. (Claude: fits with part 8 teams and regions; decide how sites relate to teams. These read as the provider's own centres; employers' workplaces are "employer sites", proposed for employers step 5.)
 - Photos of staff.
 - A clear weekly manager view to use in one-to-ones.
 - Safeguarding coverage. (Claude: needs its own access rules and audit, like the sensitive fields.)

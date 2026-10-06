@@ -107,3 +107,23 @@ it. Add to this list rather than keeping these elsewhere.
 - **Registered office addresses** (2026-10-06, Alan). Small companies often
   use a home address. It's on the public register, but Warren shows it to
   managers only.
+- **Who assigns employer site contacts** (2026-10-06, Alan). Which sites an
+  employer contact covers in Burrow, and whether they're head office, is set
+  by hand-run SQL for now. Decide whether managers do it in the app: that
+  needs INSERT and UPDATE on ACCESS.APP_USER_SITE (and UPDATE on the
+  head-office flag), the app role's first write access to ACCESS, and a
+  change to `npm run check:grants`. Never DELETE: an assignment is ended.
+
+## Employer contacts
+
+- **Lawful basis for employer contact details** (2026-10-06, Alan). Warren
+  will hold names, job titles, emails and phone numbers of people at
+  employers (site contacts, line managers, Burrow users). Decide and record
+  the lawful basis under UK GDPR (likely legitimate interests, or contract
+  where the employer has signed an apprenticeship agreement), and say so in
+  the privacy notice.
+- **How long contact details are kept** (2026-10-06, Alan). Set a retention
+  period for contacts who are no longer current (for example 6 years after
+  the last apprentice they were linked to finished, in line with funding
+  audit records) and a way to remove or anonymise them after that. Contacts
+  are marked no longer current, not deleted, until then.
