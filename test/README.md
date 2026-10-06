@@ -34,6 +34,12 @@ puts it back.
   test employer contact sees (head office, one site, two sites, an ended
   assignment, none), and that a reused session forgets the user. Writes
   only inside transactions it rolls back.
+- `db/employer-seed.mjs` is shared by that test and `browser/sites.mjs`:
+  the fixed numbers they assert (Erin 17, Sam 3, Ari 5, Lee 0, Kai 0), a
+  check that stops them with "run the test reset first" when the seeded
+  data isn't in place, and `restoreSites`, which `sites.mjs` runs at the end
+  to put back what it changed (by updates: rows it added are marked no
+  longer used, current, or ended until the next reset).
 - `db/refresh-companies.mjs` runs the nightly refresh on the TESCO PLC test
   employers that `browser/employers.mjs` adds, calling Companies House for
   real.
