@@ -4,9 +4,9 @@
 # continuing first (restore-4g1.mjs); the 4g-1 test then leaves its
 # outcomes in place for checking in FIS until the test reset.
 cd "$(dirname "$0")/../.."
-OUT=${1:-$HOME/.cache/rarebit-test/screenshots}
+OUT=${1:-test/.output/screenshots}
 failed=0
-for t in step3 step4a step4b step4c step4d step4e step4f1 step4f2 step4g1 step4g2; do
+for t in step3 step4a step4b step4c step4d step4e step4f1 step4f2 step4g1 step4g2 employers; do
   [ "$t" = step4g1 ] && node test/browser/restore-4g1.mjs > /dev/null 2>&1
   r=$(timeout 900 node test/browser/$t.mjs "$OUT" 2>&1 | grep -v injected)
   last=$(echo "$r" | tail -1)

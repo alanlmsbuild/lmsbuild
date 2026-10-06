@@ -25,23 +25,22 @@ import { testUserId } from './devUsers.js'
 const ORG = '$CURRENT_ORGANISATIONID'
 
 export const ORG_OFFICER = `(select * from ILR.OFFICER where ORGANISATIONID = ${ORG})`
-export const ORG_EMPLOYER = `(select * from ILR.EMPLOYER where ORGANISATIONID = ${ORG})`
 export const ORG_APP_USER = `(select * from ACCESS.APP_USER where ORGANISATIONID = ${ORG})`
 export const ORG_ORGANISATION = `(select * from ACCESS.ORGANISATION where ORGANISATIONID = ${ORG})`
 
-// Companies House details (the EXT schema) are shared across organisations, so
-// they're read only for the organisation's own employers, one row per
-// employer with a company number (npm run check:scoping). The registered
-// office is managers only: for tutors, assessors and IQAs it reads as null.
+// An employer's Companies House details are this organisation's own copy
+// (COMPANYDETAILS, sql/employers_02_own_copy.sql), never the shared EXT
+// tables, so nothing shown depends on another organisation. The registered
+// office in it is managers only: for everyone else those keys are removed.
 export const MANAGER_ONLY_COMPANY_COLUMNS = [
   'ADDRESSPREMISES', 'ADDRESSLINE1', 'ADDRESSLINE2', 'ADDRESSLOCALITY', 'ADDRESSREGION',
   'ADDRESSPOSTCODE', 'ADDRESSCOUNTRY', 'ADDRESSPOBOX', 'ADDRESSCAREOF', 'OFFICEINDISPUTE', 'OFFICEUNDELIVERABLE',
 ]
-export const ORG_EMPLOYER_COMPANY = `(
-  select e.EMPLOYERID, c.* replace (${MANAGER_ONLY_COMPANY_COLUMNS.map((col) => `iff($SEES_MANAGER_ONLY, c.${col}, null) as ${col}`).join(', ')})
-  from ILR.EMPLOYER e
-  join EXT.COMPANY c on c.COMPANYNUMBER = e.COMPANYNUMBER
-  where e.ORGANISATIONID = ${ORG}
+export const ORG_EMPLOYER = `(
+  select * replace (iff($SEES_MANAGER_ONLY, COMPANYDETAILS,
+    object_delete(COMPANYDETAILS::object, ${MANAGER_ONLY_COMPANY_COLUMNS.map((c) => `'${c}'`).join(', ')})) as COMPANYDETAILS)
+  from ILR.EMPLOYER
+  where ORGANISATIONID = ${ORG}
 )`
 
 // The organisation to write on new learners and officers.

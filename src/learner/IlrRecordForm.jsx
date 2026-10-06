@@ -208,7 +208,7 @@ function EmploymentFields({ form, errors, update, employers, earliestStart, mode
           <Field label="Employer" error={errors.employer} required>
             <select value={form.employer} onChange={(e) => update('employer', e.target.value)}>
               <option value="">Select…</option>
-              {employers.map((e) => (
+              {employers.filter((e) => e.ISACTIVE !== false || e.EMPLOYERID === form.employer).map((e) => (
                 <option key={e.EMPLOYERID} value={e.EMPLOYERID}>
                   {e.NAME}
                   {e.EMPLOYERREF ? ` (ERN ${e.EMPLOYERREF})` : ''}

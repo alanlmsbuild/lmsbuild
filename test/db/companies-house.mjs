@@ -2,14 +2,14 @@
 //
 // Part 1 needs nothing: the rate limiter, company numbers, and turning a
 // profile into EXT.COMPANY columns and changes, from made-up profiles.
-// Part 2 writes made-up company ZZ999999 to EXT.COMPANY twice, and links it
-// to one of ORG-T001's test employers to read it through
-// ORG_EMPLOYER_COMPANY as a manager and as a tutor, all in one transaction
-// that's rolled back: nothing is kept, and Companies House isn't called.
+// Part 2 writes made-up company ZZ999999 to EXT.COMPANY twice, and gives one
+// of ORG-T001's test employers its own copy, read through ORG_EMPLOYER as a
+// manager and as a tutor, all in one transaction that's rolled back: nothing
+// is kept, and Companies House isn't called.
 //   node test/db/companies-house.mjs
 import { connect, execute, destroy } from '../../server/db.js'
 import { makeLimiter, companyNumberOf, companyColumns, companyChanges, writeCompany } from '../../server/companiesHouse.js'
-import { ORG_EMPLOYER_COMPANY } from '../../server/access.js'
+import { ORG_EMPLOYER } from '../../server/access.js'
 
 let failures = 0
 const check = (label, ok, detail = '') => {
@@ -92,16 +92,20 @@ try {
 
     // Link it to one of ORG-T001's test employers, then read it as each role.
     const [employer] = await execute(c, `select EMPLOYERID from ILR.EMPLOYER where ORGANISATIONID = 'ORG-T001' and ISTESTDATA order by EMPLOYERID limit 1`)
-    await execute(c, `update ILR.EMPLOYER set COMPANYNUMBER = ? where EMPLOYERID = ?`, [NUMBER, employer.EMPLOYERID])
+    await execute(c, `update ILR.EMPLOYER set COMPANYNUMBER = ?, COMPANYDETAILS = parse_json(?) where EMPLOYERID = ?`,
+      [NUMBER, JSON.stringify(companyColumns(changed, 'etag-2')), employer.EMPLOYERID])
     await execute(c, SET, [true])
-    const asManager = await execute(c, `select EMPLOYERID, COMPANYNAME, ADDRESSPOSTCODE from ${ORG_EMPLOYER_COMPANY} where COMPANYNUMBER = ?`, [NUMBER])
+    const asManager = await execute(c, `select EMPLOYERID, COMPANYDETAILS:COMPANYNAME::string as COMPANYNAME, COMPANYDETAILS:ADDRESSPOSTCODE::string as ADDRESSPOSTCODE
+      from ${ORG_EMPLOYER} where COMPANYNUMBER = ?`, [NUMBER])
     check('a manager sees the company and its registered office', asManager.length === 1 && asManager[0].EMPLOYERID === employer.EMPLOYERID && asManager[0].ADDRESSPOSTCODE === 'ZZ1 1ZZ')
     await execute(c, SET, [false])
-    const asTutor = await execute(c, `select COMPANYNAME, COMPANYSTATUS, to_json(SICCODES) as S, ADDRESSLINE1, ADDRESSPOSTCODE from ${ORG_EMPLOYER_COMPANY} where COMPANYNUMBER = ?`, [NUMBER])
+    const asTutor = await execute(c, `select COMPANYDETAILS:COMPANYNAME::string as COMPANYNAME, COMPANYDETAILS:COMPANYSTATUS::string as COMPANYSTATUS,
+      to_json(COMPANYDETAILS:SICCODES) as S, COMPANYDETAILS:ADDRESSLINE1::string as ADDRESSLINE1, COMPANYDETAILS:ADDRESSPOSTCODE::string as ADDRESSPOSTCODE
+      from ${ORG_EMPLOYER} where COMPANYNUMBER = ?`, [NUMBER])
     check('a tutor sees name, status and SIC codes, but not the registered office', asTutor.length === 1 && asTutor[0].COMPANYNAME &&
       asTutor[0].COMPANYSTATUS === 'liquidation' && asTutor[0].S === '["85320"]' && asTutor[0].ADDRESSLINE1 === null && asTutor[0].ADDRESSPOSTCODE === null)
     await execute(c, `set CURRENT_ORGANISATIONID = 'ORG-T002'`)
-    const otherOrg = await execute(c, `select * from ${ORG_EMPLOYER_COMPANY} where COMPANYNUMBER = ?`, [NUMBER])
+    const otherOrg = await execute(c, `select * from ${ORG_EMPLOYER} where COMPANYNUMBER = ?`, [NUMBER])
     check('another organisation does not see it', otherOrg.length === 0)
   } finally {
     await execute(c, 'rollback')

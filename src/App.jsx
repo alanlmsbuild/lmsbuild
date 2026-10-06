@@ -9,6 +9,9 @@ import OutcomeForm, { OUTCOME_ACTIONS, OUTCOME_HEADINGS } from './learner/Outcom
 import ReturnForm from './learner/ReturnForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
+import Employers from './employers/Employers'
+import EmployerPage from './employers/EmployerPage'
+import EmployerForm from './employers/EmployerForm'
 import LearnerRecord from './learner/LearnerRecord'
 import LearnerHeader from './learner/LearnerHeader'
 import { learnerPath, learnerEditPath, safeBack } from './learner/links'
@@ -26,6 +29,7 @@ const TABS = [
   { slug: 'my-day', label: 'My day', shows: (r) => r.hasCaseload },
   { slug: 'learners', label: 'Learners', shows: () => true },
   { slug: 'dashboard', label: 'Dashboard', shows: () => true },
+  { slug: 'employers', label: 'Employers', shows: (r) => r.hasCaseload || r.isIqa },
   { slug: 'officers', label: 'Officers', shows: (r) => r.isManager },
   { slug: 'reports', label: 'Reports', shows: (r) => r.hasCaseload },
   { slug: 'sign-offs', label: 'Sign-offs to check', shows: (r) => r.isIqa },
@@ -70,6 +74,7 @@ const REPORTS = ['qar', 'caseload', 'ilr']
 //                                    /burrow/learners/<ref>.
 //   /app/learners/<ref>/edit         (and /outcome/<action>...) a manager's
 //                                    form on the learner page
+//   /app/employers[/new | /<employer id>[/edit]]   (new and edit: managers)
 //   /app/officers[/<officer ref>]
 //   /app/reports/qar?year=, /app/reports/caseload[/<officer ref>],
 //   /app/reports/ilr
@@ -106,6 +111,10 @@ function redirectFor(view, can, me) {
   if (tab === 'reports') {
     if (rest.length === 0 || (rest[0] === 'ilr' && !can.isManager)) return '/app/reports/qar'
   }
+  if (tab === 'employers' && !can.isManager) {
+    if (rest[0] === 'new') return '/app/employers'
+    if (rest[1] === 'edit') return `/app/employers/${encodeURIComponent(rest[0])}`
+  }
   const action = tab === 'learners' ? learnerActionOf(rest) : undefined
   if (action && !can.isManager) return `/app/learners/${encodeURIComponent(rest[0])}`
   if (action?.type === 'edit' && !action.section) {
@@ -130,6 +139,8 @@ function isKnownView({ tab, rest }) {
       return rest.length <= 1 || Boolean(learnerActionOf(rest))
     case 'officers':
       return rest.length <= 1
+    case 'employers':
+      return rest.length <= 1 || (rest.length === 2 && rest[1] === 'edit' && rest[0] !== 'new')
     case 'reports':
       return (
         REPORTS.includes(rest[0]) && (rest.length === 1 || (rest[0] === 'caseload' && rest.length === 2))
@@ -513,6 +524,25 @@ function App() {
         />
       )}
 
+      {!redirect && tab === 'employers' && isKnownView(view) && view.rest.length === 0 && <Employers isManager={isManager} />}
+      {!redirect && tab === 'employers' && isKnownView(view) && view.rest[0] === 'new' && (
+        <EmployerForm
+          employerId={null}
+          onDone={(id) => navigate(`/app/employers/${encodeURIComponent(id)}`)}
+          onCancel={() => navigate('/app/employers')}
+        />
+      )}
+      {!redirect && tab === 'employers' && isKnownView(view) && view.rest.length === 1 && view.rest[0] !== 'new' && (
+        <EmployerPage key={view.rest[0]} employerId={view.rest[0]} isManager={isManager} />
+      )}
+      {!redirect && tab === 'employers' && isKnownView(view) && view.rest[1] === 'edit' && (
+        <EmployerForm
+          key={view.rest[0]}
+          employerId={view.rest[0]}
+          onDone={(id) => navigate(`/app/employers/${encodeURIComponent(id)}`)}
+          onCancel={() => navigate(`/app/employers/${encodeURIComponent(view.rest[0])}`)}
+        />
+      )}
       {!redirect && tab === 'my-day' && <MyDay me={me} onOpenLearner={openLearner} />}
       {!redirect && tab === 'reports' && isKnownView(view) && (
         <Reports

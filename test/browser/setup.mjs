@@ -12,7 +12,8 @@
 //   CHROMIUM_PATH   the headless Chromium to drive
 //   CHROMIUM_LIBS   extra system libraries Chromium needs here (WSL without
 //                   libnspr4, libnss3, libasound2: see test/README.md)
-// Screenshots go to the folder given, or ~/.cache/rarebit-test/screenshots.
+// Screenshots go to the folder given, or test/.output/screenshots in the
+// repo (gitignored).
 
 import fs from 'node:fs'
 import os from 'node:os'
@@ -24,7 +25,7 @@ export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const BASE = process.env.BASE_URL ?? 'http://localhost:5199'
 if (/:(3001|5173)\b/.test(BASE)) throw new Error('Ports 3001 and 5173 are the dev servers. Test on 3002 and 5199.')
 
-export const OUT = process.argv[2] ?? path.join(os.homedir(), '.cache/rarebit-test/screenshots')
+export const OUT = process.argv[2] ?? path.join(REPO, 'test/.output/screenshots')
 fs.mkdirSync(OUT, { recursive: true })
 
 const PLAYWRIGHT_DIR = process.env.PLAYWRIGHT_DIR ?? path.join(os.homedir(), '.npm/_npx/e058441c325e062a/node_modules')

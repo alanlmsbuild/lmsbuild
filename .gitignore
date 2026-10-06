@@ -34,3 +34,6 @@ dist-ssr
 
 # LARS CSV extracts and local import tooling (large files, never commit)
 data/
+
+# Test output (screenshots), kept in the repo so it's easy to look at
+test/.output/

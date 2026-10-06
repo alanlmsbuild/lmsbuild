@@ -160,7 +160,7 @@ function ReturnForm({ learnRefNumber, action, onSaved, onCancel }) {
             <Field label="Employer" error={errors.employer}>
               <select value={form.employer} onChange={(e) => update('employer', e.target.value)}>
                 <option value="same">The same employer{b.employerName ? ` (${b.employerName})` : ''}</option>
-                {(ilr.employers ?? []).filter((e) => e.EMPLOYERID !== b.employerId).map((e) => (
+                {(ilr.employers ?? []).filter((e) => e.EMPLOYERID !== b.employerId && e.ISACTIVE !== false).map((e) => (
                   <option key={e.EMPLOYERID} value={e.EMPLOYERID}>
                     {e.NAME}
                     {e.EMPLOYERREF ? ` (ERN ${e.EMPLOYERREF})` : ''}

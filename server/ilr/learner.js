@@ -87,8 +87,9 @@ const ULN_COUNT_QUERY = `
 
 const ORGANISATION_QUERY = `select ISTESTDATA from ${ORG_ORGANISATION}`
 
-// For a manager's employment form: the organisation's employers.
-const EMPLOYERS_QUERY = `select EMPLOYERID, NAME, EMPLOYERREF from ${ORG_EMPLOYER} order by NAME, EMPLOYERID`
+// For a manager's employment form: the organisation's employers (the forms
+// offer only those still used, besides the one already chosen).
+const EMPLOYERS_QUERY = `select EMPLOYERID, NAME, EMPLOYERREF, ISACTIVE from ${ORG_EMPLOYER} order by NAME, EMPLOYERID`
 
 // The learner's own row and every record, read as this user may see them.
 // Null if they can't see the learner.

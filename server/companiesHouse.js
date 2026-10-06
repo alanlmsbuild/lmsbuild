@@ -20,6 +20,9 @@ import crypto from 'node:crypto'
 import { execute } from './db.js'
 import { allow, MANAGER } from './access.js'
 import { inTransaction, RequestError, sendError } from './burrow.js'
+import { companyNumberOf } from '../src/validation.js'
+
+export { companyNumberOf }
 
 const API = 'https://api.company-information.service.gov.uk'
 
@@ -63,17 +66,8 @@ async function call(path) {
   return { status: res.status, etag: res.headers.get('etag') ?? body?.etag ?? null, body }
 }
 
-// A company number: 8 digits (shorter ones are padded with zeros), or two
-// letters and 6 digits (e.g. SC123456). Null if it isn't one.
-export function companyNumberOf(text) {
-  const t = String(text ?? '').replace(/\s+/g, '').toUpperCase()
-  if (/^\d{1,8}$/.test(t)) return t.padStart(8, '0')
-  if (/^[A-Z]{2}\d{6}$/.test(t)) return t
-  return null
-}
-
 // Companies that can't become an employer.
-const CLOSED = new Set(['dissolved', 'closed', 'converted-closed', 'removed'])
+export const CLOSED = new Set(['dissolved', 'closed', 'converted-closed', 'removed'])
 
 // Searching: an exact company number fetches that company; anything else
 // searches by name (live, not stored). Results: [{ companyNumber, name,
@@ -100,7 +94,7 @@ export async function searchCompanies(connection, text, by) {
   }))
 }
 
-const addressText = (a) => (a ? [a.care_of, a.po_box, a.premises, a.address_line_1, a.address_line_2, a.locality, a.region, a.postal_code, a.country].filter(Boolean).join(', ') : null)
+export const addressText = (a) => (a ? [a.care_of, a.po_box, a.premises, a.address_line_1, a.address_line_2, a.locality, a.region, a.postal_code, a.country].filter(Boolean).join(', ') : null)
 
 // RAW is add-only for the app: the response ID is made here, so EXT can
 // record where its details came from without reading RAW.

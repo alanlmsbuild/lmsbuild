@@ -65,13 +65,14 @@
 //    it (insert into / update).
 // 14. Companies House data. RAW (responses as returned) is add-only: the
 //    app only ever writes insert into RAW.x. EXT (cleaned company details)
-//    is shared across organisations, so it's never listed or searched:
-//    outside access.js, SQL may only insert into or merge into an EXT table,
-//    or read one company by its number (where COMPANYNUMBER = ?,
-//    nothing else). Everything else reads EXT through ORG_EMPLOYER_COMPANY
-//    (access.js), which must join the organisation's own employers and mask
-//    the registered office (MANAGER_ONLY_COMPANY_COLUMNS) for everyone but
-//    managers.
+//    is shared across organisations, so nothing shown may come from it:
+//    SQL may only insert into or merge into an EXT table, and only
+//    server/companiesHouse.js may read one company by its number (where
+//    COMPANYNUMBER = ?, nothing else) to log changes. access.js never names
+//    RAW or EXT. Screens use each employer's own copy (COMPANYDETAILS)
+//    through ORG_EMPLOYER, which must remove the registered office
+//    (MANAGER_ONLY_COMPANY_COLUMNS) for everyone but managers, and SQL
+//    marked "-- all organisations" must not read COMPANYDETAILS.
 //
 // Usage:
 //   npm run check:scoping
@@ -122,7 +123,7 @@ const ROUTE = /\bapp\.(get|post|put|patch|delete)\(\s*(['`"])[^'`"]*\2\s*,(?!\s*
 
 // Check 14 on one SQL string: what it does wrong with RAW or EXT.
 const ONE_COMPANY = /^\s+(?:as\s+)?(?:\w+\s+)?where\s+(?:\w+\.)?COMPANYNUMBER\s*=\s*\?(?![^`]*\b(or|like|ilike|rlike|regexp|in)\b)/i
-export function layerProblems(sql) {
+export function layerProblems(sql, file = 'companiesHouse.js') {
   const found = []
   for (const m of sql.matchAll(/\b(\w+\s+\w+\s+)?RAW\.(\w+)/gi)) {
     if (!/^insert\s+into\s+$/i.test(m[1] ?? '')) found.push(`uses RAW.${m[2]} other than insert into: RAW is add-only`)
@@ -131,8 +132,8 @@ export function layerProblems(sql) {
     const before = `${m[1]}${m[2] ?? ''}`.toLowerCase().replace(/\s+/g, ' ')
     if (before === 'insert into' || before === 'merge into') continue
     const after = sql.slice(m.index + m[0].length)
-    if (/(^|\s)(from|update)$/.test(before) && ONE_COMPANY.test(after)) continue
-    found.push(`reads EXT.${m[3]} other than one company by its number: use ORG_EMPLOYER_COMPANY (EXT is shared across organisations)`)
+    if (file === 'companiesHouse.js' && /(^|\s)from$/.test(before) && ONE_COMPANY.test(after)) continue
+    found.push(`reads EXT.${m[3]}: EXT is shared across organisations, so show the employer's own copy (COMPANYDETAILS) from ORG_EMPLOYER`)
   }
   return found
 }
@@ -171,7 +172,10 @@ for (const file of serverFiles) {
     if (learnerInsert && !FROM_LEARNER_FLAG.test(sql)) {
       report(file, text, match.index, `inserts into ${learnerInsert[2]} without copying the learner's ISTESTDATA (select l.ISTESTDATA from \${VISIBLE_LEARNER} l)`)
     }
-    for (const message of layerProblems(sql)) report(file, text, match.index, message)
+    for (const message of layerProblems(sql, file)) report(file, text, match.index, message)
+    if (/-- all organisations/.test(sql) && /\bCOMPANYDETAILS\b/i.test(sql)) {
+      report(file, text, match.index, 'reads COMPANYDETAILS around ORG_EMPLOYER, which hides the registered office from all but managers')
+    }
     for (const table of unfilteredRemovable(sql)) {
       report(file, text, match.index, `reads ${table} without leaving out removed records (REMOVEDAT is null)`)
     }
@@ -304,18 +308,19 @@ for (const file of serverFiles) {
   }
 }
 
-// Check 14 in access.js: EXT only in ORG_EMPLOYER_COMPANY, masked and scoped.
+// Check 14 in access.js: no RAW or EXT, and ORG_EMPLOYER masks the
+// registered office and is the only read of ILR.EMPLOYER.
 {
   const text = fs.readFileSync(path.join(serverDir, 'access.js'), 'utf8')
-  const start = text.indexOf('export const ORG_EMPLOYER_COMPANY = `')
+  for (const m of text.matchAll(/\b(RAW|EXT)\.\w+/g)) report('access.js', text, m.index, `${m[0]}: access.js never reads RAW or EXT`)
+  const start = text.indexOf('export const ORG_EMPLOYER = `')
   const end = text.indexOf(')`', start)
   const source = start >= 0 && end > start ? text.slice(start, end) : ''
-  for (const m of text.matchAll(/\b(RAW|EXT)\.\w+/g)) {
-    if (m[1] === 'RAW' || m.index < start || m.index > end) report('access.js', text, m.index, `${m[0]} may only be read in ORG_EMPLOYER_COMPANY`)
-  }
-  const ok = source.includes('replace (${MANAGER_ONLY_COMPANY_COLUMNS') && /from ILR\.EMPLOYER e\b/.test(source) &&
-    /join EXT\.COMPANY c on c\.COMPANYNUMBER = e\.COMPANYNUMBER/.test(source) && source.includes('where e.ORGANISATIONID = ${ORG}')
-  if (!ok) report('access.js', text, Math.max(start, 0), 'ORG_EMPLOYER_COMPANY must join EXT.COMPANY to the organisation\'s own employers and mask MANAGER_ONLY_COMPANY_COLUMNS')
+  const reads = [...text.matchAll(/\b(from|join)\s+ILR\.EMPLOYER\b/gi)]
+  const ok = source.includes('iff($SEES_MANAGER_ONLY, COMPANYDETAILS,') &&
+    source.includes('object_delete(COMPANYDETAILS::object, ${MANAGER_ONLY_COMPANY_COLUMNS') &&
+    reads.length === 1 && reads[0].index > start && reads[0].index < end
+  if (!ok) report('access.js', text, Math.max(start, 0), 'ILR.EMPLOYER must be read only in ORG_EMPLOYER, removing MANAGER_ONLY_COMPANY_COLUMNS from COMPANYDETAILS for all but managers')
   const list = text.match(/MANAGER_ONLY_COMPANY_COLUMNS = \[([^\]]*)\]/)?.[1] ?? ''
   for (const column of ['ADDRESSPREMISES', 'ADDRESSLINE1', 'ADDRESSLINE2', 'ADDRESSLOCALITY', 'ADDRESSREGION', 'ADDRESSPOSTCODE', 'ADDRESSCOUNTRY', 'ADDRESSPOBOX', 'ADDRESSCAREOF']) {
     if (!list.includes(`'${column}'`)) report('access.js', text, text.indexOf('MANAGER_ONLY_COMPANY_COLUMNS'), `${column} is no longer in MANAGER_ONLY_COMPANY_COLUMNS`)
@@ -326,4 +331,4 @@ if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, and Companies House details are read only through the organisation\'s own employers.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, and nothing shown comes from the shared Companies House tables.')

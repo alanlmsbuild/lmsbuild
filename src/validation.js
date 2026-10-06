@@ -95,6 +95,36 @@ export function employerIdentifierError(value) {
   return null
 }
 
+// A Companies House company number: 8 digits (shorter ones are padded with
+// zeros), or two letters and 6 digits (e.g. SC123456). Null if it isn't one.
+export function companyNumberOf(text) {
+  const t = String(text ?? '').replace(/\s+/g, '').toUpperCase()
+  if (/^\d{1,8}$/.test(t)) return t.padStart(8, '0')
+  if (/^[A-Z]{2}\d{6}$/.test(t)) return t
+  return null
+}
+
+// An employer, added or changed by a manager: either a company on Companies
+// House (companyNumber; its name comes from Companies House), or a name and
+// why it isn't on Companies House (sole trader, public body...). The employer
+// reference (the ILR's EmpId) is optional.
+export function validateEmployerForm(input) {
+  const errors = {}
+  const v = input ?? {}
+  const text = (x) => String(x ?? '').trim()
+  if (text(v.companyNumber)) {
+    if (!companyNumberOf(v.companyNumber)) errors.companyNumber = 'Enter a company number: 8 digits, or 2 letters and 6 digits.'
+  } else {
+    if (!text(v.name)) errors.name = "Enter the employer's name."
+    else if (text(v.name).length > 200) errors.name = 'Name must be 200 characters or fewer.'
+    if (!text(v.notOnCompaniesHouse)) errors.notOnCompaniesHouse = "Say why this employer isn't on Companies House, for example sole trader or public body."
+    else if (text(v.notOnCompaniesHouse).length > 200) errors.notOnCompaniesHouse = 'This must be 200 characters or fewer.'
+  }
+  const ref = employerIdentifierError(v.employerRef)
+  if (ref) errors.employerRef = ref
+  return errors
+}
+
 function isPostcode(value) {
   return UK_POSTCODE.test(String(value ?? '').trim())
 }
