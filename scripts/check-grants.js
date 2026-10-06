@@ -41,6 +41,11 @@ const REQUIRED = {
   'CAPTURE_DB.RAW.CH_COMPANY_PROFILE': ['INSERT'],
   'CAPTURE_DB.EXT.COMPANY': ['SELECT', 'INSERT', 'UPDATE'],
   'CAPTURE_DB.EXT.COMPANY_CHANGE': ['SELECT', 'INSERT'],
+  // Employer sites and contacts (sql/employers_03_sites_contacts.sql). The
+  // site assignments are in ACCESS, so read-only like the rest of it.
+  'CAPTURE_DB.ILR.EMPLOYER_SITE': ['SELECT', 'INSERT', 'UPDATE'],
+  'CAPTURE_DB.ILR.EMPLOYER_CONTACT': ['SELECT', 'INSERT', 'UPDATE'],
+  'CAPTURE_DB.ACCESS.APP_USER_SITE': ['SELECT'],
 }
 
 // The problems in a list of grants (from SHOW GRANTS TO ROLE) and future
@@ -94,6 +99,6 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, the Companies House grants are in place, and it can't reach the test snapshot.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, the Companies House, site and contact grants are in place, and it can't reach the test snapshot.`)
   process.exit(problems.length ? 1 : 0)
 }

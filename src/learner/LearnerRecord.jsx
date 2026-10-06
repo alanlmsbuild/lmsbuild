@@ -1,3 +1,4 @@
+import Workplace from './Workplace'
 import { currentProgramme } from '../programme'
 import { useCallback, useEffect, useState } from 'react'
 import {
@@ -402,6 +403,8 @@ function LearnerRecord({ learner, canManage, back }) {
             </>
           )}
         </section>
+
+        <Workplace learnRefNumber={learner.LEARNREFNUMBER} canManage={canManage} back={back} />
       </div>
     </>
   )

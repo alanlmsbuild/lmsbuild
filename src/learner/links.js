@@ -79,6 +79,9 @@ const BACK_LABELS = [
   [/^\/app\/reports\/caseload/, 'Caseload report'],
   [/^\/app\/reports\/ilr/, 'ILR return'],
   [/^\/app\/sign-offs/, 'Sign-offs to check'],
+  [/^\/app\/employers\/[^/?]+\/sites\/[^/?]+/, 'Site'],
+  [/^\/app\/employers\/[^/?]+/, 'Employer'],
+  [/^\/app\/employers/, 'Employers'],
   [/^\/burrow\/learners/, 'Learners'],
 ]
 

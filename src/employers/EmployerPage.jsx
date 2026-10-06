@@ -68,6 +68,7 @@ function EmployerPage({ employerId, isManager }) {
   const e = data?.employer
   const d = e?.COMPANYDETAILS
   const office = registeredOffice(d)
+  const base = `/app/employers/${encodeURIComponent(employerId)}`
 
   return (
     <section id="employer" className="employer-page">
@@ -168,6 +169,108 @@ function EmployerPage({ employerId, isManager }) {
               <Row label="Added">{formatDate(e.CREATEDAT)}</Row>
               {e.UPDATEDAT && <Row label="Last changed">{formatDate(e.UPDATEDAT)}</Row>}
             </dl>
+          </Card>
+
+          <Card title="Sites" titleLevel={3}>
+            <p className="field-hint">Where apprentices work, for example a branch.</p>
+            {data.sites.length === 0 && <p>No sites yet.</p>}
+            {data.sites.length > 0 && (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Site</th>
+                      <th>Postcode</th>
+                      <th>Contact</th>
+                      <th>Apprentices</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.sites.map((s) => (
+                      <tr key={s.SITEID}>
+                        <td>
+                          <a className="link-button" href={`${base}/sites/${encodeURIComponent(s.SITEID)}`}>
+                            {s.NAME}
+                          </a>
+                          {!s.ISACTIVE && (
+                            <>
+                              {' '}
+                              <StatusBadge tone="neutral">No longer used</StatusBadge>
+                            </>
+                          )}
+                        </td>
+                        <td>{s.POSTCODE}</td>
+                        <td>{s.CONTACTNAME ?? '—'}</td>
+                        <td>{s.APPRENTICES}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {isManager && (
+              <a className="ui-button ui-button--secondary" href={`${base}/sites/new`}>
+                Add a site
+              </a>
+            )}
+          </Card>
+
+          <Card title="Contacts" titleLevel={3}>
+            <p className="field-hint">People at this employer: site contacts, line managers and Burrow users.</p>
+            {data.contacts.length === 0 && <p>No contacts yet.</p>}
+            {data.contacts.length > 0 && (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Job title</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Site</th>
+                      {isManager && <th>Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.contacts.map((c) => (
+                      <tr key={c.CONTACTID}>
+                        <td>
+                          {c.NAME}
+                          {c.HASSIGNIN && (
+                            <>
+                              {' '}
+                              <StatusBadge tone="done">Uses Burrow</StatusBadge>
+                            </>
+                          )}
+                          {!c.ISCURRENT && (
+                            <>
+                              {' '}
+                              <StatusBadge tone="neutral">No longer current</StatusBadge>
+                            </>
+                          )}
+                        </td>
+                        <td>{c.JOBTITLE ?? '—'}</td>
+                        <td>{c.EMAIL ?? '—'}</td>
+                        <td>{c.PHONE ?? '—'}</td>
+                        <td>{c.SITENAME ?? '—'}</td>
+                        {isManager && (
+                          <td>
+                            <a className="link-button" href={`${base}/contacts/${encodeURIComponent(c.CONTACTID)}/edit`} aria-label={`Change ${c.NAME}`}>
+                              Change
+                            </a>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {isManager && (
+              <a className="ui-button ui-button--secondary" href={`${base}/contacts/new`}>
+                Add a contact
+              </a>
+            )}
           </Card>
         </>
       )}

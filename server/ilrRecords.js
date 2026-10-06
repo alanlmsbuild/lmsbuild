@@ -20,6 +20,7 @@
 // Every record added copies the learner's ISTESTDATA. Every query goes
 // through the one learner scope, so a learner outside it is "not found".
 
+import { sitePostcodeOf } from './employerSites.js'
 import crypto from 'node:crypto'
 import { execute } from './db.js'
 import { allow, CURRENT_PROGRAMME, IN_VISIBLE_LEARNERS, MANAGER, ORG_APP_FIN_RECORD, ORG_EMPLOYER, VISIBLE_LEARNER } from './access.js'
@@ -875,14 +876,16 @@ const component = {
     const programme = await findProgramme(connection, ref)
     const next = await componentFromBody(connection, body, programme)
     const [{ N: seq }] = await execute(connection, NEXT_SEQ, [ref])
+    // The apprentice's site's postcode, if they're at one; else the programme's.
+    const dellocPostcode = (await sitePostcodeOf(connection, ref)) ?? programme.dellocPostcode
     await inTransaction(connection, async () => {
       await execute(connection, COMPONENT_INSERT, [
-        next.LEARNAIMREF, Number(seq), next.LEARNSTARTDATE, next.LEARNPLANENDDATE, programme.stdCode, programme.dellocPostcode,
+        next.LEARNAIMREF, Number(seq), next.LEARNSTARTDATE, next.LEARNPLANENDDATE, programme.stdCode, dellocPostcode,
         next.PRIORLEARNFUNDADJ, next.OTHERFUNDADJ, by, ref,
       ])
       await logChange(connection, {
         learnRefNumber: ref, table: 'LEARNING_DELIVERY', key: { AIMSEQNUMBER: Number(seq), LEARNAIMREF: next.LEARNAIMREF },
-        type: 'added', newValues: { ...next, AIMTYPE: 3 }, by,
+        type: 'added', newValues: { ...next, AIMTYPE: 3, DELLOCPOSTCODE: dellocPostcode }, by,
       })
     })
   },

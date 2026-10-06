@@ -8,7 +8,7 @@ import { checkIlrRules } from '../../server/ilr/rules.js'
 import { isDeepStrictEqual } from 'node:util'
 
 const SET = `set (CURRENT_ORGANISATIONID, CURRENT_ISTESTDATA, SEES_ALL_LEARNERS, SEES_ALL_OFFICERS, SEES_MANAGER_ONLY,
-  CURRENT_OFFICERREFNUMBER, CASELOAD_OFFICERREFNUMBER, APPRENTICES_OF_EMPLOYERID, OWN_LEARNREFNUMBER) = (?, true, true, true, true, ?, ?, '', '')`
+  CURRENT_OFFICERREFNUMBER, CASELOAD_OFFICERREFNUMBER, APPRENTICES_OF_EMPLOYERID, OWN_LEARNREFNUMBER, CURRENT_USERID) = (?, true, true, true, true, ?, ?, '', '', '')`
 let failures = 0
 const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date()) // as the ILR checks use it
 for (const [org, officer] of [['ORG-T001', 'OFF0008'], ['ORG-T002', 'OFF0011']]) {

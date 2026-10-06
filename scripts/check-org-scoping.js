@@ -80,6 +80,16 @@
 //    ORGANISATIONID, COMPANYNUMBER and COMPANYDETAILS, and sets only NAME
 //    and the company copy (COMPANYDETAILS, COMPANYCHECKEDAT,
 //    COMPANYRESPONSEID).
+// 16. Employer contacts' Burrow access fails closed. In access.js,
+//    EMPLOYER_LINKS keeps its two routes exactly (head office: an active
+//    user with ISHEADOFFICE = true; sites: an active user with a current
+//    assignment, ENDEDAT is null, to a site of the same employer), and
+//    VISIBLE_LEARNER and EMPLOYER_APPRENTICE both use it. Anywhere,
+//    ISHEADOFFICE is only ever compared "= true" (never coalesce, nvl,
+//    "is not false" or "<> false"), and only access.js reads APP_USER_SITE.
+//    Sites and contacts are read through ORG_EMPLOYER_SITE and
+//    ORG_EMPLOYER_CONTACT (check 1) and inserted with the user's ISTESTDATA
+//    (check 3).
 //
 // Usage:
 //   npm run check:scoping
@@ -90,14 +100,14 @@ import { fileURLToPath } from 'node:url'
 
 const serverDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'server')
 const RAW_TABLE =
-  /\b(from|join|update)\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|OFFICER_ASSIGNMENT|LEARNER_EMPLOYER|LEARNER_OFFICER|PRIOR_ATTAINMENT|LLDD_HEALTH_PROBLEM|LEARNER_FAM|EMPLOYMENT_STATUS|EMPLOYMENT_STATUS_MONITORING|LEARNING_DELIVERY_FAM|APP_FIN_RECORD|HOURS_RECORD)|ACCESS\.\w+)\b/i
+  /\b(from|join|update)\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|EMPLOYER_SITE|EMPLOYER_CONTACT|OFFICER_ASSIGNMENT|LEARNER_EMPLOYER|LEARNER_OFFICER|PRIOR_ATTAINMENT|LLDD_HEALTH_PROBLEM|LEARNER_FAM|EMPLOYMENT_STATUS|EMPLOYMENT_STATUS_MONITORING|LEARNING_DELIVERY_FAM|APP_FIN_RECORD|HOURS_RECORD)|ACCESS\.\w+)\b/i
 const SCOPED = /\$\{(ORG_|VISIBLE_|EMPLOYER_APPRENTICE)\w*\}|\$\{IN_(ORG|VISIBLE)_LEARNERS\}|-- all organisations/
 const WHOLE_ORG = /\$\{(ORG_LEARNER|IN_ORG_LEARNERS)\}/
 const MANAGER_ONLY_COLUMNS = ['NINUMBER', 'ETHNICITY']
 const READS_MANAGER_ONLY = new RegExp(`\\b(${MANAGER_ONLY_COLUMNS.join('|')})\\b|select\\s+(\\w+\\.)?\\*`, 'i')
 // Tables whose rows belong to the organisation or a user: ISTESTDATA is
 // the signed-in user's.
-const TEST_DATA_TABLE = /\binsert\s+into\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER)|ACCESS\.\w+)\b/i
+const TEST_DATA_TABLE = /\binsert\s+into\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|EMPLOYER_SITE|EMPLOYER_CONTACT)|ACCESS\.\w+)\b/i
 // Tables whose rows belong to a learner: ISTESTDATA is the learner's, taken
 // from VISIBLE_LEARNER in the insert itself.
 const LEARNER_RECORD_TABLES = ['LEARNING_DELIVERY', 'OFFICER_ASSIGNMENT', 'LEARNER_EMPLOYER', 'PRIOR_ATTAINMENT',
@@ -167,6 +177,41 @@ export function nightlyProblems(sql) {
       if (!NIGHTLY_SETS.has(m[1].toUpperCase())) found.push(`sets ${m[1]}: the nightly refresh sets only ${[...NIGHTLY_SETS].join(', ')}`)
     }
   }
+  return found
+}
+
+// Check 16 on access.js's text: what's wrong with the employer contacts' rule.
+const LINKS_REQUIRED = [
+  'join ACCESS.APP_USER u\n        on u.USERID = $CURRENT_USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE and u.ISHEADOFFICE = true',
+  'join ILR.EMPLOYER_SITE s on s.SITEID = le.SITEID and s.EMPLOYERID = le.EMPLOYERID',
+  'join ACCESS.APP_USER_SITE a on a.SITEID = s.SITEID and a.USERID = $CURRENT_USERID and a.ENDEDAT is null',
+  'join ACCESS.APP_USER u on u.USERID = a.USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE',
+]
+export function employerRuleProblems(text) {
+  const found = []
+  const start = text.indexOf('const EMPLOYER_LINKS = `')
+  const end = text.indexOf(')`', start)
+  const links = start >= 0 && end > start ? text.slice(start, end) : ''
+  if (!links) return ['EMPLOYER_LINKS is missing']
+  for (const part of LINKS_REQUIRED) if (!links.includes(part)) found.push(`EMPLOYER_LINKS no longer has: ${part.replace(/\s+/g, ' ')}`)
+  if ((links.match(/\bunion\b/gi) ?? []).length !== 1) found.push('EMPLOYER_LINKS must be exactly two routes joined by one union')
+  if ((links.match(/where le\.EMPLOYERID = \$APPRENTICES_OF_EMPLOYERID and \(le\.TODATE is null or le\.TODATE >= current_date\(\)\)/g) ?? []).length !== 2) {
+    found.push("both EMPLOYER_LINKS routes must keep to the user's own employer's current links")
+  }
+  if (/\bor\b/i.test(links.replace(/le\.TODATE is null or le\.TODATE/g, ''))) found.push('EMPLOYER_LINKS has an "or" that could widen a route')
+  for (const name of ['VISIBLE_LEARNER', 'EMPLOYER_APPRENTICE']) {
+    const s = text.indexOf(`export const ${name} = \``)
+    const e = text.indexOf(')`', s)
+    if (s < 0 || !text.slice(s, e).includes('LEARNREFNUMBER in ${EMPLOYER_LINKS}')) found.push(`${name} no longer uses EMPLOYER_LINKS`)
+  }
+  const others = [...text.matchAll(/\$APPRENTICES_OF_EMPLOYERID/g)].filter((m) => m.index < start || m.index > end)
+  if (others.length > 0) found.push('$APPRENTICES_OF_EMPLOYERID is used outside EMPLOYER_LINKS')
+  return found
+}
+// Anywhere: ISHEADOFFICE only as "= true".
+export function headOfficeProblems(text) {
+  const found = []
+  for (const m of text.matchAll(/ISHEADOFFICE\b(?!\s*=\s*true\b)/gi)) found.push(m.index)
   return found
 }
 
@@ -385,8 +430,21 @@ for (const file of serverFiles) {
   }
 }
 
+// Check 16: employer contacts' Burrow access fails closed.
+{
+  const accessText = fs.readFileSync(path.join(serverDir, 'access.js'), 'utf8')
+  for (const message of employerRuleProblems(accessText)) report('access.js', accessText, accessText.indexOf('const EMPLOYER_LINKS'), message)
+  for (const file of [...serverFiles, 'access.js']) {
+    const text = fs.readFileSync(path.join(serverDir, file), 'utf8')
+    for (const index of headOfficeProblems(text)) report(file, text, index, 'ISHEADOFFICE is only ever compared "= true", so a missing or false flag never grants access')
+    if (file !== 'access.js') {
+      for (const m of text.matchAll(/\bAPP_USER_SITE\b/g)) report(file, text, m.index, 'only access.js (EMPLOYER_LINKS) reads APP_USER_SITE')
+    }
+  }
+}
+
 if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, and employer contacts see only head office\'s or their own sites\' apprentices.')

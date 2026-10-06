@@ -37,7 +37,7 @@ console.log('Part 1: the pool, one session')
   const s1 = await pool.borrow()
   const l1 = pool.leaseFor(s1)
   l1.variablesSet = true
-  await run(l1, `set (${pool.SESSION_VARIABLES.join(', ')}) = ('ORG-T001', true, true, true, true, 'OFF0008', '', '', '')`)
+  await run(l1, `set (${pool.SESSION_VARIABLES.join(', ')}) = ('ORG-T001', true, true, true, true, 'OFF0008', '', '', '', '')`)
   const [{ V }] = await run(l1, 'select $CURRENT_ORGANISATIONID as V')
   check('variables set on a borrowed session', V === 'ORG-T001', V)
   await pool.giveBack(l1, { reuse: true })

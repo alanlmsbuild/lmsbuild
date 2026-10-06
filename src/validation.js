@@ -137,6 +137,53 @@ export function normalisePostcode(value) {
   return `${text.slice(0, -3)} ${text.slice(-3)}`
 }
 
+// An employer's site (a workplace), added or changed by a manager. Whether
+// the postcode is a real one is checked on the server (REF.POSTCODE).
+export function validateSiteForm(input) {
+  const errors = {}
+  const v = input ?? {}
+  const text = (x) => String(x ?? '').trim()
+  if (!text(v.name)) errors.name = 'Enter the site\'s name, for example "Tesco Express Crosspool".'
+  else if (text(v.name).length > 200) errors.name = 'Name must be 200 characters or fewer.'
+  for (const [field, label] of [['addressLine1', 'Address line 1'], ['addressLine2', 'Address line 2'], ['town', 'Town']]) {
+    if (text(v[field]).length > 100) errors[field] = `${label} must be 100 characters or fewer.`
+  }
+  if (!text(v.postcode)) errors.postcode = 'Enter the site\'s postcode.'
+  else if (!isPostcode(v.postcode)) errors.postcode = 'Enter a real postcode, for example S10 5AA.'
+  return errors
+}
+
+// A person at an employer, added or changed by a manager.
+export function validateContactForm(input) {
+  const errors = {}
+  const v = input ?? {}
+  const text = (x) => String(x ?? '').trim()
+  if (!text(v.name)) errors.name = 'Enter their name.'
+  else if (text(v.name).length > 200) errors.name = 'Name must be 200 characters or fewer.'
+  if (text(v.jobTitle).length > 200) errors.jobTitle = 'Job title must be 200 characters or fewer.'
+  if (text(v.email) && !EMAIL.test(text(v.email))) errors.email = 'Enter a valid email address.'
+  else if (text(v.email).length > 320) errors.email = 'Email must be 320 characters or fewer.'
+  if (text(v.phone) && !PHONE.test(text(v.phone))) errors.phone = 'Enter a valid phone number.'
+  return errors
+}
+
+// An apprentice's workplace: their site and line manager on their current
+// link to an employer. Moving from one site to another starts a new link
+// from the date of the move, so that date is needed; setting a site for the
+// first time or changing only the line manager doesn't. context: { moving,
+// linkFrom (the current link's start, YYYY-MM-DD), today }.
+export function validateWorkplace(input, { moving, linkFrom, today = todayString() }) {
+  const errors = {}
+  const v = input ?? {}
+  if (moving) {
+    if (!isValidDateString(v.moveDate)) errors.moveDate = 'Enter the date they moved, for example 2026-10-05.'
+    else if (linkFrom && v.moveDate <= linkFrom) errors.moveDate = `The move must be after they started here (${linkFrom}).`
+    else if (v.moveDate > today) errors.moveDate = 'The move can\'t be in the future. Record it once it has happened.'
+  }
+  if (v.updateDelivery && !v.siteId) errors.updateDelivery = 'Choose a site to use its postcode.'
+  return errors
+}
+
 // An NI number as stored: capitals, no spaces except a final space suffix.
 export function normaliseNiNumber(value) {
   const text = String(value ?? '').toUpperCase().replace(/\s+/g, '')

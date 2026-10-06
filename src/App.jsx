@@ -7,11 +7,15 @@ import IlrRecordForm, { recordFormTitle } from './learner/IlrRecordForm'
 import HoursForm, { HOURS_HEADING } from './learner/HoursForm'
 import OutcomeForm, { OUTCOME_ACTIONS, OUTCOME_HEADINGS } from './learner/OutcomeForm'
 import ReturnForm from './learner/ReturnForm'
+import WorkplaceForm from './learner/WorkplaceForm'
 import Dashboard from './Dashboard'
 import Officers from './Officers'
 import Employers from './employers/Employers'
 import EmployerPage from './employers/EmployerPage'
 import EmployerForm from './employers/EmployerForm'
+import SiteForm from './employers/SiteForm'
+import SitePage from './employers/SitePage'
+import ContactForm from './employers/ContactForm'
 import LearnerRecord from './learner/LearnerRecord'
 import LearnerHeader from './learner/LearnerHeader'
 import { learnerPath, learnerEditPath, safeBack } from './learner/links'
@@ -48,6 +52,7 @@ const RECORD_KINDS = ['lldd', 'learner-fam', 'prior', 'employment', 'aim-fam', '
 //   /records/<kind>/new                 add an LLDD category, learner FAM
 //   /records/<kind>/<key>/correct         or prior attainment record, or
 //   /records/<kind>/<key>/remove          correct or remove one
+//   /workplace                          their site and line manager
 function learnerActionOf(rest) {
   const [, a, b, c, d] = rest
   if (rest.length <= 1) return undefined
@@ -55,6 +60,7 @@ function learnerActionOf(rest) {
   if (a === 'withdraw' && rest.length === 2) return { type: 'outcome', action: 'withdraw' }
   if (a === 'outcome' && rest.length === 3 && OUTCOME_ACTIONS.includes(b)) return { type: 'outcome', action: b }
   if (a === 'edit' && rest.length === 2) return { type: 'edit', section: null }
+  if (a === 'workplace' && rest.length === 2) return { type: 'workplace' }
   if (a === 'edit' && rest.length === 3 && EDIT_SECTIONS.includes(b)) return { type: 'edit', section: b }
   if (a === 'records' && RECORD_KINDS.includes(b)) {
     if (rest.length === 4 && c === 'new') return { type: 'record', kind: b, key: null, mode: 'new' }
@@ -63,6 +69,26 @@ function learnerActionOf(rest) {
   return null
 }
 const REPORTS = ['qar', 'caseload', 'ilr']
+
+// Which employers page an address is (what follows /app/employers/), or
+// null for none. manager: only managers may use it.
+function employerViewOf(rest) {
+  const [id, a, b, c] = rest
+  switch (rest.length) {
+    case 0: return { type: 'list' }
+    case 1: return id === 'new' ? { type: 'add', manager: true } : { type: 'employer', id }
+    case 2: return a === 'edit' && id !== 'new' ? { type: 'edit', id, manager: true } : null
+    case 3:
+      if (a === 'sites') return b === 'new' ? { type: 'add-site', id, manager: true } : { type: 'site', id, siteId: b }
+      if (a === 'contacts' && b === 'new') return { type: 'add-contact', id, manager: true }
+      return null
+    case 4:
+      if (a === 'sites' && b !== 'new' && c === 'edit') return { type: 'edit-site', id, siteId: b, manager: true }
+      if (a === 'contacts' && b !== 'new' && c === 'edit') return { type: 'edit-contact', id, contactId: b, manager: true }
+      return null
+    default: return null
+  }
+}
 
 // Every Warren view has its own address:
 //   /app/my-day, /app/dashboard, /app/sign-offs
@@ -75,6 +101,8 @@ const REPORTS = ['qar', 'caseload', 'ilr']
 //   /app/learners/<ref>/edit         (and /outcome/<action>...) a manager's
 //                                    form on the learner page
 //   /app/employers[/new | /<employer id>[/edit]]   (new and edit: managers)
+//   /app/employers/<employer id>/sites/new | /sites/<site id>[/edit]
+//   /app/employers/<employer id>/contacts/new | /contacts/<contact id>/edit
 //   /app/officers[/<officer ref>]
 //   /app/reports/qar?year=, /app/reports/caseload[/<officer ref>],
 //   /app/reports/ilr
@@ -112,8 +140,11 @@ function redirectFor(view, can, me) {
     if (rest.length === 0 || (rest[0] === 'ilr' && !can.isManager)) return '/app/reports/qar'
   }
   if (tab === 'employers' && !can.isManager) {
-    if (rest[0] === 'new') return '/app/employers'
-    if (rest[1] === 'edit') return `/app/employers/${encodeURIComponent(rest[0])}`
+    const page = employerViewOf(rest)
+    if (page?.manager) {
+      if (page.type === 'edit-site') return `/app/employers/${encodeURIComponent(page.id)}/sites/${encodeURIComponent(page.siteId)}`
+      return page.id ? `/app/employers/${encodeURIComponent(page.id)}` : '/app/employers'
+    }
   }
   const action = tab === 'learners' ? learnerActionOf(rest) : undefined
   if (action && !can.isManager) return `/app/learners/${encodeURIComponent(rest[0])}`
@@ -140,7 +171,7 @@ function isKnownView({ tab, rest }) {
     case 'officers':
       return rest.length <= 1
     case 'employers':
-      return rest.length <= 1 || (rest.length === 2 && rest[1] === 'edit' && rest[0] !== 'new')
+      return Boolean(employerViewOf(rest))
     case 'reports':
       return (
         REPORTS.includes(rest[0]) && (rest.length === 1 || (rest[0] === 'caseload' && rest.length === 2))
@@ -314,6 +345,8 @@ function App() {
   const tab = view.tab
   const [report, caseloadOfficer] = tab === 'reports' ? view.rest : []
   const listPath = `/app/learners${listQuery}`
+  const employerPage = tab === 'employers' ? employerViewOf(view.rest) : null
+  const employerHome = employerPage?.id ? `/app/employers/${encodeURIComponent(employerPage.id)}` : '/app/employers'
 
   return (
     <div className="warren">
@@ -381,6 +414,9 @@ function App() {
               onSaved={handleSaved}
               onCancel={closeForm}
             />
+          )}
+          {isManager && learnerAction?.type === 'workplace' && (
+            <WorkplaceForm key={`${learnerRef}-workplace`} learnRefNumber={learnerRef} onSaved={handleSaved} onCancel={closeForm} />
           )}
           {isManager && learnerAction?.type === 'outcome' && ['return', 'undo-return'].includes(learnerAction.action) && (
             <ReturnForm
@@ -524,23 +560,44 @@ function App() {
         />
       )}
 
-      {!redirect && tab === 'employers' && isKnownView(view) && view.rest.length === 0 && <Employers isManager={isManager} />}
-      {!redirect && tab === 'employers' && isKnownView(view) && view.rest[0] === 'new' && (
+      {!redirect && tab === 'employers' && employerPage?.type === 'list' && <Employers isManager={isManager} />}
+      {!redirect && tab === 'employers' && employerPage?.type === 'add' && (
         <EmployerForm
           employerId={null}
           onDone={(id) => navigate(`/app/employers/${encodeURIComponent(id)}`)}
           onCancel={() => navigate('/app/employers')}
         />
       )}
-      {!redirect && tab === 'employers' && isKnownView(view) && view.rest.length === 1 && view.rest[0] !== 'new' && (
-        <EmployerPage key={view.rest[0]} employerId={view.rest[0]} isManager={isManager} />
+      {!redirect && tab === 'employers' && employerPage?.type === 'employer' && (
+        <EmployerPage key={employerPage.id} employerId={employerPage.id} isManager={isManager} />
       )}
-      {!redirect && tab === 'employers' && isKnownView(view) && view.rest[1] === 'edit' && (
+      {!redirect && tab === 'employers' && employerPage?.type === 'edit' && (
         <EmployerForm
-          key={view.rest[0]}
-          employerId={view.rest[0]}
+          key={employerPage.id}
+          employerId={employerPage.id}
           onDone={(id) => navigate(`/app/employers/${encodeURIComponent(id)}`)}
-          onCancel={() => navigate(`/app/employers/${encodeURIComponent(view.rest[0])}`)}
+          onCancel={() => navigate(employerHome)}
+        />
+      )}
+      {!redirect && tab === 'employers' && (employerPage?.type === 'add-site' || employerPage?.type === 'edit-site') && (
+        <SiteForm
+          key={`${employerPage.id}-${employerPage.siteId ?? 'new'}`}
+          employerId={employerPage.id}
+          siteId={employerPage.siteId ?? null}
+          onDone={(siteId) => navigate(`${employerHome}/sites/${encodeURIComponent(siteId)}`)}
+          onCancel={() => navigate(employerPage.siteId ? `${employerHome}/sites/${encodeURIComponent(employerPage.siteId)}` : employerHome)}
+        />
+      )}
+      {!redirect && tab === 'employers' && employerPage?.type === 'site' && (
+        <SitePage key={employerPage.siteId} employerId={employerPage.id} siteId={employerPage.siteId} isManager={isManager} />
+      )}
+      {!redirect && tab === 'employers' && (employerPage?.type === 'add-contact' || employerPage?.type === 'edit-contact') && (
+        <ContactForm
+          key={`${employerPage.id}-${employerPage.contactId ?? 'new'}`}
+          employerId={employerPage.id}
+          contactId={employerPage.contactId ?? null}
+          onDone={() => navigate(employerHome)}
+          onCancel={() => navigate(employerHome)}
         />
       )}
       {!redirect && tab === 'my-day' && <MyDay me={me} onOpenLearner={openLearner} />}

@@ -19,6 +19,7 @@
 // everything the return added as removed and puts the employer back.
 // Every change is logged in ILR.RECORD_CHANGE, as type 'return'.
 
+import { sitePostcodeOf } from './employerSites.js'
 import crypto from 'node:crypto'
 import { execute } from './db.js'
 import { IN_VISIBLE_LEARNERS, ORG_APP_FIN_RECORD, VISIBLE_LEARNER } from './access.js'
@@ -91,12 +92,14 @@ const NEXT_SEQ = `
   where LEARNREFNUMBER = ? and ${IN_VISIBLE_LEARNERS}
 `
 // A new aim copied from the one on the break: same aim, standard, funding
-// and delivery details, from the restart date, with the original start.
+// and delivery details, from the restart date, with the original start. Its
+// delivery location postcode is the apprentice's current site's, if they're
+// at one (sitePostcodeOf), else the old aim's.
 const AIM_INSERT = `
   insert into LEARNING_DELIVERY (LEARNREFNUMBER, LEARNAIMREF, AIMTYPE, AIMSEQNUMBER, LEARNSTARTDATE, LEARNPLANENDDATE,
     FUNDMODEL, PROGTYPE, STDCODE, DELLOCPOSTCODE, COMPSTATUS, EPAORGID, ORIGLEARNSTARTDATE, PRIORLEARNFUNDADJ,
     OTHERFUNDADJ, SWSUPAIMID, UPDATEDAT, UPDATEDBY, ISTESTDATA)
-  select l.LEARNREFNUMBER, o.LEARNAIMREF, o.AIMTYPE, ?, ?, ?, o.FUNDMODEL, o.PROGTYPE, o.STDCODE, o.DELLOCPOSTCODE, 1,
+  select l.LEARNREFNUMBER, o.LEARNAIMREF, o.AIMTYPE, ?, ?, ?, o.FUNDMODEL, o.PROGTYPE, o.STDCODE, coalesce(?, o.DELLOCPOSTCODE), 1,
     o.EPAORGID, coalesce(o.ORIGLEARNSTARTDATE, o.LEARNSTARTDATE), ?, o.OTHERFUNDADJ, uuid_string(),
     current_timestamp(), ?, l.ISTESTDATA
   from ${VISIBLE_LEARNER} l
@@ -160,13 +163,15 @@ export async function recordReturn(connection, ref, body, by) {
   if (Object.keys(errors).length > 0) throw new RequestError('Please fix the highlighted fields.', 400, errors)
   const status = newEmployer ? await prepareEmploymentStatus(connection, ref, { ...body, empStat: '10', dateEmpStatApp: restart }) : null
 
+  // Returning to a new employer: no site yet, so the old aims' postcode.
+  const sitePostcode = newEmployer ? null : await sitePostcodeOf(connection, ref)
   const log = (table, key, newValues) => logChange(connection, { learnRefNumber: ref, table, key, type: 'return', newValues, by })
   await inTransaction(connection, async () => {
     let [{ N: seq }] = await execute(connection, NEXT_SEQ, [ref])
     seq = Number(seq)
     const addAim = async (old, plannedEnd, priorLearnFundAdj) => {
       const aimSeq = seq++
-      await execute(connection, AIM_INSERT, [aimSeq, restart, plannedEnd, priorLearnFundAdj, by, old.AIMSEQNUMBER, ref])
+      await execute(connection, AIM_INSERT, [aimSeq, restart, plannedEnd, sitePostcode, priorLearnFundAdj, by, old.AIMSEQNUMBER, ref])
       await log('LEARNING_DELIVERY', { AIMSEQNUMBER: aimSeq, LEARNAIMREF: old.LEARNAIMREF }, {
         LEARNSTARTDATE: restart, LEARNPLANENDDATE: plannedEnd, ORIGLEARNSTARTDATE: old.ORIGLEARNSTARTDATE ?? old.LEARNSTARTDATE,
         PRIORLEARNFUNDADJ: priorLearnFundAdj, RESTART_OF: old.AIMSEQNUMBER,

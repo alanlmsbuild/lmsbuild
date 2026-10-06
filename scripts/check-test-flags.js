@@ -44,7 +44,48 @@ const EMPLOYER_REFERENCES = [
   ['ACCESS.APP_USER', '', 't.ORGANISATIONID', 'where t.EMPLOYERID is not null'],
   ['BURROW.WITNESS_CONFIRMATION', `left join CAPTURE_DB.BURROW.EVIDENCE v on v.EVIDENCE_ID = t.EVIDENCE_ID
      left join CAPTURE_DB.ILR.LEARNER l on l.LEARNREFNUMBER = v.LEARNREFNUMBER`, 'l.ORGANISATIONID', ''],
+  // A site has no organisation of its own: only that its employer exists.
+  ['ILR.EMPLOYER_SITE', '', 'e.ORGANISATIONID', ''],
+  // A contact with a Burrow sign-in: the sign-in's organisation.
+  ['ILR.EMPLOYER_CONTACT', 'left join CAPTURE_DB.ACCESS.APP_USER u on u.USERID = t.USERID', 'coalesce(u.ORGANISATIONID, e.ORGANISATIONID)', ''],
 ]
+
+// Sites, contacts and site assignments point within the same employer, and
+// one person is one record. The same as check 5 in
+// sql/test_reset_02_reset.sql.
+const SITE_LINKS_QUERY = `
+  select 'site contact at another employer' as PROBLEM, count(*) as N
+  from CAPTURE_DB.ILR.EMPLOYER_SITE s join CAPTURE_DB.ILR.EMPLOYER_CONTACT c on c.CONTACTID = s.CONTACTID
+  where c.EMPLOYERID <> s.EMPLOYERID
+  union all select 'site contact that does not exist', count(*)
+  from CAPTURE_DB.ILR.EMPLOYER_SITE s left join CAPTURE_DB.ILR.EMPLOYER_CONTACT c on c.CONTACTID = s.CONTACTID
+  where s.CONTACTID is not null and c.CONTACTID is null
+  union all select 'contact based at another employer''s site', count(*)
+  from CAPTURE_DB.ILR.EMPLOYER_CONTACT c join CAPTURE_DB.ILR.EMPLOYER_SITE s on s.SITEID = c.SITEID
+  where s.EMPLOYERID <> c.EMPLOYERID
+  union all select 'apprentice at another employer''s site, or a site that does not exist', count(*)
+  from CAPTURE_DB.ILR.LEARNER_EMPLOYER le left join CAPTURE_DB.ILR.EMPLOYER_SITE s on s.SITEID = le.SITEID
+  where le.SITEID is not null and (s.SITEID is null or s.EMPLOYERID <> le.EMPLOYERID)
+  union all select 'line manager at another employer, or not a contact', count(*)
+  from CAPTURE_DB.ILR.LEARNER_EMPLOYER le left join CAPTURE_DB.ILR.EMPLOYER_CONTACT c on c.CONTACTID = le.LINEMANAGERCONTACTID
+  where le.LINEMANAGERCONTACTID is not null and (c.CONTACTID is null or c.EMPLOYERID <> le.EMPLOYERID)
+  union all select 'site assignment not at the user''s employer', count(*)
+  from CAPTURE_DB.ACCESS.APP_USER_SITE a
+  join CAPTURE_DB.ACCESS.APP_USER u on u.USERID = a.USERID
+  left join CAPTURE_DB.ILR.EMPLOYER_SITE s on s.SITEID = a.SITEID
+  where s.SITEID is null or s.EMPLOYERID is distinct from u.EMPLOYERID
+  union all select 'contact and sign-in emails differ', count(*)
+  from CAPTURE_DB.ILR.EMPLOYER_CONTACT c join CAPTURE_DB.ACCESS.APP_USER u on u.USERID = c.USERID
+  where lower(c.EMAIL) is distinct from lower(u.EMAIL) or c.EMPLOYERID is distinct from u.EMPLOYERID
+  union all select 'user with more than one contact', count(*)
+  from (select USERID from CAPTURE_DB.ILR.EMPLOYER_CONTACT where USERID is not null group by USERID having count(*) > 1)
+  union all select 'same email twice among an employer''s current contacts', count(*)
+  from (select EMPLOYERID, lower(EMAIL) from CAPTURE_DB.ILR.EMPLOYER_CONTACT where ISCURRENT and EMAIL is not null
+        group by 1, 2 having count(*) > 1)
+  union all select 'head office with current site assignments', count(distinct u.USERID)
+  from CAPTURE_DB.ACCESS.APP_USER u join CAPTURE_DB.ACCESS.APP_USER_SITE a on a.USERID = u.USERID and a.ENDEDAT is null
+  where u.ISHEADOFFICE
+`
 const EMPLOYER_REFERENCES_QUERY = [
   ...EMPLOYER_REFERENCES.map(([table, join, org, where]) => `select '${table}' as TABLE_NAME, count(*) as ROWS_,
      coalesce(count_if(e.EMPLOYERID is null), 0) as NO_EMPLOYER,
@@ -76,6 +117,11 @@ try {
     console.log(r.TABLE_NAME.startsWith('Tables')
       ? `${bad ? 'FAIL' : 'ok  '} ${r.ROWS_} other table(s) with an EMPLOYERID column (add them to this check and check 4 of sql/test_reset_02_reset.sql)`
       : `${bad ? 'FAIL' : 'ok  '} ${r.TABLE_NAME.padEnd(30)} ${String(r.ROWS_).padStart(5)} rows, ${r.NO_EMPLOYER} with no such employer, ${r.OTHER_ORGANISATION} with another organisation's employer`)
+  }
+  console.log('\nSites, contacts and site assignments:')
+  for (const r of await execute(connection, SITE_LINKS_QUERY)) {
+    problems += Number(r.N)
+    console.log(`${Number(r.N) ? 'FAIL' : 'ok  '} ${r.N} ${r.PROBLEM}`)
   }
 } finally {
   await destroy(connection)

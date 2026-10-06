@@ -117,6 +117,11 @@ it. Add to this list rather than keeping these elsewhere.
   needs INSERT and UPDATE on ACCESS.APP_USER_SITE (and UPDATE on the
   head-office flag), the app role's first write access to ACCESS, and a
   change to `npm run check:grants`. Never DELETE: an assignment is ended.
+- **New employer contacts see nobody until set up** (2026-10-06, Claude).
+  Burrow access fails closed: an employer contact sees apprentices only if
+  ISHEADOFFICE is TRUE or they have a current site assignment. Whoever
+  creates real employer sign-ins must set one or the other, and the
+  apprentices' sites, or the contact sees an empty Burrow.
 
 ## Employer contacts
 

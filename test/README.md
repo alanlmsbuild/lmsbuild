@@ -11,11 +11,14 @@ puts it back.
     node test/db/ilr-consistency.mjs    # Record tab checks = ILR return
     node test/db/companies-house.mjs    # Companies House save, rolled back
     node test/db/refresh-companies.mjs  # the nightly refresh (after employers.mjs)
+    node test/db/employer-sites.mjs     # sites, and who sees whom in Burrow
     test/stop-test-servers.py           # stops only those two servers
 
 - `browser/` drives the real pages in headless Chromium (step3 to step4g2,
-  one file per step of part 7, and `employers.mjs` for the Employers
-  screens, which calls Companies House for real). `setup.mjs` has the
+  one file per step of part 7, `employers.mjs` for the Employers screens,
+  which calls Companies House for real, and `sites.mjs` for employer sites,
+  contacts, apprentices' workplaces and what each employer contact sees in
+  Burrow). `setup.mjs` has the
   shared settings.
   `restore-4g1.mjs` puts the six 4g-1 learners back to continuing; the 4g-1
   test leaves its outcomes in place for checking in FIS.
@@ -27,6 +30,10 @@ puts it back.
 - `db/companies-house.mjs` saves a made-up company to EXT and an employer's
   own copy, and reads it as a manager, a tutor and another organisation, in
   a transaction that's rolled back. It doesn't call Companies House.
+- `db/employer-sites.mjs` checks the postcode new aims start with, what each
+  test employer contact sees (head office, one site, two sites, an ended
+  assignment, none), and that a reused session forgets the user. Writes
+  only inside transactions it rolls back.
 - `db/refresh-companies.mjs` runs the nightly refresh on the TESCO PLC test
   employers that `browser/employers.mjs` adds, calling Companies House for
   real.

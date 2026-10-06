@@ -43,6 +43,17 @@ export const ORG_EMPLOYER = `(
   where ORGANISATIONID = ${ORG}
 )`
 
+// The organisation's employers' sites and contacts (all staff see them;
+// managers change them).
+export const ORG_EMPLOYER_SITE = `(
+  select * from ILR.EMPLOYER_SITE
+  where EMPLOYERID in (select EMPLOYERID from ${ORG_EMPLOYER})
+)`
+export const ORG_EMPLOYER_CONTACT = `(
+  select * from ILR.EMPLOYER_CONTACT
+  where EMPLOYERID in (select EMPLOYERID from ${ORG_EMPLOYER})
+)`
+
 // The organisation to write on new learners and officers.
 export const CURRENT_ORGANISATIONID = ORG
 
@@ -102,22 +113,47 @@ const LEARNER_ROWS = `(
 // roles, added together:
 //   Manager, IQA        every learner in the organisation
 //   Tutor, Assessor     the learners currently assigned to them
-//   Employer            their employer's current apprentices, by EMPLOYERID
-//                       only (the same employer reference can exist at
-//                       another organisation)
+//   Employer            their employer's current apprentices (by
+//                       EMPLOYERID only), all of them for head office, else
+//                       those at their assigned sites (EMPLOYER_LINKS)
 //   Learner             themselves
 // A learner outside this gets "not found", the same as one in another
 // organisation. Session variables for a role the user doesn't hold are ''
 // (matches nothing) or FALSE.
+// The apprentices an employer contact sees: current links of their own
+// employer, through one of two routes, nothing else (it fails closed):
+//   head office  the user is active and ISHEADOFFICE = true: every current
+//                apprentice of the employer
+//   sites        the user is active and has a current assignment
+//                (ACCESS.APP_USER_SITE, ENDEDAT is null) to the apprentice's
+//                site, a site of that same employer
+// No flag and no current assignment means nobody, and an apprentice with no
+// site is seen by head office only. Both read the user fresh on every query
+// ($CURRENT_USERID), so a change applies on their next request. For anyone
+// who isn't an employer contact both variables are '' and nothing matches.
+// (npm run check:scoping keeps both routes as they are.)
+const EMPLOYER_LINKS = `(
+      select le.LEARNREFNUMBER
+      from ILR.LEARNER_EMPLOYER le
+      join ACCESS.APP_USER u
+        on u.USERID = $CURRENT_USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE and u.ISHEADOFFICE = true
+      where le.EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (le.TODATE is null or le.TODATE >= current_date())
+      union
+      select le.LEARNREFNUMBER
+      from ILR.LEARNER_EMPLOYER le
+      join ILR.EMPLOYER_SITE s on s.SITEID = le.SITEID and s.EMPLOYERID = le.EMPLOYERID
+      join ACCESS.APP_USER_SITE a on a.SITEID = s.SITEID and a.USERID = $CURRENT_USERID and a.ENDEDAT is null
+      join ACCESS.APP_USER u on u.USERID = a.USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE
+      where le.EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (le.TODATE is null or le.TODATE >= current_date())
+    )`
+
 export const VISIBLE_LEARNER = `(
   select * from ${LEARNER_ROWS}
   where $SEES_ALL_LEARNERS
     or LEARNREFNUMBER in (
       select LEARNREFNUMBER from ILR.OFFICER_ASSIGNMENT
       where OFFICERREFNUMBER = $CASELOAD_OFFICERREFNUMBER and ENDEDAT is null)
-    or LEARNREFNUMBER in (
-      select LEARNREFNUMBER from ILR.LEARNER_EMPLOYER
-      where EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (TODATE is null or TODATE >= current_date()))
+    or LEARNREFNUMBER in ${EMPLOYER_LINKS}
     or LEARNREFNUMBER = $OWN_LEARNREFNUMBER
 )`
 
@@ -139,14 +175,12 @@ export const CURRENT_PROGRAMME = `(
     qualify AIMSEQNUMBER = max(AIMSEQNUMBER) over (partition by LEARNREFNUMBER)
   )`
 
-// The current apprentices of the signed-in user's own employer (by
-// EMPLOYERID only), whatever other roles they hold. For the employer
+// The current apprentices of the signed-in user's own employer that they
+// can see (EMPLOYER_LINKS), whatever other roles they hold. For the employer
 // screens, which show only what an employer may see of each apprentice.
 export const EMPLOYER_APPRENTICE = `(
   select * from ${VISIBLE_LEARNER}
-  where LEARNREFNUMBER in (
-    select LEARNREFNUMBER from ILR.LEARNER_EMPLOYER
-    where EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (TODATE is null or TODATE >= current_date()))
+  where LEARNREFNUMBER in ${EMPLOYER_LINKS}
 )`
 
 // Every learner in the organisation, whoever is asking. Only for duties
@@ -187,9 +221,11 @@ export const VISIBLE_OFFICER = `(
 // ---------------------------------------------------------------- the signed-in user
 
 // The user and their roles in one trip. A role counts only while it hasn't
-// been revoked.
+// been revoked. An employer contact's name comes from their contact record
+// (ILR.EMPLOYER_CONTACT), which holds their details; the sign-in keeps its
+// own name for everyone else.
 const USER_QUERY = `
-  select u.USERID, u.ORGANISATIONID, o.NAME as ORGANISATIONNAME, u.DISPLAYNAME, u.EMAIL, u.OFFICERREFNUMBER,
+  select u.USERID, u.ORGANISATIONID, o.NAME as ORGANISATIONNAME, coalesce(c.NAME, u.DISPLAYNAME) as DISPLAYNAME, u.EMAIL, u.OFFICERREFNUMBER,
     u.LEARNREFNUMBER, u.EMPLOYERID, u.ISACTIVE, u.ISTESTDATA,
     listagg(distinct r.ROLE, ',') within group (order by r.ROLE) as ROLES
   from ACCESS.APP_USER u
@@ -197,8 +233,10 @@ const USER_QUERY = `
     on o.ORGANISATIONID = u.ORGANISATIONID
   left join ACCESS.USER_ROLE r
     on r.USERID = u.USERID and r.REVOKEDAT is null
+  left join ILR.EMPLOYER_CONTACT c
+    on c.USERID = u.USERID and c.EMPLOYERID = u.EMPLOYERID and c.ISCURRENT
   where u.USERID = ?
-  group by u.USERID, u.ORGANISATIONID, o.NAME, u.DISPLAYNAME, u.EMAIL, u.OFFICERREFNUMBER,
+  group by u.USERID, u.ORGANISATIONID, o.NAME, c.NAME, u.DISPLAYNAME, u.EMAIL, u.OFFICERREFNUMBER,
     u.LEARNREFNUMBER, u.EMPLOYERID, u.ISACTIVE, u.ISTESTDATA
 `
 
@@ -217,6 +255,9 @@ function sessionValues(user) {
     holds(TUTOR, ASSESSOR) ? user.OFFICERREFNUMBER ?? '' : '',
     holds(EMPLOYER) ? user.EMPLOYERID ?? '' : '',
     holds(LEARNER) ? user.LEARNREFNUMBER ?? '' : '',
+    // For the employer rule (EMPLOYER_LINKS): an employer contact's own
+    // user, '' (nobody) for everyone else.
+    holds(EMPLOYER) ? user.USERID ?? '' : '',
   ]
 }
 

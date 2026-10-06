@@ -22,7 +22,7 @@ async function record(p, ref) {
   const p = await open('USR-T0008')
   const r = await record(p, 'TESTL0056')
   check('manager: summary', /no problems found/.test(r.summary), r.summary)
-  check('manager: sections', r.sections.join('|') === 'Personal details|Contact details|Equality and support|Prior attainment|Employment|Apprenticeship programme|Off-the-job hours|Prices and payments|Component aims|Outcome|Officers', r.sections.join('|'))
+  check('manager: sections', r.sections.join('|') === 'Personal details|Contact details|Equality and support|Prior attainment|Employment|Apprenticeship programme|Off-the-job hours|Prices and payments|Component aims|Outcome|Officers|Workplace', r.sections.join('|'))
   check('manager: NI, ethnicity, prices', /NI number/.test(r.text) && /Ethnicity/.test(r.text) && /Total training price/.test(r.text) && /£/.test(r.text))
   check('manager: records shown', /Employment status\s+In paid employment \(10\)/.test(r.text) && /Length of employment/.test(r.text) && /Planned hours for off the job training\s+\d+ hours/.test(r.text) && /Worked out by Warren/.test(r.text), '')
   check('manager: prior attainment label', /Recorded \d\d\/\d\d\/\d{4}\s+(Full )?Level|Entry|No qualifications|Other|Not known/.test(r.text))

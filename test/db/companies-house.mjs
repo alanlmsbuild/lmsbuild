@@ -65,7 +65,7 @@ console.log('Part 1: no database, no Companies House')
 // ---------------------------------------------------------------- part 2
 console.log('Part 2: EXT.COMPANY, rolled back')
 const SET = `set (CURRENT_ORGANISATIONID, CURRENT_ISTESTDATA, SEES_ALL_LEARNERS, SEES_ALL_OFFICERS, SEES_MANAGER_ONLY,
-  CURRENT_OFFICERREFNUMBER, CASELOAD_OFFICERREFNUMBER, APPRENTICES_OF_EMPLOYERID, OWN_LEARNREFNUMBER) = ('ORG-T001', true, true, true, ?, '', '', '', '')`
+  CURRENT_OFFICERREFNUMBER, CASELOAD_OFFICERREFNUMBER, APPRENTICES_OF_EMPLOYERID, OWN_LEARNREFNUMBER, CURRENT_USERID) = ('ORG-T001', true, true, true, ?, '', '', '', '', '')`
 const c = await connect()
 try {
   const [before] = await execute(c, `select count(*) as N from EXT.COMPANY where COMPANYNUMBER = ?`, [NUMBER])
