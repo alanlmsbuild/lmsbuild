@@ -136,3 +136,31 @@ it. Add to this list rather than keeping these elsewhere.
   the last apprentice they were linked to finished, in line with funding
   audit records) and a way to remove or anonymise them after that. Contacts
   are marked no longer current, not deleted, until then.
+
+## Vacancies from Find an apprenticeship
+
+- **The API's terms of use** (2026-10-06, Alan). Before real use, confirm
+  the Display Advert API terms, and NHS Jobs' and Civil Service Jobs' for
+  their adverts (the import includes both): whether we may store and
+  redisplay adverts, attribution, linking back (VACANCYURL), and removing
+  closed adverts.
+- **Whose key** (2026-10-06, Claude). FAA_API_KEY belongs to a provider's
+  Apprenticeship Service account or a developer hub account. Decide which,
+  with separate keys for development, testing and real use (the limit of
+  150 requests in five minutes is per key; the import keeps under 115).
+- **Two years, then cleared** (2026-10-06, Alan). Closed adverts are kept 2
+  years in EXT.VACANCY and RAW.FAA_VACANCY_PAGE, then cleared. That needs an
+  admin job with DELETE (the app's role has none), alongside the Companies
+  House RAW retention.
+- **Contact details in adverts** (2026-10-06, Claude). Some adverts carry an
+  employer contact's name, email and phone. EXT never keeps them; RAW does,
+  as returned, so they fall under its 2-year retention. Decide whether
+  that's acceptable or RAW should drop them too.
+- **HTML in adverts** (2026-10-06, Alan). Adverts are stored and shown as
+  plain text only (server/vacancyText.js). Showing their formatting needs a
+  proper allow-list cleaner first, and a test that a script in an advert
+  never runs.
+- **The import's schedule** (2026-10-06, Claude). `npm run import:vacancies
+  -- --full` nightly and `-- --new` every 2 hours, from the same scheduler
+  as the Companies House refresh. A run refuses to start while another is
+  open (an unfinished run older than an hour no longer blocks).

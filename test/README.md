@@ -12,6 +12,7 @@ puts it back.
     node test/db/companies-house.mjs    # Companies House save, rolled back
     node test/db/refresh-companies.mjs  # the nightly refresh (after employers.mjs)
     node test/db/employer-sites.mjs     # sites, and who sees whom in Burrow
+    node test/db/vacancy-import.mjs     # the vacancy import (one live request)
     test/stop-test-servers.py           # stops only those two servers
 
 - `browser/` drives the real pages in headless Chromium (step3 to step4g2,
@@ -40,6 +41,10 @@ puts it back.
   data isn't in place, and `restoreSites`, which `sites.mjs` runs at the end
   to put back what it changed (by updates: rows it added are marked no
   longer used, current, or ended until the next reset).
+- `db/vacancy-import.mjs` checks advert text is plain (a `<script>` comes out
+  as text), cleaning, sources, pacing, then runs the import against saved
+  responses (`fixtures/faa/`, real adverts without contact details) in a
+  transaction it rolls back, and makes one live request.
 - `db/refresh-companies.mjs` runs the nightly refresh on the TESCO PLC test
   employers that `browser/employers.mjs` adds, calling Companies House for
   real.

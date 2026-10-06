@@ -90,6 +90,10 @@
 //    Sites and contacts are read through ORG_EMPLOYER_SITE and
 //    ORG_EMPLOYER_CONTACT (check 1) and inserted with the user's ISTESTDATA
 //    (check 3).
+// 17. The vacancy import (scripts/import-vacancies.js) runs without a
+//    signed-in user, so it stays out of the app too: nothing in server/ or
+//    src/ imports it, and its SQL names no table but RAW.FAA_VACANCY_PAGE,
+//    EXT.VACANCY and EXT.VACANCY_IMPORT_RUN (no organisation's data).
 //
 // Usage:
 //   npm run check:scoping
@@ -443,8 +447,35 @@ for (const file of serverFiles) {
   }
 }
 
+// Check 17: the vacancy import stays out of the app, and keeps to its own
+// tables.
+{
+  const repo = path.join(serverDir, '..')
+  const IMPORT_TABLES = new Set(['RAW.FAA_VACANCY_PAGE', 'EXT.VACANCY', 'EXT.VACANCY_IMPORT_RUN'])
+  for (const [area, f] of [
+    ...fs.readdirSync(serverDir, { recursive: true }).map((x) => ['server', x]),
+    ...fs.readdirSync(path.join(repo, 'src'), { recursive: true }).map((x) => ['src', x]),
+  ].filter(([, x]) => /\.(js|jsx|mjs)$/.test(x))) {
+    const text = fs.readFileSync(path.join(repo, area, f), 'utf8')
+    const m = text.match(/\b(import|from|import\()\s*['"`][^'"`]*import-vacancies/)
+    if (m) {
+      console.log(`${area}/${f.split(path.sep).join('/')}:${text.slice(0, m.index).split('\n').length}  imports the vacancy import, which runs without a signed-in user: the app must not`)
+      problems++
+    }
+  }
+  const importer = fs.readFileSync(path.join(repo, 'scripts', 'import-vacancies.js'), 'utf8')
+  for (const sql of importer.matchAll(/`[^`]*`/g)) {
+    if (!/\b(select|update|insert|merge|delete)\b/i.test(sql[0])) continue
+    for (const m of sql[0].matchAll(/\b(?:from|join|update|into)\s+([A-Za-z_][\w.$]*)/gi)) {
+      if (['table', 'set', 'select'].includes(m[1].toLowerCase()) || IMPORT_TABLES.has(m[1])) continue
+      console.log(`scripts/import-vacancies.js:${importer.slice(0, sql.index).split('\n').length}  names ${m[1]}: the vacancy import uses only ${[...IMPORT_TABLES].join(', ')}`)
+      problems++
+    }
+  }
+}
+
 if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, and employer contacts see only head office\'s or their own sites\' apprentices.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, and the vacancy import stays out of the app.')

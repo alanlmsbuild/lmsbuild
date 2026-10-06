@@ -46,6 +46,11 @@ const REQUIRED = {
   'CAPTURE_DB.ILR.EMPLOYER_SITE': ['SELECT', 'INSERT', 'UPDATE'],
   'CAPTURE_DB.ILR.EMPLOYER_CONTACT': ['SELECT', 'INSERT', 'UPDATE'],
   'CAPTURE_DB.ACCESS.APP_USER_SITE': ['SELECT'],
+  // Vacancies (sql/vacancies_01_tables.sql).
+  'CAPTURE_DB.RAW.FAA_VACANCY_PAGE': ['INSERT'],
+  'CAPTURE_DB.EXT.VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
+  'CAPTURE_DB.EXT.VACANCY_IMPORT_RUN': ['SELECT', 'INSERT', 'UPDATE'],
+  'CAPTURE_DB.ILR.EMPLOYER_VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
 }
 
 // The problems in a list of grants (from SHOW GRANTS TO ROLE) and future
@@ -99,6 +104,6 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, the Companies House, site and contact grants are in place, and it can't reach the test snapshot.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, the Companies House, site, contact and vacancy grants are in place, and it can't reach the test snapshot.`)
   process.exit(problems.length ? 1 : 0)
 }

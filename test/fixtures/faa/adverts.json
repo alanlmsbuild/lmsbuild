@@ -1,0 +1,298 @@
+{
+ "savedOn": "2026-10-06",
+ "note": "Real public adverts from the Find an apprenticeship Display Advert API v2 (X-Version 2), employer contact fields removed.",
+ "faa": [
+  {
+   "employerDescription": "North Staffordshire Engineering Group Training Association Ltd have a strong track record of working with local engineering companies for over fifty years.\r\n The largest dedicated engineering training organisation in Stoke on Trent we pride ourselves on our unique historical links with the local engineering sector.",
+   "trainingDescription": "<p>Level 2 Engineering Operative apprenticeship standard which includes:</p>\r\n<ul>\r\n<li>Level 2 Diploma in Engineering Operations (skills)</li>\r\n<li>Certificate or Diploma in Engineering Operations (knowledge)</li>\r\n<li>Functional Skills in maths or English (if required)</li>\r\n<li>Learning will take place in the workplace with the need to attend training at NSEGTA premises - Training schedule has yet to be agreed. Details will be made available at a later date.&nbsp;</li>\r\n</ul>",
+   "outcomeDescription": "<ul>\r\n<li>The successful candidate will have the opportunity to progress into full time employment following the completion of the apprenticeship and / or another apprenticeship as agreed with the company.</li>\r\n</ul>",
+   "fullDescription": "<p>The successful apprentice will be trained by a skilled Maintenance Engineering in the following duties (but not limited to):</p>\r\n<ul>\r\n<li>Planned maintenance; servicing and repairs of all equipment on site</li>\r\n<li>Reactive breakdown maintenance and repairs of all equipment on site</li>\r\n<li>To keep repairs and servicing in-line with the Maintenance Management System</li>\r\n<li>To log breakdowns on the company breakdown log</li>\r\n<li>To help with the control of critical spares</li>\r\n<li>Other duties will include, keeping the workspace clean and tidy and other ad-hoc duties where required.</li>\r\n</ul>",
+   "skills": [
+    "Communication skills",
+    "IT skills",
+    "Attention to detail",
+    "Problem solving skills",
+    "Number skills",
+    "Logical",
+    "Team working"
+   ],
+   "qualifications": [
+    {
+     "weighting": "Desired",
+     "qualificationType": "GCSE or equivalent",
+     "subject": "English",
+     "grade": "A-C / 4"
+    },
+    {
+     "weighting": "Desired",
+     "qualificationType": "GCSE or equivalent",
+     "subject": "Maths",
+     "grade": "A-C / 4"
+    }
+   ],
+   "title": "Apprentice Maintenance Engineer",
+   "description": "We have an opportunity for a Maintenance Engineer role with a local company.  The successful applicant will be trained to carry out repairs and maintenance of all equipment on site. Repairs and maintenance will be both reactive and planned-in, in accordance with the company plan. You will be expected to work safely and meet the quality standards.",
+   "numberOfPositions": 1,
+   "postedDate": "2024-08-08T11:08:45.607Z",
+   "closingDate": "2026-10-06T23:59:59Z",
+   "startDate": "2026-10-07T00:00:00Z",
+   "wage": {
+    "wageType": "ApprenticeshipMinimum",
+    "wageUnit": "Annually",
+    "wageAdditionalInformation": "£16,640 a year",
+    "workingWeekDescription": "Monday - Thursday, 8.00am until 4.45pm. \r\nFriday, 8.00am until 3.15pm."
+   },
+   "hoursPerWeek": 40,
+   "expectedDuration": "1 Year 7 Months",
+   "addresses": [
+    {
+     "addressLine1": "Hanley Technical Institute 151-153 Marsh Street North",
+     "addressLine2": "Hanley",
+     "addressLine3": "Stoke-On-Trent",
+     "addressLine4": "Staffordshire",
+     "postcode": "ST1 5HR",
+     "latitude": 53.02715,
+     "longitude": -2.17969
+    }
+   ],
+   "distance": 0,
+   "employerName": "NORTH STAFFORDSHIRE ENGINEERING GROUP TRAINING ASSOCIATION LIMITED",
+   "course": {
+    "larsCode": 352,
+    "title": "Engineering operative (level 2)",
+    "level": 2,
+    "route": "Engineering and manufacturing",
+    "type": "Standard"
+   },
+   "apprenticeshipLevel": "Intermediate",
+   "providerName": "NORTH STAFFORDSHIRE ENGINEERING GROUP TRAINING ASSOCIATION LIMITED",
+   "ukprn": 10028012,
+   "isDisabilityConfident": false,
+   "vacancyUrl": "https://www.findapprenticeship.service.gov.uk/apprenticeship/reference/1000270243",
+   "vacancyReference": "1000270243",
+   "isNationalVacancy": false,
+   "isNationalVacancyDetails": ""
+  },
+  {
+   "employerDescription": "North Staffordshire Engineering Group Training Association Ltd have a strong track record of working with local engineering companies for over fifty years.\r\n The largest dedicated engineering training organisation in Stoke on Trent we pride ourselves on our unique historical links with the local engineering sector.",
+   "trainingDescription": "<p>Level 2 Lean Manufacturing Operative apprenticeship standard which includes:</p>\r\n<ul>\r\n<li>Level 2 Diploma in Manufacturing (knowledge and skills)</li>\r\n<li>Functional Skills in maths and English (if required)</li>\r\n</ul>\r\n<p>Learning will take place in the workplace with the need to attend training with NSEGTA.</p>",
+   "outcomeDescription": "<p>The successful candidate will have the opportunity to progress into full time employment following the completion of the apprenticeship and/or another apprenticeship as agreed with the company.</p>",
+   "fullDescription": "<p>The successful candidate will shadow a skilled fabricator, benefiting from their many years of skill and expertise and, work towards being able to (but not limited to):</p>\r\n<ul>\r\n<li>Using various tools and machinery by following health and safety procedures at all times</li>\r\n<li>Measuring and marking of the steel for cutting or drilling following design specifications</li>\r\n<li>Fabricating jobs from drawings</li>\r\n<li>Welding using multiple methods such as MIG and TIG</li>\r\n</ul>\r\n<p>Other duties will include, keeping the workspace clean and tidy and other ad-hoc duties where required.</p>",
+   "skills": [
+    "Communication skills",
+    "IT skills",
+    "Attention to detail",
+    "Problem solving skills",
+    "Number skills",
+    "Logical",
+    "Team working"
+   ],
+   "qualifications": [
+    {
+     "weighting": "Desired",
+     "qualificationType": "GCSE or equivalent",
+     "subject": "English",
+     "grade": "A-C / 4"
+    },
+    {
+     "weighting": "Desired",
+     "qualificationType": "GCSE or equivalent",
+     "subject": "Maths",
+     "grade": "A-C / 4"
+    }
+   ],
+   "title": "Apprentice Fabricator and Welder",
+   "description": "We have an opportunity for a welding and fabrication apprenticeship role with a local company. You will be expected to carry out the work safely and meet the exact quality standards that are demanded in a fast paced and efficient processing environment.",
+   "numberOfPositions": 1,
+   "postedDate": "2024-08-08T11:12:19.713Z",
+   "closingDate": "2026-10-06T23:59:59Z",
+   "startDate": "2026-10-07T00:00:00Z",
+   "wage": {
+    "wageType": "ApprenticeshipMinimum",
+    "wageUnit": "Annually",
+    "wageAdditionalInformation": "£16,640 a year",
+    "workingWeekDescription": "Monday - Thursday, 8.00am until 4.45pm. \r\nFriday, 8.00am until 3.15pm."
+   },
+   "hoursPerWeek": 40,
+   "expectedDuration": "1 Year 1 Month",
+   "addresses": [
+    {
+     "addressLine1": "Hanley Technical Institute 151-153 Marsh Street North",
+     "addressLine2": "Hanley",
+     "addressLine3": "Stoke-On-Trent",
+     "addressLine4": "Staffordshire",
+     "postcode": "ST1 5HR",
+     "latitude": 53.02715,
+     "longitude": -2.17969
+    }
+   ],
+   "distance": 0,
+   "employerName": "NORTH STAFFORDSHIRE ENGINEERING GROUP TRAINING ASSOCIATION LIMITED",
+   "course": {
+    "larsCode": 493,
+    "title": "Lean manufacturing operative (level 2)",
+    "level": 2,
+    "route": "Engineering and manufacturing",
+    "type": "Standard"
+   },
+   "apprenticeshipLevel": "Intermediate",
+   "providerName": "NORTH STAFFORDSHIRE ENGINEERING GROUP TRAINING ASSOCIATION LIMITED",
+   "ukprn": 10028012,
+   "isDisabilityConfident": false,
+   "vacancyUrl": "https://www.findapprenticeship.service.gov.uk/apprenticeship/reference/1000270245",
+   "vacancyReference": "1000270245",
+   "isNationalVacancy": false,
+   "isNationalVacancyDetails": ""
+  },
+  {
+   "employerDescription": "North Staffordshire Engineering Group Training Association Ltd have a strong track record of working with local engineering companies for over fifty years. \r\nThe largest dedicated engineering training organisation in Stoke on Trent we pride ourselves on our unique historical links with the local engineering sector.",
+   "trainingDescription": "<p>Level 2 Lean Manufacturing Operative apprenticeship standard which includes:</p>\r\n<p>&middot;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Level 2 Diploma in Manufacturing (knowledge and skills)</p>\r\n<p>&middot;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Functional Skills in maths and English (if required)</p>\r\n<p>Learning will take place in the workplace with the need to attend training with NSEGTA.</p>",
+   "outcomeDescription": "<p>The successful candidate will have the opportunity to progress into full time employment following the completion of the apprenticeship and / or another apprenticeship.</p>",
+   "fullDescription": "<p>The successful candidate will shadow a skilled machine operator, benefiting from their many years of skill and expertise and will work towards being able to (but not limited to):</p>\r\n<p>- Setting up, programming and operating machines<br>- Machining components to customer specifications<br>- Working to strict health and safety guidelines<br>- Being aware of and working to deadlines.</p>\r\n<p>Other duties will include, keeping the workspace clean and tidy and other ad-hoc duties where required.</p>",
+   "skills": [
+    "Communication skills",
+    "IT skills",
+    "Attention to detail",
+    "Problem solving skills",
+    "Number skills",
+    "Logical",
+    "Team working",
+    "Positive Attitude",
+    "Excellent Timekeeping"
+   ],
+   "qualifications": [
+    {
+     "weighting": "Desired",
+     "qualificationType": "GCSE or equivalent",
+     "subject": "English",
+     "grade": "A-C / 4"
+    },
+    {
+     "weighting": "Desired",
+     "qualificationType": "GCSE or equivalent",
+     "subject": "Maths",
+     "grade": "A-C / 4"
+    }
+   ],
+   "title": "Apprentice CNC Machine Operator",
+   "description": "L2 Apprentice CNC Machine Operator Apprentice required. The successful candidate will have a can-do attitude and will gain skills/knowledge working on CNC machinery at an established local company. This is a great opportunity for the right candidate. You will be setting up, programming and operating machines, and machining components to specifications.",
+   "numberOfPositions": 1,
+   "postedDate": "2024-08-08T11:16:49.193Z",
+   "closingDate": "2026-10-06T23:59:59Z",
+   "startDate": "2026-10-07T00:00:00Z",
+   "wage": {
+    "wageType": "ApprenticeshipMinimum",
+    "wageUnit": "Annually",
+    "wageAdditionalInformation": "£16,640 a year",
+    "workingWeekDescription": "Monday - Thursday 8-00am until 4.45pm. \r\nFriday 8-00 until 3-15pm."
+   },
+   "hoursPerWeek": 40,
+   "expectedDuration": "1 Year 1 Month",
+   "addresses": [
+    {
+     "addressLine1": "Hanley Technical Institute 151-153 Marsh Street North",
+     "addressLine2": "Hanley",
+     "addressLine3": "Stoke-On-Trent",
+     "addressLine4": "Staffordshire",
+     "postcode": "ST1 5HR",
+     "latitude": 53.02715,
+     "longitude": -2.17969
+    }
+   ],
+   "distance": 0,
+   "employerName": "NORTH STAFFORDSHIRE ENGINEERING GROUP TRAINING ASSOCIATION LIMITED",
+   "course": {
+    "larsCode": 493,
+    "title": "Lean manufacturing operative (level 2)",
+    "level": 2,
+    "route": "Engineering and manufacturing",
+    "type": "Standard"
+   },
+   "apprenticeshipLevel": "Intermediate",
+   "providerName": "NORTH STAFFORDSHIRE ENGINEERING GROUP TRAINING ASSOCIATION LIMITED",
+   "ukprn": 10028012,
+   "isDisabilityConfident": false,
+   "vacancyUrl": "https://www.findapprenticeship.service.gov.uk/apprenticeship/reference/1000270247",
+   "vacancyReference": "1000270247",
+   "isNationalVacancy": false,
+   "isNationalVacancyDetails": ""
+  }
+ ],
+ "nhs": {
+  "skills": [],
+  "qualifications": [],
+  "title": "Business Apprentice (Digital Services)",
+  "description": "Our primary customer is Northumbria Healthcare NHS FT which provides health and social care services in Primary care, Acute hospitals, Community hospi...",
+  "numberOfPositions": 0,
+  "postedDate": "2026-09-23T10:37:42Z",
+  "closingDate": "2026-10-07T23:59:59Z",
+  "startDate": "0001-01-01T00:00:00Z",
+  "wage": {
+   "wageType": "Custom",
+   "wageUnit": "Annually",
+   "wageAdditionalInformation": "£25272.00"
+  },
+  "hoursPerWeek": 0,
+  "expectedDuration": "",
+  "addresses": [
+   {
+    "addressLine4": "Seaton Delaval",
+    "postcode": "NE25 0QJ",
+    "latitude": 55.06774,
+    "longitude": -1.52593
+   }
+  ],
+  "applicationUrl": "https://beta.jobs.nhs.uk/candidate/jobadvert/C9319-26-0884",
+  "distance": 0,
+  "employerName": "Northumbria Healthcare NHS Foundation Trust",
+  "course": {
+   "larsCode": 0,
+   "level": 0
+  },
+  "ukprn": 0,
+  "isDisabilityConfident": false,
+  "vacancyUrl": "https://www.findapprenticeship.service.gov.uk/apprenticeship/reference/C9319-26-0884",
+  "vacancyReference": "C9319-26-0884",
+  "isNationalVacancy": false,
+  "isNationalVacancyDetails": ""
+ },
+ "csj": {
+  "skills": [],
+  "qualifications": [],
+  "title": "Executive Support Apprentice",
+  "description": "",
+  "numberOfPositions": 0,
+  "postedDate": "2026-09-16T12:19:03Z",
+  "closingDate": "2026-10-12T22:54:59Z",
+  "startDate": "0001-01-01T00:00:00Z",
+  "wage": {
+   "wageType": "Custom",
+   "wageUnit": "Annually",
+   "wageAdditionalInformation": "19514.00 - 19514.00"
+  },
+  "hoursPerWeek": 0,
+  "expectedDuration": "",
+  "addresses": [
+   {
+    "addressLine2": "STAFFORD STREET",
+    "addressLine3": "SWINDON",
+    "postcode": "SN1 3PH",
+    "latitude": 51.55595,
+    "longitude": -1.78482
+   }
+  ],
+  "applicationUrl": "https://www.civilservicejobs.service.gov.uk/csr/viewjob.cgi?jcode=2002080",
+  "distance": 0,
+  "employerName": "UK Research and Innovation",
+  "course": {
+   "larsCode": 0,
+   "level": 0
+  },
+  "ukprn": 0,
+  "isDisabilityConfident": false,
+  "vacancyUrl": "https://www.findapprenticeship.service.gov.uk/apprenticeship/reference/467350",
+  "vacancyReference": "467350",
+  "isNationalVacancy": false,
+  "isNationalVacancyDetails": ""
+ }
+}
