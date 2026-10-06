@@ -28,6 +28,24 @@
   grid-template-columns: 15.5rem 1fr;
 }
 
+.employer-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-1) var(--ui-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.employer-flags .ui-badge {
+  white-space: normal;
+  border-radius: 8px;
+}
+
+.employer-page > .employer-flags {
+  margin-bottom: var(--ui-space-4);
+}
+
 .employer-page .ui-card {
   margin-bottom: var(--ui-space-5);
 }

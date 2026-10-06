@@ -31,6 +31,10 @@ built, move it out (or strike it through with where it went).
   companies and franchises), and permanent IDs (EMPLOYERID, SITEID,
   CONTACTID never reused or changed) so an outside CRM could be matched up.
   Contacts are already one record per person (ILR.EMPLOYER_CONTACT, step 5).
+- 2026-10-06, Claude: show managers what changed at Companies House for
+  their employers ("name changed on 3 October"). The nightly refresh logs
+  each employer's changes but doesn't keep them per organisation yet; it
+  needs its own table, since EXT.COMPANY_CHANGE is shared.
 ## Ideas from Alan, 5 October 2026
 
 ### Learners and matching

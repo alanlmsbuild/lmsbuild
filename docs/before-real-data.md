@@ -96,8 +96,12 @@ it. Add to this list rather than keeping these elsewhere.
   response is kept in RAW, add-only. Set a retention period (for example 2
   years) and a way to clear older rows.
 - **Where scheduled jobs run** (2026-10-06, Claude). The nightly company
-  refresh needs a scheduler: on the server, or inside Snowflake with external
-  access. Nothing runs on a schedule yet.
+  refresh (`npm run refresh:companies`, scripts/refresh-companies.js) needs a
+  scheduler: cron on the server, or inside Snowflake with external access.
+  Nothing runs on a schedule yet. It works across every organisation with
+  the app's role; give it its own role limited to ILR.EMPLOYER's company
+  columns, RAW and EXT, and keep its logs (logs/refresh-companies/) as long
+  as RAW.
 - **Separate Companies House keys** (2026-10-06, Claude) for development,
   testing and real use: the limit is per application, so one shared key
   shares the 600 requests. Decide who owns the keys and how they're rotated.

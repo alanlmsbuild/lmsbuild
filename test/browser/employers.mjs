@@ -188,6 +188,35 @@ const ilr = (await api('USR-T0008', '/api/learners/TESTL0001/ilr')).body
 check("  the learner forms' employer list carries ISACTIVE so it can leave it out", ilr.employers.some((e) => e.EMPLOYERID === soleId && e.ISACTIVE === false))
 await max.screenshot({ path: `${OUT}/employers-list.png`, fullPage: true })
 
+// ---------------------------------------------------------------- flags
+const rowText = async (p, id) => p.locator('#employers tr', { has: p.locator(`a[href="/app/employers/${id}"]`) }).innerText()
+await max.goto(`${B}/app/employers`)
+await max.locator('#employers table').waitFor({ timeout: 60000 })
+check('flags: TESCO PLC (no ERN) needs an employer reference', /Employer reference needed for the ILR/.test(await rowText(max, teId)))
+check('flags: a seeded employer with an ERN and no company says "Not linked yet", once, and needs no ERN',
+  (await rowText(max, 'EMP-T001')).match(/Not linked/g)?.length === 1 && !/Employer reference needed/.test(await rowText(max, 'EMP-T001')))
+check('flags: the employer no longer used has none', !/Employer reference needed|Not linked/.test(await rowText(max, soleId)))
+check('flags: the list says how many need attention', /\d+ of \d+ employers need attention\./.test(await text(max, '.employer-summary')))
+// The registered office flags are managers only: made true in ORG-T001's
+// own copy (checked now, so opening it doesn't refresh it), then put back.
+await q(`update ILR.EMPLOYER set COMPANYDETAILS = object_insert(COMPANYDETAILS::object, 'OFFICEUNDELIVERABLE', true, true),
+  COMPANYCHECKEDAT = current_timestamp() where EMPLOYERID = ?`, [teId])
+try {
+  await max.goto(`${B}/app/employers/${teId}`)
+  await max.locator('#employer dl').first().waitFor({ timeout: 60000 })
+  check('flags: a manager sees "Registered office undeliverable" on the page', /Registered office undeliverable/.test(await text(max, '#employer .employer-flags')))
+  await max.screenshot({ path: `${OUT}/employers-flags-manager.png`, fullPage: true })
+  await tina.goto(`${B}/app/employers/${teId}`)
+  await tina.locator('#employer dl').first().waitFor({ timeout: 60000 })
+  check('flags: the tutor sees the ERN flag but not the registered office one',
+    /Employer reference needed/.test(await text(tina, '#employer')) && !/Registered office/.test(await text(tina, '#employer')))
+  await tina.goto(`${B}/app/employers`)
+  await tina.locator('#employers table').waitFor({ timeout: 60000 })
+  check('flags: nor in the tutor\'s list', !/Registered office/.test(await rowText(tina, teId)))
+} finally {
+  await q(`update ILR.EMPLOYER set COMPANYDETAILS = object_insert(COMPANYDETAILS::object, 'OFFICEUNDELIVERABLE', false, true) where EMPLOYERID = ?`, [teId])
+}
+
 // ---------------------------------------------------------------- phone width
 const phone = await pageAs('USR-T0008', { width: 390, height: 844 })
 for (const path of ['/app/employers', `/app/employers/${teId}`, '/app/employers/new']) {

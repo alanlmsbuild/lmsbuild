@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { formatDate } from '../lookups'
 import { usePageTitle } from '../shell/navigation'
 import { Button, Card, Notice, StatusBadge } from '../ui/components'
-import { CompanyStatus } from './Employers'
+import { CompanyStatus, Flags } from './Employers'
+import { employerFlags } from './flags'
 
 // One employer (GET /api/employers/:id). When a manager opens it, the server
 // refreshes it from Companies House first if this organisation last checked
@@ -86,6 +87,7 @@ function EmployerPage({ employerId, isManager }) {
               </>
             )}
           </h2>
+          <Flags flags={employerFlags(e)} />
           {data.note && <Notice tone="info">{data.note}</Notice>}
           {isManager && (
             <p>

@@ -73,6 +73,13 @@
 //    through ORG_EMPLOYER, which must remove the registered office
 //    (MANAGER_ONLY_COMPANY_COLUMNS) for everyone but managers, and SQL
 //    marked "-- all organisations" must not read COMPANYDETAILS.
+// 15. The nightly Companies House refresh (scripts/refresh-companies.js)
+//    works across every organisation without a signed-in user, so it stays
+//    out of the app: nothing in server/ or src/ imports it, and its own SQL
+//    names no table but ILR.EMPLOYER, reads only EMPLOYERID,
+//    ORGANISATIONID, COMPANYNUMBER and COMPANYDETAILS, and sets only NAME
+//    and the company copy (COMPANYDETAILS, COMPANYCHECKEDAT,
+//    COMPANYRESPONSEID).
 //
 // Usage:
 //   npm run check:scoping
@@ -134,6 +141,31 @@ export function layerProblems(sql, file = 'companiesHouse.js') {
     const after = sql.slice(m.index + m[0].length)
     if (file === 'companiesHouse.js' && /(^|\s)from$/.test(before) && ONE_COMPANY.test(after)) continue
     found.push(`reads EXT.${m[3]}: EXT is shared across organisations, so show the employer's own copy (COMPANYDETAILS) from ORG_EMPLOYER`)
+  }
+  return found
+}
+
+// Check 15 on the nightly refresh's own SQL: what it does beyond ILR.EMPLOYER's
+// company columns.
+const NIGHTLY_READS = new Set(['EMPLOYERID', 'ORGANISATIONID', 'COMPANYNUMBER', 'COMPANYDETAILS'])
+const NIGHTLY_SETS = new Set(['NAME', 'COMPANYDETAILS', 'COMPANYCHECKEDAT', 'COMPANYRESPONSEID'])
+export function nightlyProblems(sql) {
+  const found = []
+  for (const m of sql.matchAll(/\b(from|join|update|into)\s+([\w.$]+)/gi)) {
+    if (!/^(ILR\.)?EMPLOYER$/i.test(m[2])) found.push(`names ${m[2]}: the nightly refresh may only use ILR.EMPLOYER`)
+  }
+  const select = sql.match(/\bselect\s+([\s\S]*?)\s+from\b/i)
+  if (select) {
+    for (const col of select[1].split(',')) {
+      const name = col.trim().match(/^(?:to_json\()?(\w+)\)?(?:\s+as\s+\w+)?$/i)?.[1]?.toUpperCase()
+      if (!name || !NIGHTLY_READS.has(name)) found.push(`reads ${col.trim()}: the nightly refresh reads only ${[...NIGHTLY_READS].join(', ')}`)
+    }
+  }
+  const set = sql.match(/\bset\s+([\s\S]*?)\s+where\b/i)
+  if (set) {
+    for (const m of set[1].matchAll(/(?:^|,)\s*(\w+)\s*=/g)) {
+      if (!NIGHTLY_SETS.has(m[1].toUpperCase())) found.push(`sets ${m[1]}: the nightly refresh sets only ${[...NIGHTLY_SETS].join(', ')}`)
+    }
   }
   return found
 }
@@ -327,8 +359,34 @@ for (const file of serverFiles) {
   }
 }
 
+// Check 15: the nightly refresh stays out of the app, and keeps to the
+// employer's company columns.
+{
+  const repo = path.join(serverDir, '..')
+  const appFiles = [
+    ...fs.readdirSync(serverDir, { recursive: true }).map((f) => ['server', f]),
+    ...fs.readdirSync(path.join(repo, 'src'), { recursive: true }).map((f) => ['src', f]),
+  ].filter(([, f]) => /\.(js|jsx|mjs)$/.test(f))
+  for (const [area, f] of appFiles) {
+    const text = fs.readFileSync(path.join(repo, area, f), 'utf8')
+    const m = text.match(/\b(import|from|import\()\s*['"`][^'"`]*refresh-companies/)
+    if (m) {
+      console.log(`${area}/${f.split(path.sep).join('/')}:${text.slice(0, m.index).split('\n').length}  imports the nightly refresh, which works across every organisation: the app must not`)
+      problems++
+    }
+  }
+  const nightly = fs.readFileSync(path.join(repo, 'scripts', 'refresh-companies.js'), 'utf8')
+  for (const match of nightly.matchAll(/`[^`]*`/g)) {
+    if (!/\b(select|update|insert|merge|delete)\b/i.test(match[0])) continue
+    for (const message of nightlyProblems(match[0])) {
+      console.log(`scripts/refresh-companies.js:${nightly.slice(0, match.index).split('\n').length}  ${message}`)
+      problems++
+    }
+  }
+}
+
 if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, and nothing shown comes from the shared Companies House tables.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns.')

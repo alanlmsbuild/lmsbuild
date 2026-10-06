@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { usePageTitle } from '../shell/navigation'
 import { Notice, StatusBadge } from '../ui/components'
 import './employers.css'
+import { employerFlags } from './flags'
 
 // The organisation's employers (GET /api/employers). The list never asks
 // Companies House: the status shown is from when this organisation last
@@ -25,10 +26,27 @@ const STATUS_WORDS = {
 export const statusWords = (status) => STATUS_WORDS[status] ?? (status ? status.replace(/-/g, ' ') : null)
 export const statusTone = (status) => (status === 'active' || status === 'registered' || status === 'open' ? 'done' : status ? 'overdue' : 'neutral')
 
+// An employer's flags as badges (src/employers/flags.js).
+export function Flags({ flags }) {
+  if (flags.length === 0) return null
+  return (
+    <ul className="employer-flags">
+      {flags.map((f) => (
+        <li key={f.text}>
+          <StatusBadge tone={f.tone}>{f.text}</StatusBadge>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function CompanyStatus({ status }) {
   if (!status) return null
   return <StatusBadge tone={statusTone(status)}>{statusWords(status)}</StatusBadge>
 }
+
+// The list already says "Not linked yet" in the company number column.
+const listFlags = (e) => employerFlags(e).filter((f) => f.text !== 'Not linked to Companies House yet')
 
 function Employers({ isManager }) {
   usePageTitle('Employers')
@@ -63,6 +81,10 @@ function Employers({ isManager }) {
       {error && <Notice tone="error">Couldn&apos;t load the employers: {error}</Notice>}
       {!employers && !error && <p>Loading employers…</p>}
       {employers?.length === 0 && <p>No employers yet.</p>}
+      {employers?.length > 0 && (() => {
+        const needing = employers.filter((e) => employerFlags(e).length > 0).length
+        return <p className="employer-summary">{needing === 0 ? 'No employers need attention.' : `${needing} of ${employers.length} employers need attention.`}</p>
+      })()}
       {employers?.length > 0 && (
         <div className="table-wrap">
           <table>
@@ -72,6 +94,7 @@ function Employers({ isManager }) {
                 <th>Company number</th>
                 <th>Companies House status</th>
                 <th>Employer reference</th>
+                <th>Needs attention</th>
               </tr>
             </thead>
             <tbody>
@@ -91,6 +114,9 @@ function Employers({ isManager }) {
                   <td>{e.COMPANYNUMBER ?? (e.NOTONCOMPANIESHOUSE ? 'Not on Companies House' : 'Not linked yet')}</td>
                   <td>{e.COMPANYSTATUS ? <CompanyStatus status={e.COMPANYSTATUS} /> : '—'}</td>
                   <td>{e.EMPLOYERREF ?? '—'}</td>
+                  <td>
+                    <Flags flags={listFlags(e)} />
+                  </td>
                 </tr>
               ))}
             </tbody>

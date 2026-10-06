@@ -10,6 +10,7 @@ puts it back.
     node test/db/pool-isolation.mjs ~/.cache/rarebit-test/api.log
     node test/db/ilr-consistency.mjs    # Record tab checks = ILR return
     node test/db/companies-house.mjs    # Companies House save, rolled back
+    node test/db/refresh-companies.mjs  # the nightly refresh (after employers.mjs)
     test/stop-test-servers.py           # stops only those two servers
 
 - `browser/` drives the real pages in headless Chromium (step3 to step4g2,
@@ -26,6 +27,9 @@ puts it back.
 - `db/companies-house.mjs` saves a made-up company to EXT and an employer's
   own copy, and reads it as a manager, a tutor and another organisation, in
   a transaction that's rolled back. It doesn't call Companies House.
+- `db/refresh-companies.mjs` runs the nightly refresh on the TESCO PLC test
+  employers that `browser/employers.mjs` adds, calling Companies House for
+  real.
 
 Chromium needs libnspr4, libnss3 and libasound2, which this WSL setup doesn't
 have. Without sudo:
