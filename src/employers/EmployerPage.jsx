@@ -3,6 +3,7 @@ import { formatDate } from '../lookups'
 import { usePageTitle } from '../shell/navigation'
 import { Button, Card, Notice, StatusBadge } from '../ui/components'
 import { CompanyStatus, Flags } from './Employers'
+import '../vacancies/vacancies.css'
 import { employerFlags } from './flags'
 
 // One employer (GET /api/employers/:id). When a manager opens it, the server
@@ -33,6 +34,7 @@ function EmployerPage({ employerId, isManager }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [deciding, setDeciding] = useState(null)
   usePageTitle(data?.employer?.NAME ?? 'Employer')
 
   const load = useCallback(async (refresh = false) => {
@@ -62,6 +64,26 @@ function EmployerPage({ employerId, isManager }) {
       setError(err.message)
     } finally {
       setRefreshing(false)
+    }
+  }
+
+  // A manager's decision on a suggested advert (POST /api/vacancies/:ref/decisions).
+  async function decide(reference, decision, siteId) {
+    setDeciding(reference)
+    setError(null)
+    try {
+      const res = await fetch(`/api/vacancies/${encodeURIComponent(reference)}/decisions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employerId, decision, siteId }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(Object.values(body.fields ?? {})[0] ?? body.error)
+      setData(await load())
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDeciding(null)
     }
   }
 
@@ -270,6 +292,45 @@ function EmployerPage({ employerId, isManager }) {
               <a className="ui-button ui-button--secondary" href={`${base}/contacts/new`}>
                 Add a contact
               </a>
+            )}
+          </Card>
+
+          <Card title="Vacancies" titleLevel={3}>
+            {data.vacancies.length === 0 && <p>No open adverts linked to this employer.</p>}
+            {data.vacancies.length > 0 && (
+              <ul className="plain-list">
+                {data.vacancies.map((v) => (
+                  <li key={v.VACANCYREFERENCE}>
+                    <a href={`/app/vacancies/${encodeURIComponent(v.VACANCYREFERENCE)}`}>{v.TITLE}</a>
+                    {v.SITENAME && `, ${v.SITENAME}`} (closes {formatDate(v.CLOSINGDATE)})
+                  </li>
+                ))}
+              </ul>
+            )}
+            {isManager && data.vacancySuggestions?.length > 0 && (
+              <>
+                <h4>Suggested adverts</h4>
+                <p className="field-hint">Open adverts whose employer name matches this employer. Confirm only if they&apos;re theirs.</p>
+                <ul className="vacancy-suggestions">
+                  {data.vacancySuggestions.map((v) => (
+                    <li key={v.VACANCYREFERENCE}>
+                      <span>
+                        <a href={`/app/vacancies/${encodeURIComponent(v.VACANCYREFERENCE)}`}>{v.TITLE}</a> ({v.EMPLOYERNAME}
+                        {v.POSTCODE ? `, ${v.POSTCODE}` : ''}
+                        {v.SITENAME ? `: postcode matches ${v.SITENAME}` : ''}, closes {formatDate(v.CLOSINGDATE)})
+                      </span>
+                      <span className="vacancy-decide">
+                        <button type="button" className="secondary" disabled={deciding !== null} onClick={() => decide(v.VACANCYREFERENCE, 'confirmed', v.SITEID ?? '')}>
+                          Confirm{v.SITENAME ? ` at ${v.SITENAME}` : ''}
+                        </button>
+                        <button type="button" className="secondary" disabled={deciding !== null} onClick={() => decide(v.VACANCYREFERENCE, 'rejected', '')}>
+                          Not theirs
+                        </button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </Card>
         </>

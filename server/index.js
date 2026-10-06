@@ -2,6 +2,7 @@ import path from 'node:path'
 import { registerCompaniesHouseRoutes } from './companiesHouse.js'
 import { registerEmployerListRoutes } from './employers.js'
 import { registerEmployerSiteRoutes } from './employerSites.js'
+import { registerVacancyRoutes } from './vacancies.js'
 import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
 import express from 'express'
@@ -796,6 +797,7 @@ registerIqaRoutes(app)
 registerCompaniesHouseRoutes(app)
 registerEmployerListRoutes(app)
 registerEmployerSiteRoutes(app)
+registerVacancyRoutes(app)
 
 const port = process.env.PORT || 3001
 app.listen(port, () => {

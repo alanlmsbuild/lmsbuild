@@ -16,6 +16,8 @@ import EmployerForm from './employers/EmployerForm'
 import SiteForm from './employers/SiteForm'
 import SitePage from './employers/SitePage'
 import ContactForm from './employers/ContactForm'
+import Vacancies from './vacancies/Vacancies'
+import VacancyPage from './vacancies/VacancyPage'
 import LearnerRecord from './learner/LearnerRecord'
 import LearnerHeader from './learner/LearnerHeader'
 import { learnerPath, learnerEditPath, safeBack } from './learner/links'
@@ -34,6 +36,7 @@ const TABS = [
   { slug: 'learners', label: 'Learners', shows: () => true },
   { slug: 'dashboard', label: 'Dashboard', shows: () => true },
   { slug: 'employers', label: 'Employers', shows: (r) => r.hasCaseload || r.isIqa },
+  { slug: 'vacancies', label: 'Vacancies', shows: (r) => r.hasCaseload || r.isIqa },
   { slug: 'officers', label: 'Officers', shows: (r) => r.isManager },
   { slug: 'reports', label: 'Reports', shows: (r) => r.hasCaseload },
   { slug: 'sign-offs', label: 'Sign-offs to check', shows: (r) => r.isIqa },
@@ -103,6 +106,8 @@ function employerViewOf(rest) {
 //   /app/employers[/new | /<employer id>[/edit]]   (new and edit: managers)
 //   /app/employers/<employer id>/sites/new | /sites/<site id>[/edit]
 //   /app/employers/<employer id>/contacts/new | /contacts/<contact id>/edit
+//   /app/vacancies?postcode=...      the search, in the address
+//   /app/vacancies/<advert reference>
 //   /app/officers[/<officer ref>]
 //   /app/reports/qar?year=, /app/reports/caseload[/<officer ref>],
 //   /app/reports/ilr
@@ -169,6 +174,8 @@ function isKnownView({ tab, rest }) {
     case 'learners':
       return rest.length <= 1 || Boolean(learnerActionOf(rest))
     case 'officers':
+      return rest.length <= 1
+    case 'vacancies':
       return rest.length <= 1
     case 'employers':
       return Boolean(employerViewOf(rest))
@@ -599,6 +606,10 @@ function App() {
           onDone={() => navigate(employerHome)}
           onCancel={() => navigate(employerHome)}
         />
+      )}
+      {!redirect && tab === 'vacancies' && view.rest.length === 0 && <Vacancies search={view.params.toString()} />}
+      {!redirect && tab === 'vacancies' && view.rest.length === 1 && (
+        <VacancyPage key={view.rest[0]} reference={view.rest[0]} isManager={isManager} />
       )}
       {!redirect && tab === 'my-day' && <MyDay me={me} onOpenLearner={openLearner} />}
       {!redirect && tab === 'reports' && isKnownView(view) && (

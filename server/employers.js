@@ -25,6 +25,7 @@ import { inTransaction, RequestError, sendError } from './burrow.js'
 import { CLOSED, companyColumns, fetchProfile, writeCompany } from './companiesHouse.js'
 import { companyNumberOf, validateEmployerForm } from '../src/validation.js'
 import { loadSitesAndContacts } from './employerSites.js'
+import { employerVacancies } from './vacancies.js'
 
 // A manager opening an employer refreshes it when this organisation last
 // checked it longer ago than this.
@@ -134,7 +135,11 @@ export async function loadEmployer(connection, employerId, user, { refresh = fal
   const codes = details?.SICCODES ?? []
   const described = codes.length > 0 ? await execute(connection, SIC, [JSON.stringify(codes)]) : []
   const sic = codes.map((code) => ({ code, description: described.find((d) => d.SIC2007 === code)?.DESCRIPTION ?? null }))
-  return { employer: { ...row, COMPANYDETAILS: details ?? null }, sic, note, ...(await loadSitesAndContacts(connection, employerId)) }
+  return {
+    employer: { ...row, COMPANYDETAILS: details ?? null }, sic, note,
+    ...(await loadSitesAndContacts(connection, employerId)),
+    ...(await employerVacancies(connection, employerId, user)),
+  }
 }
 
 // The form, checked, with the employer reference as a number (or null).

@@ -54,6 +54,13 @@ export const ORG_EMPLOYER_CONTACT = `(
   where EMPLOYERID in (select EMPLOYERID from ${ORG_EMPLOYER})
 )`
 
+// The organisation's own decisions linking public adverts (the shared ones) to
+// its employers: the only way the app reads ILR.EMPLOYER_VACANCY (npm run
+// check:scoping).
+export const ORG_EMPLOYER_VACANCY = `(
+  select * from ILR.EMPLOYER_VACANCY where ORGANISATIONID = ${ORG}
+)`
+
 // The organisation to write on new learners and officers.
 export const CURRENT_ORGANISATIONID = ORG
 

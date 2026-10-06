@@ -66,13 +66,16 @@
 // 14. Companies House data. RAW (responses as returned) is add-only: the
 //    app only ever writes insert into RAW.x. EXT (cleaned company details)
 //    is shared across organisations, so nothing shown may come from it:
-//    SQL may only insert into or merge into an EXT table, and only
+//    SQL may only insert into or merge into an EXT table (adverts, below,
+//    excepted), and only
 //    server/companiesHouse.js may read one company by its number (where
 //    COMPANYNUMBER = ?, nothing else) to log changes. access.js never names
 //    RAW or EXT. Screens use each employer's own copy (COMPANYDETAILS)
 //    through ORG_EMPLOYER, which must remove the registered office
 //    (MANAGER_ONLY_COMPANY_COLUMNS) for everyone but managers, and SQL
-//    marked "-- all organisations" must not read COMPANYDETAILS.
+//    marked "-- all organisations" must not read COMPANYDETAILS. Adverts
+//    (EXT.VACANCY, EXT.VACANCY_IMPORT_RUN) are public and the same for every
+//    organisation: the app may read them, never write them (the import does).
 // 15. The nightly Companies House refresh (scripts/refresh-companies.js)
 //    works across every organisation without a signed-in user, so it stays
 //    out of the app: nothing in server/ or src/ imports it, and its own SQL
@@ -94,6 +97,12 @@
 //    signed-in user, so it stays out of the app too: nothing in server/ or
 //    src/ imports it, and its SQL names no table but RAW.FAA_VACANCY_PAGE,
 //    EXT.VACANCY and EXT.VACANCY_IMPORT_RUN (no organisation's data).
+// 18. Links from adverts to employers (ILR.EMPLOYER_VACANCY) are one
+//    organisation's own: outside access.js they're read only through
+//    ORG_EMPLOYER_VACANCY, and the table is named only to write to it
+//    (insert into, merge into, update), in SQL that sets or matches the
+//    signed-in user's organisation (CURRENT_ORGANISATIONID) and, for new
+//    rows, their ISTESTDATA (CURRENT_ISTESTDATA).
 //
 // Usage:
 //   npm run check:scoping
@@ -151,6 +160,12 @@ export function layerProblems(sql, file = 'companiesHouse.js') {
   }
   for (const m of sql.matchAll(/\b(\w+)(\s+\w+)?\s+EXT\.(\w+)\b/gi)) {
     const before = `${m[1]}${m[2] ?? ''}`.toLowerCase().replace(/\s+/g, ' ')
+    // Adverts are public and the same for every organisation: the app may
+    // read them, but only the import (scripts/) writes them.
+    if (/^VACANCY(_IMPORT_RUN)?$/i.test(m[3])) {
+      if (/(^|\s)(into|update)$/.test(before)) found.push(`writes EXT.${m[3]}: only the vacancy import writes adverts`)
+      continue
+    }
     if (before === 'insert into' || before === 'merge into') continue
     const after = sql.slice(m.index + m[0].length)
     if (file === 'companiesHouse.js' && /(^|\s)from$/.test(before) && ONE_COMPANY.test(after)) continue
@@ -219,6 +234,22 @@ export function headOfficeProblems(text) {
   return found
 }
 
+// Check 18 on one SQL string from server/ (not access.js).
+export function vacancyLinkProblems(sql) {
+  const found = []
+  for (const m of sql.matchAll(/\b(\w+\s+\w+\s+|\w+\s+)?(?:ILR\.)?EMPLOYER_VACANCY\b/gi)) {
+    const before = (m[1] ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+    const write = /^(insert into|merge into|update)$/.test(before) || /(^|\s)update$/.test(before)
+    if (!write) {
+      found.push('reads ILR.EMPLOYER_VACANCY directly: use ORG_EMPLOYER_VACANCY')
+      continue
+    }
+    if (!sql.includes('${CURRENT_ORGANISATIONID}')) found.push("writes ILR.EMPLOYER_VACANCY without the signed-in user's organisation (CURRENT_ORGANISATIONID)")
+    if (/insert|merge/.test(before) && !sql.includes('${CURRENT_ISTESTDATA}')) found.push('adds to ILR.EMPLOYER_VACANCY without setting ISTESTDATA (CURRENT_ISTESTDATA)')
+  }
+  return found
+}
+
 let problems = 0
 function report(file, text, index, message) {
   const line = text.slice(0, index).split('\n').length
@@ -254,6 +285,7 @@ for (const file of serverFiles) {
       report(file, text, match.index, `inserts into ${learnerInsert[2]} without copying the learner's ISTESTDATA (select l.ISTESTDATA from \${VISIBLE_LEARNER} l)`)
     }
     for (const message of layerProblems(sql, file)) report(file, text, match.index, message)
+    for (const message of vacancyLinkProblems(sql)) report(file, text, match.index, message)
     if (/-- all organisations/.test(sql) && /\bCOMPANYDETAILS\b/i.test(sql)) {
       report(file, text, match.index, 'reads COMPANYDETAILS around ORG_EMPLOYER, which hides the registered office from all but managers')
     }
@@ -478,4 +510,4 @@ if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, and the vacancy import stays out of the app.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, the vacancy import stays out of the app, and links to adverts are the organisation\'s own.')
