@@ -2,7 +2,7 @@
 //
 //   npm run check:jobs
 //
-// For each job (server/jobSchedule.js), from OPS.JOB_RUN: its last run and
+// For each job (server/jobSchedule.js), from SHARED_DB.OPS.JOB_RUN: its last run and
 // how it went, its last success, and whether it's overdue (server/
 // jobStatus.js, which managers' Data updates tile uses too; no success
 // within its overdue limit). Fails if any job is overdue, so a monitor on

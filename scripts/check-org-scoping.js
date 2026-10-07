@@ -74,7 +74,7 @@
 //    through ORG_EMPLOYER, which must remove the registered office
 //    (MANAGER_ONLY_COMPANY_COLUMNS) for everyone but managers, and SQL
 //    marked "-- all organisations" must not read COMPANYDETAILS. Adverts
-//    (EXT.VACANCY, EXT.VACANCY_IMPORT_RUN) are public and the same for every
+//    (SHARED_DB.EXT.VACANCY, SHARED_DB.EXT.VACANCY_IMPORT_RUN) are public and the same for every
 //    organisation: the app may read them, never write them (the import does).
 // 15. The nightly Companies House refresh (scripts/refresh-companies.js)
 //    works across every organisation without a signed-in user, so it stays
@@ -95,8 +95,8 @@
 //    (check 3).
 // 17. The vacancy import (scripts/import-vacancies.js) runs without a
 //    signed-in user, so it stays out of the app too: nothing in server/ or
-//    src/ imports it, and its SQL names no table but RAW.FAA_VACANCY_PAGE,
-//    EXT.VACANCY and EXT.VACANCY_IMPORT_RUN (no organisation's data).
+//    src/ imports it, and its SQL names no table but SHARED_DB.RAW.FAA_VACANCY_PAGE,
+//    SHARED_DB.EXT.VACANCY and SHARED_DB.EXT.VACANCY_IMPORT_RUN (no organisation's data).
 // 18. Links from adverts to employers (ILR.EMPLOYER_VACANCY) are one
 //    organisation's own: outside access.js they're read only through
 //    ORG_EMPLOYER_VACANCY, and the table is named only to write to it
@@ -106,12 +106,12 @@
 // 19. Skills England's standards and occupations are the same for every
 //    organisation, loaded by the import (scripts/import-skills.js), which
 //    runs without a signed-in user: nothing in server/ or src/ imports it or
-//    writes SKILLS or RAW.SE_* (insert into, merge into, update), and the
-//    import's SQL names only SKILLS and RAW.SE_* tables.
+//    writes SKILLS or SHARED_DB.RAW.SE_* (insert into, merge into, update), and the
+//    import's SQL names only SKILLS and SHARED_DB.RAW.SE_* tables.
 // 20. The scheduler and the job records (scripts/jobs.js, job-run.js,
 //    check-jobs.js) stay out of the app: nothing in server/ or src/ imports
 //    them, and nothing there writes OPS (insert into, merge into, update).
-//    The app only reads OPS.JOB_RUN, for when data was last updated.
+//    The app only reads SHARED_DB.OPS.JOB_RUN, for when data was last updated.
 //
 // Usage:
 //   npm run check:scoping
@@ -122,14 +122,14 @@ import { fileURLToPath } from 'node:url'
 
 const serverDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'server')
 const RAW_TABLE =
-  /\b(from|join|update)\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|EMPLOYER_SITE|EMPLOYER_CONTACT|OFFICER_ASSIGNMENT|LEARNER_EMPLOYER|LEARNER_OFFICER|PRIOR_ATTAINMENT|LLDD_HEALTH_PROBLEM|LEARNER_FAM|EMPLOYMENT_STATUS|EMPLOYMENT_STATUS_MONITORING|LEARNING_DELIVERY_FAM|APP_FIN_RECORD|HOURS_RECORD)|ACCESS\.\w+)\b/i
+  /\b(from|join|update)\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|EMPLOYER_SITE|EMPLOYER_CONTACT|OFFICER_ASSIGNMENT|LEARNER_EMPLOYER|LEARNER_OFFICER|PRIOR_ATTAINMENT|LLDD_HEALTH_PROBLEM|LEARNER_FAM|EMPLOYMENT_STATUS|EMPLOYMENT_STATUS_MONITORING|LEARNING_DELIVERY_FAM|APP_FIN_RECORD|HOURS_RECORD)|(?:SHARED_DB\.)?ACCESS\.\w+)\b/i
 const SCOPED = /\$\{(ORG_|VISIBLE_|EMPLOYER_APPRENTICE)\w*\}|\$\{IN_(ORG|VISIBLE)_LEARNERS\}|-- all organisations/
 const WHOLE_ORG = /\$\{(ORG_LEARNER|IN_ORG_LEARNERS)\}/
 const MANAGER_ONLY_COLUMNS = ['NINUMBER', 'ETHNICITY']
 const READS_MANAGER_ONLY = new RegExp(`\\b(${MANAGER_ONLY_COLUMNS.join('|')})\\b|select\\s+(\\w+\\.)?\\*`, 'i')
 // Tables whose rows belong to the organisation or a user: ISTESTDATA is
 // the signed-in user's.
-const TEST_DATA_TABLE = /\binsert\s+into\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|EMPLOYER_SITE|EMPLOYER_CONTACT)|ACCESS\.\w+)\b/i
+const TEST_DATA_TABLE = /\binsert\s+into\s+((ILR\.)?(LEARNER|OFFICER|EMPLOYER|EMPLOYER_SITE|EMPLOYER_CONTACT)|(?:SHARED_DB\.)?ACCESS\.\w+)\b/i
 // Tables whose rows belong to a learner: ISTESTDATA is the learner's, taken
 // from VISIBLE_LEARNER in the insert itself.
 const LEARNER_RECORD_TABLES = ['LEARNING_DELIVERY', 'OFFICER_ASSIGNMENT', 'LEARNER_EMPLOYER', 'PRIOR_ATTAINMENT',
@@ -164,10 +164,10 @@ const ROUTE = /\bapp\.(get|post|put|patch|delete)\(\s*(['`"])[^'`"]*\2\s*,(?!\s*
 const ONE_COMPANY = /^\s+(?:as\s+)?(?:\w+\s+)?where\s+(?:\w+\.)?COMPANYNUMBER\s*=\s*\?(?![^`]*\b(or|like|ilike|rlike|regexp|in)\b)/i
 export function layerProblems(sql, file = 'companiesHouse.js') {
   const found = []
-  for (const m of sql.matchAll(/\b(\w+\s+\w+\s+)?RAW\.(\w+)/gi)) {
+  for (const m of sql.matchAll(/\b(\w+\s+\w+\s+)?(?:SHARED_DB\.)?RAW\.(\w+)/gi)) {
     if (!/^insert\s+into\s+$/i.test(m[1] ?? '')) found.push(`uses RAW.${m[2]} other than insert into: RAW is add-only`)
   }
-  for (const m of sql.matchAll(/\b(\w+)(\s+\w+)?\s+EXT\.(\w+)\b/gi)) {
+  for (const m of sql.matchAll(/\b(\w+)(\s+\w+)?\s+(?:SHARED_DB\.)?EXT\.(\w+)\b/gi)) {
     const before = `${m[1]}${m[2] ?? ''}`.toLowerCase().replace(/\s+/g, ' ')
     // Adverts are public and the same for every organisation: the app may
     // read them, but only the import (scripts/) writes them.
@@ -210,10 +210,10 @@ export function nightlyProblems(sql) {
 
 // Check 16 on access.js's text: what's wrong with the employer contacts' rule.
 const LINKS_REQUIRED = [
-  'join ACCESS.APP_USER u\n        on u.USERID = $CURRENT_USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE and u.ISHEADOFFICE = true',
+  'join SHARED_DB.ACCESS.APP_USER u\n        on u.USERID = $CURRENT_USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE and u.ISHEADOFFICE = true',
   'join ILR.EMPLOYER_SITE s on s.SITEID = le.SITEID and s.EMPLOYERID = le.EMPLOYERID',
-  'join ACCESS.APP_USER_SITE a on a.SITEID = s.SITEID and a.USERID = $CURRENT_USERID and a.ENDEDAT is null',
-  'join ACCESS.APP_USER u on u.USERID = a.USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE',
+  'join SHARED_DB.ACCESS.APP_USER_SITE a on a.SITEID = s.SITEID and a.USERID = $CURRENT_USERID and a.ENDEDAT is null',
+  'join SHARED_DB.ACCESS.APP_USER u on u.USERID = a.USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE',
 ]
 export function employerRuleProblems(text) {
   const found = []
@@ -492,7 +492,7 @@ for (const file of serverFiles) {
 // tables.
 {
   const repo = path.join(serverDir, '..')
-  const IMPORT_TABLES = new Set(['RAW.FAA_VACANCY_PAGE', 'EXT.VACANCY', 'EXT.VACANCY_IMPORT_RUN'])
+  const IMPORT_TABLES = new Set(['SHARED_DB.RAW.FAA_VACANCY_PAGE', 'SHARED_DB.EXT.VACANCY', 'SHARED_DB.EXT.VACANCY_IMPORT_RUN'])
   for (const [area, f] of [
     ...fs.readdirSync(serverDir, { recursive: true }).map((x) => ['server', x]),
     ...fs.readdirSync(path.join(repo, 'src'), { recursive: true }).map((x) => ['src', x]),
@@ -516,7 +516,7 @@ for (const file of serverFiles) {
 }
 
 // Check 19: only the Skills England import writes SKILLS, and it keeps to
-// SKILLS and RAW.SE_*.
+// SKILLS and SHARED_DB.RAW.SE_*.
 {
   const repo = path.join(serverDir, '..')
   for (const [area, f] of [
@@ -530,7 +530,7 @@ for (const file of serverFiles) {
       console.log(`${where(m.index)}  imports the Skills England import, which runs without a signed-in user: the app must not`)
       problems++
     }
-    for (const w of text.matchAll(/\b(?:into|update)\s+(?:CAPTURE_DB\.)?(SKILLS\.\w+|RAW\.SE_\w+)/gi)) {
+    for (const w of text.matchAll(/\b(?:into|update)\s+(?:(?:CAPTURE|SHARED)_DB\.)?(SKILLS\.\w+|RAW\.SE_\w+)/gi)) {
       console.log(`${where(w.index)}  writes ${w[1]}: only scripts/import-skills.js writes Skills England's data`)
       problems++
     }
@@ -539,10 +539,10 @@ for (const file of serverFiles) {
   for (const sql of importer.matchAll(/`[^`]*`/g)) {
     if (!/\b(select|update|insert|merge|delete)\b/i.test(sql[0])) continue
     for (const m of sql[0].matchAll(/\b(?:from|join|update|into|using)\s+([A-Za-z_][\w.$]*)/gi)) {
-      const name = m[1].replace(/^CAPTURE_DB\./i, '')
+      const name = m[1].replace(/^(CAPTURE|SHARED)_DB\./i, '')
       if (['table', 'set', 'select', 'lateral'].includes(name.toLowerCase()) || /^(SKILLS\.(\w+|\$)|RAW\.SE_\w+)$/.test(name)) continue
       if (!name.includes('.')) continue // a CTE or alias in the import's own SQL
-      console.log(`scripts/import-skills.js:${importer.slice(0, sql.index).split('\n').length}  names ${m[1]}: the Skills England import uses only SKILLS and RAW.SE_* tables`)
+      console.log(`scripts/import-skills.js:${importer.slice(0, sql.index).split('\n').length}  names ${m[1]}: the Skills England import uses only SKILLS and SHARED_DB.RAW.SE_* tables`)
       problems++
     }
   }
@@ -563,7 +563,7 @@ for (const file of serverFiles) {
       console.log(`${where(m.index)}  imports the scheduler or its job records, which run without a signed-in user: the app must not`)
       problems++
     }
-    for (const w of text.matchAll(/\b(?:into|update)\s+(?:CAPTURE_DB\.)?(OPS\.\w+)/gi)) {
+    for (const w of text.matchAll(/\b(?:into|update)\s+(?:(?:CAPTURE|SHARED)_DB\.)?(OPS\.\w+)/gi)) {
       console.log(`${where(w.index)}  writes ${w[1]}: only the jobs (scripts/job-run.js) write OPS`)
       problems++
     }

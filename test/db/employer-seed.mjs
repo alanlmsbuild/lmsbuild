@@ -23,9 +23,9 @@ export const SEEDED = {
 // sql/employers_03_sites_contacts.sql does, not by the app's rule.
 export async function derivedCounts(q) {
   const rows = await q(`
-    with users as (select USERID, EMPLOYERID, ISACTIVE, ISHEADOFFICE from ACCESS.APP_USER where USERID in (${Object.keys(FIXED).map(() => '?').join(', ')})),
+    with users as (select USERID, EMPLOYERID, ISACTIVE, ISHEADOFFICE from SHARED_DB.ACCESS.APP_USER where USERID in (${Object.keys(FIXED).map(() => '?').join(', ')})),
     current_links as (select LEARNREFNUMBER, EMPLOYERID, SITEID from ILR.LEARNER_EMPLOYER where TODATE is null or TODATE >= current_date()),
-    site_access as (select a.USERID, a.SITEID, s.EMPLOYERID from ACCESS.APP_USER_SITE a join ILR.EMPLOYER_SITE s on s.SITEID = a.SITEID where a.ENDEDAT is null),
+    site_access as (select a.USERID, a.SITEID, s.EMPLOYERID from SHARED_DB.ACCESS.APP_USER_SITE a join ILR.EMPLOYER_SITE s on s.SITEID = a.SITEID where a.ENDEDAT is null),
     visible as (
       select u.USERID, l.LEARNREFNUMBER from users u join current_links l on l.EMPLOYERID = u.EMPLOYERID where u.ISACTIVE and u.ISHEADOFFICE = true
       union

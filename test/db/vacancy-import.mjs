@@ -115,7 +115,7 @@ const noWait = async () => {}
 const c = await connect()
 const q = (sql, binds = []) => execute(c, sql, binds)
 const stored = async () => Object.fromEntries((await q(`select VACANCYREFERENCE as R, SOURCE, TITLE, DESCRIPTION, FULLDESCRIPTION,
-    to_varchar(GONEAT) as GONE, to_varchar(LASTCHANGEDAT) as CH from EXT.VACANCY where VACANCYREFERENCE in (${ALL_REFS.map(() => '?').join(',')})`, ALL_REFS)).map((r) => [r.R, r]))
+    to_varchar(GONEAT) as GONE, to_varchar(LASTCHANGEDAT) as CH from SHARED_DB.EXT.VACANCY where VACANCYREFERENCE in (${ALL_REFS.map(() => '?').join(',')})`, ALL_REFS)).map((r) => [r.R, r]))
 const run = (passes, kind = 'full') => {
   const api = fakeApi(passes)
   return runImport({ connection: c, kind, fetchImpl: api.fetchImpl, pace: noWait, log: () => {}, key: 'test-key' }).then((counts) => ({ ...counts, calls: api.calls }))
@@ -156,19 +156,19 @@ try {
     check('  and it comes back when returned again', (await stored())[missing].GONE === null)
 
     // The run lock.
-    await q(`insert into EXT.VACANCY_IMPORT_RUN (RUNID, KIND) values ('TEST-open-run', 'full')`)
+    await q(`insert into SHARED_DB.EXT.VACANCY_IMPORT_RUN (RUNID, KIND) values ('TEST-open-run', 'full')`)
     const refused = await run(everyPass([...f, hostile]))
-    const [mine] = await q(`select COMPLETE, ERROR, FINISHEDAT is not null as FINISHED from EXT.VACANCY_IMPORT_RUN where RUNID = ?`, [refused.runId])
+    const [mine] = await q(`select COMPLETE, ERROR, FINISHEDAT is not null as FINISHED from SHARED_DB.EXT.VACANCY_IMPORT_RUN where RUNID = ?`, [refused.runId])
     check('a run refuses to start while another is open, and says why', Boolean(refused.refused) && refused.calls.length === 0 && mine.FINISHED && !mine.COMPLETE && /Another vacancy import is running/.test(mine.ERROR),
       JSON.stringify(mine))
-    await q(`update EXT.VACANCY_IMPORT_RUN set FINISHEDAT = current_timestamp() where RUNID = 'TEST-open-run'`)
-    const [dupes] = await q(`select count(*) as N from (select VACANCYREFERENCE from EXT.VACANCY group by 1 having count(*) > 1)`)
+    await q(`update SHARED_DB.EXT.VACANCY_IMPORT_RUN set FINISHEDAT = current_timestamp() where RUNID = 'TEST-open-run'`)
+    const [dupes] = await q(`select count(*) as N from (select VACANCYREFERENCE from SHARED_DB.EXT.VACANCY group by 1 having count(*) > 1)`)
     check('one row per advert after all those runs', dupes.N === 0)
   } finally {
     await q('rollback')
   }
   check('nothing kept after the rollback', Object.keys(await stored()).length === 0 &&
-    (await q(`select count(*) as N from EXT.VACANCY_IMPORT_RUN where RUNID = 'TEST-open-run'`))[0].N === 0)
+    (await q(`select count(*) as N from SHARED_DB.EXT.VACANCY_IMPORT_RUN where RUNID = 'TEST-open-run'`))[0].N === 0)
 } finally {
   await destroy(c)
 }

@@ -1,7 +1,7 @@
 // Advert text from Find an apprenticeship (vacancies build step 2). Adverts
 // arrive with HTML in their descriptions. Until a proper cleaner exists,
 // Warren keeps none of it as HTML: the import turns every text field into
-// plain text before it reaches EXT.VACANCY (RAW keeps the response exactly
+// plain text before it reaches SHARED_DB.EXT.VACANCY (RAW keeps the response exactly
 // as returned), and pages show it as text. Links are kept only if they're
 // http or https.
 

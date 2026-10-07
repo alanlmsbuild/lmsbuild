@@ -61,7 +61,7 @@ export async function tick({
     return connection
   }
   try {
-    // A job missing from the state file: fill it in from OPS.JOB_RUN first,
+    // A job missing from the state file: fill it in from SHARED_DB.OPS.JOB_RUN first,
     // so a new machine doesn't rerun everything.
     let state = readState(stateFile)
     if (JOB_ORDER.some((j) => !state.jobs[j])) {

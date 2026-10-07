@@ -25,8 +25,8 @@ import { testUserId } from './devUsers.js'
 const ORG = '$CURRENT_ORGANISATIONID'
 
 export const ORG_OFFICER = `(select * from ILR.OFFICER where ORGANISATIONID = ${ORG})`
-export const ORG_APP_USER = `(select * from ACCESS.APP_USER where ORGANISATIONID = ${ORG})`
-export const ORG_ORGANISATION = `(select * from ACCESS.ORGANISATION where ORGANISATIONID = ${ORG})`
+export const ORG_APP_USER = `(select * from SHARED_DB.ACCESS.APP_USER where ORGANISATIONID = ${ORG})`
+export const ORG_ORGANISATION = `(select * from SHARED_DB.ACCESS.ORGANISATION where ORGANISATIONID = ${ORG})`
 
 // An employer's Companies House details are this organisation's own copy
 // (COMPANYDETAILS, sql/employers_02_own_copy.sql), never the shared EXT
@@ -132,7 +132,7 @@ const LEARNER_ROWS = `(
 //   head office  the user is active and ISHEADOFFICE = true: every current
 //                apprentice of the employer
 //   sites        the user is active and has a current assignment
-//                (ACCESS.APP_USER_SITE, ENDEDAT is null) to the apprentice's
+//                (SHARED_DB.ACCESS.APP_USER_SITE, ENDEDAT is null) to the apprentice's
 //                site, a site of that same employer
 // No flag and no current assignment means nobody, and an apprentice with no
 // site is seen by head office only. Both read the user fresh on every query
@@ -142,15 +142,15 @@ const LEARNER_ROWS = `(
 const EMPLOYER_LINKS = `(
       select le.LEARNREFNUMBER
       from ILR.LEARNER_EMPLOYER le
-      join ACCESS.APP_USER u
+      join SHARED_DB.ACCESS.APP_USER u
         on u.USERID = $CURRENT_USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE and u.ISHEADOFFICE = true
       where le.EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (le.TODATE is null or le.TODATE >= current_date())
       union
       select le.LEARNREFNUMBER
       from ILR.LEARNER_EMPLOYER le
       join ILR.EMPLOYER_SITE s on s.SITEID = le.SITEID and s.EMPLOYERID = le.EMPLOYERID
-      join ACCESS.APP_USER_SITE a on a.SITEID = s.SITEID and a.USERID = $CURRENT_USERID and a.ENDEDAT is null
-      join ACCESS.APP_USER u on u.USERID = a.USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE
+      join SHARED_DB.ACCESS.APP_USER_SITE a on a.SITEID = s.SITEID and a.USERID = $CURRENT_USERID and a.ENDEDAT is null
+      join SHARED_DB.ACCESS.APP_USER u on u.USERID = a.USERID and u.EMPLOYERID = le.EMPLOYERID and u.ISACTIVE
       where le.EMPLOYERID = $APPRENTICES_OF_EMPLOYERID and (le.TODATE is null or le.TODATE >= current_date())
     )`
 
@@ -235,10 +235,10 @@ const USER_QUERY = `
   select u.USERID, u.ORGANISATIONID, o.NAME as ORGANISATIONNAME, coalesce(c.NAME, u.DISPLAYNAME) as DISPLAYNAME, u.EMAIL, u.OFFICERREFNUMBER,
     u.LEARNREFNUMBER, u.EMPLOYERID, u.ISACTIVE, u.ISTESTDATA,
     listagg(distinct r.ROLE, ',') within group (order by r.ROLE) as ROLES
-  from ACCESS.APP_USER u
-  left join ACCESS.ORGANISATION o
+  from SHARED_DB.ACCESS.APP_USER u
+  left join SHARED_DB.ACCESS.ORGANISATION o
     on o.ORGANISATIONID = u.ORGANISATIONID
-  left join ACCESS.USER_ROLE r
+  left join SHARED_DB.ACCESS.USER_ROLE r
     on r.USERID = u.USERID and r.REVOKEDAT is null
   left join ILR.EMPLOYER_CONTACT c
     on c.USERID = u.USERID and c.EMPLOYERID = u.EMPLOYERID and c.ISCURRENT

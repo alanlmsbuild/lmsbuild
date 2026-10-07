@@ -49,7 +49,7 @@ const APPRENTICES_QUERY = `
   ),
   standard_ksbs as (
     select v.LEARNREFNUMBER, k.ST_REFERENCE, k.KSB_TYPE, k.KSB_REFERENCE
-    from SKILLS.STANDARD_KSB k
+    from SHARED_DB.SKILLS.STANDARD_KSB k
     join ksb_versions v
       on v.ST_REFERENCE = k.ST_REFERENCE and v.VERSION = k.VERSION
     where k.GONEAT is null

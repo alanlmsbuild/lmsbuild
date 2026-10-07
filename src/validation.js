@@ -140,7 +140,7 @@ export function normalisePostcode(value) {
 }
 
 // An employer's site (a workplace), added or changed by a manager. Whether
-// the postcode is a real one is checked on the server (REF.POSTCODE).
+// the postcode is a real one is checked on the server (SHARED_DB.REF.POSTCODE).
 export function validateSiteForm(input) {
   const errors = {}
   const v = input ?? {}

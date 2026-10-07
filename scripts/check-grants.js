@@ -17,8 +17,9 @@
 //      services, add-only; rebuilding EXT from them is an admin job), or has
 //      future grants in RAW or EXT (those are granted table by table), or is
 //      missing a grant the Companies House code needs (REQUIRED below).
-//   6. It owns a table in SKILLS, RAW or EXT, or is missing a grant the
-//      Skills England import needs (REQUIRED below).
+//   6. It owns or can create anything in SHARED_DB (the shared database:
+//      REF, SKILLS, EXT, RAW, ACCESS, OPS; all owned by ACCOUNTADMIN), or
+//      is missing a grant the imports need (REQUIRED below).
 // Needs the Snowflake connection in server/.env.
 //
 // Usage:
@@ -35,32 +36,36 @@ const ADD_ONLY = new Set([
   'CAPTURE_DB.BURROW.EVIDENCE_REVIEW',
   'CAPTURE_DB.BURROW.IQA_CHECK',
   'CAPTURE_DB.BURROW.WITNESS_CONFIRMATION',
-  'CAPTURE_DB.RAW.CH_COMPANY_PROFILE',
-  'CAPTURE_DB.EXT.COMPANY_CHANGE',
+  'SHARED_DB.RAW.CH_COMPANY_PROFILE',
+  'SHARED_DB.EXT.COMPANY_CHANGE',
 ])
 // Grants the app needs on the RAW and EXT tables (sql/employers_01_companies_house.sql).
 const REQUIRED = {
-  'CAPTURE_DB.RAW.CH_COMPANY_PROFILE': ['INSERT'],
-  'CAPTURE_DB.EXT.COMPANY': ['SELECT', 'INSERT', 'UPDATE'],
-  'CAPTURE_DB.EXT.COMPANY_CHANGE': ['SELECT', 'INSERT'],
+  'SHARED_DB.RAW.CH_COMPANY_PROFILE': ['INSERT'],
+  'SHARED_DB.EXT.COMPANY': ['SELECT', 'INSERT', 'UPDATE'],
+  'SHARED_DB.EXT.COMPANY_CHANGE': ['SELECT', 'INSERT'],
   // Employer sites and contacts (sql/employers_03_sites_contacts.sql). The
   // site assignments are in ACCESS, so read-only like the rest of it.
   'CAPTURE_DB.ILR.EMPLOYER_SITE': ['SELECT', 'INSERT', 'UPDATE'],
   'CAPTURE_DB.ILR.EMPLOYER_CONTACT': ['SELECT', 'INSERT', 'UPDATE'],
-  'CAPTURE_DB.ACCESS.APP_USER_SITE': ['SELECT'],
+  'SHARED_DB.ACCESS.APP_USER_SITE': ['SELECT'],
   // Vacancies (sql/vacancies_01_tables.sql).
-  'CAPTURE_DB.RAW.FAA_VACANCY_PAGE': ['INSERT'],
-  'CAPTURE_DB.EXT.VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
-  'CAPTURE_DB.EXT.VACANCY_IMPORT_RUN': ['SELECT', 'INSERT', 'UPDATE'],
+  'SHARED_DB.RAW.FAA_VACANCY_PAGE': ['INSERT'],
+  'SHARED_DB.EXT.VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
+  'SHARED_DB.EXT.VACANCY_IMPORT_RUN': ['SELECT', 'INSERT', 'UPDATE'],
   'CAPTURE_DB.ILR.EMPLOYER_VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
   // Skills England (sql/skills_01_tables.sql).
-  'CAPTURE_DB.RAW.SE_STANDARD_VERSION': ['INSERT'],
-  'CAPTURE_DB.RAW.SE_OCCUPATION': ['INSERT'],
+  'SHARED_DB.RAW.SE_STANDARD_VERSION': ['INSERT'],
+  'SHARED_DB.RAW.SE_OCCUPATION': ['INSERT'],
   ...Object.fromEntries(['SKILLS_IMPORT_RUN', 'STANDARD_VERSION', 'STANDARD_KSB', 'STANDARD_DUTY', 'STANDARD_DUTY_KSB',
     'STANDARD_OPTION', 'STANDARD_DUTY_OPTION', 'OCCUPATION_PROFILE', 'OCCUPATION_SOC', 'OCCUPATION_TERM']
-    .map((t) => [`CAPTURE_DB.SKILLS.${t}`, ['SELECT', 'INSERT', 'UPDATE']])),
+    .map((t) => [`SHARED_DB.SKILLS.${t}`, ['SELECT', 'INSERT', 'UPDATE']])),
+  // Reference data (sql/shared_01_clone.sql): the import merges, never deletes.
+  ...Object.fromEntries(['IMPORT_RUN', 'INTEREST_WORD', 'POSTCODE', 'SIC2007', 'SIC2007_TO_SIC2026', 'SOC2020_INDEX', 'SOC2020_SUB_UNIT_GROUP', 'SOC2020_UNIT_GROUP']
+    .map((t) => [`SHARED_DB.REF.${t}`, ['SELECT', 'INSERT', 'UPDATE']])),
+  'SHARED_DB.REF.REF_IMPORT_CSV': ['USAGE'],
   // Background job runs (sql/jobs_01_job_run.sql).
-  'CAPTURE_DB.OPS.JOB_RUN': ['SELECT', 'INSERT', 'UPDATE'],
+  'SHARED_DB.OPS.JOB_RUN': ['SELECT', 'INSERT', 'UPDATE'],
 }
 
 // The problems in a list of grants (from SHOW GRANTS TO ROLE) and future
@@ -72,15 +77,18 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
     const name = String(g.name)
     const privilege = String(g.privilege)
     if (/^CAPTURE_DB\.TEST_BASELINE(\.|$)/.test(name)) problems.push(`${privilege} on ${name}: the app must not reach the test snapshot`)
-    if (g.granted_on === 'TABLE' && name.startsWith('CAPTURE_DB.ACCESS.') && WRITES.has(privilege) && !ACCESS_WRITABLE.has(name)) {
+    if (g.granted_on === 'TABLE' && name.startsWith('SHARED_DB.ACCESS.') && WRITES.has(privilege) && !ACCESS_WRITABLE.has(name)) {
       problems.push(`${privilege} on ${name}: ACCESS is read-only for the app`)
     }
     if (privilege === 'DELETE' || privilege === 'TRUNCATE') problems.push(`${privilege} on ${name}: the app never deletes`)
-    if (privilege === 'OWNERSHIP' && /^CAPTURE_DB\.(SKILLS|RAW|EXT)\./.test(name)) {
-      problems.push(`OWNERSHIP of ${name}: tables there are owned by ACCOUNTADMIN, so the app can't drop or change them`)
+    if (privilege === 'OWNERSHIP' && /^SHARED_DB(\.|$)/.test(name)) {
+      problems.push(`OWNERSHIP of ${name}: everything in SHARED_DB is owned by ACCOUNTADMIN, so the app can't drop or change it`)
+    }
+    if (privilege.startsWith('CREATE') && /^SHARED_DB(\.|$)/.test(name)) {
+      problems.push(`${privilege} on ${name}: the app can't create anything in SHARED_DB`)
     }
     if (privilege === 'UPDATE' && ADD_ONLY.has(name)) problems.push(`UPDATE on ${name}: it is add-only`)
-    if (g.granted_on === 'TABLE' && name.startsWith('CAPTURE_DB.RAW.') && privilege !== 'INSERT') {
+    if (g.granted_on === 'TABLE' && name.startsWith('SHARED_DB.RAW.') && privilege !== 'INSERT') {
       problems.push(`${privilege} on ${name}: the app only adds to RAW`)
     }
   }
@@ -93,7 +101,7 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
     problems.push(`${g.privilege} on future ${g.grant_on} in ${g.name}: RAW and EXT are granted table by table`)
   }
   for (const g of futureAccessGrants.filter((x) => x.grantee_name === ROLE)) {
-    if (WRITES.has(String(g.privilege))) problems.push(`${g.privilege} on future tables in CAPTURE_DB.ACCESS: new ACCESS tables would be writable`)
+    if (WRITES.has(String(g.privilege))) problems.push(`${g.privilege} on future tables in SHARED_DB.ACCESS: new ACCESS tables would be writable`)
   }
   return problems
 }
@@ -104,10 +112,10 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   const connection = await connect()
   try {
     const grants = await execute(connection, `show grants to role ${ROLE}`)
-    const future = await execute(connection, 'show future grants in schema CAPTURE_DB.ACCESS')
+    const future = await execute(connection, 'show future grants in schema SHARED_DB.ACCESS')
     const layers = [
-      ...(await execute(connection, 'show future grants in schema CAPTURE_DB.RAW')),
-      ...(await execute(connection, 'show future grants in schema CAPTURE_DB.EXT')),
+      ...(await execute(connection, 'show future grants in schema SHARED_DB.RAW')),
+      ...(await execute(connection, 'show future grants in schema SHARED_DB.EXT')),
     ]
     checked = grants.length + future.length + layers.length
     problems = grantProblems(grants, future, layers)
@@ -117,6 +125,6 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns nothing in SKILLS, RAW or EXT, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, and it can't reach the test snapshot.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, and it can't reach the test snapshot.`)
   process.exit(problems.length ? 1 : 0)
 }

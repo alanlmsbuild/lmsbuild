@@ -46,8 +46,8 @@ check("Alex's KSBs are ST0072 version 1.1's, the version for his start date", po
   JSON.stringify(portfolio.ksbVersion))
 check(`  ${KSB_COUNT} KSBs, K1 first with its wording`, portfolio.ksbs.length === KSB_COUNT && portfolio.ksbs[0].KSB_REFERENCE === 'K1' && portfolio.ksbs[0].DETAIL === K1,
   `${portfolio.ksbs.length} ${portfolio.ksbs[0]?.KSB_REFERENCE} ${portfolio.ksbs[0]?.DETAIL}`)
-const [stored] = await q(`select count(*) as N from SKILLS.STANDARD_KSB where ST_REFERENCE = 'ST0072' and VERSION = ? and GONEAT is null`, [VERSION])
-check('  the same count as SKILLS.STANDARD_KSB holds for 1.1', Number(stored.N) === portfolio.ksbs.length, stored.N)
+const [stored] = await q(`select count(*) as N from SHARED_DB.SKILLS.STANDARD_KSB where ST_REFERENCE = 'ST0072' and VERSION = ? and GONEAT is null`, [VERSION])
+check('  the same count as SHARED_DB.SKILLS.STANDARD_KSB holds for 1.1', Number(stored.N) === portfolio.ksbs.length, stored.N)
 
 const refused = await api('USR-T0101', `/api/burrow/learners/${ALEX}/evidence`, {
   method: 'POST', body: { title: 'TEST: never saved', evidenceType: 'reflection', occurredOn: '2025-05-12', reflection: 'x', ksbs: ['K99'] },
@@ -64,7 +64,7 @@ if (!evidence) {
 }
 const claims = await q(`select ek.KSB_REFERENCE, ek.STANDARD_VERSION, ek.KSB_TEXT = k.DETAIL as SAME
   from BURROW.EVIDENCE_KSB ek
-  join SKILLS.STANDARD_KSB k on k.ST_REFERENCE = ek.ST_REFERENCE and k.VERSION = ? and k.KSB_TYPE = ek.KSB_TYPE and k.KSB_REFERENCE = ek.KSB_REFERENCE
+  join SHARED_DB.SKILLS.STANDARD_KSB k on k.ST_REFERENCE = ek.ST_REFERENCE and k.VERSION = ? and k.KSB_TYPE = ek.KSB_TYPE and k.KSB_REFERENCE = ek.KSB_REFERENCE
   where ek.EVIDENCE_ID = ? and ek.UNCLAIMED_AT is null order by 1`, [VERSION, evidence.EVIDENCE_ID])
 check('  each claim records version 1.1 and its wording', claims.length === 2 && claims.every((c) => c.STANDARD_VERSION === VERSION && c.SAME),
   JSON.stringify(claims))

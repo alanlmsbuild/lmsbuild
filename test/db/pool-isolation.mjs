@@ -103,11 +103,11 @@ const expected = {
   max: await refs(ORG_LEARNERS, ['ORG-T001']),
   nia: await refs(ORG_LEARNERS, ['ORG-T002']),
   hal: await refs(`select distinct a.LEARNREFNUMBER as R from ILR.OFFICER_ASSIGNMENT a
-    join ACCESS.APP_USER u on u.OFFICERREFNUMBER = a.OFFICERREFNUMBER
+    join SHARED_DB.ACCESS.APP_USER u on u.OFFICERREFNUMBER = a.OFFICERREFNUMBER
     join ILR.LEARNING_DELIVERY ld on ld.LEARNREFNUMBER = a.LEARNREFNUMBER and ld.LEARNAIMREF = 'ZPROG001' and ld.AIMSEQNUMBER = 1 and ld.REMOVEDAT is null
     where u.USERID = 'USR-T0014' and a.ENDEDAT is null`),
   alex: ['TESTL0001'],
-  erin: await refs(`select distinct e.LEARNREFNUMBER as R from ILR.LEARNER_EMPLOYER e join ACCESS.APP_USER u on u.EMPLOYERID = e.EMPLOYERID
+  erin: await refs(`select distinct e.LEARNREFNUMBER as R from ILR.LEARNER_EMPLOYER e join SHARED_DB.ACCESS.APP_USER u on u.EMPLOYERID = e.EMPLOYERID
     where u.USERID = 'USR-T0201' and (e.TODATE is null or e.TODATE >= current_date())`),
 }
 await destroy(db)

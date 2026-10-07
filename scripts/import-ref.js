@@ -1,4 +1,4 @@
-// import-ref.js - load reference data into the CAPTURE_DB.REF schema:
+// import-ref.js - load reference data into SHARED_DB.REF:
 //
 //   soc        ONS SOC 2020 coding index (job titles -> SOC 2020 and extended
 //              SOC 2020 codes) and the SOC 2020 structure (unit group titles)
@@ -18,12 +18,16 @@
 //
 // Source files are downloaded from the official URLs below into data/ref/
 // (not committed) and reused on later runs. Each run records the file's
-// name, URL, version and SHA-256 in REF.IMPORT_RUN.
+// name, URL, version and SHA-256 in SHARED_DB.REF.IMPORT_RUN.
 //
-// Each part replaces its tables' contents in one transaction (these are
-// published snapshots, so rows dropped from a new edition must go too). A
-// failed run changes nothing. Needs the REF schema (sql/ref_01_schema.sql)
-// and the unzip command.
+// Each part brings its tables up to date in one transaction: every row in
+// the new file is merged in (LASTSEENAT set, GONEAT cleared), and a row the
+// file no longer has is marked gone (GONEAT), never deleted. Readers leave
+// gone rows out. A failed run changes nothing. The app's role owns none of
+// the REF tables and can't create or delete there: it stages the files in
+// its user stage and merges straight from them, through the file format
+// SHARED_DB.REF.REF_IMPORT_CSV (sql/shared_01_clone.sql). Needs the unzip
+// command.
 
 import fs from 'node:fs'
 import os from 'node:os'
@@ -355,70 +359,74 @@ function writeStaged(dir, name, rows) {
   return { file, rows: rows.length }
 }
 
-const FILE_FORMAT = `type = csv field_optionally_enclosed_by = '"' null_if = ('\\\\N') encoding = 'UTF8' compression = gzip`
 
-async function load({ schema, temporary, parts, results, sources }) {
+const REF = 'SHARED_DB.REF'
+const REF_FORMAT = `${REF}.REF_IMPORT_CSV`
+
+// A column's type for a cast, without its NOT NULL.
+const castType = (t) => t.replace(/\s+not null$/i, '')
+
+// The MERGE for one table, from its staged file. Binds: the run ID (set),
+// the run ID (insert).
+function mergeSql(name, file) {
+  const { cols, pk } = TABLES[name]
+  const names = cols.map(([c]) => c)
+  const source = `(select ${cols.map(([c, t], i) => `$${i + 1}::${castType(t)} as ${c}`).join(', ')}
+    from ${file} (file_format => '${REF_FORMAT}'))`
+  const others = names.filter((c) => !pk.includes(c))
+  return `merge into ${REF}.${name} t using ${source} s on ${pk.map((c) => `t.${c} = s.${c}`).join(' and ')}
+    when matched then update set ${[...others.map((c) => `${c} = s.${c}`), 'LAST_IMPORT_RUN_ID = ?', 'LASTSEENAT = current_timestamp()', 'GONEAT = null'].join(', ')}
+    when not matched then insert (${[...names, 'LAST_IMPORT_RUN_ID', 'LASTSEENAT'].join(', ')})
+      values (${[...names.map((c) => `s.${c}`), '?', 'current_timestamp()'].join(', ')})`
+}
+
+async function load({ parts, results, sources }) {
   const { connect, execute, destroy } = await import('../server/db.js')
   const connection = await connect()
   const run = (sql, binds) => execute(connection, sql, binds)
-  const table = (name) => `${schema}.${name}`
-  const create = temporary ? 'create temporary table if not exists' : 'create table if not exists'
   let runId
   try {
-    await run(`${create} ${table('IMPORT_RUN')} (
-      ID number(38,0) not null, PARTS varchar not null, SOURCES variant, STARTED_AT timestamp_ltz not null default current_timestamp(),
-      FINISHED_AT timestamp_ltz, STATUS varchar not null default 'running', ROW_COUNTS variant, ERROR varchar, primary key (ID))`)
-    for (const [name, spec] of Object.entries(TABLES)) {
-      if (!parts.includes(spec.part)) continue
-      await run(`${create} ${table(name)} (${spec.cols.map(([c, t]) => `${c} ${t}`).join(', ')},
-        LAST_IMPORT_RUN_ID number(38,0) not null, primary key (${spec.pk.join(', ')}))
-        comment = '${spec.comment.replaceAll("'", "''")}'`)
-    }
-    const [{ NEXT_ID }] = await run(`select coalesce(max(ID), 0) + 1 as NEXT_ID from ${table('IMPORT_RUN')}`)
+    const [{ NEXT_ID }] = await run(`select coalesce(max(ID), 0) + 1 as NEXT_ID from ${REF}.IMPORT_RUN`)
     runId = Number(NEXT_ID)
-    await run(`insert into ${table('IMPORT_RUN')} (ID, PARTS, SOURCES) select ?, ?, parse_json(?)`, [runId, parts.join(','), JSON.stringify(sources)])
+    await run(`insert into ${REF}.IMPORT_RUN (ID, PARTS, SOURCES) select ?, ?, parse_json(?)`, [runId, parts.join(','), JSON.stringify(sources)])
     console.log(`\nImport run ${runId} started.`)
 
     const staged = Object.assign({}, ...results.map((r) => r.staged))
     await run(`put 'file://${path.dirname(Object.values(staged)[0].file)}/*.csv.gz' ${STAGE_PATH}/run_${runId}/ auto_compress = false overwrite = true`)
+    const fileOf = (name) => `${STAGE_PATH}/run_${runId}/${name}.csv.gz`
+    // Every staged file holds the rows written, before anything changes.
     for (const [name, { rows }] of Object.entries(staged)) {
-      const cols = [...TABLES[name].cols.map(([c]) => c), 'LAST_IMPORT_RUN_ID']
-      await run(`create or replace temporary table ${table(`STG_${name}`)} like ${table(name)}`)
-      const loaded = await run(`copy into ${table(`STG_${name}`)} (${cols.join(', ')})
-        from (select ${TABLES[name].cols.map((_, i) => `$${i + 1}`).join(', ')}, ${runId} from ${STAGE_PATH}/run_${runId}/${name}.csv.gz)
-        file_format = (${FILE_FORMAT}) on_error = abort_statement force = true`)
-      const n = loaded.reduce((sum, r) => sum + Number(r.rows_loaded ?? r.ROWS_LOADED ?? 0), 0)
-      if (n !== rows) throw new Error(`${name}: staged ${n} rows but expected ${rows}`)
+      const [{ N }] = await run(`select count(*) as N from ${fileOf(name)} (file_format => '${REF_FORMAT}')`)
+      if (Number(N) !== rows) throw new Error(`${name}: staged ${N} rows but expected ${rows}`)
     }
 
     await run('begin')
     const counts = {}
     for (const name of Object.keys(staged)) {
-      await run(`delete from ${table(name)}`)
-      await run(`insert into ${table(name)} select * from ${table(`STG_${name}`)}`)
-      counts[name] = staged[name].rows
-      console.log(`  ${name}: ${staged[name].rows.toLocaleString('en-GB')} rows`)
+      await run(mergeSql(name, fileOf(name)), [runId, runId])
+      const gone = await run(`update ${REF}.${name} set GONEAT = current_timestamp() where GONEAT is null and LAST_IMPORT_RUN_ID <> ?`, [runId])
+      const goneCount = Number(gone?.[0]?.['number of rows updated'] ?? 0)
+      counts[name] = { rows: staged[name].rows, gone: goneCount }
+      console.log(`  ${name}: ${staged[name].rows.toLocaleString('en-GB')} rows${goneCount ? `, ${goneCount.toLocaleString('en-GB')} no longer in the source (marked gone)` : ''}`)
     }
-    await run(`update ${table('IMPORT_RUN')} set STATUS = 'succeeded', FINISHED_AT = current_timestamp(), ROW_COUNTS = parse_json(?) where ID = ?`,
+    await run(`update ${REF}.IMPORT_RUN set STATUS = 'succeeded', FINISHED_AT = current_timestamp(), ROW_COUNTS = parse_json(?) where ID = ?`,
       [JSON.stringify(counts), runId])
     await run('commit')
     console.log(`\nImport run ${runId} succeeded.`)
-    return { runId, run, connection }
+    return { runId }
   } catch (err) {
     try { await run('rollback') } catch { /* nothing to roll back */ }
     if (runId) {
-      await run(`update ${table('IMPORT_RUN')} set STATUS = 'failed', FINISHED_AT = current_timestamp(), ERROR = ? where ID = ?`, [err.message, runId])
+      await run(`update ${REF}.IMPORT_RUN set STATUS = 'failed', FINISHED_AT = current_timestamp(), ERROR = ? where ID = ?`, [err.message, runId])
     }
     console.error(`\nImport ${runId ? `run ${runId} ` : ''}FAILED and nothing was changed.\nDetails: ${err.message}`)
     process.exitCode = 1
-    return { runId, run, connection }
+    return { runId }
   } finally {
     if (runId) {
       try { await run(`remove ${STAGE_PATH}/run_${runId}/`) } catch (err) { console.error('Failed to clean up staged files:', err.message) }
     }
-    // Temporary tables only last as long as the connection, so a test run
-    // keeps it open and closes it itself.
-    if (!temporary) await destroy(connection)
+    await destroy(connection)
   }
 }
 
@@ -431,9 +439,6 @@ export async function main(argv = process.argv.slice(2)) {
       only: { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
       refresh: { type: 'boolean', default: false },
-      // For testing: load into session-only temporary tables in this schema.
-      schema: { type: 'string', default: 'REF' },
-      temporary: { type: 'boolean', default: false },
     },
   })
   const all = ['soc', 'interests', 'sic', 'postcodes']
@@ -478,7 +483,7 @@ export async function main(argv = process.argv.slice(2)) {
       console.log('\nDry run: everything checked, nothing written.')
       return { results }
     }
-    const loaded = await load({ schema: args.schema.toUpperCase(), temporary: args.temporary, parts, results, sources })
+    const loaded = await load({ parts, results, sources })
     return { results, ...loaded }
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true })

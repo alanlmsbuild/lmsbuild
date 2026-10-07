@@ -3,7 +3,7 @@ import { ukWhenText } from './ukTime'
 
 // Managers' "Data updates" tile on My day: whether each background job
 // (adverts, Companies House, Skills England) last ran successfully, and
-// which are overdue (GET /api/jobs/status, from OPS.JOB_RUN). Times only,
+// which are overdue (GET /api/jobs/status, from SHARED_DB.OPS.JOB_RUN). Times only,
 // in UK time: never counts or errors, which could cover other
 // organisations. docs/scheduling.md says what to do when one is overdue.
 

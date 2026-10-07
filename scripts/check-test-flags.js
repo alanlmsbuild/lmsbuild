@@ -29,7 +29,7 @@ const TEST_FLAGS_QUERY = [
   `select 'LEARNER' as TABLE_NAME, count(*) as ROWS_,
      coalesce(count_if(l.ISTESTDATA is distinct from o.ISTESTDATA), 0) as DIFFERENT, coalesce(count_if(o.ORGANISATIONID is null), 0) as NO_LEARNER
    from CAPTURE_DB.ILR.LEARNER l
-   left join CAPTURE_DB.ACCESS.ORGANISATION o on o.ORGANISATIONID = l.ORGANISATIONID`,
+   left join SHARED_DB.ACCESS.ORGANISATION o on o.ORGANISATIONID = l.ORGANISATIONID`,
   ...LEARNER_TABLES.map((t) => `select '${t}', count(*),
      coalesce(count_if(t.ISTESTDATA is distinct from l.ISTESTDATA), 0), coalesce(count_if(l.LEARNREFNUMBER is null), 0)
    from CAPTURE_DB.ILR.${t} t
@@ -37,7 +37,7 @@ const TEST_FLAGS_QUERY = [
   `select 'EMPLOYER', count(*),
      coalesce(count_if(e.ISTESTDATA is distinct from o.ISTESTDATA), 0), coalesce(count_if(o.ORGANISATIONID is null), 0)
    from CAPTURE_DB.ILR.EMPLOYER e
-   left join CAPTURE_DB.ACCESS.ORGANISATION o on o.ORGANISATIONID = e.ORGANISATIONID`,
+   left join SHARED_DB.ACCESS.ORGANISATION o on o.ORGANISATIONID = e.ORGANISATIONID`,
 ].join('\nunion all\n')
 
 // Every table holding an employer ID, with how to find the row's
@@ -45,13 +45,13 @@ const TEST_FLAGS_QUERY = [
 const EMPLOYER_REFERENCES = [
   ['ILR.LEARNER_EMPLOYER', 'left join CAPTURE_DB.ILR.LEARNER l on l.LEARNREFNUMBER = t.LEARNREFNUMBER', 'l.ORGANISATIONID', ''],
   ['ILR.EMPLOYMENT_STATUS', 'left join CAPTURE_DB.ILR.LEARNER l on l.LEARNREFNUMBER = t.LEARNREFNUMBER', 'l.ORGANISATIONID', 'where t.EMPLOYERID is not null'],
-  ['ACCESS.APP_USER', '', 't.ORGANISATIONID', 'where t.EMPLOYERID is not null'],
+  ['SHARED_DB.ACCESS.APP_USER', '', 't.ORGANISATIONID', 'where t.EMPLOYERID is not null'],
   ['BURROW.WITNESS_CONFIRMATION', `left join CAPTURE_DB.BURROW.EVIDENCE v on v.EVIDENCE_ID = t.EVIDENCE_ID
      left join CAPTURE_DB.ILR.LEARNER l on l.LEARNREFNUMBER = v.LEARNREFNUMBER`, 'l.ORGANISATIONID', ''],
   // A site has no organisation of its own: only that its employer exists.
   ['ILR.EMPLOYER_SITE', '', 'e.ORGANISATIONID', ''],
   // A contact with a Burrow sign-in: the sign-in's organisation.
-  ['ILR.EMPLOYER_CONTACT', 'left join CAPTURE_DB.ACCESS.APP_USER u on u.USERID = t.USERID', 'coalesce(u.ORGANISATIONID, e.ORGANISATIONID)', ''],
+  ['ILR.EMPLOYER_CONTACT', 'left join SHARED_DB.ACCESS.APP_USER u on u.USERID = t.USERID', 'coalesce(u.ORGANISATIONID, e.ORGANISATIONID)', ''],
   // An advert's link to an employer: the link's own organisation.
   ['ILR.EMPLOYER_VACANCY', '', 't.ORGANISATIONID', ''],
 ]
@@ -76,12 +76,12 @@ const SITE_LINKS_QUERY = `
   from CAPTURE_DB.ILR.LEARNER_EMPLOYER le left join CAPTURE_DB.ILR.EMPLOYER_CONTACT c on c.CONTACTID = le.LINEMANAGERCONTACTID
   where le.LINEMANAGERCONTACTID is not null and (c.CONTACTID is null or c.EMPLOYERID <> le.EMPLOYERID)
   union all select 'site assignment not at the user''s employer', count(*)
-  from CAPTURE_DB.ACCESS.APP_USER_SITE a
-  join CAPTURE_DB.ACCESS.APP_USER u on u.USERID = a.USERID
+  from SHARED_DB.ACCESS.APP_USER_SITE a
+  join SHARED_DB.ACCESS.APP_USER u on u.USERID = a.USERID
   left join CAPTURE_DB.ILR.EMPLOYER_SITE s on s.SITEID = a.SITEID
   where s.SITEID is null or s.EMPLOYERID is distinct from u.EMPLOYERID
   union all select 'contact and sign-in emails differ', count(*)
-  from CAPTURE_DB.ILR.EMPLOYER_CONTACT c join CAPTURE_DB.ACCESS.APP_USER u on u.USERID = c.USERID
+  from CAPTURE_DB.ILR.EMPLOYER_CONTACT c join SHARED_DB.ACCESS.APP_USER u on u.USERID = c.USERID
   where lower(c.EMAIL) is distinct from lower(u.EMAIL) or c.EMPLOYERID is distinct from u.EMPLOYERID
   union all select 'user with more than one contact', count(*)
   from (select USERID from CAPTURE_DB.ILR.EMPLOYER_CONTACT where USERID is not null group by USERID having count(*) > 1)
@@ -94,7 +94,7 @@ const SITE_LINKS_QUERY = `
   union all select 'apprentice links with the same learner, employer and start date', count(*)
   from (select LEARNREFNUMBER, EMPLOYERID, FROMDATE from CAPTURE_DB.ILR.LEARNER_EMPLOYER group by 1, 2, 3 having count(*) > 1)
   union all select 'head office with current site assignments', count(distinct u.USERID)
-  from CAPTURE_DB.ACCESS.APP_USER u join CAPTURE_DB.ACCESS.APP_USER_SITE a on a.USERID = u.USERID and a.ENDEDAT is null
+  from SHARED_DB.ACCESS.APP_USER u join SHARED_DB.ACCESS.APP_USER_SITE a on a.USERID = u.USERID and a.ENDEDAT is null
   where u.ISHEADOFFICE
 `
 // Claims on current evidence whose KSB isn't in the learner's version of
@@ -121,23 +121,29 @@ const CLAIMS_QUERY = `
     coalesce(count_if(c.VERSION is not null and k.KSB_REFERENCE is null), 0) as MISSING,
     coalesce(count_if(c.VERSION is null), 0) as NOT_LOADED
   from claims c
-  left join CAPTURE_DB.SKILLS.STANDARD_KSB k
+  left join SHARED_DB.SKILLS.STANDARD_KSB k
     on k.ST_REFERENCE = c.ST_REFERENCE and k.VERSION = c.VERSION and k.KSB_TYPE = c.KSB_TYPE
    and k.KSB_REFERENCE = c.KSB_REFERENCE and k.GONEAT is null
 `
 
+// A table's full name: those in SHARED_DB say so, the rest are CAPTURE_DB's.
+const full = (table) => (table.startsWith('SHARED_DB.') ? table : `CAPTURE_DB.${table}`)
 const EMPLOYER_REFERENCES_QUERY = [
   ...EMPLOYER_REFERENCES.map(([table, join, org, where]) => `select '${table}' as TABLE_NAME, count(*) as ROWS_,
      coalesce(count_if(e.EMPLOYERID is null), 0) as NO_EMPLOYER,
      coalesce(count_if(e.ORGANISATIONID is distinct from ${org} and e.EMPLOYERID is not null), 0) as OTHER_ORGANISATION
-   from CAPTURE_DB.${table} t
+   from ${full(table)} t
    left join CAPTURE_DB.ILR.EMPLOYER e on e.EMPLOYERID = t.EMPLOYERID
    ${join}
    ${where}`),
+  // Both databases. The old CAPTURE_DB copies of the shared schemas (until
+  // sql/shared_02_drop_old.sql drops them) aren't read by anything.
   `select 'Tables with EMPLOYERID not checked here', count(*), count(*), 0
-   from CAPTURE_DB.INFORMATION_SCHEMA.COLUMNS
-   where COLUMN_NAME = 'EMPLOYERID' and TABLE_SCHEMA <> 'TEST_BASELINE'
-     and TABLE_SCHEMA || '.' || TABLE_NAME not in ('ILR.EMPLOYER', ${EMPLOYER_REFERENCES.map(([t]) => `'${t}'`).join(', ')})`,
+   from (select 'CAPTURE_DB.' || TABLE_SCHEMA || '.' || TABLE_NAME as NAME from CAPTURE_DB.INFORMATION_SCHEMA.COLUMNS
+         where COLUMN_NAME = 'EMPLOYERID' and TABLE_SCHEMA not in ('TEST_BASELINE', 'REF', 'SKILLS', 'EXT', 'RAW', 'ACCESS', 'OPS')
+         union all
+         select 'SHARED_DB.' || TABLE_SCHEMA || '.' || TABLE_NAME from SHARED_DB.INFORMATION_SCHEMA.COLUMNS where COLUMN_NAME = 'EMPLOYERID')
+   where NAME not in ('CAPTURE_DB.ILR.EMPLOYER', ${EMPLOYER_REFERENCES.map(([t]) => `'${full(t)}'`).join(', ')})`,
 ].join('\nunion all\n')
 
 const connection = await connect()
@@ -170,14 +176,14 @@ try {
     + (Number(c.NOT_LOADED) ? ` (and ${c.NOT_LOADED} on a standard with no KSBs loaded)` : ''))
   // Snowflake declares primary keys but doesn't enforce them.
   console.log('\nSkills England tables, one row per primary key:')
-  const pk = await execute(connection, 'show primary keys in schema CAPTURE_DB.SKILLS')
+  const pk = await execute(connection, 'show primary keys in schema SHARED_DB.SKILLS')
   const keys = new Map()
   for (const r of [...pk].sort((a, b) => a.key_sequence - b.key_sequence)) {
     if (!keys.has(r.table_name)) keys.set(r.table_name, [])
     keys.get(r.table_name).push(r.column_name)
   }
   for (const [table, cols] of [...keys].sort()) {
-    const [r] = await execute(connection, `select count(*) as N from (select 1 from CAPTURE_DB.SKILLS.${table} group by ${cols.join(', ')} having count(*) > 1)`)
+    const [r] = await execute(connection, `select count(*) as N from (select 1 from SHARED_DB.SKILLS.${table} group by ${cols.join(', ')} having count(*) > 1)`)
     problems += Number(r.N)
     console.log(`${Number(r.N) ? 'FAIL' : 'ok  '} ${table.padEnd(30)} ${r.N} keys with more than one row (${cols.join(', ')})`)
   }

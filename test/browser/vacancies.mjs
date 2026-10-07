@@ -42,7 +42,7 @@ async function pageAs(user, viewport = { width: 1280, height: 900 }) {
 const text = (p, sel) => p.locator(sel).innerText()
 const card = (p, title) => p.locator('section.ui-card').filter({ has: p.getByRole('heading', { name: title, exact: true }) })
 
-const [open] = await q(`select count(*) as N from EXT.VACANCY where CLOSINGDATE > current_timestamp() and GONEAT is null`)
+const [open] = await q(`select count(*) as N from SHARED_DB.EXT.VACANCY where CLOSINGDATE > current_timestamp() and GONEAT is null`)
 if (Number(open.N) === 0) {
   console.log('FAIL there are no open adverts: run npm run import:vacancies -- --full first')
   process.exit(1)
@@ -70,18 +70,18 @@ check('  the postcode is remembered in this browser', (await tina.getByLabel('Ne
 await tina.goto(`${B}/app/vacancies?source=NHS`)
 await tina.locator('.vacancy-results li').first().waitFor({ timeout: 60000 })
 const nhsItems = await tina.locator('.vacancy-results li').allInnerTexts()
-const [nhsCount] = await q(`select count(*) as N from EXT.VACANCY where SOURCE = 'NHS' and CLOSINGDATE > current_timestamp() and GONEAT is null`)
+const [nhsCount] = await q(`select count(*) as N from SHARED_DB.EXT.VACANCY where SOURCE = 'NHS' and CLOSINGDATE > current_timestamp() and GONEAT is null`)
 check(`the NHS Jobs filter lists only NHS adverts (${nhsCount.N} open)`, nhsItems.length === Math.min(Number(nhsCount.N), 50) && nhsItems.every((t) => t.includes('NHS Jobs')), `${nhsItems.length}`)
 await tina.goto(`${B}/app/vacancies?level=3&route=Business%20and%20administration`)
 await tina.locator('.vacancy-count').waitFor({ timeout: 60000 })
-const [lvl] = await q(`select count(*) as N from EXT.VACANCY where COURSELEVEL = 3 and ROUTE = 'Business and administration' and CLOSINGDATE > current_timestamp() and GONEAT is null`)
+const [lvl] = await q(`select count(*) as N from SHARED_DB.EXT.VACANCY where COURSELEVEL = 3 and ROUTE = 'Business and administration' and CLOSINGDATE > current_timestamp() and GONEAT is null`)
 check('level and route filters give the matching count', (await text(tina, '.vacancy-count')).startsWith(`${lvl.N} open advert`), `${await text(tina, '.vacancy-count')} vs ${lvl.N}`)
 await tina.goto(`${B}/app/vacancies?postcode=ZZ9%209ZZ`)
 await tina.locator('.field-error').waitFor({ timeout: 60000 })
 check('an unknown postcode is refused', /ZZ9 9ZZ isn't on the ONS postcode list/.test(await text(tina, '#vacancies')))
 
 // ---------------------------------------------------------------- an advert (Tina)
-const [advert] = await q(`select VACANCYREFERENCE as R, TITLE, EMPLOYERNAME, VACANCYURL from EXT.VACANCY
+const [advert] = await q(`select VACANCYREFERENCE as R, TITLE, EMPLOYERNAME, VACANCYURL from SHARED_DB.EXT.VACANCY
   where SOURCE = 'FAA' and CLOSINGDATE > current_timestamp() + interval '2 days' and GONEAT is null and VACANCYURL is not null
     and FULLDESCRIPTION is not null and length(EMPLOYERNAME) > 3 order by VACANCYREFERENCE limit 1`)
 await tina.goto(`${B}/app/vacancies/${advert.R}`)

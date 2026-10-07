@@ -1,6 +1,6 @@
 // Whether the background jobs are running (scheduling, plan A): each job's
 // last run and how it went, its last success, and whether it's overdue,
-// from OPS.JOB_RUN. Managers see it on My day ("Data updates"); npm run
+// from SHARED_DB.OPS.JOB_RUN. Managers see it on My day ("Data updates"); npm run
 // check:jobs prints the same.
 //
 // Only times and outcomes leave here: never a run's error, counts or host.
@@ -21,7 +21,7 @@ export const STATUS_QUERY = `
     max_by(TRIGGEREDBY, STARTEDAT) as LAST_TRIGGEREDBY,
     max_by(FINISHEDAT, STARTEDAT) as LAST_FINISHED,
     datediff(second, max(STARTEDAT), current_timestamp()) as SECONDS_SINCE_RUN
-  from OPS.JOB_RUN
+  from SHARED_DB.OPS.JOB_RUN
   group by JOB
 `
 

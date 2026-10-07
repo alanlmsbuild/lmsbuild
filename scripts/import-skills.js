@@ -13,9 +13,9 @@
 //      occupation, paced): each occupation's SOC codes, typical job titles
 //      and keywords. It only has the current version of each occupation.
 //
-// Every record goes to RAW as returned (RAW.SE_STANDARD_VERSION, one row
+// Every record goes to RAW as returned (SHARED_DB.RAW.SE_STANDARD_VERSION, one row
 // per version record since the whole file is over Snowflake's 16 MB VARIANT
-// limit; RAW.SE_OCCUPATION) and is cleaned into SKILLS with MERGE on each
+// limit; SHARED_DB.RAW.SE_OCCUPATION) and is cleaned into SKILLS with MERGE on each
 // table's key. Nothing is deleted: a complete run marks whatever it no
 // longer saw as gone (GONEAT), and clears GONEAT on whatever comes back.
 //
@@ -306,15 +306,15 @@ function mergeSql(table) {
   const on = keys.map((k) => `t.${k} = s.${k}`).join(' and ')
   const differs = cols.length ? `hash(${cols.map((c) => `t.${c}`).join(', ')}) <> hash(${cols.map((c) => `s.${c}`).join(', ')})` : null
   return {
-    changed: differs ? `select count(*) as N from ${source} s join SKILLS.${table} t on ${on} where ${differs}` : null,
-    merge: `merge into SKILLS.${table} t using ${source} s on ${on}
+    changed: differs ? `select count(*) as N from ${source} s join SHARED_DB.SKILLS.${table} t on ${on} where ${differs}` : null,
+    merge: `merge into SHARED_DB.SKILLS.${table} t using ${source} s on ${on}
       ${differs ? `when matched and ${differs} then update set ${cols.map((c) => `${c} = s.${c}`).join(', ')},
         LASTSEENAT = current_timestamp(), GONEAT = null, LASTCHANGEDAT = current_timestamp(), SOURCERESPONSEID = s.SOURCERESPONSEID` : ''}
       when matched then update set LASTSEENAT = current_timestamp(), GONEAT = null, SOURCERESPONSEID = s.SOURCERESPONSEID
       when not matched then insert (${all.join(', ')}, LASTSEENAT, LASTCHANGEDAT, SOURCERESPONSEID)
         values (${all.map((c) => `s.${c}`).join(', ')}, current_timestamp(), current_timestamp(), s.SOURCERESPONSEID)`,
-    gone: `update SKILLS.${table} set GONEAT = current_timestamp()
-      where GONEAT is null and coalesce(LASTSEENAT, '1900-01-01'::timestamp_ltz) < (select STARTEDAT from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?)`,
+    gone: `update SHARED_DB.SKILLS.${table} set GONEAT = current_timestamp()
+      where GONEAT is null and coalesce(LASTSEENAT, '1900-01-01'::timestamp_ltz) < (select STARTEDAT from SHARED_DB.SKILLS.SKILLS_IMPORT_RUN where RUNID = ?)`,
   }
 }
 const SQL = Object.fromEntries(Object.keys(TABLES).map((t) => [t, mergeSql(t)]))
@@ -358,21 +358,21 @@ export async function mergeRows(connection, table, rows) {
 }
 
 const RAW_VERSIONS = `
-  insert into RAW.SE_STANDARD_VERSION (RESPONSEID, RUNID, SOURCEURL, FILESHA256, ST_REFERENCE, VERSION, BODY)
+  insert into SHARED_DB.RAW.SE_STANDARD_VERSION (RESPONSEID, RUNID, SOURCEURL, FILESHA256, ST_REFERENCE, VERSION, BODY)
   select f.value:RESPONSEID::string, ?, ?, ?, f.value:ST::string, f.value:V::string, f.value:BODY
   from table(flatten(input => parse_json(?))) f
 `
 const RAW_OCCUPATION = `
-  insert into RAW.SE_OCCUPATION (RESPONSEID, RUNID, OCCUPATION_CODE, ENDPOINT, HTTPSTATUS, BODY)
+  insert into SHARED_DB.RAW.SE_OCCUPATION (RESPONSEID, RUNID, OCCUPATION_CODE, ENDPOINT, HTTPSTATUS, BODY)
   select ?, ?, ?, ?, ?, parse_json(?)
 `
-const START_RUN = `insert into SKILLS.SKILLS_IMPORT_RUN (RUNID) values (?)`
+const START_RUN = `insert into SHARED_DB.SKILLS.SKILLS_IMPORT_RUN (RUNID) values (?)`
 const OTHER_OPEN_RUNS = `
-  select RUNID, to_varchar(convert_timezone('Europe/London', STARTEDAT), 'YYYY-MM-DD HH24:MI') || ' UK time' as STARTED from SKILLS.SKILLS_IMPORT_RUN
+  select RUNID, to_varchar(convert_timezone('Europe/London', STARTEDAT), 'YYYY-MM-DD HH24:MI') || ' UK time' as STARTED from SHARED_DB.SKILLS.SKILLS_IMPORT_RUN
   where FINISHEDAT is null and STARTEDAT > dateadd(hour, -3, current_timestamp()) and RUNID <> ?
 `
 const FINISH_RUN = `
-  update SKILLS.SKILLS_IMPORT_RUN set FINISHEDAT = current_timestamp(), COMPLETE = ?, REQUESTS = ?, FILESHA256 = ?,
+  update SHARED_DB.SKILLS.SKILLS_IMPORT_RUN set FINISHEDAT = current_timestamp(), COMPLETE = ?, REQUESTS = ?, FILESHA256 = ?,
     VERSIONS = ?, KSBS = ?, OCCUPATIONS = ?, ADDED = ?, CHANGED = ?, GONE = ?, LABEL_MISMATCHES = parse_json(?),
     UNMAPPED_LINKS = parse_json(?), OPTION_LINK_PROBLEMS = parse_json(?), ERROR = ?
   where RUNID = ?
@@ -487,7 +487,7 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
   return c
 }
 
-// One run as a job (scripts/job-run.js): its outcome for OPS.JOB_RUN.
+// One run as a job (scripts/job-run.js): its outcome for SHARED_DB.OPS.JOB_RUN.
 export async function runJob({ connection, log }) {
   const c = await runImport({ connection, log })
   return {

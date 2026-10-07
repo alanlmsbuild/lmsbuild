@@ -4,8 +4,8 @@
 //   npm run import:vacancies -- --full   nightly: every advert
 //   npm run import:vacancies -- --new    every 2 hours: adverts posted in the last day
 //
-// Every response goes to RAW.FAA_VACANCY_PAGE as returned (add-only); each
-// advert is cleaned into EXT.VACANCY with MERGE on VACANCYREFERENCE. Adverts
+// Every response goes to SHARED_DB.RAW.FAA_VACANCY_PAGE as returned (add-only); each
+// advert is cleaned into SHARED_DB.EXT.VACANCY with MERGE on VACANCYREFERENCE. Adverts
 // are public and the same for every organisation: this touches no
 // organisation's data, and nothing in server/ or src/ may import it (npm
 // run check:scoping).
@@ -113,7 +113,7 @@ const deepText = (value) => (Array.isArray(value) ? value.map(deepText)
   : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, deepText(v)]))
     : typeof value === 'string' ? htmlToText(value) : value)
 
-// The EXT.VACANCY columns for one advert, all text plain. Leaves out the
+// The SHARED_DB.EXT.VACANCY columns for one advert, all text plain. Leaves out the
 // employer contact name, email and phone some adverts carry (RAW keeps
 // them) and the search-only distance.
 export function advertRow(v, source) {
@@ -194,7 +194,7 @@ export function labelSources(passes) {
   return { labelled, disagree }
 }
 
-// Each EXT.VACANCY column from advertRow, as its table type.
+// Each SHARED_DB.EXT.VACANCY column from advertRow, as its table type.
 const TYPES = {
   NUMBEROFPOSITIONS: 'number(6)', HOURSPERWEEK: 'number(5,2)', LARSCODE: 'number(6)', COURSELEVEL: 'number(2)',
   UKPRN: 'number(8)', LATITUDE: 'number(9,6)', LONGITUDE: 'number(9,6)',
@@ -211,11 +211,11 @@ const PAGE_ROWS = `(select ${COLUMNS.map((c) => `${cast(c)} as ${c}`).join(', ')
 
 const CHANGED_ON_PAGE = `
   select count(*) as N from ${PAGE_ROWS} s
-  join EXT.VACANCY t on t.VACANCYREFERENCE = s.VACANCYREFERENCE
+  join SHARED_DB.EXT.VACANCY t on t.VACANCYREFERENCE = s.VACANCYREFERENCE
   where ${contentHash('t')} <> ${contentHash('s')}
 `
 const MERGE_PAGE = `
-  merge into EXT.VACANCY t
+  merge into SHARED_DB.EXT.VACANCY t
   using ${PAGE_ROWS} s
   on t.VACANCYREFERENCE = s.VACANCYREFERENCE
   when matched and ${contentHash('t')} <> ${contentHash('s')} then update set
@@ -226,27 +226,27 @@ const MERGE_PAGE = `
     values (${COLUMNS.map((c) => `s.${c}`).join(', ')}, current_timestamp(), current_timestamp(), current_timestamp(), ?)
 `
 const RAW_INSERT = `
-  insert into RAW.FAA_VACANCY_PAGE (RESPONSEID, RUNID, ENDPOINT, SOURCES, HTTPSTATUS, BODY)
+  insert into SHARED_DB.RAW.FAA_VACANCY_PAGE (RESPONSEID, RUNID, ENDPOINT, SOURCES, HTTPSTATUS, BODY)
   select ?, ?, ?, ?, ?, parse_json(?)
 `
-const START_RUN = `insert into EXT.VACANCY_IMPORT_RUN (RUNID, KIND) values (?, ?)`
+const START_RUN = `insert into SHARED_DB.EXT.VACANCY_IMPORT_RUN (RUNID, KIND) values (?, ?)`
 // Other runs still open (started in the last hour and not finished).
 const OTHER_OPEN_RUNS = `
-  select RUNID, to_varchar(convert_timezone('Europe/London', STARTEDAT), 'YYYY-MM-DD HH24:MI') || ' UK time' as STARTED from EXT.VACANCY_IMPORT_RUN
+  select RUNID, to_varchar(convert_timezone('Europe/London', STARTEDAT), 'YYYY-MM-DD HH24:MI') || ' UK time' as STARTED from SHARED_DB.EXT.VACANCY_IMPORT_RUN
   where FINISHEDAT is null and STARTEDAT > dateadd(hour, -1, current_timestamp()) and RUNID <> ?
 `
 const FINISH_RUN = `
-  update EXT.VACANCY_IMPORT_RUN set FINISHEDAT = current_timestamp(), COMPLETE = ?, REQUESTS = ?, ADVERTS = ?,
+  update SHARED_DB.EXT.VACANCY_IMPORT_RUN set FINISHEDAT = current_timestamp(), COMPLETE = ?, REQUESTS = ?, ADVERTS = ?,
     ADDED = ?, CHANGED = ?, GONE = ?, ERROR = ?
   where RUNID = ?
 `
 // Adverts a complete full run didn't return although their closing date
 // hasn't passed: withdrawn or filled.
 const MARK_GONE = `
-  update EXT.VACANCY set GONEAT = current_timestamp()
+  update SHARED_DB.EXT.VACANCY set GONEAT = current_timestamp()
   where GONEAT is null
-    and LASTSEENAT < (select STARTEDAT from EXT.VACANCY_IMPORT_RUN where RUNID = ?)
-    and CLOSINGDATE > (select STARTEDAT from EXT.VACANCY_IMPORT_RUN where RUNID = ?)
+    and LASTSEENAT < (select STARTEDAT from SHARED_DB.EXT.VACANCY_IMPORT_RUN where RUNID = ?)
+    and CLOSINGDATE > (select STARTEDAT from SHARED_DB.EXT.VACANCY_IMPORT_RUN where RUNID = ?)
 `
 const rowsAffected = (result, kind) => Number(result?.[0]?.[`number of rows ${kind}`] ?? 0)
 
@@ -329,7 +329,7 @@ export async function runImport({ connection, kind, fetchImpl = fetch, pace = ma
 }
 
 // Run as a script (not when a test imports it).
-// One run as a job (scripts/job-run.js): its outcome for OPS.JOB_RUN.
+// One run as a job (scripts/job-run.js): its outcome for SHARED_DB.OPS.JOB_RUN.
 export async function runJob({ connection, kind, log }) {
   const counts = await runImport({ connection, kind, log })
   return {

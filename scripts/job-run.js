@@ -2,7 +2,7 @@
 //
 // recordRun is the one way a job runs, whether by hand (npm run
 // import:vacancies, import:skills, refresh:companies) or from the scheduler
-// (npm run jobs): it writes a row to OPS.JOB_RUN, refuses to start while
+// (npm run jobs): it writes a row to SHARED_DB.OPS.JOB_RUN, refuses to start while
 // another run in the same lock group is open (vacancies full and new share
 // one; the jobs' own locks still apply too), runs the job, records how it
 // went, and updates the local state file. It logs a line as the job starts
@@ -10,9 +10,9 @@
 //
 // The state file (logs/jobs/state.json, gitignored; JOBS_STATE_FILE to move
 // it) holds each job's last success and last attempt, so the scheduler can
-// tell what's due without connecting to Snowflake. OPS.JOB_RUN is the
+// tell what's due without connecting to Snowflake. SHARED_DB.OPS.JOB_RUN is the
 // record the screens read; the state file is only a cache of it, rebuilt
-// from OPS.JOB_RUN when missing.
+// from SHARED_DB.OPS.JOB_RUN when missing.
 
 import fs from 'node:fs'
 import os from 'node:os'
@@ -83,13 +83,13 @@ export function isDue(job, state, now) {
 }
 
 // Jobs with no entry in the state file (a new machine, or a deleted file):
-// their last success and attempt from OPS.JOB_RUN.
+// their last success and attempt from SHARED_DB.OPS.JOB_RUN.
 export const SEED_QUERY = `
   select JOB,
     to_varchar(max(iff(OUTCOME = 'succeeded', STARTEDAT, null)), 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as LAST_SUCCESS,
     to_varchar(max(STARTEDAT), 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as LAST_ATTEMPT,
     max_by(OUTCOME, STARTEDAT) as LAST_OUTCOME
-  from OPS.JOB_RUN
+  from SHARED_DB.OPS.JOB_RUN
   group by JOB
 `
 export function seedState(state, rows) {
@@ -107,19 +107,19 @@ export function seedState(state, rows) {
 // ---------------------------------------------------------------- recording
 
 const START = `
-  insert into OPS.JOB_RUN (JOBRUNID, JOB, TRIGGEREDBY, HOST, STARTEDAT)
+  insert into SHARED_DB.OPS.JOB_RUN (JOBRUNID, JOB, TRIGGEREDBY, HOST, STARTEDAT)
   values (?, ?, ?, ?, ?::timestamp_ltz)
 `
 // Open runs of the same lock group, other than this one, started within
 // the lock window. Binds: this run, the group's jobs (as JSON), hours.
 const OTHER_OPEN = `
-  select JOB, to_varchar(convert_timezone('Europe/London', STARTEDAT), 'YYYY-MM-DD HH24:MI') || ' UK time' as STARTED from OPS.JOB_RUN
+  select JOB, to_varchar(convert_timezone('Europe/London', STARTEDAT), 'YYYY-MM-DD HH24:MI') || ' UK time' as STARTED from SHARED_DB.OPS.JOB_RUN
   where FINISHEDAT is null and JOBRUNID <> ?
     and array_contains(JOB::variant, parse_json(?))
     and STARTEDAT > dateadd(hour, -?, current_timestamp())
 `
 const FINISH = `
-  update OPS.JOB_RUN set FINISHEDAT = current_timestamp(), OUTCOME = ?, JOBRUNREF = ?, ERROR = ?, SUMMARY = parse_json(?)
+  update SHARED_DB.OPS.JOB_RUN set FINISHEDAT = current_timestamp(), OUTCOME = ?, JOBRUNREF = ?, ERROR = ?, SUMMARY = parse_json(?)
   where JOBRUNID = ?
 `
 

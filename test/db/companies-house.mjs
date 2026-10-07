@@ -1,8 +1,8 @@
 // Test: Companies House, build step 2 (server/companiesHouse.js).
 //
 // Part 1 needs nothing: the rate limiter, company numbers, and turning a
-// profile into EXT.COMPANY columns and changes, from made-up profiles.
-// Part 2 writes made-up company ZZ999999 to EXT.COMPANY twice, and gives one
+// profile into SHARED_DB.EXT.COMPANY columns and changes, from made-up profiles.
+// Part 2 writes made-up company ZZ999999 to SHARED_DB.EXT.COMPANY twice, and gives one
 // of ORG-T001's test employers its own copy, read through ORG_EMPLOYER as a
 // manager and as a tutor, all in one transaction that's rolled back: nothing
 // is kept, and Companies House isn't called.
@@ -63,19 +63,19 @@ console.log('Part 1: no database, no Companies House')
 }
 
 // ---------------------------------------------------------------- part 2
-console.log('Part 2: EXT.COMPANY, rolled back')
+console.log('Part 2: SHARED_DB.EXT.COMPANY, rolled back')
 const SET = `set (CURRENT_ORGANISATIONID, CURRENT_ISTESTDATA, SEES_ALL_LEARNERS, SEES_ALL_OFFICERS, SEES_MANAGER_ONLY,
   CURRENT_OFFICERREFNUMBER, CASELOAD_OFFICERREFNUMBER, APPRENTICES_OF_EMPLOYERID, OWN_LEARNREFNUMBER, CURRENT_USERID) = ('ORG-T001', true, true, true, ?, '', '', '', '', '')`
 const c = await connect()
 try {
-  const [before] = await execute(c, `select count(*) as N from EXT.COMPANY where COMPANYNUMBER = ?`, [NUMBER])
-  check('ZZ999999 is not in EXT.COMPANY to start with', before.N === 0)
+  const [before] = await execute(c, `select count(*) as N from SHARED_DB.EXT.COMPANY where COMPANYNUMBER = ?`, [NUMBER])
+  check('ZZ999999 is not in SHARED_DB.EXT.COMPANY to start with', before.N === 0)
   await execute(c, 'begin')
   try {
     const first = await writeCompany(c, companyColumns(profile, 'etag-1'), 'test-response-1')
     check('first save adds the company', first.created && first.changes.length === 0)
     const [row1] = await execute(c, `select to_varchar(DATEOFCREATION) as D, to_json(SICCODES) as S, PREVIOUSNAMES[0]:name::string as P,
-      SOURCERESPONSEID as R, LASTCHANGEDAT as CH from EXT.COMPANY where COMPANYNUMBER = ?`, [NUMBER])
+      SOURCERESPONSEID as R, LASTCHANGEDAT as CH from SHARED_DB.EXT.COMPANY where COMPANYNUMBER = ?`, [NUMBER])
     check('dates, SIC codes, previous names and the response ID are stored',
       row1.D === '2001-02-03' && row1.S === '["85320","85590"]' && row1.P === 'OLD NAME LIMITED' && row1.R === 'test-response-1', JSON.stringify(row1))
 
@@ -84,10 +84,10 @@ try {
 
     const second = await writeCompany(c, companyColumns(changed, 'etag-2'), 'test-response-3')
     check('changed details: status and SIC codes', !second.created && second.changes.map((x) => x.field).join() === 'COMPANYSTATUS,SICCODES')
-    const [count] = await execute(c, `select count(*) as N, max(COMPANYSTATUS) as S, max(SOURCERESPONSEID) as R from EXT.COMPANY where COMPANYNUMBER = ?`, [NUMBER])
+    const [count] = await execute(c, `select count(*) as N, max(COMPANYSTATUS) as S, max(SOURCERESPONSEID) as R from SHARED_DB.EXT.COMPANY where COMPANYNUMBER = ?`, [NUMBER])
     check('still one row (MERGE), with the new status and response', count.N === 1 && count.S === 'liquidation' && count.R === 'test-response-3')
-    const recorded = await execute(c, `select FIELDNAME, OLDVALUE, NEWVALUE, RESPONSEID from EXT.COMPANY_CHANGE where COMPANYNUMBER = ? order by FIELDNAME`, [NUMBER])
-    check('the changes are in EXT.COMPANY_CHANGE', recorded.length === 2 && recorded[0].FIELDNAME === 'COMPANYSTATUS' &&
+    const recorded = await execute(c, `select FIELDNAME, OLDVALUE, NEWVALUE, RESPONSEID from SHARED_DB.EXT.COMPANY_CHANGE where COMPANYNUMBER = ? order by FIELDNAME`, [NUMBER])
+    check('the changes are in SHARED_DB.EXT.COMPANY_CHANGE', recorded.length === 2 && recorded[0].FIELDNAME === 'COMPANYSTATUS' &&
       recorded[1].OLDVALUE === '["85320","85590"]' && recorded.every((r) => r.RESPONSEID === 'test-response-3'), JSON.stringify(recorded))
 
     // Link it to one of ORG-T001's test employers, then read it as each role.
@@ -110,8 +110,8 @@ try {
   } finally {
     await execute(c, 'rollback')
   }
-  const [after] = await execute(c, `select (select count(*) from EXT.COMPANY where COMPANYNUMBER = ?) as C,
-    (select count(*) from EXT.COMPANY_CHANGE where COMPANYNUMBER = ?) as CH,
+  const [after] = await execute(c, `select (select count(*) from SHARED_DB.EXT.COMPANY where COMPANYNUMBER = ?) as C,
+    (select count(*) from SHARED_DB.EXT.COMPANY_CHANGE where COMPANYNUMBER = ?) as CH,
     (select count(*) from ILR.EMPLOYER where COMPANYNUMBER = ?) as E`, [NUMBER, NUMBER, NUMBER])
   check('nothing kept after the rollback', after.C === 0 && after.CH === 0 && after.E === 0, JSON.stringify(after))
 } finally {

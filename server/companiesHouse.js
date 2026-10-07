@@ -4,10 +4,10 @@
 //   GET /api/companies-house/search?q=     by name, or an exact company number
 //   GET /api/companies-house/company/:n    one company's profile, to confirm
 //
-// Every profile fetched is stored as returned in RAW.CH_COMPANY_PROFILE
+// Every profile fetched is stored as returned in SHARED_DB.RAW.CH_COMPANY_PROFILE
 // (bronze, add-only: the app can only INSERT there), and saveProfile()
-// writes the cleaned details to EXT.COMPANY (silver) with MERGE, and any
-// changes to EXT.COMPANY_CHANGE. Name searches go live to Companies House
+// writes the cleaned details to SHARED_DB.EXT.COMPANY (silver) with MERGE, and any
+// changes to SHARED_DB.EXT.COMPANY_CHANGE. Name searches go live to Companies House
 // and aren't stored. EXT is shared across organisations, so nothing a page
 // shows comes from it, and saving takes the same steps whether or not
 // another organisation has the company: managers see the live profile, and
@@ -99,7 +99,7 @@ export const addressText = (a) => (a ? [a.care_of, a.po_box, a.premises, a.addre
 // RAW is add-only for the app: the response ID is made here, so EXT can
 // record where its details came from without reading RAW.
 const RAW_INSERT = `
-  insert into RAW.CH_COMPANY_PROFILE (RESPONSEID, COMPANYNUMBER, ENDPOINT, HTTPSTATUS, ETAG, BODY, FETCHEDBY)
+  insert into SHARED_DB.RAW.CH_COMPANY_PROFILE (RESPONSEID, COMPANYNUMBER, ENDPOINT, HTTPSTATUS, ETAG, BODY, FETCHEDBY)
   select ?, ?, ?, ?, ?, parse_json(?), ?
 `
 
@@ -115,7 +115,7 @@ export async function fetchProfile(connection, number, by) {
   return { responseId, status, etag, profile: body }
 }
 
-// The EXT.COMPANY columns from a profile.
+// The SHARED_DB.EXT.COMPANY columns from a profile.
 export function companyColumns(p, etag) {
   const a = p.registered_office_address ?? {}
   const text = (v, n) => (v === undefined || v === null || v === '' ? null : String(v).slice(0, n))
@@ -151,7 +151,7 @@ export function companyColumns(p, etag) {
   }
 }
 
-// Columns whose changes go to EXT.COMPANY_CHANGE (everything but the ETag).
+// Columns whose changes go to SHARED_DB.EXT.COMPANY_CHANGE (everything but the ETag).
 const JSON_COLUMNS = new Set(['PREVIOUSNAMES', 'SICCODES'])
 export const TRACKED = Object.keys(companyColumns({ company_number: 'X' })).filter((c) => c !== 'COMPANYNUMBER' && c !== 'ETAG')
 
@@ -182,7 +182,7 @@ export function companyChanges(old, cols) {
 // The stored row, every tracked column as text. One company by its number.
 const STORED = `
   select ${TRACKED.map((c) => (JSON_COLUMNS.has(c) ? `to_json(${c}) as ${c}` : `to_varchar(${c}) as ${c}`)).join(', ')}
-  from EXT.COMPANY where COMPANYNUMBER = ?
+  from SHARED_DB.EXT.COMPANY where COMPANYNUMBER = ?
 `
 const date = (c) => `try_to_date(?) as ${c}`
 const SOURCE = Object.keys(companyColumns({ company_number: 'X' })).map((c) => {
@@ -193,7 +193,7 @@ const SOURCE = Object.keys(companyColumns({ company_number: 'X' })).map((c) => {
 })
 const ALL = Object.keys(companyColumns({ company_number: 'X' }))
 const MERGE = `
-  merge into EXT.COMPANY t
+  merge into SHARED_DB.EXT.COMPANY t
   using (select ${SOURCE.join(', ')}, ? as SOURCERESPONSEID, ? as CHANGED) s
   on t.COMPANYNUMBER = s.COMPANYNUMBER
   when matched then update set
@@ -207,12 +207,12 @@ const MERGE = `
 // Always one statement, whatever changed (none is no rows), so a save takes
 // the same time whether or not another organisation saved the company before.
 const CHANGE_INSERT = `
-  insert into EXT.COMPANY_CHANGE (COMPANYNUMBER, FIELDNAME, OLDVALUE, NEWVALUE, RESPONSEID)
+  insert into SHARED_DB.EXT.COMPANY_CHANGE (COMPANYNUMBER, FIELDNAME, OLDVALUE, NEWVALUE, RESPONSEID)
   select ?, f.value:field::string, left(f.value:oldValue::string, 400), left(f.value:newValue::string, 400), ?
   from table(flatten(input => parse_json(?))) f
 `
 
-// Writes one company's columns to EXT.COMPANY (one row per company, by
+// Writes one company's columns to SHARED_DB.EXT.COMPANY (one row per company, by
 // MERGE), recording what changed since anyone last saved it. Run inside a
 // transaction. EXT is shared: the result depends on other organisations, so
 // it's for tests and the nightly refresh, never for a page or a response.

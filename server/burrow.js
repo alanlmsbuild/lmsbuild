@@ -1,6 +1,6 @@
 // Burrow's learner endpoints: portfolio, evidence, and files.
 //
-// Everything is worked out in Snowflake SQL. KSBs come from CAPTURE_DB.SKILLS
+// Everything is worked out in Snowflake SQL. KSBs come from SHARED_DB.SKILLS
 // (loaded by scripts/import-skills.js), for the learner's version of their
 // standard (ksbVersions.js); until that has data, every screen says
 // the KSBs aren't loaded yet and nothing is made up. Evidence is never
@@ -115,7 +115,7 @@ const VERSION_KSBS_CTE = `
   ksb_version as (select * from ${KSB_VERSION}),
   ksbs as (
     select k.KSB_TYPE, k.KSB_REFERENCE, k.DETAIL, k.SORT_ORDER, k.VERSION
-    from SKILLS.STANDARD_KSB k
+    from SHARED_DB.SKILLS.STANDARD_KSB k
     join ksb_version v
       on v.ST_REFERENCE = k.ST_REFERENCE and v.VERSION = k.VERSION
     where k.GONEAT is null

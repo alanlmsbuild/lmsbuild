@@ -59,7 +59,7 @@ const SITE_APPRENTICES = `
   where le.SITEID = ? and ${CURRENT_LINK}
   order by l.FAMILYNAME, l.GIVENNAMES, l.LEARNREFNUMBER
 `
-const LIVE_POSTCODE = `select POSTCODE from REF.POSTCODE where POSTCODE = ? and TERMINATED is null`
+const LIVE_POSTCODE = `select POSTCODE from SHARED_DB.REF.POSTCODE where POSTCODE = ? and TERMINATED is null and GONEAT is null`
 const SAME_SITE_NAME = `select NAME from ${ORG_EMPLOYER_SITE} where EMPLOYERID = ? and lower(NAME) = lower(?) and SITEID <> ?`
 const SAME_EMAIL = `
   select NAME from ${ORG_EMPLOYER_CONTACT}

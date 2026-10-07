@@ -1,6 +1,6 @@
 // Vacancies (vacancies build step 3): apprenticeship adverts from Find an
 // apprenticeship, NHS Jobs and Civil Service Jobs, imported by
-// scripts/import-vacancies.js into EXT.VACANCY.
+// scripts/import-vacancies.js into SHARED_DB.EXT.VACANCY.
 //
 //   GET  /api/vacancies?postcode=&miles=&larsCode=&route=&level=&source=&q=&page=
 //                                       search open adverts (staff)
@@ -48,7 +48,7 @@ export function normName(name) {
   return t.replace(/ +/g, ' ').trim()
 }
 
-const POSTCODE = `select LATITUDE, LONGITUDE from REF.POSTCODE where POSTCODE = ?`
+const POSTCODE = `select LATITUDE, LONGITUDE from SHARED_DB.REF.POSTCODE where POSTCODE = ? and GONEAT is null`
 // Binds, in order: lat, lat, lon (distance); larsCode x2, route x2, level
 // x2, source x2, q x3 (filters); lat x2, lon, miles (radius); offset.
 const SEARCH = `
@@ -57,7 +57,7 @@ const SEARCH = `
     to_varchar(v.CLOSINGDATE, 'YYYY-MM-DD') as CLOSINGDATE, to_varchar(v.STARTDATE, 'YYYY-MM-DD') as STARTDATE,
     iff(?::float is null or v.LATITUDE is null, null, haversine(?::float, ?::float, v.LATITUDE, v.LONGITUDE) / ${KM_PER_MILE}) as MILES,
     count(*) over () as TOTAL
-  from EXT.VACANCY v
+  from SHARED_DB.EXT.VACANCY v
   where ${OPEN('v')}
     and (?::number is null or v.LARSCODE = ?)
     and (?::string is null or v.ROUTE = ?)
@@ -70,11 +70,11 @@ const SEARCH = `
   limit ${PAGE_SIZE} offset ?
 `
 const FILTERS = {
-  standards: `select LARSCODE, any_value(COURSETITLE) as TITLE, count(*) as N from EXT.VACANCY v where ${OPEN('v')} and LARSCODE is not null group by LARSCODE order by TITLE`,
-  routes: `select ROUTE, count(*) as N from EXT.VACANCY v where ${OPEN('v')} and ROUTE is not null group by ROUTE order by ROUTE`,
-  levels: `select COURSELEVEL as LEVEL, count(*) as N from EXT.VACANCY v where ${OPEN('v')} and COURSELEVEL is not null group by COURSELEVEL order by COURSELEVEL`,
-  sources: `select SOURCE, count(*) as N from EXT.VACANCY v where ${OPEN('v')} group by SOURCE order by SOURCE`,
-  lastImport: `select to_varchar(max(FINISHEDAT), 'YYYY-MM-DD"T"HH24:MI:SSTZH:TZM') as AT from EXT.VACANCY_IMPORT_RUN where COMPLETE`,
+  standards: `select LARSCODE, any_value(COURSETITLE) as TITLE, count(*) as N from SHARED_DB.EXT.VACANCY v where ${OPEN('v')} and LARSCODE is not null group by LARSCODE order by TITLE`,
+  routes: `select ROUTE, count(*) as N from SHARED_DB.EXT.VACANCY v where ${OPEN('v')} and ROUTE is not null group by ROUTE order by ROUTE`,
+  levels: `select COURSELEVEL as LEVEL, count(*) as N from SHARED_DB.EXT.VACANCY v where ${OPEN('v')} and COURSELEVEL is not null group by COURSELEVEL order by COURSELEVEL`,
+  sources: `select SOURCE, count(*) as N from SHARED_DB.EXT.VACANCY v where ${OPEN('v')} group by SOURCE order by SOURCE`,
+  lastImport: `select to_varchar(max(FINISHEDAT), 'YYYY-MM-DD"T"HH24:MI:SSTZH:TZM') as AT from SHARED_DB.EXT.VACANCY_IMPORT_RUN where COMPLETE`,
 }
 
 const text = (x) => String(x ?? '').trim()
@@ -131,7 +131,7 @@ const ONE = `
   select v.*, ${OPEN('v')} as ISOPEN,
     to_varchar(v.CLOSINGDATE, 'YYYY-MM-DD') as CLOSINGDAY, to_varchar(v.STARTDATE, 'YYYY-MM-DD') as STARTDAY,
     to_varchar(v.POSTEDDATE, 'YYYY-MM-DD') as POSTEDDAY
-  from EXT.VACANCY v where v.VACANCYREFERENCE = ?
+  from SHARED_DB.EXT.VACANCY v where v.VACANCYREFERENCE = ?
 `
 // This organisation's decisions about one advert.
 const DECISIONS = `
@@ -185,7 +185,7 @@ export async function loadVacancy(connection, ref, user) {
   }
 }
 
-const ADVERT_EXISTS = `select VACANCYREFERENCE from EXT.VACANCY where VACANCYREFERENCE = ?`
+const ADVERT_EXISTS = `select VACANCYREFERENCE from SHARED_DB.EXT.VACANCY where VACANCYREFERENCE = ?`
 const EMPLOYER_IN_USE = `select EMPLOYERID from ${ORG_EMPLOYER} where EMPLOYERID = ? and ISACTIVE`
 const SITE_OF = `select SITEID from ${ORG_EMPLOYER_SITE} where SITEID = ? and EMPLOYERID = ? and ISACTIVE`
 const DECIDE = `
@@ -222,7 +222,7 @@ const EMPLOYER_LINKED = `
   select v.VACANCYREFERENCE, v.SOURCE, v.TITLE, v.COURSETITLE, to_varchar(v.CLOSINGDATE, 'YYYY-MM-DD') as CLOSINGDATE,
     l.SITEID, s.NAME as SITENAME
   from ${ORG_EMPLOYER_VACANCY} l
-  join EXT.VACANCY v on v.VACANCYREFERENCE = l.VACANCYREFERENCE
+  join SHARED_DB.EXT.VACANCY v on v.VACANCYREFERENCE = l.VACANCYREFERENCE
   left join ${ORG_EMPLOYER_SITE} s on s.SITEID = l.SITEID
   where l.EMPLOYERID = ? and l.DECISION = 'confirmed' and ${OPEN('v')}
   order by v.CLOSINGDATE, v.TITLE
@@ -230,7 +230,7 @@ const EMPLOYER_LINKED = `
 const EMPLOYER_SUGGESTED = `
   select v.VACANCYREFERENCE, v.SOURCE, v.TITLE, v.EMPLOYERNAME, v.POSTCODE, to_varchar(v.CLOSINGDATE, 'YYYY-MM-DD') as CLOSINGDATE,
     s.SITEID, s.NAME as SITENAME
-  from EXT.VACANCY v
+  from SHARED_DB.EXT.VACANCY v
   join ${ORG_EMPLOYER} e on e.EMPLOYERID = ? and e.ISACTIVE
   left join ${ORG_EMPLOYER_SITE} s on s.EMPLOYERID = e.EMPLOYERID and s.ISACTIVE and s.POSTCODE = v.POSTCODE
   where ${OPEN('v')}

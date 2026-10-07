@@ -14,11 +14,14 @@ it. Add to this list rather than keeping these elsewhere.
   sql/access_03_app_read_only.sql the app can only read the ACCESS tables
   (users, roles, organisations); `npm run check:grants` fails if that
   changes. Part 8 will grant specific tables only.
-- **An owner role for imports** (2026-10-05, Alan). The import scripts
-  (`npm run import:lars`, `import:skills`, `import:ref`)
-  run as ILR_APP_ROLE, the same role as the website, and create or replace
-  tables. A separate role should own the reference tables and run the
-  imports, so the website's role can't create, replace or drop anything.
+- **An owner role for imports** (2026-10-05, Alan; updated 2026-10-07).
+  Everything in SHARED_DB (REF, SKILLS, EXT, RAW, ACCESS, OPS) is now owned
+  by ACCOUNTADMIN, and its imports (`import:ref`, `import:skills`, the
+  vacancy import) merge into it without owning or deleting anything
+  (sql/shared_01_clone.sql). LARS is the one left: `npm run import:lars`
+  still runs as ILR_APP_ROLE, owns the LARS tables in CAPTURE_DB and creates
+  or replaces them. Change it the same way (tables owned by ACCOUNTADMIN,
+  merged, no CREATE for the app's role).
 - **Imports under their own role** (2026-10-07, Alan). The Skills England,
   vacancy and Companies House imports write SKILLS, EXT and RAW with the
   website's role, kept apart only by `npm run check:scoping` (the app's

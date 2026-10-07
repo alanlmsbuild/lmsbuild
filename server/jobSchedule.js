@@ -1,7 +1,7 @@
 // The background jobs' schedule (scheduling, plan A): how often each runs,
 // and when it counts as overdue. Data only, no job code, so the screens and
 // the scheduler (scripts/jobs.js) share it. Every run is recorded in
-// OPS.JOB_RUN (scripts/job-run.js).
+// SHARED_DB.OPS.JOB_RUN (scripts/job-run.js).
 //
 //   label, short  its name, and a shorter one for the managers' tile
 //   every         run when the last success started longer ago than this

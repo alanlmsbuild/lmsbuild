@@ -1,5 +1,5 @@
 // Which version of their standard an apprentice's KSBs come from
-// (SKILLS.STANDARD_VERSION and STANDARD_KSB, loaded by npm run
+// (SHARED_DB.SKILLS.STANDARD_VERSION and STANDARD_KSB, loaded by npm run
 // import:skills). The version whose start dates include the apprentice's
 // start (their original start, after a break: the same rule as the
 // off-the-job minimum in server/ilr/standards.js), if it publishes KSBs;
@@ -14,9 +14,9 @@ export function ksbVersionsSql(learnersSql) {
   return `(
     select a.LEARNREFNUMBER, a.ST_REFERENCE, v.VERSION, (${inRange}) as FROM_START
     from (${learnersSql}) a
-    join SKILLS.STANDARD_VERSION v
+    join SHARED_DB.SKILLS.STANDARD_VERSION v
       on v.ST_REFERENCE = a.ST_REFERENCE and v.GONEAT is null
-    join (select ST_REFERENCE, VERSION from SKILLS.STANDARD_KSB where GONEAT is null group by ST_REFERENCE, VERSION) k
+    join (select ST_REFERENCE, VERSION from SHARED_DB.SKILLS.STANDARD_KSB where GONEAT is null group by ST_REFERENCE, VERSION) k
       on k.ST_REFERENCE = v.ST_REFERENCE and k.VERSION = v.VERSION
     qualify row_number() over (
       partition by a.LEARNREFNUMBER, a.ST_REFERENCE

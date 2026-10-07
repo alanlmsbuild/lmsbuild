@@ -90,7 +90,7 @@ export async function refreshAll(connection, { pause = PAUSE_MS, log = console.l
   return counts
 }
 
-// One run as a job (scripts/job-run.js): its outcome for OPS.JOB_RUN. Any
+// One run as a job (scripts/job-run.js): its outcome for SHARED_DB.OPS.JOB_RUN. Any
 // company not checked (Companies House refused or failed) makes it failed.
 export async function runJob({ connection, log }) {
   const counts = await refreshAll(connection, { log })

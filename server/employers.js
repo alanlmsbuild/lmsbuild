@@ -45,8 +45,10 @@ const ONE = `
   from ${ORG_EMPLOYER}
   where EMPLOYERID = ?
 `
+// Descriptions of the codes Companies House gives the company: a code later
+// dropped from the list (GONEAT) still describes what the company filed.
 const SIC = `
-  select SIC2007, DESCRIPTION from REF.SIC2007
+  select SIC2007, DESCRIPTION from SHARED_DB.REF.SIC2007
   where SIC2007 in (select value::string from table(flatten(input => parse_json(?))))
 `
 // Another of this organisation's employers with the same company or the

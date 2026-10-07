@@ -99,9 +99,9 @@ const run = (records, opts) => {
   const api = fakeApis(records, opts)
   return runImport({ connection: c, fetchImpl: api.fetchImpl, maps: api.maps, log: () => {} }).then((counts) => ({ ...counts, calls: api.calls }))
 }
-const ksbsOf = async (st, version) => (await q(`select KSB_REFERENCE as R, DETAIL, to_varchar(GONEAT) as GONE from SKILLS.STANDARD_KSB
+const ksbsOf = async (st, version) => (await q(`select KSB_REFERENCE as R, DETAIL, to_varchar(GONEAT) as GONE from SHARED_DB.SKILLS.STANDARD_KSB
   where ST_REFERENCE = ? and VERSION = ? order by decode(KSB_TYPE, 'K', 1, 'S', 2, 3), SORT_ORDER`, [st, version]))
-const goneOf = async (st) => (await q(`select count(*) as N, count(GONEAT) as GONE from SKILLS.STANDARD_VERSION where ST_REFERENCE = ?`, [st]))[0]
+const goneOf = async (st) => (await q(`select count(*) as N, count(GONEAT) as GONE from SHARED_DB.SKILLS.STANDARD_VERSION where ST_REFERENCE = ?`, [st]))[0]
 try {
   await q('begin')
   try {
@@ -110,25 +110,25 @@ try {
     check('a complete run: 3 versions, their KSBs, 1 occupation (the others not in the maps API)', first.complete && first.versions === 3 &&
       first.occupations === 1 && first.notFound >= 1 && k.length === 35 && k[0].R === 'K1' && first.mismatches.length === 0,
       JSON.stringify({ complete: first.complete, versions: first.versions, ksbs: first.ksbs, occupations: first.occupations, notFound: first.notFound, error: first.error }))
-    const [dk] = await q(`select (select count(*) from SKILLS.STANDARD_DUTY where ST_REFERENCE = 'ST9312') as D,
-      (select count(*) from SKILLS.STANDARD_DUTY_KSB where ST_REFERENCE = 'ST9312') as L,
-      (select count(*) from SKILLS.STANDARD_OPTION where ST_REFERENCE = 'ST9312') as O,
-      (select count(*) from SKILLS.STANDARD_DUTY_OPTION where ST_REFERENCE = 'ST9312') as DO_,
-      (select count(*) from SKILLS.OCCUPATION_SOC where OCCUPATION_CODE = 'OCC9072') as S,
-      (select count(*) from SKILLS.OCCUPATION_TERM where OCCUPATION_CODE = 'OCC9072') as T,
-      (select LARS_CODE from SKILLS.STANDARD_VERSION where ST_REFERENCE = 'ST9072' and VERSION = '1.1') as LARS`)
+    const [dk] = await q(`select (select count(*) from SHARED_DB.SKILLS.STANDARD_DUTY where ST_REFERENCE = 'ST9312') as D,
+      (select count(*) from SHARED_DB.SKILLS.STANDARD_DUTY_KSB where ST_REFERENCE = 'ST9312') as L,
+      (select count(*) from SHARED_DB.SKILLS.STANDARD_OPTION where ST_REFERENCE = 'ST9312') as O,
+      (select count(*) from SHARED_DB.SKILLS.STANDARD_DUTY_OPTION where ST_REFERENCE = 'ST9312') as DO_,
+      (select count(*) from SHARED_DB.SKILLS.OCCUPATION_SOC where OCCUPATION_CODE = 'OCC9072') as S,
+      (select count(*) from SHARED_DB.SKILLS.OCCUPATION_TERM where OCCUPATION_CODE = 'OCC9072') as T,
+      (select LARS_CODE from SHARED_DB.SKILLS.STANDARD_VERSION where ST_REFERENCE = 'ST9072' and VERSION = '1.1') as LARS`)
     check('  duties, duty-KSB links, options, SOC codes and terms stored', dk.D === 17 && dk.L === 156 && dk.O === 2 && dk.DO_ === 8 && dk.S > 0 && dk.T > 0 && dk.LARS === 122, JSON.stringify(dk))
     check('  the maps API was asked with the key', first.calls.some((x) => x.url.includes('/Occupations/OCC9072?') && x.headers['X-API-KEY'] === 'test-key'))
-    const [run1] = await q(`select COMPLETE, VERSIONS, KSBS, to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U, to_json(OPTION_LINK_PROBLEMS) as P from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [first.runId])
+    const [run1] = await q(`select COMPLETE, VERSIONS, KSBS, to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U, to_json(OPTION_LINK_PROBLEMS) as P from SHARED_DB.SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [first.runId])
     check('  the run is recorded, with no label mismatches and no links left out', run1.COMPLETE && run1.VERSIONS === 3 && run1.M === '[]' && run1.U === '[]' && run1.P === '[]', JSON.stringify(run1))
-    const opts = await q(`select o.OPTION_REFERENCE as R, count(d.DUTY_REFERENCE) as DUTIES from SKILLS.STANDARD_OPTION o
-      left join SKILLS.STANDARD_DUTY_OPTION d on d.ST_REFERENCE = o.ST_REFERENCE and d.VERSION = o.VERSION and d.OPTION_REFERENCE = o.OPTION_REFERENCE and d.OPTION_ID = o.OPTION_ID
+    const opts = await q(`select o.OPTION_REFERENCE as R, count(d.DUTY_REFERENCE) as DUTIES from SHARED_DB.SKILLS.STANDARD_OPTION o
+      left join SHARED_DB.SKILLS.STANDARD_DUTY_OPTION d on d.ST_REFERENCE = o.ST_REFERENCE and d.VERSION = o.VERSION and d.OPTION_REFERENCE = o.OPTION_REFERENCE and d.OPTION_ID = o.OPTION_ID
       where o.ST_REFERENCE = 'ST9312' group by 1 order by 1`)
     check('  options stored as O1, O2, with their duty links', opts.map((x) => x.R).join() === 'O1,O2' && opts.reduce((n, x) => n + Number(x.DUTIES), 0) === 8, JSON.stringify(opts))
     let twoRows = null
     try { await mergeRows(c, 'STANDARD_OPTION', [{ ST_REFERENCE: 'ST9312', VERSION: '9.9', OPTION_REFERENCE: 'O1', OPTION_ID: 'x', TITLE: 'TEST', SORT_ORDER: 1 },
       { ST_REFERENCE: 'ST9312', VERSION: '9.9', OPTION_REFERENCE: 'O1', OPTION_ID: 'y', TITLE: 'TEST', SORT_ORDER: 1 }]) } catch (e) { twoRows = e.message }
-    const [none] = await q(`select count(*) as N from SKILLS.STANDARD_OPTION where ST_REFERENCE = 'ST9312' and VERSION = '9.9'`)
+    const [none] = await q(`select count(*) as N from SHARED_DB.SKILLS.STANDARD_OPTION where ST_REFERENCE = 'ST9312' and VERSION = '9.9'`)
     check('  two rows for one key are refused before anything is written', /Two STANDARD_OPTION rows for the same key/.test(twoRows ?? '') && Number(none.N) === 0, twoRows)
 
     const again = await run(testStandards)
@@ -150,7 +150,7 @@ try {
     d1.mappedOptions = [st9312.options[0].optionId]
     const third = await run(edited, { occupation: swapped })
     const k1 = (await ksbsOf('ST9072', '1.1'))[0]
-    const [run3] = await q(`select to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U, to_json(OPTION_LINK_PROBLEMS) as P from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [third.runId])
+    const [run3] = await q(`select to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U, to_json(OPTION_LINK_PROBLEMS) as P from SHARED_DB.SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [third.runId])
     const logged = JSON.parse(run3.M)
     check('a changed KSB is updated in place', third.changed >= 1 && k1.R === 'K1' && k1.DETAIL === 'TEST changed wording', JSON.stringify({ changed: third.changed, k1 }))
     check('  label mismatches are logged on the run, ours and theirs, and the run carries on', third.complete && logged.length === 2 &&
@@ -159,7 +159,7 @@ try {
     check("  a duty-to-KSB link the version doesn't list is recorded on the run, and the run carries on", third.complete && leftOut.length === 1 &&
       leftOut[0].st_reference === 'ST9312' && leftOut[0].duty_reference === 'D1' && leftOut[0].ksb_id === 'not-a-ksb-id', run3.U)
     const optionProblems = JSON.parse(run3.P)
-    const [o3] = await q(`select OPTION_ID, TITLE from SKILLS.STANDARD_OPTION where ST_REFERENCE = 'ST9312' and VERSION = '1.0' and OPTION_REFERENCE = 'O3'`)
+    const [o3] = await q(`select OPTION_ID, TITLE from SHARED_DB.SKILLS.STANDARD_OPTION where ST_REFERENCE = 'ST9312' and VERSION = '1.0' and OPTION_REFERENCE = 'O3'`)
     check('  a repeated option ID: both options stored (O3 added), the duty naming it recorded on the run, not linked', o3?.TITLE === 'TEST second option, same ID' &&
       optionProblems.length > 0 && optionProblems.every((x) => x.st_reference === 'ST9312' && x.problem === 'option ID repeated' && x.options.join() === 'O1,O3') &&
       optionProblems.some((x) => x.duty_reference === 'D1'), run3.P)
@@ -171,20 +171,20 @@ try {
       JSON.stringify({ complete: stopped.complete, error: stopped.error }))
     const full = await run(without)
     const g = await goneOf('ST9312')
-    const [gk] = await q(`select count(*) as N, count(GONEAT) as G from SKILLS.STANDARD_KSB where ST_REFERENCE = 'ST9312'`)
+    const [gk] = await q(`select count(*) as N, count(GONEAT) as G from SHARED_DB.SKILLS.STANDARD_KSB where ST_REFERENCE = 'ST9312'`)
     check('a complete run marks a standard no longer published as gone, with its KSBs', full.complete && g.N === 1 && g.GONE === 1 && gk.N > 0 && gk.G === gk.N)
     await run(testStandards)
     check('  and clears it when it comes back', (await goneOf('ST9312')).GONE === 0)
 
     // The lock.
-    await q(`insert into SKILLS.SKILLS_IMPORT_RUN (RUNID) values ('TEST-open-run')`)
+    await q(`insert into SHARED_DB.SKILLS.SKILLS_IMPORT_RUN (RUNID) values ('TEST-open-run')`)
     const refused = await run(testStandards)
     check('a run refuses to start while another is open', Boolean(refused.refused) && refused.calls.length === 0)
   } finally {
     await q('rollback')
   }
-  const [left] = await q(`select (select count(*) from SKILLS.STANDARD_VERSION where ST_REFERENCE in ('ST9072', 'ST9312')) as V,
-    (select count(*) from SKILLS.SKILLS_IMPORT_RUN where RUNID = 'TEST-open-run') as R`)
+  const [left] = await q(`select (select count(*) from SHARED_DB.SKILLS.STANDARD_VERSION where ST_REFERENCE in ('ST9072', 'ST9312')) as V,
+    (select count(*) from SHARED_DB.SKILLS.SKILLS_IMPORT_RUN where RUNID = 'TEST-open-run') as R`)
   check('nothing kept after the rollback', left.V === 0 && left.R === 0)
 } finally {
   await destroy(c)

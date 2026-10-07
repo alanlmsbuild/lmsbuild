@@ -5,7 +5,7 @@
 // paragraphs 85 to 89, and the off-the-job training guidance version 6,
 // paragraph 63):
 //   Starts from 1 August 2025: at least the minimum published on the
-//   standard (SKILLS.STANDARD_VERSION, loaded by npm run import:skills),
+//   standard (SHARED_DB.SKILLS.STANDARD_VERSION, loaded by npm run import:skills),
 //   less any hours removed for evidenced prior learning (HRS 4). However
 //   much prior learning there is, a programme can't fall below 187 hours
 //   (paragraph 86.2).
@@ -22,7 +22,7 @@ export const PUBLISHED_MINIMUM_FROM = '2025-08-01'
 
 const VERSIONS_QUERY = `
   select ST_REFERENCE, VERSION, LARS_CODE, EARLIEST_START_DATE, LATEST_START_DATE, MIN_OTJ_HOURS
-  from SKILLS.STANDARD_VERSION
+  from SHARED_DB.SKILLS.STANDARD_VERSION
   where LARS_CODE is not null
 `
 

@@ -62,10 +62,10 @@ const TEST_USERS_QUERY = `
     u.ISACTIVE,
     listagg(distinct iff(r.REVOKEDAT is null, r.ROLE, null), ',') within group (order by iff(r.REVOKEDAT is null, r.ROLE, null)) as ROLES,
     listagg(distinct iff(r.REVOKEDAT is null, null, r.ROLE), ',') within group (order by iff(r.REVOKEDAT is null, null, r.ROLE)) as REVOKEDROLES
-  from ACCESS.APP_USER u -- all organisations: a development tool, test users only
-  join ACCESS.ORGANISATION o
+  from SHARED_DB.ACCESS.APP_USER u -- all organisations: a development tool, test users only
+  join SHARED_DB.ACCESS.ORGANISATION o
     on o.ORGANISATIONID = u.ORGANISATIONID
-  left join ACCESS.USER_ROLE r
+  left join SHARED_DB.ACCESS.USER_ROLE r
     on r.USERID = u.USERID
   where u.ISTESTDATA
   group by u.USERID, u.DISPLAYNAME, u.ORGANISATIONID, o.NAME, u.ISACTIVE
@@ -105,7 +105,7 @@ export function registerDevUserRoutes(app) {
     const userId = String(req.body?.userId ?? '').trim()
     try {
       const [user] = await withConnection((c) =>
-        execute(c, `select ISTESTDATA from ACCESS.APP_USER where USERID = ? -- all organisations: test users only`, [userId]),
+        execute(c, `select ISTESTDATA from SHARED_DB.ACCESS.APP_USER where USERID = ? -- all organisations: test users only`, [userId]),
       )
       if (!user?.ISTESTDATA) {
         res.status(400).json({ error: 'Only test users can be picked here.' })
