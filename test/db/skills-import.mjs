@@ -5,7 +5,8 @@
 //   Part 2  the database, with the saved records under test references
 //           (ST9072, ST9312, OCC9072) and fake APIs, in one transaction
 //           that's rolled back: what's stored, re-runs, changes, label
-//           mismatches logged, gone only after a complete run, the lock
+//           mismatches and left-out duty-to-KSB links recorded, gone only
+//           after a complete run, the lock
 //   Part 3  one live request to each API (nothing stored)
 //   node test/db/skills-import.mjs
 import fs from 'node:fs'
@@ -36,7 +37,13 @@ console.log('Part 1: parsing saved records')
   check('ST1312 1.0: duties (D1...), their KSBs, options and which duties are in which',
     o.duties.length > 0 && o.duties[0].DUTY_REFERENCE === 'D1' && o.dutyKsbs.length > 0 && o.options.length > 0 && o.dutyOptions.length > 0 &&
     o.dutyKsbs.every((l) => o.ksbs.some((k) => k.KSB_TYPE === l.KSB_TYPE && k.KSB_REFERENCE === l.KSB_REFERENCE)),
-    `${o.duties.length} duties, ${o.dutyKsbs.length} links, ${o.options.length} options, ${o.dutyOptions.length} duty-options, ${o.unmapped} unmapped`)
+    `${o.duties.length} duties, ${o.dutyKsbs.length} links, ${o.options.length} options, ${o.dutyOptions.length} duty-options, ${o.unmapped.length} unmapped`)
+  const bad = JSON.parse(JSON.stringify(v('ST1312', '1.0')))
+  bad.duties[0].mappedSkills = [...(bad.duties[0].mappedSkills ?? []), 'not-a-ksb-id']
+  const left = parseVersion(bad)
+  check("a duty naming a KSB its version doesn't list: that link left out and kept to record", left.unmapped.length === 1 &&
+    left.dutyKsbs.length === o.dutyKsbs.length && JSON.stringify(left.unmapped[0]) === JSON.stringify({ st_reference: 'ST1312', version: '1.0',
+      duty_reference: 'D1', duty_id: bad.duties[0].dutyID, list: 'mappedSkills', ksb_id: 'not-a-ksb-id' }), JSON.stringify(left.unmapped))
 
   const occ = parseOccupation('OCC0072', occupations.OCC0072.body)
   check('OCC0072: SOC 2020 sub-unit groups (primary marked), SOC 2010, job titles and keywords',
@@ -98,8 +105,8 @@ try {
       (select LARS_CODE from SKILLS.STANDARD_VERSION where ST_REFERENCE = 'ST9072' and VERSION = '1.1') as LARS`)
     check('  duties, duty-KSB links, options, SOC codes and terms stored', dk.D === 17 && dk.L === 156 && dk.O === 2 && dk.DO_ === 8 && dk.S > 0 && dk.T > 0 && dk.LARS === 122, JSON.stringify(dk))
     check('  the maps API was asked with the key', first.calls.some((x) => x.url.includes('/Occupations/OCC9072?') && x.headers['X-API-KEY'] === 'test-key'))
-    const [run1] = await q(`select COMPLETE, VERSIONS, KSBS, to_json(LABEL_MISMATCHES) as M from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [first.runId])
-    check('  the run is recorded, with no label mismatches', run1.COMPLETE && run1.VERSIONS === 3 && run1.M === '[]', JSON.stringify(run1))
+    const [run1] = await q(`select COMPLETE, VERSIONS, KSBS, to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [first.runId])
+    check('  the run is recorded, with no label mismatches and no links left out', run1.COMPLETE && run1.VERSIONS === 3 && run1.M === '[]' && run1.U === '[]', JSON.stringify(run1))
 
     const again = await run(testStandards)
     check('the same again: nothing added, nothing changed', again.complete && again.added === 0 && again.changed === 0, JSON.stringify({ added: again.added, changed: again.changed }))
@@ -110,13 +117,19 @@ try {
     const swapped = JSON.parse(JSON.stringify(testOcc))
     swapped.knowledges[0].knowledgeId = 'K2'
     swapped.knowledges[1].knowledgeId = 'K1'
+    // And a duty naming a KSB its version doesn't list.
+    const d1 = edited.find((s) => s.referenceNumber === 'ST9312').duties[0]
+    d1.mappedSkills = [...(d1.mappedSkills ?? []), 'not-a-ksb-id']
     const third = await run(edited, { occupation: swapped })
     const k1 = (await ksbsOf('ST9072', '1.1'))[0]
-    const [run3] = await q(`select to_json(LABEL_MISMATCHES) as M from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [third.runId])
+    const [run3] = await q(`select to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [third.runId])
     const logged = JSON.parse(run3.M)
     check('a changed KSB is updated in place (one change)', third.changed === 1 && k1.R === 'K1' && k1.DETAIL === 'TEST changed wording', JSON.stringify({ changed: third.changed, k1 }))
     check('  label mismatches are logged on the run, ours and theirs, and the run carries on', third.complete && logged.length === 2 &&
       logged.some((m) => m.st_reference === 'ST9072' && m.version === '1.1' && m.ours === 'K1' && m.theirs === 'K2'), run3.M)
+    const leftOut = JSON.parse(run3.U)
+    check("  a duty-to-KSB link the version doesn't list is recorded on the run, and the run carries on", third.complete && leftOut.length === 1 &&
+      leftOut[0].st_reference === 'ST9312' && leftOut[0].duty_reference === 'D1' && leftOut[0].ksb_id === 'not-a-ksb-id', run3.U)
 
     // Gone: only after a complete run.
     const without = testStandards.filter((s) => s.referenceNumber !== 'ST9312')

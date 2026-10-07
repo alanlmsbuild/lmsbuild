@@ -23,7 +23,9 @@
 // order each version lists them. For each occupation's current version, the
 // maps API gives its own labels for the same KSBs (matched by Skills
 // England's ID): every difference is logged in SKILLS_IMPORT_RUN.
-// LABEL_MISMATCHES and the run carries on with ours.
+// LABEL_MISMATCHES and the run carries on with ours. A duty that names a
+// KSB its version doesn't list can't be linked: each such link is left out
+// and recorded in SKILLS_IMPORT_RUN.UNMAPPED_LINKS.
 //
 // The app only reads SKILLS; this import (and nothing in server/ or src/)
 // writes it (npm run check:scoping). A run refuses to start while another
@@ -102,17 +104,17 @@ export function parseVersion(r) {
   const duties = []
   const dutyKsbs = []
   const dutyOptions = []
-  let unmapped = 0
+  const unmapped = []
   ;(Array.isArray(r.duties) ? r.duties : []).forEach((d, i) => {
     const detail = text(d?.dutyDetail)
     if (!detail) return
     const ref = `D${i + 1}`
     duties.push({ ...key, DUTY_REFERENCE: ref, SOURCE_ID: text(d.dutyID), DETAIL: detail, IS_CORE: d.isThisACoreDuty === 1 || d.isThisACoreDuty === true,
       CRITERIA: text(d.criteriaForMeasuringPerformance), SORT_ORDER: i + 1 })
-    for (const id of [...(d.mappedKnowledge ?? []), ...(d.mappedSkills ?? []), ...(d.mappedBehaviour ?? [])]) {
+    for (const [list, ids] of [['mappedKnowledge', d.mappedKnowledge], ['mappedSkills', d.mappedSkills], ['mappedBehaviour', d.mappedBehaviour]]) for (const id of ids ?? []) {
       const k = ksbById.get(String(id))
       if (!k) {
-        unmapped++
+        unmapped.push({ st_reference: key.ST_REFERENCE, version: key.VERSION, duty_reference: ref, duty_id: text(d.dutyID), list, ksb_id: String(id) })
         continue
       }
       dutyKsbs.push({ ...key, DUTY_REFERENCE: ref, KSB_TYPE: k.KSB_TYPE, KSB_REFERENCE: k.KSB_REFERENCE })
@@ -354,7 +356,8 @@ const OTHER_OPEN_RUNS = `
 `
 const FINISH_RUN = `
   update SKILLS.SKILLS_IMPORT_RUN set FINISHEDAT = current_timestamp(), COMPLETE = ?, REQUESTS = ?, FILESHA256 = ?,
-    VERSIONS = ?, KSBS = ?, OCCUPATIONS = ?, ADDED = ?, CHANGED = ?, GONE = ?, LABEL_MISMATCHES = parse_json(?), ERROR = ?
+    VERSIONS = ?, KSBS = ?, OCCUPATIONS = ?, ADDED = ?, CHANGED = ?, GONE = ?, LABEL_MISMATCHES = parse_json(?),
+    UNMAPPED_LINKS = parse_json(?), ERROR = ?
   where RUNID = ?
 `
 
@@ -365,11 +368,11 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
   const others = await execute(connection, OTHER_OPEN_RUNS, [runId])
   if (others.length > 0) {
     const why = `Another Skills England import is running (started ${others[0].STARTED}).`
-    await execute(connection, FINISH_RUN, [false, 0, null, 0, 0, 0, 0, 0, 0, '[]', why, runId])
+    await execute(connection, FINISH_RUN, [false, 0, null, 0, 0, 0, 0, 0, 0, '[]', '[]', why, runId])
     log(`Not started: ${why}`)
     return { runId, refused: why }
   }
-  const c = { runId, requests: 0, sha256: null, versions: 0, ksbs: 0, occupations: 0, notFound: 0, added: 0, changed: 0, gone: 0, mismatches: [], complete: false, error: null }
+  const c = { runId, requests: 0, sha256: null, versions: 0, ksbs: 0, occupations: 0, notFound: 0, added: 0, changed: 0, gone: 0, mismatches: [], unmapped: [], complete: false, error: null }
   const tally = (counts) => {
     c.added += counts.added
     c.changed += counts.changed
@@ -404,8 +407,8 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
     tally(await mergeRows(connection, 'STANDARD_DUTY_OPTION', all((p) => p.dutyOptions)))
     c.versions = parsed.size
     c.ksbs = ksbs.length
-    const unmapped = [...parsed.values()].reduce((n, { p }) => n + p.unmapped, 0)
-    if (unmapped) log(`${unmapped} duty-to-KSB links name a KSB the version doesn't list: left out`)
+    c.unmapped = [...parsed.values()].flatMap(({ p }) => p.unmapped)
+    if (c.unmapped.length) log(`${c.unmapped.length} duty-to-KSB links name a KSB the version doesn't list: left out, recorded on the run`)
     log(`Standards: ${c.versions} versions, ${c.ksbs} KSBs`)
 
     // 2. Each occupation: SOC codes, job titles, keywords, and its own KSB labels.
@@ -452,14 +455,14 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
     c.requests += maps.requests?.() ?? 0
     c.error = err instanceof StopRun ? err.message : `Stopped: ${err.message}`
     if (!(err instanceof StopRun)) {
-      await execute(connection, FINISH_RUN, [false, c.requests, c.sha256, c.versions, c.ksbs, c.occupations, c.added, c.changed, 0, JSON.stringify(c.mismatches.slice(0, 5000)), c.error.slice(0, 1000), runId])
+      await execute(connection, FINISH_RUN, [false, c.requests, c.sha256, c.versions, c.ksbs, c.occupations, c.added, c.changed, 0, JSON.stringify(c.mismatches.slice(0, 5000)), JSON.stringify(c.unmapped.slice(0, 5000)), c.error.slice(0, 1000), runId])
       throw err
     }
   }
   await execute(connection, FINISH_RUN, [c.complete, c.requests, c.sha256, c.versions, c.ksbs, c.occupations, c.added, c.changed, c.gone,
-    JSON.stringify(c.mismatches.slice(0, 5000)), c.error?.slice(0, 1000) ?? null, runId])
+    JSON.stringify(c.mismatches.slice(0, 5000)), JSON.stringify(c.unmapped.slice(0, 5000)), c.error?.slice(0, 1000) ?? null, runId])
   log(`Run ${c.complete ? 'complete' : 'stopped'}: ${c.requests} requests, ${c.versions} versions, ${c.ksbs} KSBs, ${c.occupations} occupations ` +
-    `(${c.notFound} not found), ${c.added} added, ${c.changed} changed, ${c.gone} gone, ${c.mismatches.length} KSB label mismatches${c.error ? `. ${c.error}` : ''}`)
+    `(${c.notFound} not found), ${c.added} added, ${c.changed} changed, ${c.gone} gone, ${c.mismatches.length} KSB label mismatches, ${c.unmapped.length} duty-to-KSB links left out${c.error ? `. ${c.error}` : ''}`)
   return c
 }
 
