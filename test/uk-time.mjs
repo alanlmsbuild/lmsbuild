@@ -3,7 +3,7 @@
 //   node test/uk-time.mjs
 process.env.TZ = 'America/Los_Angeles' // as Snowflake's default; Node applies it straight away
 
-const { ukDate, ukIso, ukDateText, ukTimeText } = await import('../src/ukTime.js')
+const { ukDate, ukIso, ukDateText, ukTimeText, ukDateTimeText, ukWhenText } = await import('../src/ukTime.js')
 const { todayString } = await import('../src/validation.js')
 
 let failures = 0
@@ -27,6 +27,13 @@ check('  a second later the clocks have gone forward: 02:00 BST', ukIso(at('2026
 check('a date-only value is shown as that day, whatever the zone', ukDateText('2026-10-08'), '08/10/2026')
 check('an instant is shown as its UK day', ukDateText('2026-10-07T23:30:00Z'), '08/10/2026')
 check('a Snowflake DATE (midnight UTC) stays its own day', ukDateText(at('2026-10-08T00:00:00Z')), '08/10/2026')
+check('date and time for screens, in UK time', ukDateTimeText(at('2026-10-07T14:09:00Z')), '7 Oct 2026, 15:09')
+const now = at('2026-10-08T00:20:00Z') // 01:20 UK time on the 8th
+check('today, by the UK day', ukWhenText(at('2026-10-07T23:30:00Z'), now), 'today 00:30')
+check('yesterday, by the UK day', ukWhenText(at('2026-10-07T14:09:00Z'), now), 'yesterday 15:09')
+check('earlier this year', ukWhenText(at('2026-10-05T01:05:00Z'), now), '5 Oct, 02:05')
+check('another year', ukWhenText(at('2025-12-31T10:00:00Z'), now), '31 Dec 2025, 10:00')
+check('yesterday across the clocks going back', ukWhenText(at('2026-10-25T00:30:00Z'), at('2026-10-26T09:00:00Z')), 'yesterday 01:30')
 
 console.log(failures ? `\n${failures} failed` : '\nAll passed')
 process.exit(failures ? 1 : 0)

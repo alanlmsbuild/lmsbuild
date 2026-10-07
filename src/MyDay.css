@@ -639,3 +639,81 @@
     min-width: 0;
   }
 }
+
+/* Managers' Data updates tile (src/DataUpdatesTile.jsx): a fifth tile. */
+@media (min-width: 1201px) {
+  .myday-tiles.myday-tiles-with-data {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.myday-data-summary {
+  font-family: var(--md-fraunces);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--md-ink);
+}
+
+.myday-data-summary.is-overdue {
+  color: var(--md-overdue);
+}
+
+.myday-jobs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.myday-job {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 8px;
+  font-size: 14px;
+  color: var(--md-body);
+}
+
+.myday-job-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--md-done);
+}
+
+.myday-job-running .myday-job-dot {
+  background: var(--md-due);
+}
+
+.myday-job-warn .myday-job-dot {
+  background: var(--md-due);
+}
+
+.myday-job-overdue .myday-job-dot {
+  background: var(--md-overdue);
+}
+
+.myday-job-name {
+  font-weight: 600;
+  color: var(--md-ink);
+}
+
+.myday-job-when {
+  grid-column: 2;
+  font-size: 13px;
+  color: var(--md-muted);
+}
+
+.myday-job-note {
+  grid-column: 2;
+  font-size: 13px;
+  color: var(--md-muted);
+}
+
+.myday-job-overdue .myday-job-note {
+  color: var(--md-overdue);
+  font-weight: 600;
+}

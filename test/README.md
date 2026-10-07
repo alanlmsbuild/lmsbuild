@@ -25,7 +25,8 @@ puts it back.
   Burrow, and `vacancies.mjs` for the Vacancies tab, which needs the adverts
   imported first: `npm run import:vacancies -- --full`, and `ksbs.mjs` for
   KSBs in Burrow, from the learner's version of their standard, which needs
-  `npm run import:skills` first). `setup.mjs` has the
+  `npm run import:skills` first), and `data-updates.mjs` for the managers'
+  Data updates tile on My day and when adverts were last updated. `setup.mjs` has the
   shared settings.
   `restore-4g1.mjs` puts the six 4g-1 learners back to continuing; the 4g-1
   test leaves its outcomes in place for checking in FIS.

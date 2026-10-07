@@ -25,6 +25,7 @@ import {
   allow, CURRENT_ISTESTDATA, CURRENT_ORGANISATIONID, MANAGER, ORG_EMPLOYER, ORG_EMPLOYER_SITE, ORG_EMPLOYER_VACANCY, STAFF,
 } from './access.js'
 import { RequestError, sendError } from './burrow.js'
+import { JOB_SCHEDULE } from './jobSchedule.js'
 import { normalisePostcode } from '../src/validation.js'
 
 // Open: not past its closing date, and the last complete import still
@@ -120,6 +121,9 @@ export async function vacancyFilters(connection) {
   const out = {}
   for (const [name, sql] of Object.entries(FILTERS)) out[name] = await execute(connection, sql)
   out.lastImport = out.lastImport[0]?.AT ?? null
+  // Out of date when the last complete import is older than a full run's
+  // overdue limit (server/jobSchedule.js).
+  out.lastImportStale = !out.lastImport || Date.now() - Date.parse(out.lastImport) > JOB_SCHEDULE['vacancies-full'].overdueAfter
   return out
 }
 

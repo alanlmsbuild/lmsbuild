@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useShell, usePageTitle } from '../shell/navigation'
 import { formatDate } from '../lookups'
+import { ukDateTimeText } from '../ukTime'
 import { Notice, StatusBadge } from '../ui/components'
 import './vacancies.css'
 
@@ -99,7 +100,10 @@ function Vacancies({ search }) {
       <h2>Vacancies</h2>
       <p className="section-intro">
         Open apprenticeship adverts from Find an apprenticeship, NHS Jobs and Civil Service Jobs.
-        {filters?.lastImport && ` Last updated ${formatDate(filters.lastImport)}.`}
+        {filters?.lastImport && ` Adverts updated ${ukDateTimeText(filters.lastImport)}.`}
+        {filters && filters.lastImportStale && (
+          <strong className="vacancy-stale"> {filters.lastImport ? 'They may be out of date.' : 'No adverts have been imported yet.'}</strong>
+        )}
       </p>
       <form className="vacancy-search" onSubmit={submit} noValidate>
         <label className="field">

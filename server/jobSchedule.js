@@ -3,6 +3,7 @@
 // the scheduler (scripts/jobs.js) share it. Every run is recorded in
 // OPS.JOB_RUN (scripts/job-run.js).
 //
+//   label, short  its name, and a shorter one for the managers' tile
 //   every         run when the last success started longer ago than this
 //   overdueAfter  managers see it as overdue after this (every + slack)
 //   lockGroup     jobs that must never overlap each other
@@ -15,6 +16,7 @@ const HOUR = 60 * 60 * 1000
 export const JOB_SCHEDULE = {
   'vacancies-full': {
     label: 'Vacancies: every advert',
+    short: 'Adverts, all',
     every: 24 * HOUR,
     overdueAfter: 26 * HOUR,
     lockGroup: 'vacancies',
@@ -23,6 +25,7 @@ export const JOB_SCHEDULE = {
   },
   'vacancies-new': {
     label: 'Vacancies: new adverts',
+    short: 'Adverts, new',
     every: 2 * HOUR,
     overdueAfter: 3 * HOUR,
     lockGroup: 'vacancies',
@@ -32,6 +35,7 @@ export const JOB_SCHEDULE = {
   },
   'companies-refresh': {
     label: 'Companies House refresh',
+    short: 'Companies House',
     every: 24 * HOUR,
     overdueAfter: 26 * HOUR,
     lockGroup: 'companies-refresh',
@@ -40,6 +44,7 @@ export const JOB_SCHEDULE = {
   },
   skills: {
     label: 'Skills England standards and KSBs',
+    short: 'Skills England',
     every: 7 * 24 * HOUR,
     overdueAfter: 8 * 24 * HOUR,
     lockGroup: 'skills',

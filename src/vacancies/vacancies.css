@@ -97,3 +97,9 @@
 .employer-page .ui-card h4 {
   margin: var(--ui-space-4) 0 var(--ui-space-1);
 }
+
+/* "They may be out of date": the last complete import is over 26 hours old. */
+.vacancy-stale {
+  color: var(--status-overdue-text);
+  font-weight: 600;
+}

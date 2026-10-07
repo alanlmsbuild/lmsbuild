@@ -3,6 +3,7 @@ import './MyDay.css'
 import { OFFICER_TYPE_OPTIONS } from './ilrCodes'
 import { labelFromOptions, standardLabel } from './lookups'
 import ProgressReviewForm from './ProgressReviewForm'
+import DataUpdatesTile from './DataUpdatesTile'
 
 // The officer home page, for the signed-in officer (`me`, from /api/me).
 // A manager can also pick another officer to see their day. Every figure
@@ -352,6 +353,12 @@ function MyDay({ me, onOpenLearner }) {
         {status === 'loading' && viewingAs && <p className="myday-muted">Working out your day…</p>}
         {status === 'error' && <p role="alert">Couldn&apos;t load My day: {error}</p>}
 
+        {isManager && !(status === 'ready' && data) && (
+          <div className="myday-tiles">
+            <DataUpdatesTile />
+          </div>
+        )}
+
         {status === 'ready' && data && (
           <>
             {savedMessage && (
@@ -360,7 +367,7 @@ function MyDay({ me, onOpenLearner }) {
               </p>
             )}
 
-            <div className="myday-tiles">
+            <div className={isManager ? 'myday-tiles myday-tiles-with-data' : 'myday-tiles'}>
               <div className="myday-tile">
                 <span className="myday-tile-title">Caseload</span>
                 <span className="myday-tile-value">{caseload.TOTAL}</span>
@@ -411,6 +418,8 @@ function MyDay({ me, onOpenLearner }) {
                 </svg>
                 <span className="myday-tile-note">Available once KSB sign-off is live</span>
               </div>
+
+              {isManager && <DataUpdatesTile />}
             </div>
 
             <h3 className="myday-heading">Today&apos;s tasks</h3>
