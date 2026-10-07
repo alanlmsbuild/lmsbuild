@@ -216,3 +216,13 @@ Alan's laptop starts it, so the jobs only run while the laptop is on.
   each is kept (the Companies House refresh's as long as RAW, above), and
   how long OPS.JOB_RUN rows are kept (one row per job run, a few thousand
   a year).
+
+## CRM (leads and candidates)
+
+- **How long a lead is kept** (2026-10-07, Alan). A real lead with no
+  activity for a set period (no form, email, activity, task or stage move)
+  is anonymised by a logged retention procedure run by the scheduler
+  (doc "CRM design", Privacy and retention). Choose the period (for example
+  12 months after the last activity), and say it in the privacy notice.
+  Leads handed over to the learning side follow the learning record's
+  retention instead. Test data keeps its own rules.
