@@ -16,7 +16,8 @@
 // job still running after its time limit is recorded as failed and the
 // tick stops (the rest are due next tick).
 //
-// Logs to logs/jobs/<date>.log only when it runs something.
+// Logs to logs/jobs/<date>.log only when it runs something: a line as each
+// job starts and one as it ends.
 
 import fs from 'node:fs'
 import path from 'node:path'

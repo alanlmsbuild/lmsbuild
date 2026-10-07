@@ -8,7 +8,8 @@
 //           file is filled from OPS.JOB_RUN; due jobs run one at a time and
 //           are recorded (schedule) like manual runs; a failure isn't
 //           retried straight away; a run refused while another is open; a
-//           run stopped at its time limit stops the tick
+//           run stopped at its time limit stops the tick. Stops first if a
+//           real job is running (its lock would refuse the test's runs).
 // Never touches the real state file (logs/jobs/state.json) or real jobs.
 //   node test/db/jobs.mjs
 import crypto from 'node:crypto'
@@ -75,6 +76,14 @@ console.log('Part 1: what is due when')
 console.log('Part 2: ticks with fake jobs, rolled back')
 const c = await connect()
 const q = (sql, binds = []) => execute(c, sql, binds)
+// Real runs share OPS.JOB_RUN, and their locks would refuse this test's runs.
+const open = await q(`select JOB, to_varchar(STARTEDAT, 'HH24:MI') as AT from OPS.JOB_RUN
+  where FINISHEDAT is null and STARTEDAT > dateadd(hour, -3, current_timestamp())`)
+if (open.length > 0) {
+  console.log(`FAIL a real job is running (${open.map((r) => `${r.JOB} since ${r.AT}`).join(', ')}): run this test when no tick is running`)
+  await destroy(c)
+  process.exit(1)
+}
 const created = []
 try {
   await q('begin')
@@ -165,7 +174,9 @@ try {
   const [t] = await q(`select OUTCOME, ERROR from OPS.JOB_RUN where JOB = 'skills' and TRIGGEREDBY = 'schedule' order by STARTEDAT desc limit 1`)
   check('a job past its time limit is recorded as failed and stops the tick', /Still running after/.test(stopped.stopped ?? '') && t?.OUTCOME === 'failed' && /Still running after/.test(t?.ERROR ?? '') && !lateRun,
     JSON.stringify({ stopped: stopped.stopped, t }))
-  check('every recorded run says what happened in the log', lines.some((l) => /^vacancies-full \(schedule\): succeeded/.test(l)) && lines.some((l) => /^companies-refresh \(schedule\): failed: TEST/.test(l)))
+  check('every recorded run logs a line as it starts and one as it ends', lines.indexOf('vacancies-full (schedule): started') >= 0 &&
+    lines.indexOf('vacancies-full (schedule): started') < lines.findIndex((l) => /^vacancies-full \(schedule\): succeeded/.test(l)) &&
+    lines.includes('companies-refresh (schedule): started') && lines.some((l) => /^companies-refresh \(schedule\): failed: TEST/.test(l)))
   check('JobTimeout is exported for callers', typeof JobTimeout === 'function')
 } finally {
   await q('rollback')

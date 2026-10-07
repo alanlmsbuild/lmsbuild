@@ -444,6 +444,8 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
       const res = await maps.get(code)
       const responseId = crypto.randomUUID()
       await execute(connection, RAW_OCCUPATION, [responseId, runId, code, res.endpoint, res.status, JSON.stringify(res.body)])
+      // Progress every 100 codes, found or not.
+      if ((i + 1) % 100 === 0) log(`Occupations: ${i + 1} of ${codes.length}`)
       if (!res.body) {
         c.notFound++
         continue
@@ -459,7 +461,6 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
       const ours = versions.find((p) => p.key.VERSION === o.profile.VERSION) ??
         [...versions].sort((a, b) => String(a.versionRow.EARLIEST_START_DATE ?? '').localeCompare(String(b.versionRow.EARLIEST_START_DATE ?? ''))).at(-1)
       if (ours && o.labels.length > 0) c.mismatches.push(...labelMismatches(o.labels, new Map(ours.ksbs.filter((k) => k.SOURCE_ID).map((k) => [k.SOURCE_ID, k])), ours.key))
-      if ((i + 1) % 100 === 0) log(`Occupations: ${i + 1} of ${codes.length}`)
     }
     c.requests += maps.requests()
     tally(await mergeRows(connection, 'OCCUPATION_PROFILE', occ.profiles))

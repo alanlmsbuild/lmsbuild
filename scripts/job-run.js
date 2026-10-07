@@ -5,7 +5,8 @@
 // (npm run jobs): it writes a row to OPS.JOB_RUN, refuses to start while
 // another run in the same lock group is open (vacancies full and new share
 // one; the jobs' own locks still apply too), runs the job, records how it
-// went, and updates the local state file.
+// went, and updates the local state file. It logs a line as the job starts
+// and another as it ends.
 //
 // The state file (logs/jobs/state.json, gitignored; JOBS_STATE_FILE to move
 // it) holds each job's last success and last attempt, so the scheduler can
@@ -135,6 +136,8 @@ export async function recordRun({ connection, job, triggeredBy, run, log = conso
   const jobRunId = crypto.randomUUID()
   const startedAt = now().toISOString()
   await execute(connection, START, [jobRunId, job, triggeredBy, os.hostname(), startedAt])
+  // A line as it starts too: a job can run for minutes before it logs anything.
+  log(`${job} (${triggeredBy}): started`)
   const group = Object.keys(JOB_SCHEDULE).filter((j) => JOB_SCHEDULE[j].lockGroup === s.lockGroup)
   const others = await execute(connection, OTHER_OPEN, [jobRunId, JSON.stringify(group), s.lockHours])
 

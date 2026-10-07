@@ -50,7 +50,7 @@ $task = New-ScheduledTask -Action $action -Trigger @($every15, $atLogOn, $onUnlo
 
 if ($DryRun) {
   "Would copy $Here\run-jobs-hidden.js to $Script"
-  "Would create task '$TaskName' for $Me"
+  "Would create task '$TaskName' for $Me, and start it once straight away"
   "  runs: $($action.Execute) $($action.Arguments)"
   "  triggers: every 15 minutes; at log on; on unlock"
   "  on battery: starts $(-not $settings.DisallowStartIfOnBatteries), stops when unplugged $($settings.StopIfGoingOnBatteries)"
@@ -62,4 +62,7 @@ if ($DryRun) {
 New-Item -ItemType Directory -Force -Path $Dir | Out-Null
 Copy-Item -Force (Join-Path $Here 'run-jobs-hidden.js') $Script
 Register-ScheduledTask -TaskName $TaskName -InputObject $task -Force | Out-Null
-"Created '$TaskName'. Next run: $((Get-ScheduledTaskInfo -TaskName $TaskName).NextRunTime)"
+# The repeating trigger counts from now, so its first run would be in 15
+# minutes: start the first tick straight away.
+Start-ScheduledTask -TaskName $TaskName
+"Created '$TaskName' and started the first tick. Next run after that: $((Get-ScheduledTaskInfo -TaskName $TaskName).NextRunTime)"

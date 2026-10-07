@@ -33,8 +33,11 @@ and on battery as well as mains power. It runs the code in
 
        powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu\home\alanlmsbuild\my-react-app\scripts\windows\install-jobs-task.ps1
 
-   It prints `Created 'Rarebit jobs'` and the next run time. The first tick
-   starts straight away.
+   It prints `Created 'Rarebit jobs' and started the first tick`, and the
+   next run time after that. (The repeating trigger counts from the moment
+   the task is created, so without that start the first tick would come 15
+   minutes later. To start a tick by hand at any time, in **PowerShell**:
+   `Start-ScheduledTask -TaskName 'Rarebit jobs'`.)
 
 3. **Task Scheduler** (Start menu → type `Task Scheduler`). In Task
    Scheduler Library, find **Rarebit jobs**:
@@ -52,15 +55,17 @@ and on battery as well as mains power. It runs the code in
 The first tick after setting up runs every job that's overdue (up to all
 four, about 30 minutes). To follow it:
 
-- **WSL terminal** (Ubuntu): watch the jobs log. A line appears as each job
-  starts and finishes. The tick has finished once there's a line for every
-  due job (`skills` is last):
+- **WSL terminal** (Ubuntu): watch the jobs log. Each job writes a line as
+  it starts and another as it ends, with the job's own lines in between
+  (the vacancy import writes nothing until it has finished, about 6
+  minutes):
 
       tail -f ~/my-react-app/logs/jobs/$(date +%F).log
 
-  Each finished job has a line like
-  `2026-10-07T14:20:05+01:00 skills (schedule): succeeded`. Press Ctrl+C to
-  stop watching.
+  For example `2026-10-07T15:03:13+01:00 vacancies-full (schedule): started`
+  and later `2026-10-07T15:09:30+01:00 vacancies-full (schedule):
+  succeeded`. The tick has finished once every job that started has ended
+  (`skills` is last). Press Ctrl+C to stop watching.
 - **WSL terminal**: `ls ~/my-react-app/logs/jobs/tick.lock`. The lock file
   exists only while a tick is running. "No such file" means it has finished.
 - **Task Scheduler**: Rarebit jobs shows Status **Running** during the tick
@@ -70,7 +75,24 @@ four, about 30 minutes). To follow it:
 - **WSL terminal**, in `~/my-react-app`: `npm run check:jobs` lists every
   job's last run and result, and says if any is overdue.
 
-If nothing appears in the log, look at
+## Is a tick running, and where has it got to?
+
+Each of these is one step further along:
+
+1. **Task Scheduler**: Rarebit jobs shows Status **Running** (F5 to
+   refresh). Windows has started it.
+2. **WSL terminal**: `ps -eo etime,args | grep "[j]obs.js"` shows
+   `node scripts/jobs.js` and how long it has been running. wscript,
+   `wsl.exe`, `run-jobs.sh` and nvm all worked.
+3. **WSL terminal**: `ls ~/my-react-app/logs/jobs/` shows `tick.lock` (a
+   tick holds the lock) and `state.json`. If `state.json` was missing, the
+   tick has connected to Snowflake to fill it in.
+4. **WSL terminal**: the jobs log above shows which job has started and
+   not yet ended.
+5. **WSL terminal**, in `~/my-react-app`: `npm run check:jobs` shows that
+   job's last result as `running`.
+
+If the tick isn't running but nothing appears in the log, look at
 `~/my-react-app/logs/jobs/tick-output.log` (anything the tick printed
 before it could log, such as a crash at start-up).
 
