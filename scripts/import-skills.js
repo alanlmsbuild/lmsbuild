@@ -37,10 +37,9 @@
 // logs/import-skills/<date>.log (gitignored) as well as printed.
 
 import crypto from 'node:crypto'
-import fs from 'node:fs'
-import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { connect, execute, destroy } from '../server/db.js'
+import { makeLog, recordRun } from './job-run.js'
 
 export const STANDARDS_URL = 'https://skillsengland.education.gov.uk/api/apprenticeshipstandards'
 export const MAPS_API = 'https://occupational-maps-api.skillsengland.education.gov.uk/api/v1'
@@ -369,7 +368,7 @@ const RAW_OCCUPATION = `
 `
 const START_RUN = `insert into SKILLS.SKILLS_IMPORT_RUN (RUNID) values (?)`
 const OTHER_OPEN_RUNS = `
-  select RUNID, to_varchar(STARTEDAT, 'YYYY-MM-DD HH24:MI:SS') as STARTED from SKILLS.SKILLS_IMPORT_RUN
+  select RUNID, to_varchar(convert_timezone('Europe/London', STARTEDAT), 'YYYY-MM-DD HH24:MI') || ' UK time' as STARTED from SKILLS.SKILLS_IMPORT_RUN
   where FINISHEDAT is null and STARTEDAT > dateadd(hour, -3, current_timestamp()) and RUNID <> ?
 `
 const FINISH_RUN = `
@@ -487,23 +486,28 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
   return c
 }
 
-// Run as a script (not when a test imports it).
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'logs', 'import-skills')
-  fs.mkdirSync(dir, { recursive: true })
-  const file = path.join(dir, `${new Date().toISOString().slice(0, 10)}.log`)
-  const log = (line) => {
-    const stamped = `${new Date().toISOString()} ${line}`
-    console.log(stamped)
-    fs.appendFileSync(file, stamped + '\n')
+// One run as a job (scripts/job-run.js): its outcome for OPS.JOB_RUN.
+export async function runJob({ connection, log }) {
+  const c = await runImport({ connection, log })
+  return {
+    outcome: c.refused ? 'refused' : c.complete ? 'succeeded' : 'failed',
+    ref: c.runId,
+    error: c.refused ?? c.error ?? null,
+    summary: { requests: c.requests, versions: c.versions, ksbs: c.ksbs, occupations: c.occupations, added: c.added, changed: c.changed, gone: c.gone,
+      labelMismatches: c.mismatches?.length ?? 0, unmappedLinks: c.unmapped?.length ?? 0, optionLinkProblems: c.optionProblems?.length ?? 0 },
   }
+}
+
+// Run by hand (npm run import:skills), recorded like a scheduled run.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const log = makeLog('import-skills')
   log('Skills England import started.')
   const connection = await connect()
-  let counts
+  let result
   try {
-    counts = await runImport({ connection, log })
+    result = await recordRun({ connection, job: 'skills', triggeredBy: 'manual', log, run: (c) => runJob({ connection: c, log }) })
   } finally {
     await destroy(connection)
   }
-  process.exit(counts.refused || !counts.complete ? 1 : 0)
+  process.exit(result.outcome === 'succeeded' ? 0 : 1)
 }

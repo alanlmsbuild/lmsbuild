@@ -14,6 +14,7 @@ puts it back.
     node test/db/employer-sites.mjs     # sites, and who sees whom in Burrow
     node test/db/vacancy-import.mjs     # the vacancy import (one live request)
     node test/db/skills-import.mjs      # the Skills England import (one live request each)
+    node test/db/jobs.mjs               # the scheduler and job records, fake jobs
     test/stop-test-servers.py           # stops only those two servers
 
 - `browser/` drives the real pages in headless Chromium (step3 to step4g2,
@@ -54,6 +55,13 @@ puts it back.
   saved responses (`fixtures/skills/`) under test references (ST9072,
   ST9312, OCC9072) in a transaction it rolls back, and makes one live
   request to each API.
+- `db/jobs.mjs` checks what the scheduler finds due with a fake clock
+  (catching up once after a gap, retrying no sooner than an hour), the
+  tick lock, and with fake jobs in a transaction it rolls back: a tick with
+  nothing due never connects to Snowflake, runs are recorded in
+  OPS.JOB_RUN the same way manual or scheduled, a run refused while
+  another is open, and one stopped at its time limit. Never touches
+  `logs/jobs/state.json`.
 - `db/refresh-companies.mjs` runs the nightly refresh on the TESCO PLC test
   employers that `browser/employers.mjs` adds, calling Companies House for
   real.

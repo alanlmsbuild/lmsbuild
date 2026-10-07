@@ -28,10 +28,9 @@
 // to logs/import-vacancies/<date>.log (gitignored) as well as printed.
 
 import crypto from 'node:crypto'
-import fs from 'node:fs'
-import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { connect, execute, destroy } from '../server/db.js'
+import { makeLog, recordRun } from './job-run.js'
 import { htmlToText, safeUrl } from '../server/vacancyText.js'
 
 export const API = 'https://api.apprenticeships.education.gov.uk/vacancies'
@@ -233,7 +232,7 @@ const RAW_INSERT = `
 const START_RUN = `insert into EXT.VACANCY_IMPORT_RUN (RUNID, KIND) values (?, ?)`
 // Other runs still open (started in the last hour and not finished).
 const OTHER_OPEN_RUNS = `
-  select RUNID, to_varchar(STARTEDAT, 'YYYY-MM-DD HH24:MI:SS') as STARTED from EXT.VACANCY_IMPORT_RUN
+  select RUNID, to_varchar(convert_timezone('Europe/London', STARTEDAT), 'YYYY-MM-DD HH24:MI') || ' UK time' as STARTED from EXT.VACANCY_IMPORT_RUN
   where FINISHEDAT is null and STARTEDAT > dateadd(hour, -1, current_timestamp()) and RUNID <> ?
 `
 const FINISH_RUN = `
@@ -330,27 +329,33 @@ export async function runImport({ connection, kind, fetchImpl = fetch, pace = ma
 }
 
 // Run as a script (not when a test imports it).
+// One run as a job (scripts/job-run.js): its outcome for OPS.JOB_RUN.
+export async function runJob({ connection, kind, log }) {
+  const counts = await runImport({ connection, kind, log })
+  return {
+    outcome: counts.refused ? 'refused' : counts.complete ? 'succeeded' : 'failed',
+    ref: counts.runId,
+    error: counts.refused ?? counts.error ?? null,
+    summary: { kind, requests: counts.requests, adverts: counts.adverts, added: counts.added, changed: counts.changed, gone: counts.gone },
+  }
+}
+
+// Run by hand (npm run import:vacancies -- --full | --new), recorded like a
+// scheduled run.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const kind = process.argv.includes('--full') ? 'full' : process.argv.includes('--new') ? 'new' : null
   if (!kind) {
     console.log('Usage: npm run import:vacancies -- --full | --new')
     process.exit(2)
   }
-  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'logs', 'import-vacancies')
-  fs.mkdirSync(dir, { recursive: true })
-  const file = path.join(dir, `${new Date().toISOString().slice(0, 10)}.log`)
-  const log = (line) => {
-    const stamped = `${new Date().toISOString()} ${line}`
-    console.log(stamped)
-    fs.appendFileSync(file, stamped + '\n')
-  }
+  const log = makeLog('import-vacancies')
   log(`Vacancy import (${kind}) started.`)
   const connection = await connect()
-  let counts
+  let result
   try {
-    counts = await runImport({ connection, kind, log })
+    result = await recordRun({ connection, job: `vacancies-${kind}`, triggeredBy: 'manual', log, run: (c) => runJob({ connection: c, kind, log }) })
   } finally {
     await destroy(connection)
   }
-  process.exit(counts.refused || !counts.complete ? 1 : 0)
+  process.exit(result.outcome === 'succeeded' ? 0 : 1)
 }

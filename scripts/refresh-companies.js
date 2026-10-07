@@ -18,10 +18,9 @@
 // It asks Companies House at most once every PAUSE_MS, well under the
 // shared limit (docs/before-real-data.md: the counter is per process).
 
-import fs from 'node:fs'
-import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { connect, execute, destroy } from '../server/db.js'
+import { makeLog, recordRun } from './job-run.js'
 import { inTransaction, RequestError } from '../server/burrow.js'
 import { companyColumns, companyChanges, fetchProfile, writeCompany } from '../server/companiesHouse.js'
 
@@ -91,23 +90,27 @@ export async function refreshAll(connection, { pause = PAUSE_MS, log = console.l
   return counts
 }
 
-// Run as a script (not when a test imports refreshAll).
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'logs', 'refresh-companies')
-  fs.mkdirSync(dir, { recursive: true })
-  const file = path.join(dir, `${new Date().toISOString().slice(0, 10)}.log`)
-  const log = (line) => {
-    const stamped = `${new Date().toISOString()} ${line}`
-    console.log(stamped)
-    fs.appendFileSync(file, stamped + '\n')
+// One run as a job (scripts/job-run.js): its outcome for OPS.JOB_RUN. Any
+// company not checked (Companies House refused or failed) makes it failed.
+export async function runJob({ connection, log }) {
+  const counts = await refreshAll(connection, { log })
+  return {
+    outcome: counts.failed > 0 ? 'failed' : 'succeeded',
+    error: counts.failed > 0 ? `${counts.failed} companies not checked.` : null,
+    summary: counts,
   }
+}
+
+// Run by hand (npm run refresh:companies), recorded like a scheduled run.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const log = makeLog('refresh-companies')
   log('Nightly Companies House refresh started.')
   const connection = await connect()
-  let counts
+  let result
   try {
-    counts = await refreshAll(connection, { log })
+    result = await recordRun({ connection, job: 'companies-refresh', triggeredBy: 'manual', log, run: (c) => runJob({ connection: c, log }) })
   } finally {
     await destroy(connection)
   }
-  process.exit(counts.failed > 0 ? 1 : 0)
+  process.exit(result.outcome === 'succeeded' ? 0 : 1)
 }

@@ -59,6 +59,8 @@ const REQUIRED = {
   ...Object.fromEntries(['SKILLS_IMPORT_RUN', 'STANDARD_VERSION', 'STANDARD_KSB', 'STANDARD_DUTY', 'STANDARD_DUTY_KSB',
     'STANDARD_OPTION', 'STANDARD_DUTY_OPTION', 'OCCUPATION_PROFILE', 'OCCUPATION_SOC', 'OCCUPATION_TERM']
     .map((t) => [`CAPTURE_DB.SKILLS.${t}`, ['SELECT', 'INSERT', 'UPDATE']])),
+  // Background job runs (sql/jobs_01_job_run.sql).
+  'CAPTURE_DB.OPS.JOB_RUN': ['SELECT', 'INSERT', 'UPDATE'],
 }
 
 // The problems in a list of grants (from SHOW GRANTS TO ROLE) and future
@@ -115,6 +117,6 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns nothing in SKILLS, RAW or EXT, the Companies House, site, contact, vacancy and Skills England grants are in place, and it can't reach the test snapshot.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns nothing in SKILLS, RAW or EXT, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, and it can't reach the test snapshot.`)
   process.exit(problems.length ? 1 : 0)
 }

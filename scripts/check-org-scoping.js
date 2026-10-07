@@ -108,6 +108,10 @@
 //    runs without a signed-in user: nothing in server/ or src/ imports it or
 //    writes SKILLS or RAW.SE_* (insert into, merge into, update), and the
 //    import's SQL names only SKILLS and RAW.SE_* tables.
+// 20. The scheduler and the job records (scripts/jobs.js, job-run.js,
+//    check-jobs.js) stay out of the app: nothing in server/ or src/ imports
+//    them, and nothing there writes OPS (insert into, merge into, update).
+//    The app only reads OPS.JOB_RUN, for when data was last updated.
 //
 // Usage:
 //   npm run check:scoping
@@ -544,8 +548,30 @@ for (const file of serverFiles) {
   }
 }
 
+// Check 20: the scheduler and job records stay out of the app, which only
+// reads OPS.
+{
+  const repo = path.join(serverDir, '..')
+  for (const [area, f] of [
+    ...fs.readdirSync(serverDir, { recursive: true }).map((x) => ['server', x]),
+    ...fs.readdirSync(path.join(repo, 'src'), { recursive: true }).map((x) => ['src', x]),
+  ].filter(([, x]) => /\.(js|jsx|mjs)$/.test(x))) {
+    const text = fs.readFileSync(path.join(repo, area, f), 'utf8')
+    const where = (i) => `${area}/${f.split(path.sep).join('/')}:${text.slice(0, i).split('\n').length}`
+    const m = text.match(/\b(import|from|import\()\s*['"`][^'"`]*scripts\/(jobs|job-run|check-jobs)(\.js)?['"`]/)
+    if (m) {
+      console.log(`${where(m.index)}  imports the scheduler or its job records, which run without a signed-in user: the app must not`)
+      problems++
+    }
+    for (const w of text.matchAll(/\b(?:into|update)\s+(?:CAPTURE_DB\.)?(OPS\.\w+)/gi)) {
+      console.log(`${where(w.index)}  writes ${w[1]}: only the jobs (scripts/job-run.js) write OPS`)
+      problems++
+    }
+  }
+}
+
 if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, the vacancy import stays out of the app, links to adverts are the organisation\'s own, and only the Skills England import writes SKILLS.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, the vacancy import stays out of the app, links to adverts are the organisation\'s own, only the Skills England import writes SKILLS, and the scheduler stays out of the app.')

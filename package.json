@@ -16,11 +16,13 @@
     "check:sign-in": "node scripts/check-sign-in.js",
     "check:test-flags": "node scripts/check-test-flags.js",
     "check:grants": "node scripts/check-grants.js",
+    "check:jobs": "node scripts/check-jobs.js",
     "refresh:companies": "node scripts/refresh-companies.js",
     "import:vacancies": "node scripts/import-vacancies.js",
     "preview": "vite preview",
     "import:ref": "node scripts/import-ref.js",
-    "import:skills": "node scripts/import-skills.js"
+    "import:skills": "node scripts/import-skills.js",
+    "jobs": "node scripts/jobs.js"
   },
   "dependencies": {
     "busboy": "^1.6.0",
