@@ -66,6 +66,7 @@ built, move it out (or strike it through with where it went).
 
 ### Learners and matching
 - Vacancy matching with maps showing the distance between the employer's and the participant's postcodes, including public transport routes. (Claude: builds on the planned vacancy import and matching steps; ONS postcodes are already loaded in REF.)
+- 2026-10-07, Alan, for the planned matching step: for a standard with options, match on the SOC codes of its options' occupations (SKILLS.STANDARD_OPTION's OCCUPATION_CODE, then OCCUPATION_SOC) as well as the standard's own. The occupational maps API lists most such standards only under their options' codes: in the first import (2026-10-07) 139 standards approved for delivery had no occupation under their own code, and for 136 of them it found at least one option's. Three approved standards have no occupation found at all, so no SOC codes: ST0389 Poultry worker (10 options, none found), ST0587 Internal audit practitioner and ST1422 Bus, coach and heavy goods vehicle service and maintenance technician (no options). Matching needs another way in for those, or to say they can't be matched by SOC.
 - Diagnostic assessments and skills onboarding. (Claude: overlaps the four-part diagnostic already drafted.)
 - Functional Skills app. 2 Options, create own in first instance and then find the cheapest alternative
 - Programme and exit interview surveys.
