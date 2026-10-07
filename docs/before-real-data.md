@@ -19,6 +19,13 @@ it. Add to this list rather than keeping these elsewhere.
   run as ILR_APP_ROLE, the same role as the website, and create or replace
   tables. A separate role should own the reference tables and run the
   imports, so the website's role can't create, replace or drop anything.
+- **Imports under their own role** (2026-10-07, Alan). The Skills England,
+  vacancy and Companies House imports write SKILLS, EXT and RAW with the
+  website's role, kept apart only by `npm run check:scoping` (the app's
+  code may read them, never write them). Consider running the imports
+  under their own Snowflake role (and user), so only that role has INSERT
+  and UPDATE on SKILLS, EXT and RAW and the website's role has SELECT
+  only: a database rule rather than a code check.
 
 ## Snowflake connection
 

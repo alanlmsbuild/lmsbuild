@@ -1,3 +1,4 @@
+import SkillsEnglandCredit from '../SkillsEnglandCredit'
 import { useCallback, useEffect, useState } from 'react'
 import { WITNESS_OUTCOME_OPTIONS } from '../burrowCodes'
 import { formatDate } from '../lookups'
@@ -127,6 +128,7 @@ function StatementCard({ statement, onAnswered }) {
                 </li>
               ))}
             </ul>
+            <SkillsEnglandCredit />
           </div>
         )}
 

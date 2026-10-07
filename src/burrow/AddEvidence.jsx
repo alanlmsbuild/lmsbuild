@@ -1,3 +1,4 @@
+import SkillsEnglandCredit from '../SkillsEnglandCredit'
 import { useEffect, useRef, useState } from 'react'
 import {
   ACCEPT_ATTRIBUTE,
@@ -600,6 +601,7 @@ function AddEvidence({ portfolio, evidenceId: initialEvidenceId, navigate, onSav
                         ))}
                     </fieldset>
                   ))}
+                  <SkillsEnglandCredit />
                 </>
               ) : (
                 <NotLoaded />
@@ -653,6 +655,7 @@ function AddEvidence({ portfolio, evidenceId: initialEvidenceId, navigate, onSav
               ))}
             </ul>
           )}
+          {ksbsLoaded && stillToEvidence.length > 0 && <SkillsEnglandCredit />}
         </section>
       </aside>
     </div>

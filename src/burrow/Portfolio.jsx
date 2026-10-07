@@ -1,3 +1,4 @@
+import SkillsEnglandCredit from '../SkillsEnglandCredit'
 import { useEffect, useRef } from 'react'
 import {
   EVIDENCE_STATUS_LABELS,
@@ -113,6 +114,7 @@ function Portfolio({ portfolio, readOnly = false, flash, onDismissFlash, scrollT
                 </section>
               )
             })}
+            <SkillsEnglandCredit />
           </div>
         )}
       </main>

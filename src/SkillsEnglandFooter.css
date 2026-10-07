@@ -50,3 +50,24 @@
     height: 40px;
   }
 }
+
+/* The credit under every list of KSBs (SkillsEnglandCredit). */
+.ksb-credit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted, #6b6b6b);
+}
+
+.ksb-credit-logo {
+  height: 32px;
+  width: auto;
+  flex: none;
+}
+
+.ksb-credit a {
+  overflow-wrap: anywhere;
+}

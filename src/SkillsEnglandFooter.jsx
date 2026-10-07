@@ -28,7 +28,7 @@ function SkillsEnglandFooter() {
           <p>
             This information is licensed under the Open Government Licence{' '}
             <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">
-              https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3
+              https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
             </a>
           </p>
           {/* Standard OGL attribution for the LARS data, which DfE publishes. */}

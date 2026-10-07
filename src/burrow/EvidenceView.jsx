@@ -1,3 +1,4 @@
+import SkillsEnglandCredit from '../SkillsEnglandCredit'
 import { useEffect, useState } from 'react'
 import { EVIDENCE_STATUS_LABELS, EVIDENCE_TYPE_OPTIONS, IQA_OUTCOME_OPTIONS, WITNESS_OUTCOME_OPTIONS, formatBytes } from '../burrowCodes'
 import { formatDate, labelFromOptions } from '../lookups'
@@ -94,6 +95,7 @@ function EvidenceView({ learnRefNumber, evidenceId, portfolioPath }) {
                 ))}
               </ul>
             )}
+            {data.claimDetails.length > 0 && <SkillsEnglandCredit />}
           </section>
 
           <section className="burrow-card" aria-labelledby="ev-files">
