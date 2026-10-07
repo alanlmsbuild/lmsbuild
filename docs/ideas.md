@@ -108,3 +108,5 @@ built, move it out (or strike it through with where it went).
 - Create visio type data model how every System and Software element Joins - (Maybe can be done with coco and Snowflake)
 - Training Platform like Udemy, either create (impossible) or get them to sign up to the Product
 - Costings of a Demo (Beta) System by Each different module (Apprenticeships, Traineeships, restart etc)
+
+- 2026-10-07, Alan: just a note for the Caseload tool for Apprenticships. Allocating a certain amount against a tutor or assessor is based on Location, What they deliver, current caseload (dependant on targets set by Managers) and learner ability eg Prior Attainment
