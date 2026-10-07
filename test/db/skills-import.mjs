@@ -121,7 +121,7 @@ try {
     check('  the maps API was asked with the key', first.calls.some((x) => x.url.includes('/Occupations/OCC9072?') && x.headers['X-API-KEY'] === 'test-key'))
     const [run1] = await q(`select COMPLETE, VERSIONS, KSBS, to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U, to_json(OPTION_LINK_PROBLEMS) as P from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [first.runId])
     check('  the run is recorded, with no label mismatches and no links left out', run1.COMPLETE && run1.VERSIONS === 3 && run1.M === '[]' && run1.U === '[]' && run1.P === '[]', JSON.stringify(run1))
-    const opts = await q(`select OPTION_REFERENCE as R, count(d.DUTY_REFERENCE) as DUTIES from SKILLS.STANDARD_OPTION o
+    const opts = await q(`select o.OPTION_REFERENCE as R, count(d.DUTY_REFERENCE) as DUTIES from SKILLS.STANDARD_OPTION o
       left join SKILLS.STANDARD_DUTY_OPTION d on d.ST_REFERENCE = o.ST_REFERENCE and d.VERSION = o.VERSION and d.OPTION_REFERENCE = o.OPTION_REFERENCE and d.OPTION_ID = o.OPTION_ID
       where o.ST_REFERENCE = 'ST9312' group by 1 order by 1`)
     check('  options stored as O1, O2, with their duty links', opts.map((x) => x.R).join() === 'O1,O2' && opts.reduce((n, x) => n + Number(x.DUTIES), 0) === 8, JSON.stringify(opts))
