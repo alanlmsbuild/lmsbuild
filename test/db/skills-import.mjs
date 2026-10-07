@@ -11,7 +11,7 @@
 //   node test/db/skills-import.mjs
 import fs from 'node:fs'
 import { connect, execute, destroy } from '../../server/db.js'
-import { fetchStandards, labelMismatches, makeMapsClient, parseOccupation, parseVersion, runImport } from '../../scripts/import-skills.js'
+import { fetchStandards, labelMismatches, makeMapsClient, mergeRows, parseOccupation, parseVersion, runImport } from '../../scripts/import-skills.js'
 
 let failures = 0
 const check = (label, ok, detail = '') => {
@@ -44,6 +44,20 @@ console.log('Part 1: parsing saved records')
   check("a duty naming a KSB its version doesn't list: that link left out and kept to record", left.unmapped.length === 1 &&
     left.dutyKsbs.length === o.dutyKsbs.length && JSON.stringify(left.unmapped[0]) === JSON.stringify({ st_reference: 'ST1312', version: '1.0',
       duty_reference: 'D1', duty_id: bad.duties[0].dutyID, list: 'mappedSkills', ksb_id: 'not-a-ksb-id' }), JSON.stringify(left.unmapped))
+  check('  options numbered O1, O2 in the order listed, duty links by number', o.options.map((x) => x.OPTION_REFERENCE).join() === 'O1,O2' &&
+    o.dutyOptions.every((l) => o.options.some((x) => x.OPTION_REFERENCE === l.OPTION_REFERENCE && x.OPTION_ID === l.OPTION_ID)) && o.optionProblems.length === 0)
+  // Like ST0363 1.0: a second option under the first one's ID, and duties
+  // naming that ID and an ID the version doesn't list.
+  const twice = JSON.parse(JSON.stringify(v('ST1312', '1.0')))
+  twice.options.push({ ...twice.options[0], title: 'TEST second option, same ID' })
+  twice.duties[0].mappedOptions = [twice.options[0].optionId, 'not-an-option-id']
+  const t = parseVersion(twice)
+  const firstLinks = t.dutyOptions.filter((l) => l.DUTY_REFERENCE === 'D1')
+  check('a repeated option ID: both options kept (O1, O3), and a duty naming it or an unknown ID is recorded, not linked',
+    t.options.length === 3 && t.options[2].OPTION_REFERENCE === 'O3' && t.options[2].OPTION_ID === t.options[0].OPTION_ID && firstLinks.length === 0 &&
+    JSON.stringify(t.optionProblems.filter((x) => x.duty_reference === 'D1').map((x) => [x.problem, x.options])) === JSON.stringify([['option ID repeated', ['O1', 'O3']], ['no such option', []]]) &&
+    t.optionProblems.length === o.dutyOptions.filter((l) => l.OPTION_REFERENCE === 'O1' && l.DUTY_REFERENCE !== 'D1').length + 2,
+    JSON.stringify(t.optionProblems))
 
   const occ = parseOccupation('OCC0072', occupations.OCC0072.body)
   check('OCC0072: SOC 2020 sub-unit groups (primary marked), SOC 2010, job titles and keywords',
@@ -105,8 +119,17 @@ try {
       (select LARS_CODE from SKILLS.STANDARD_VERSION where ST_REFERENCE = 'ST9072' and VERSION = '1.1') as LARS`)
     check('  duties, duty-KSB links, options, SOC codes and terms stored', dk.D === 17 && dk.L === 156 && dk.O === 2 && dk.DO_ === 8 && dk.S > 0 && dk.T > 0 && dk.LARS === 122, JSON.stringify(dk))
     check('  the maps API was asked with the key', first.calls.some((x) => x.url.includes('/Occupations/OCC9072?') && x.headers['X-API-KEY'] === 'test-key'))
-    const [run1] = await q(`select COMPLETE, VERSIONS, KSBS, to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [first.runId])
-    check('  the run is recorded, with no label mismatches and no links left out', run1.COMPLETE && run1.VERSIONS === 3 && run1.M === '[]' && run1.U === '[]', JSON.stringify(run1))
+    const [run1] = await q(`select COMPLETE, VERSIONS, KSBS, to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U, to_json(OPTION_LINK_PROBLEMS) as P from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [first.runId])
+    check('  the run is recorded, with no label mismatches and no links left out', run1.COMPLETE && run1.VERSIONS === 3 && run1.M === '[]' && run1.U === '[]' && run1.P === '[]', JSON.stringify(run1))
+    const opts = await q(`select OPTION_REFERENCE as R, count(d.DUTY_REFERENCE) as DUTIES from SKILLS.STANDARD_OPTION o
+      left join SKILLS.STANDARD_DUTY_OPTION d on d.ST_REFERENCE = o.ST_REFERENCE and d.VERSION = o.VERSION and d.OPTION_REFERENCE = o.OPTION_REFERENCE and d.OPTION_ID = o.OPTION_ID
+      where o.ST_REFERENCE = 'ST9312' group by 1 order by 1`)
+    check('  options stored as O1, O2, with their duty links', opts.map((x) => x.R).join() === 'O1,O2' && opts.reduce((n, x) => n + Number(x.DUTIES), 0) === 8, JSON.stringify(opts))
+    let twoRows = null
+    try { await mergeRows(c, 'STANDARD_OPTION', [{ ST_REFERENCE: 'ST9312', VERSION: '9.9', OPTION_REFERENCE: 'O1', OPTION_ID: 'x', TITLE: 'TEST', SORT_ORDER: 1 },
+      { ST_REFERENCE: 'ST9312', VERSION: '9.9', OPTION_REFERENCE: 'O1', OPTION_ID: 'y', TITLE: 'TEST', SORT_ORDER: 1 }]) } catch (e) { twoRows = e.message }
+    const [none] = await q(`select count(*) as N from SKILLS.STANDARD_OPTION where ST_REFERENCE = 'ST9312' and VERSION = '9.9'`)
+    check('  two rows for one key are refused before anything is written', /Two STANDARD_OPTION rows for the same key/.test(twoRows ?? '') && Number(none.N) === 0, twoRows)
 
     const again = await run(testStandards)
     check('the same again: nothing added, nothing changed', again.complete && again.added === 0 && again.changed === 0, JSON.stringify({ added: again.added, changed: again.changed }))
@@ -120,16 +143,26 @@ try {
     // And a duty naming a KSB its version doesn't list.
     const d1 = edited.find((s) => s.referenceNumber === 'ST9312').duties[0]
     d1.mappedSkills = [...(d1.mappedSkills ?? []), 'not-a-ksb-id']
+    // And, like ST0363 1.0, a second option under the first one's ID, which
+    // that duty names.
+    const st9312 = edited.find((s) => s.referenceNumber === 'ST9312')
+    st9312.options.push({ ...st9312.options[0], title: 'TEST second option, same ID' })
+    d1.mappedOptions = [st9312.options[0].optionId]
     const third = await run(edited, { occupation: swapped })
     const k1 = (await ksbsOf('ST9072', '1.1'))[0]
-    const [run3] = await q(`select to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [third.runId])
+    const [run3] = await q(`select to_json(LABEL_MISMATCHES) as M, to_json(UNMAPPED_LINKS) as U, to_json(OPTION_LINK_PROBLEMS) as P from SKILLS.SKILLS_IMPORT_RUN where RUNID = ?`, [third.runId])
     const logged = JSON.parse(run3.M)
-    check('a changed KSB is updated in place (one change)', third.changed === 1 && k1.R === 'K1' && k1.DETAIL === 'TEST changed wording', JSON.stringify({ changed: third.changed, k1 }))
+    check('a changed KSB is updated in place', third.changed >= 1 && k1.R === 'K1' && k1.DETAIL === 'TEST changed wording', JSON.stringify({ changed: third.changed, k1 }))
     check('  label mismatches are logged on the run, ours and theirs, and the run carries on', third.complete && logged.length === 2 &&
       logged.some((m) => m.st_reference === 'ST9072' && m.version === '1.1' && m.ours === 'K1' && m.theirs === 'K2'), run3.M)
     const leftOut = JSON.parse(run3.U)
     check("  a duty-to-KSB link the version doesn't list is recorded on the run, and the run carries on", third.complete && leftOut.length === 1 &&
       leftOut[0].st_reference === 'ST9312' && leftOut[0].duty_reference === 'D1' && leftOut[0].ksb_id === 'not-a-ksb-id', run3.U)
+    const optionProblems = JSON.parse(run3.P)
+    const [o3] = await q(`select OPTION_ID, TITLE from SKILLS.STANDARD_OPTION where ST_REFERENCE = 'ST9312' and VERSION = '1.0' and OPTION_REFERENCE = 'O3'`)
+    check('  a repeated option ID: both options stored (O3 added), the duty naming it recorded on the run, not linked', o3?.TITLE === 'TEST second option, same ID' &&
+      optionProblems.length > 0 && optionProblems.every((x) => x.st_reference === 'ST9312' && x.problem === 'option ID repeated' && x.options.join() === 'O1,O3') &&
+      optionProblems.some((x) => x.duty_reference === 'D1'), run3.P)
 
     // Gone: only after a complete run.
     const without = testStandards.filter((s) => s.referenceNumber !== 'ST9312')

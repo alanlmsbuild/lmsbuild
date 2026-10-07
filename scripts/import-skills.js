@@ -25,7 +25,11 @@
 // England's ID): every difference is logged in SKILLS_IMPORT_RUN.
 // LABEL_MISMATCHES and the run carries on with ours. A duty that names a
 // KSB its version doesn't list can't be linked: each such link is left out
-// and recorded in SKILLS_IMPORT_RUN.UNMAPPED_LINKS.
+// and recorded in SKILLS_IMPORT_RUN.UNMAPPED_LINKS. Options are numbered
+// O1, O2... in the order listed, like duties, because a version can list
+// two options under one ID (ST0363 1.0). Duties name options by ID: a link
+// to an ID the version doesn't list, or lists more than once, is left out
+// and recorded in SKILLS_IMPORT_RUN.OPTION_LINK_PROBLEMS, never guessed.
 //
 // The app only reads SKILLS; this import (and nothing in server/ or src/)
 // writes it (npm run check:scoping). A run refuses to start while another
@@ -99,12 +103,13 @@ export function parseVersion(r) {
     })
   }
   const options = (Array.isArray(r.options) ? r.options : []).filter((o) => o?.optionId).map((o, i) => ({
-    ...key, OPTION_ID: text(o.optionId), TITLE: text(o.title) ?? '(no title)', OCCUPATION_CODE: text(o.occupationCode), SORT_ORDER: i + 1,
+    ...key, OPTION_REFERENCE: `O${i + 1}`, OPTION_ID: text(o.optionId), TITLE: text(o.title) ?? '(no title)', OCCUPATION_CODE: text(o.occupationCode), SORT_ORDER: i + 1,
   }))
   const duties = []
   const dutyKsbs = []
   const dutyOptions = []
   const unmapped = []
+  const optionProblems = []
   ;(Array.isArray(r.duties) ? r.duties : []).forEach((d, i) => {
     const detail = text(d?.dutyDetail)
     if (!detail) return
@@ -120,7 +125,10 @@ export function parseVersion(r) {
       dutyKsbs.push({ ...key, DUTY_REFERENCE: ref, KSB_TYPE: k.KSB_TYPE, KSB_REFERENCE: k.KSB_REFERENCE })
     }
     for (const id of d.mappedOptions ?? []) {
-      if (options.some((o) => o.OPTION_ID === String(id))) dutyOptions.push({ ...key, DUTY_REFERENCE: ref, OPTION_ID: String(id) })
+      const matches = options.filter((o) => o.OPTION_ID === String(id))
+      if (matches.length === 1) dutyOptions.push({ ...key, DUTY_REFERENCE: ref, OPTION_REFERENCE: matches[0].OPTION_REFERENCE, OPTION_ID: String(id) })
+      else optionProblems.push({ st_reference: key.ST_REFERENCE, version: key.VERSION, duty_reference: ref, duty_id: text(d.dutyID), option_id: String(id),
+        problem: matches.length ? 'option ID repeated' : 'no such option', options: matches.map((o) => o.OPTION_REFERENCE) })
     }
   })
   const unique = (rows, keyOf) => [...new Map(rows.map((x) => [keyOf(x), x])).values()]
@@ -131,8 +139,9 @@ export function parseVersion(r) {
     duties,
     dutyKsbs: unique(dutyKsbs, (x) => `${x.DUTY_REFERENCE} ${x.KSB_TYPE}${x.KSB_REFERENCE}`),
     options,
-    dutyOptions: unique(dutyOptions, (x) => `${x.DUTY_REFERENCE} ${x.OPTION_ID}`),
+    dutyOptions: unique(dutyOptions, (x) => `${x.DUTY_REFERENCE} ${x.OPTION_REFERENCE}`),
     unmapped,
+    optionProblems,
   }
 }
 
@@ -275,8 +284,8 @@ export const TABLES = {
   STANDARD_KSB: { keys: [...STD, 'KSB_TYPE', 'KSB_REFERENCE'], cols: ['SOURCE_ID', 'DETAIL', 'SORT_ORDER'] },
   STANDARD_DUTY: { keys: [...STD, 'DUTY_REFERENCE'], cols: ['SOURCE_ID', 'DETAIL', 'IS_CORE', 'CRITERIA', 'SORT_ORDER'] },
   STANDARD_DUTY_KSB: { keys: [...STD, 'DUTY_REFERENCE', 'KSB_TYPE', 'KSB_REFERENCE'], cols: [] },
-  STANDARD_OPTION: { keys: [...STD, 'OPTION_ID'], cols: ['TITLE', 'OCCUPATION_CODE', 'SORT_ORDER'] },
-  STANDARD_DUTY_OPTION: { keys: [...STD, 'DUTY_REFERENCE', 'OPTION_ID'], cols: [] },
+  STANDARD_OPTION: { keys: [...STD, 'OPTION_REFERENCE'], cols: ['OPTION_ID', 'TITLE', 'OCCUPATION_CODE', 'SORT_ORDER'] },
+  STANDARD_DUTY_OPTION: { keys: [...STD, 'DUTY_REFERENCE', 'OPTION_REFERENCE'], cols: ['OPTION_ID'] },
   OCCUPATION_PROFILE: { keys: ['OCCUPATION_CODE'], cols: ['TITLE', 'LEVEL', 'VERSION', 'STATUS', 'STATUS_NAME', 'ROUTE', 'PATHWAY', 'SOC_2020_CODE', 'STATUS_LAST_UPDATED'] },
   OCCUPATION_SOC: { keys: ['OCCUPATION_CODE', 'SOC_VERSION', 'SOC_KEY'], cols: ['UNIT_GROUP', 'SUB_UNIT_GROUP', 'IS_PRIMARY', 'DESCRIPTION'] },
   OCCUPATION_TERM: { keys: ['OCCUPATION_CODE', 'KIND', 'TERM'], cols: [] },
@@ -330,7 +339,16 @@ function* chunks(rows, maxBytes = 2_000_000) {
 }
 
 // Merges rows (each with SOURCERESPONSEID) into a SKILLS table: { added, changed }.
+// Snowflake doesn't enforce primary keys, so rows repeating a key are
+// refused here, before anything is written (npm run check:test-flags
+// checks the tables too).
 export async function mergeRows(connection, table, rows) {
+  const seen = new Set()
+  for (const row of rows) {
+    const k = JSON.stringify(TABLES[table].keys.map((c) => row[c]))
+    if (seen.has(k)) throw new Error(`Two ${table} rows for the same key ${k}: nothing written to ${table}`)
+    seen.add(k)
+  }
   const counts = { added: 0, changed: 0 }
   for (const piece of chunks(rows)) {
     const json = JSON.stringify(piece)
@@ -357,7 +375,7 @@ const OTHER_OPEN_RUNS = `
 const FINISH_RUN = `
   update SKILLS.SKILLS_IMPORT_RUN set FINISHEDAT = current_timestamp(), COMPLETE = ?, REQUESTS = ?, FILESHA256 = ?,
     VERSIONS = ?, KSBS = ?, OCCUPATIONS = ?, ADDED = ?, CHANGED = ?, GONE = ?, LABEL_MISMATCHES = parse_json(?),
-    UNMAPPED_LINKS = parse_json(?), ERROR = ?
+    UNMAPPED_LINKS = parse_json(?), OPTION_LINK_PROBLEMS = parse_json(?), ERROR = ?
   where RUNID = ?
 `
 
@@ -368,11 +386,11 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
   const others = await execute(connection, OTHER_OPEN_RUNS, [runId])
   if (others.length > 0) {
     const why = `Another Skills England import is running (started ${others[0].STARTED}).`
-    await execute(connection, FINISH_RUN, [false, 0, null, 0, 0, 0, 0, 0, 0, '[]', '[]', why, runId])
+    await execute(connection, FINISH_RUN, [false, 0, null, 0, 0, 0, 0, 0, 0, '[]', '[]', '[]', why, runId])
     log(`Not started: ${why}`)
     return { runId, refused: why }
   }
-  const c = { runId, requests: 0, sha256: null, versions: 0, ksbs: 0, occupations: 0, notFound: 0, added: 0, changed: 0, gone: 0, mismatches: [], unmapped: [], complete: false, error: null }
+  const c = { runId, requests: 0, sha256: null, versions: 0, ksbs: 0, occupations: 0, notFound: 0, added: 0, changed: 0, gone: 0, mismatches: [], unmapped: [], optionProblems: [], complete: false, error: null }
   const tally = (counts) => {
     c.added += counts.added
     c.changed += counts.changed
@@ -409,6 +427,8 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
     c.ksbs = ksbs.length
     c.unmapped = [...parsed.values()].flatMap(({ p }) => p.unmapped)
     if (c.unmapped.length) log(`${c.unmapped.length} duty-to-KSB links name a KSB the version doesn't list: left out, recorded on the run`)
+    c.optionProblems = [...parsed.values()].flatMap(({ p }) => p.optionProblems)
+    if (c.optionProblems.length) log(`${c.optionProblems.length} duty-to-option links name an option the version doesn't list, or lists twice: left out, recorded on the run`)
     log(`Standards: ${c.versions} versions, ${c.ksbs} KSBs`)
 
     // 2. Each occupation: SOC codes, job titles, keywords, and its own KSB labels.
@@ -455,14 +475,15 @@ export async function runImport({ connection, fetchImpl = fetch, maps = makeMaps
     c.requests += maps.requests?.() ?? 0
     c.error = err instanceof StopRun ? err.message : `Stopped: ${err.message}`
     if (!(err instanceof StopRun)) {
-      await execute(connection, FINISH_RUN, [false, c.requests, c.sha256, c.versions, c.ksbs, c.occupations, c.added, c.changed, 0, JSON.stringify(c.mismatches.slice(0, 5000)), JSON.stringify(c.unmapped.slice(0, 5000)), c.error.slice(0, 1000), runId])
+      await execute(connection, FINISH_RUN, [false, c.requests, c.sha256, c.versions, c.ksbs, c.occupations, c.added, c.changed, 0, JSON.stringify(c.mismatches.slice(0, 5000)), JSON.stringify(c.unmapped.slice(0, 5000)), JSON.stringify(c.optionProblems.slice(0, 5000)), c.error.slice(0, 1000), runId])
+      log(`Run stopped (recorded on run ${runId}): ${c.error}`)
       throw err
     }
   }
   await execute(connection, FINISH_RUN, [c.complete, c.requests, c.sha256, c.versions, c.ksbs, c.occupations, c.added, c.changed, c.gone,
-    JSON.stringify(c.mismatches.slice(0, 5000)), JSON.stringify(c.unmapped.slice(0, 5000)), c.error?.slice(0, 1000) ?? null, runId])
+    JSON.stringify(c.mismatches.slice(0, 5000)), JSON.stringify(c.unmapped.slice(0, 5000)), JSON.stringify(c.optionProblems.slice(0, 5000)), c.error?.slice(0, 1000) ?? null, runId])
   log(`Run ${c.complete ? 'complete' : 'stopped'}: ${c.requests} requests, ${c.versions} versions, ${c.ksbs} KSBs, ${c.occupations} occupations ` +
-    `(${c.notFound} not found), ${c.added} added, ${c.changed} changed, ${c.gone} gone, ${c.mismatches.length} KSB label mismatches, ${c.unmapped.length} duty-to-KSB links left out${c.error ? `. ${c.error}` : ''}`)
+    `(${c.notFound} not found), ${c.added} added, ${c.changed} changed, ${c.gone} gone, ${c.mismatches.length} KSB label mismatches, ${c.unmapped.length} duty-to-KSB links left out, ${c.optionProblems.length} duty-to-option links left out${c.error ? `. ${c.error}` : ''}`)
   return c
 }
 

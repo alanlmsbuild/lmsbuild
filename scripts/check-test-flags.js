@@ -9,7 +9,9 @@
 // rows whose employer doesn't exist or belongs to another organisation, and
 // tables with an EMPLOYERID column this doesn't cover. Every count should
 // be 0. Last, Burrow claims whose KSB isn't in the learner's version of the
-// standard: also 0. Read-only: counts only, no personal details.
+// standard: also 0. And every SKILLS table has at most one row for each
+// primary key (Snowflake doesn't enforce them). Read-only: counts only, no
+// personal details.
 // Needs the Snowflake connection in server/.env.
 //
 // Usage:
@@ -166,6 +168,19 @@ try {
   problems += Number(c.MISSING)
   console.log(`${Number(c.MISSING) ? 'FAIL' : 'ok  '} ${c.CLAIMS} current claims, ${c.MISSING} whose KSB isn't in the learner's version of the standard`
     + (Number(c.NOT_LOADED) ? ` (and ${c.NOT_LOADED} on a standard with no KSBs loaded)` : ''))
+  // Snowflake declares primary keys but doesn't enforce them.
+  console.log('\nSkills England tables, one row per primary key:')
+  const pk = await execute(connection, 'show primary keys in schema CAPTURE_DB.SKILLS')
+  const keys = new Map()
+  for (const r of [...pk].sort((a, b) => a.key_sequence - b.key_sequence)) {
+    if (!keys.has(r.table_name)) keys.set(r.table_name, [])
+    keys.get(r.table_name).push(r.column_name)
+  }
+  for (const [table, cols] of [...keys].sort()) {
+    const [r] = await execute(connection, `select count(*) as N from (select 1 from CAPTURE_DB.SKILLS.${table} group by ${cols.join(', ')} having count(*) > 1)`)
+    problems += Number(r.N)
+    console.log(`${Number(r.N) ? 'FAIL' : 'ok  '} ${table.padEnd(30)} ${r.N} keys with more than one row (${cols.join(', ')})`)
+  }
 } finally {
   await destroy(connection)
 }
