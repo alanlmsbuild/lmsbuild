@@ -10,7 +10,6 @@
     "test:connection": "node server/test-connection.js",
     "import:lars": "node scripts/import-lars.js",
     "remap:standards": "node scripts/remap-standards.js",
-    "import:ksbs": "node scripts/import-ksbs.js",
     "build": "vite build",
     "lint": "oxlint",
     "check:scoping": "node scripts/check-org-scoping.js",
@@ -21,7 +20,7 @@
     "import:vacancies": "node scripts/import-vacancies.js",
     "preview": "vite preview",
     "import:ref": "node scripts/import-ref.js",
-    "import:standards": "node scripts/import-standards.js"
+    "import:skills": "node scripts/import-skills.js"
   },
   "dependencies": {
     "busboy": "^1.6.0",

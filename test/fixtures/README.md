@@ -1,35 +1,21 @@
 # Test fixtures
 
-## SAMPLE-occupation-dutiesKSB.json
+## skills/
 
-**A made-up sample, not real Skills England data.** Every name, code and
-KSB in it is invented (the occupation code OCC9999 and standard ST9999 do
-not exist).
+Saved Skills England responses, used by `test/db/skills-import.mjs`. Real
+data: © Skills England 2025. This information is licensed under the Open
+Government Licence
+https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
 
-It follows the response shape of `GET /api/v1/Occupations/{stdCode}` in the
-Skills England occupational maps API's Swagger documentation
-(https://occupational-maps-api.skillsengland.education.gov.uk/swagger/index.html),
-requested with
-`expand=occupation.dutiesKSB,occupation.products,occupation.overview,occupation.summary,occupation.maphierarchy,occupation.soc,occupation.typicaljobtitles,occupation.keywords,occupation.links`.
+- `standards.json`: three records from the standards API
+  (https://skillsengland.education.gov.uk/api/apprenticeshipstandards):
+  ST0072 1.0 (no KSBs published) and 1.1, and ST1312 1.0 (duties and
+  options).
+- `occupations.json`: the occupational maps API's answer for two occupation
+  codes, as `{ code: { status, body } }`: OCC0072 (200) and OCC1312 (404,
+  as the live API gives).
 
-The SOC 2020 sub-unit groups, typical job titles (objects with a `name`) and
-keywords (strings) follow the Swagger types too; the sub-unit group code
-format (shown as 9999/01) is a guess until checked against a real response.
+## faa/
 
-The documentation lists the fields and their types but gives no example
-values, so some details are guesses to check against a real response once
-we have an API key:
-
-- `id` fields are shown as GUIDs, and `knowledgeId` / `skillId` /
-  `behaviourId` / `dutyId` as references like `K1` / `S1` / `B1` / `D1`.
-- A duty's `mapped*Ids` hold the `id`s of the KSBs it relates to, and
-  `mappedKnowledge` / `mappedSkills` / `mappedBehaviour` hold their text.
-- The apprenticeship product's `productCode` is the ST reference (`ST9999`).
-
-`scripts/import-ksbs.js` doesn't depend on the first two guesses: it
-matches mapped KSBs by `id` first, then by reference, then by text, and
-numbers KSBs K1, K2, ... by position if the references don't look like that.
-
-Used by:
-
-    npm run import:ksbs -- --dry-run --fixture test/fixtures/SAMPLE-occupation-dutiesKSB.json
+`adverts.json`: saved Find an apprenticeship responses, used by
+`test/db/vacancy-import.mjs`.

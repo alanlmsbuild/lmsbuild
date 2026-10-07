@@ -5,7 +5,7 @@
 // paragraphs 85 to 89, and the off-the-job training guidance version 6,
 // paragraph 63):
 //   Starts from 1 August 2025: at least the minimum published on the
-//   standard (SKILLS.STANDARD_VERSION, loaded by npm run import:standards),
+//   standard (SKILLS.STANDARD_VERSION, loaded by npm run import:skills),
 //   less any hours removed for evidenced prior learning (HRS 4). However
 //   much prior learning there is, a programme can't fall below 187 hours
 //   (paragraph 86.2).
@@ -31,7 +31,7 @@ const iso = (value) => {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10)
 }
 
-// Every version, grouped by LARS code, or null when npm run import:standards
+// Every version, grouped by LARS code, or null when npm run import:skills
 // hasn't been run yet (the table doesn't exist).
 export async function loadStandardVersions(connection) {
   try {

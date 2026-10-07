@@ -103,6 +103,11 @@
 //    (insert into, merge into, update), in SQL that sets or matches the
 //    signed-in user's organisation (CURRENT_ORGANISATIONID) and, for new
 //    rows, their ISTESTDATA (CURRENT_ISTESTDATA).
+// 19. Skills England's standards and occupations are the same for every
+//    organisation, loaded by the import (scripts/import-skills.js), which
+//    runs without a signed-in user: nothing in server/ or src/ imports it or
+//    writes SKILLS or RAW.SE_* (insert into, merge into, update), and the
+//    import's SQL names only SKILLS and RAW.SE_* tables.
 //
 // Usage:
 //   npm run check:scoping
@@ -506,8 +511,41 @@ for (const file of serverFiles) {
   }
 }
 
+// Check 19: only the Skills England import writes SKILLS, and it keeps to
+// SKILLS and RAW.SE_*.
+{
+  const repo = path.join(serverDir, '..')
+  for (const [area, f] of [
+    ...fs.readdirSync(serverDir, { recursive: true }).map((x) => ['server', x]),
+    ...fs.readdirSync(path.join(repo, 'src'), { recursive: true }).map((x) => ['src', x]),
+  ].filter(([, x]) => /\.(js|jsx|mjs)$/.test(x))) {
+    const text = fs.readFileSync(path.join(repo, area, f), 'utf8')
+    const where = (i) => `${area}/${f.split(path.sep).join('/')}:${text.slice(0, i).split('\n').length}`
+    const m = text.match(/\b(import|from|import\()\s*['"`][^'"`]*import-skills/)
+    if (m) {
+      console.log(`${where(m.index)}  imports the Skills England import, which runs without a signed-in user: the app must not`)
+      problems++
+    }
+    for (const w of text.matchAll(/\b(?:into|update)\s+(?:CAPTURE_DB\.)?(SKILLS\.\w+|RAW\.SE_\w+)/gi)) {
+      console.log(`${where(w.index)}  writes ${w[1]}: only scripts/import-skills.js writes Skills England's data`)
+      problems++
+    }
+  }
+  const importer = fs.readFileSync(path.join(repo, 'scripts', 'import-skills.js'), 'utf8')
+  for (const sql of importer.matchAll(/`[^`]*`/g)) {
+    if (!/\b(select|update|insert|merge|delete)\b/i.test(sql[0])) continue
+    for (const m of sql[0].matchAll(/\b(?:from|join|update|into|using)\s+([A-Za-z_][\w.$]*)/gi)) {
+      const name = m[1].replace(/^CAPTURE_DB\./i, '')
+      if (['table', 'set', 'select', 'lateral'].includes(name.toLowerCase()) || /^(SKILLS\.(\w+|\$)|RAW\.SE_\w+)$/.test(name)) continue
+      if (!name.includes('.')) continue // a CTE or alias in the import's own SQL
+      console.log(`scripts/import-skills.js:${importer.slice(0, sql.index).split('\n').length}  names ${m[1]}: the Skills England import uses only SKILLS and RAW.SE_* tables`)
+      problems++
+    }
+  }
+}
+
 if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, the vacancy import stays out of the app, and links to adverts are the organisation\'s own.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, the vacancy import stays out of the app, links to adverts are the organisation\'s own, and only the Skills England import writes SKILLS.')

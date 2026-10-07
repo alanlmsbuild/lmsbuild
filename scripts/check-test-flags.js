@@ -8,13 +8,15 @@
 // no learner at all. Then, for every table holding an employer ID, counts
 // rows whose employer doesn't exist or belongs to another organisation, and
 // tables with an EMPLOYERID column this doesn't cover. Every count should
-// be 0. Read-only: counts only, no personal details.
+// be 0. Last, Burrow claims whose KSB isn't in the learner's version of the
+// standard: also 0. Read-only: counts only, no personal details.
 // Needs the Snowflake connection in server/.env.
 //
 // Usage:
 //   npm run check:test-flags
 
 import { connect, execute, destroy } from '../server/db.js'
+import { ksbVersionsSql } from '../server/ksbVersions.js'
 
 const LEARNER_TABLES = ['LEARNING_DELIVERY', 'PRIOR_ATTAINMENT', 'LLDD_HEALTH_PROBLEM', 'LEARNER_FAM', 'EMPLOYMENT_STATUS',
   'EMPLOYMENT_STATUS_MONITORING', 'LEARNING_DELIVERY_FAM', 'APP_FIN_RECORD', 'HOURS_RECORD', 'OFFICER_ASSIGNMENT',
@@ -93,6 +95,35 @@ const SITE_LINKS_QUERY = `
   from CAPTURE_DB.ACCESS.APP_USER u join CAPTURE_DB.ACCESS.APP_USER_SITE a on a.USERID = u.USERID and a.ENDEDAT is null
   where u.ISHEADOFFICE
 `
+// Claims on current evidence whose KSB isn't in the learner's version of
+// the standard (the version Burrow shows them, server/ksbVersions.js): the
+// portfolio wouldn't count them. Learners with no KSBs loaded for their
+// standard are counted separately, as a note, not a problem.
+const CLAIMS_QUERY = `
+  with versions as (
+    select * from ${ksbVersionsSql(`
+      select ld.LEARNREFNUMBER, s.REFERENCE as ST_REFERENCE, coalesce(ld.ORIGLEARNSTARTDATE, ld.LEARNSTARTDATE) as START_DATE
+      from CAPTURE_DB.ILR.LEARNING_DELIVERY ld
+      join CAPTURE_DB.LARS.STANDARD s on s.STANDARD_CODE = ld.STDCODE
+      where ld.AIMTYPE = 1 and ld.REMOVEDAT is null
+      qualify row_number() over (partition by ld.LEARNREFNUMBER, s.REFERENCE order by ld.AIMSEQNUMBER desc) = 1`)}
+  ),
+  claims as (
+    select e.LEARNREFNUMBER, ek.ST_REFERENCE, ek.KSB_TYPE, ek.KSB_REFERENCE, v.VERSION
+    from CAPTURE_DB.BURROW.EVIDENCE_KSB ek
+    join CAPTURE_DB.BURROW.EVIDENCE e on e.EVIDENCE_ID = ek.EVIDENCE_ID
+    left join versions v on v.LEARNREFNUMBER = e.LEARNREFNUMBER and v.ST_REFERENCE = ek.ST_REFERENCE
+    where ek.UNCLAIMED_AT is null and e.STATUS <> 'withdrawn'
+  )
+  select count(*) as CLAIMS,
+    coalesce(count_if(c.VERSION is not null and k.KSB_REFERENCE is null), 0) as MISSING,
+    coalesce(count_if(c.VERSION is null), 0) as NOT_LOADED
+  from claims c
+  left join CAPTURE_DB.SKILLS.STANDARD_KSB k
+    on k.ST_REFERENCE = c.ST_REFERENCE and k.VERSION = c.VERSION and k.KSB_TYPE = c.KSB_TYPE
+   and k.KSB_REFERENCE = c.KSB_REFERENCE and k.GONEAT is null
+`
+
 const EMPLOYER_REFERENCES_QUERY = [
   ...EMPLOYER_REFERENCES.map(([table, join, org, where]) => `select '${table}' as TABLE_NAME, count(*) as ROWS_,
      coalesce(count_if(e.EMPLOYERID is null), 0) as NO_EMPLOYER,
@@ -130,6 +161,11 @@ try {
     problems += Number(r.N)
     console.log(`${Number(r.N) ? 'FAIL' : 'ok  '} ${r.N} ${r.PROBLEM}`)
   }
+  console.log('\nBurrow claims:')
+  const [c] = await execute(connection, CLAIMS_QUERY)
+  problems += Number(c.MISSING)
+  console.log(`${Number(c.MISSING) ? 'FAIL' : 'ok  '} ${c.CLAIMS} current claims, ${c.MISSING} whose KSB isn't in the learner's version of the standard`
+    + (Number(c.NOT_LOADED) ? ` (and ${c.NOT_LOADED} on a standard with no KSBs loaded)` : ''))
 } finally {
   await destroy(connection)
 }

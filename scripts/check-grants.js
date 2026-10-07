@@ -17,6 +17,8 @@
 //      services, add-only; rebuilding EXT from them is an admin job), or has
 //      future grants in RAW or EXT (those are granted table by table), or is
 //      missing a grant the Companies House code needs (REQUIRED below).
+//   6. It owns a table in SKILLS, RAW or EXT, or is missing a grant the
+//      Skills England import needs (REQUIRED below).
 // Needs the Snowflake connection in server/.env.
 //
 // Usage:
@@ -51,6 +53,12 @@ const REQUIRED = {
   'CAPTURE_DB.EXT.VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
   'CAPTURE_DB.EXT.VACANCY_IMPORT_RUN': ['SELECT', 'INSERT', 'UPDATE'],
   'CAPTURE_DB.ILR.EMPLOYER_VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
+  // Skills England (sql/skills_01_tables.sql).
+  'CAPTURE_DB.RAW.SE_STANDARD_VERSION': ['INSERT'],
+  'CAPTURE_DB.RAW.SE_OCCUPATION': ['INSERT'],
+  ...Object.fromEntries(['SKILLS_IMPORT_RUN', 'STANDARD_VERSION', 'STANDARD_KSB', 'STANDARD_DUTY', 'STANDARD_DUTY_KSB',
+    'STANDARD_OPTION', 'STANDARD_DUTY_OPTION', 'OCCUPATION_PROFILE', 'OCCUPATION_SOC', 'OCCUPATION_TERM']
+    .map((t) => [`CAPTURE_DB.SKILLS.${t}`, ['SELECT', 'INSERT', 'UPDATE']])),
 }
 
 // The problems in a list of grants (from SHOW GRANTS TO ROLE) and future
@@ -66,6 +74,9 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
       problems.push(`${privilege} on ${name}: ACCESS is read-only for the app`)
     }
     if (privilege === 'DELETE' || privilege === 'TRUNCATE') problems.push(`${privilege} on ${name}: the app never deletes`)
+    if (privilege === 'OWNERSHIP' && /^CAPTURE_DB\.(SKILLS|RAW|EXT)\./.test(name)) {
+      problems.push(`OWNERSHIP of ${name}: tables there are owned by ACCOUNTADMIN, so the app can't drop or change them`)
+    }
     if (privilege === 'UPDATE' && ADD_ONLY.has(name)) problems.push(`UPDATE on ${name}: it is add-only`)
     if (g.granted_on === 'TABLE' && name.startsWith('CAPTURE_DB.RAW.') && privilege !== 'INSERT') {
       problems.push(`${privilege} on ${name}: the app only adds to RAW`)
@@ -73,7 +84,7 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
   }
   for (const [name, privileges] of Object.entries(REQUIRED)) {
     for (const privilege of privileges) {
-      if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the Companies House code needs it`)
+      if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the app needs it`)
     }
   }
   for (const g of futureLayerGrants.filter((x) => x.grantee_name === ROLE)) {
@@ -104,6 +115,6 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, the Companies House, site, contact and vacancy grants are in place, and it can't reach the test snapshot.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns nothing in SKILLS, RAW or EXT, the Companies House, site, contact, vacancy and Skills England grants are in place, and it can't reach the test snapshot.`)
   process.exit(problems.length ? 1 : 0)
 }

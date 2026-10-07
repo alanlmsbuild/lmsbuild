@@ -1,7 +1,8 @@
 // Burrow's learner endpoints: portfolio, evidence, and files.
 //
 // Everything is worked out in Snowflake SQL. KSBs come from CAPTURE_DB.SKILLS
-// (loaded by scripts/import-ksbs.js); until that has data, every screen says
+// (loaded by scripts/import-skills.js), for the learner's version of their
+// standard (ksbVersions.js); until that has data, every screen says
 // the KSBs aren't loaded yet and nothing is made up. Evidence is never
 // deleted: taking a file or a KSB off a draft marks the row instead.
 //
@@ -25,6 +26,7 @@ import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import busboy from 'busboy'
 import { execute } from './db.js'
+import { ksbVersionsSql } from './ksbVersions.js'
 import { allow, CURRENT_PROGRAMME, IN_VISIBLE_LEARNERS, LEARNER, STAFF, VISIBLE_LEARNER } from './access.js'
 import { validateEvidenceForm, validateEvidenceSubmission } from '../src/validation.js'
 import {
@@ -93,14 +95,30 @@ const LEARNERS_QUERY = `
   order by l.LEARNREFNUMBER
 `
 
-// The occupation for an ST reference: normally one. If there were ever more
-// than one, the most recently fetched wins. Bind: the ST reference.
-const OCCUPATION_CTE = `
-  occupation as (
-    select OCCUPATION_CODE, VERSION
-    from SKILLS.OCCUPATION
-    where ST_REFERENCE = ?
-    qualify row_number() over (order by FETCHED_AT desc) = 1
+// The learner's KSB version for an ST reference (ksbVersions.js), from
+// their latest programme aim on that standard. Binds: the learner, the ST
+// reference.
+const KSB_VERSION = ksbVersionsSql(`
+  select ld.LEARNREFNUMBER, s.REFERENCE as ST_REFERENCE,
+    coalesce(ld.ORIGLEARNSTARTDATE, ld.LEARNSTARTDATE) as START_DATE
+  from LEARNING_DELIVERY ld
+  join LARS.STANDARD s
+    on s.STANDARD_CODE = ld.STDCODE
+  where ld.AIMTYPE = 1 and ld.REMOVEDAT is null
+    and ld.LEARNREFNUMBER = ? and s.REFERENCE = ?
+    and ld.${IN_VISIBLE_LEARNERS}
+  qualify row_number() over (order by ld.AIMSEQNUMBER desc) = 1
+`)
+
+// The KSBs of that version. Binds: the learner, the ST reference.
+const VERSION_KSBS_CTE = `
+  ksb_version as (select * from ${KSB_VERSION}),
+  ksbs as (
+    select k.KSB_TYPE, k.KSB_REFERENCE, k.DETAIL, k.SORT_ORDER, k.VERSION
+    from SKILLS.STANDARD_KSB k
+    join ksb_version v
+      on v.ST_REFERENCE = k.ST_REFERENCE and v.VERSION = k.VERSION
+    where k.GONEAT is null
   )
 `
 
@@ -110,15 +128,9 @@ const OCCUPATION_CTE = `
 //   awaiting review - claimed on evidence that has been submitted
 //   needs changes   - claimed on evidence sent back with changes requested
 //   not started     - anything else, including KSBs only on drafts
-// Binds: the ST reference (occupation), the learner, the ST reference.
+// Binds: the learner, the ST reference (version), the learner, the ST reference.
 export const KSB_STATUS_QUERY = `
-  with ${OCCUPATION_CTE},
-  ksbs as (
-    select k.KSB_TYPE, k.KSB_REFERENCE, k.DETAIL, k.SORT_ORDER
-    from SKILLS.KSB k
-    join occupation o
-      on o.OCCUPATION_CODE = k.OCCUPATION_CODE
-  ),
+  with ${VERSION_KSBS_CTE},
   claims as (
     select ek.KSB_TYPE, ek.KSB_REFERENCE, e.STATUS, ek.DECISION
     from BURROW.EVIDENCE e
@@ -209,14 +221,13 @@ async function findLearner(connection, learnRefNumber) {
   return learner
 }
 
-async function standardKsbs(connection, stReference) {
+// The KSBs of the learner's version of a standard, by reference, each with
+// the VERSION and DETAIL a claim records.
+async function standardKsbs(connection, learnRefNumber, stReference) {
   const rows = await execute(
     connection,
-    `with ${OCCUPATION_CTE}
-     select k.KSB_TYPE, k.KSB_REFERENCE, k.DETAIL, o.VERSION
-     from SKILLS.KSB k
-     join occupation o on o.OCCUPATION_CODE = k.OCCUPATION_CODE`,
-    [stReference],
+    `with ${VERSION_KSBS_CTE} select KSB_TYPE, KSB_REFERENCE, DETAIL, VERSION from ksbs`,
+    [learnRefNumber, stReference],
   )
   return new Map(rows.map((r) => [r.KSB_REFERENCE, r]))
 }
@@ -613,12 +624,12 @@ export function registerBurrowRoutes(app) {
     try {
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const st = learner.STDREFERENCE
-      const [ksbs, evidence, [occupation]] = await Promise.all([
-        execute(connection, KSB_STATUS_QUERY, [st, learner.LEARNREFNUMBER, st]),
+      const [ksbs, evidence, [ksbVersion]] = await Promise.all([
+        execute(connection, KSB_STATUS_QUERY, [learner.LEARNREFNUMBER, st, learner.LEARNREFNUMBER, st]),
         execute(connection, EVIDENCE_LIST_QUERY, [learner.LEARNREFNUMBER, st]),
-        execute(connection, `with ${OCCUPATION_CTE} select * from occupation`, [st]),
+        execute(connection, `select VERSION, FROM_START from ${KSB_VERSION}`, [learner.LEARNREFNUMBER, st]),
       ])
-      res.json({ learner, occupation: occupation ?? null, ksbsLoaded: ksbs.length > 0, ksbs, evidence })
+      res.json({ learner, ksbVersion: ksbVersion ?? null, ksbsLoaded: ksbs.length > 0, ksbs, evidence })
     } catch (err) {
       sendError(res, err, 'Could not load the portfolio')
     }
@@ -669,7 +680,7 @@ export function registerBurrowRoutes(app) {
     try {
       requireOwnPortfolio(req)
       const learner = await findLearner(connection, req.params.learnRefNumber)
-      const standard = await standardKsbs(connection, learner.STDREFERENCE)
+      const standard = await standardKsbs(connection, learner.LEARNREFNUMBER, learner.STDREFERENCE)
       checkKsbs(fields.ksbs, standard)
 
       const evidenceId = crypto.randomUUID()
@@ -705,7 +716,7 @@ export function registerBurrowRoutes(app) {
       const learner = await findLearner(connection, req.params.learnRefNumber)
       const evidence = await findEvidence(connection, req.params.evidenceId, learner.LEARNREFNUMBER)
       requireEditable(evidence)
-      const standard = await standardKsbs(connection, evidence.ST_REFERENCE)
+      const standard = await standardKsbs(connection, learner.LEARNREFNUMBER, evidence.ST_REFERENCE)
       checkKsbs(fields.ksbs, standard)
 
       const by = req.user.USERID

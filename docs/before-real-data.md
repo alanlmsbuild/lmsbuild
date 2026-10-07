@@ -15,7 +15,7 @@ it. Add to this list rather than keeping these elsewhere.
   (users, roles, organisations); `npm run check:grants` fails if that
   changes. Part 8 will grant specific tables only.
 - **An owner role for imports** (2026-10-05, Alan). The import scripts
-  (`npm run import:lars`, `import:standards`, `import:ref`, `import:ksbs`)
+  (`npm run import:lars`, `import:skills`, `import:ref`)
   run as ILR_APP_ROLE, the same role as the website, and create or replace
   tables. A separate role should own the reference tables and run the
   imports, so the website's role can't create, replace or drop anything.

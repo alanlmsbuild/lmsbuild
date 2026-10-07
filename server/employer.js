@@ -12,6 +12,7 @@
 
 import crypto from 'node:crypto'
 import { execute } from './db.js'
+import { ksbVersionsSql } from './ksbVersions.js'
 import { allow, CURRENT_PROGRAMME, EMPLOYER, EMPLOYER_APPRENTICE } from './access.js'
 import { RequestError, sendError, sendStageFile } from './burrow.js'
 import { REVIEW_WINDOW_DAYS } from './myday.js'
@@ -21,7 +22,7 @@ import { todayString, validateWitnessConfirmationForm } from '../src/validation.
 //
 // KSBs signed off counts as the portfolio does (KSB_STATUS_QUERY in
 // burrow.js): confirmed by an assessor on signed-off evidence, still
-// claimed, and on the learner's standard. The next review is due by the
+// claimed, and on the learner's version of their standard (ksbVersions.js). The next review is due by the
 // last day of the third month after the last one, as on My day.
 const APPRENTICES_QUERY = `
   with apprentices as (
@@ -32,6 +33,7 @@ const APPRENTICES_QUERY = `
       s.REFERENCE as STDREFERENCE,
       s.NAME as STDNAME,
       ld.LEARNSTARTDATE,
+      coalesce(ld.ORIGLEARNSTARTDATE, ld.LEARNSTARTDATE) as KSB_START,
       ld.LEARNPLANENDDATE,
       ld.COMPSTATUS,
       ld.OUTCOME
@@ -41,16 +43,16 @@ const APPRENTICES_QUERY = `
     left join LARS.STANDARD s
       on s.STANDARD_CODE = ld.STDCODE
   ),
-  occupation as (
-    select ST_REFERENCE, OCCUPATION_CODE
-    from SKILLS.OCCUPATION
-    qualify row_number() over (partition by ST_REFERENCE order by FETCHED_AT desc) = 1
+  ksb_versions as (
+    select * from ${ksbVersionsSql(`
+      select LEARNREFNUMBER, STDREFERENCE as ST_REFERENCE, KSB_START as START_DATE from apprentices`)}
   ),
   standard_ksbs as (
-    select o.ST_REFERENCE, k.KSB_TYPE, k.KSB_REFERENCE
-    from SKILLS.KSB k
-    join occupation o
-      on o.OCCUPATION_CODE = k.OCCUPATION_CODE
+    select v.LEARNREFNUMBER, k.ST_REFERENCE, k.KSB_TYPE, k.KSB_REFERENCE
+    from SKILLS.STANDARD_KSB k
+    join ksb_versions v
+      on v.ST_REFERENCE = k.ST_REFERENCE and v.VERSION = k.VERSION
+    where k.GONEAT is null
   ),
   signed_off as (
     select distinct e.LEARNREFNUMBER, ek.KSB_TYPE, ek.KSB_REFERENCE
@@ -61,7 +63,8 @@ const APPRENTICES_QUERY = `
     join BURROW.EVIDENCE_KSB ek
       on ek.EVIDENCE_ID = e.EVIDENCE_ID
     join standard_ksbs k
-      on k.ST_REFERENCE = e.ST_REFERENCE
+      on k.LEARNREFNUMBER = e.LEARNREFNUMBER
+     and k.ST_REFERENCE = e.ST_REFERENCE
      and k.KSB_TYPE = ek.KSB_TYPE
      and k.KSB_REFERENCE = ek.KSB_REFERENCE
     where e.STATUS = 'signed_off'
@@ -75,8 +78,8 @@ const APPRENTICES_QUERY = `
     group by LEARNREFNUMBER
   )
   select
-    a.*,
-    (select count(*) from standard_ksbs k where k.ST_REFERENCE = a.STDREFERENCE) as KSBS_TOTAL,
+    a.* exclude (KSB_START),
+    (select count(*) from standard_ksbs k where k.LEARNREFNUMBER = a.LEARNREFNUMBER) as KSBS_TOTAL,
     (select count(*) from signed_off so where so.LEARNREFNUMBER = a.LEARNREFNUMBER) as KSBS_SIGNED_OFF,
     r.LAST_REVIEW_DATE,
     last_day(dateadd(month, 3, coalesce(r.LAST_REVIEW_DATE, a.LEARNSTARTDATE))) as REVIEW_DUE_BY,

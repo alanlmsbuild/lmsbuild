@@ -13,6 +13,7 @@ puts it back.
     node test/db/refresh-companies.mjs  # the nightly refresh (after employers.mjs)
     node test/db/employer-sites.mjs     # sites, and who sees whom in Burrow
     node test/db/vacancy-import.mjs     # the vacancy import (one live request)
+    node test/db/skills-import.mjs      # the Skills England import (one live request each)
     test/stop-test-servers.py           # stops only those two servers
 
 - `browser/` drives the real pages in headless Chromium (step3 to step4g2,
@@ -20,7 +21,9 @@ puts it back.
   which calls Companies House for real, and `sites.mjs` for employer sites,
   contacts, apprentices' workplaces and what each employer contact sees in
   Burrow, and `vacancies.mjs` for the Vacancies tab, which needs the adverts
-  imported first: `npm run import:vacancies -- --full`). `setup.mjs` has the
+  imported first: `npm run import:vacancies -- --full`, and `ksbs.mjs` for
+  KSBs in Burrow, from the learner's version of their standard, which needs
+  `npm run import:skills` first). `setup.mjs` has the
   shared settings.
   `restore-4g1.mjs` puts the six 4g-1 learners back to continuing; the 4g-1
   test leaves its outcomes in place for checking in FIS.
@@ -46,6 +49,11 @@ puts it back.
   as text), cleaning, sources, pacing, then runs the import against saved
   responses (`fixtures/faa/`, real adverts without contact details) in a
   transaction it rolls back, and makes one live request.
+- `db/skills-import.mjs` checks KSBs are labelled K1, S1, B1... in the
+  order listed, duties, options and SOC codes, then runs the import against
+  saved responses (`fixtures/skills/`) under test references (ST9072,
+  ST9312, OCC9072) in a transaction it rolls back, and makes one live
+  request to each API.
 - `db/refresh-companies.mjs` runs the nightly refresh on the TESCO PLC test
   employers that `browser/employers.mjs` adds, calling Companies House for
   real.

@@ -340,7 +340,7 @@ function otjPolicyText(otj) {
     case 'old':
       return `Started before 1 August 2025, so the earlier rule applies: 20% of normal working hours (capped at 30 a week) over the planned duration.${otj.originalStart ? '' : ' The ILR checks at least 278 hours.'}`
     default:
-      return "The standards' published minimums aren't loaded yet (npm run import:standards), so only the 187-hour floor is checked."
+      return "The standards' published minimums aren't loaded yet (npm run import:skills), so only the 187-hour floor is checked."
   }
 }
 

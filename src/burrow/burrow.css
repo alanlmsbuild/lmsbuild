@@ -334,6 +334,17 @@
   align-items: start;
 }
 
+.burrow-ksb-list li .burrow-chip {
+  grid-column: 2;
+  justify-self: start;
+}
+
+/* The Skills England credit goes under all three lists. */
+.burrow-ksb-columns > .ksb-credit {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
 .burrow-ksb-group-head {
   display: flex;
   align-items: baseline;
@@ -361,10 +372,13 @@
   gap: 8px;
 }
 
+/* Reference, then the wording with its status underneath: the columns are
+   narrow, and the wording is what matters. */
 .burrow-ksb-list li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 10px;
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--b-page);
