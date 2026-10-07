@@ -5,6 +5,8 @@
 // and again on the server before anything is saved (in case the browser
 // check was bypassed or skipped).
 
+import { ukDate } from './ukTime.js'
+
 import {
   SEX_OPTIONS,
   LLDD_HEALTH_PROBLEM_OPTIONS,
@@ -196,10 +198,10 @@ function isValidDateString(value) {
   return !Number.isNaN(new Date(value).getTime())
 }
 
-// Today's date as a YYYY-MM-DD string, so it can be compared with the ISO
-// date strings the forms use just by comparing text.
-export function todayString() {
-  return new Date().toISOString().slice(0, 10)
+// Today's date in the UK as a YYYY-MM-DD string, so it can be compared with
+// the ISO date strings the forms use just by comparing text.
+export function todayString(now = new Date()) {
+  return ukDate(now)
 }
 
 // The learner fields (as opposed to the aim fields) are the same whether

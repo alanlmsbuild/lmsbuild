@@ -1,4 +1,5 @@
 import SkillsEnglandCredit from '../SkillsEnglandCredit'
+import { UK_ZONE, ukDate } from '../ukTime'
 import { useEffect, useRef, useState } from 'react'
 import {
   ACCEPT_ATTRIBUTE,
@@ -38,13 +39,13 @@ function useIsPhone() {
   return isPhone
 }
 
-// Today in the learner's own time zone, as YYYY-MM-DD.
+// Today in the UK, as YYYY-MM-DD: the same day the server checks against.
 function localToday() {
-  return new Date().toLocaleDateString('en-CA')
+  return ukDate()
 }
 
 function captureTitle(kind) {
-  const when = new Date().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  const when = new Date().toLocaleString('en-GB', { timeZone: UK_ZONE, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   return `${kind}, ${when}`
 }
 

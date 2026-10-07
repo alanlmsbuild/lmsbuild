@@ -20,6 +20,7 @@ import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { execute } from '../server/db.js'
 import { JOB_SCHEDULE, RETRY_AFTER } from '../server/jobSchedule.js'
+import { ukIso } from '../src/ukTime.js'
 
 const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const STATE_FILE = process.env.JOBS_STATE_FILE || path.join(REPO, 'logs', 'jobs', 'state.json')
@@ -164,12 +165,13 @@ export async function recordRun({ connection, job, triggeredBy, run, log = conso
   return { jobRunId, ...result }
 }
 
-// A job script's log: printed, and appended to logs/<name>/<date>.log.
+// A job script's log: printed, and appended to logs/<name>/<UK date>.log,
+// each line stamped in UK time with its offset (src/ukTime.js).
 export function makeLog(name) {
   const dir = path.join(REPO, 'logs', name)
   fs.mkdirSync(dir, { recursive: true })
   return (line) => {
-    const stamped = `${new Date().toISOString()} ${line}`
+    const stamped = `${ukIso()} ${line}`
     console.log(stamped)
     fs.appendFileSync(path.join(dir, `${stamped.slice(0, 10)}.log`), stamped + '\n')
   }

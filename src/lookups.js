@@ -1,6 +1,8 @@
 // Human-readable labels for a few common ILR reference codes, so the table
 // isn't just raw numbers. Falls back to showing the code itself if unknown.
 
+import { ukDateText } from './ukTime.js'
+
 export const AIM_TYPE_LABELS = {
   1: 'Programme aim',
   3: 'Component (funded)',
@@ -39,9 +41,10 @@ export function completionTone(compstatus) {
   return 'neutral'
 }
 
+// 07/10/2026: a date as it is, an instant as its UK day (src/ukTime.js).
 export function formatDate(value) {
   if (!value) return '—'
-  return new Date(value).toLocaleDateString('en-GB')
+  return ukDateText(value)
 }
 
 // Formats a LARS standard, e.g. "ST0072 Customer Service Practitioner

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatDate } from '../lookups'
+import { ukTimeText } from '../ukTime'
 import { usePageTitle } from '../shell/navigation'
 import { Button, Card, Notice, StatusBadge } from '../ui/components'
 import { CompanyStatus, Flags } from './Employers'
@@ -11,7 +12,7 @@ import { employerFlags } from './flags'
 // it over a day ago, and a manager can refresh it now. The registered office
 // is shown to managers only (the server leaves it out for everyone else).
 
-const when = (value) => (value ? `${formatDate(value)} at ${new Date(value).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : '—')
+const when = (value) => (value ? `${formatDate(value)} at ${ukTimeText(value)}` : '—')
 const yesNo = (value) => (value === true ? 'Yes' : value === false ? 'No' : '—')
 
 export function registeredOffice(d) {

@@ -15,6 +15,7 @@ puts it back.
     node test/db/vacancy-import.mjs     # the vacancy import (one live request)
     node test/db/skills-import.mjs      # the Skills England import (one live request each)
     node test/db/jobs.mjs               # the scheduler and job records, fake jobs
+    node test/uk-time.mjs               # UK time either side of the clocks changing
     test/stop-test-servers.py           # stops only those two servers
 
 - `browser/` drives the real pages in headless Chromium (step3 to step4g2,
