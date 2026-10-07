@@ -2,7 +2,7 @@
 // scheduling step 2.
 //   Part 1  no database: what's due when (a fake clock), catching up once
 //           after a gap, retrying no sooner than an hour, the state file,
-//           one tick per machine
+//           one tick per machine, clearing old logs (in a test folder)
 //   Part 2  the database, with fake jobs, in one transaction that's rolled
 //           back: a tick with nothing due never connects; a missing state
 //           file is filled from OPS.JOB_RUN; due jobs run one at a time and
@@ -19,7 +19,7 @@ import path from 'node:path'
 import { connect, execute, destroy } from '../../server/db.js'
 import { JOB_SCHEDULE } from '../../server/jobSchedule.js'
 import { isDue, JobTimeout, readState, recordRun, writeState } from '../../scripts/job-run.js'
-import { takeLock, tick } from '../../scripts/jobs.js'
+import { clearOldLogs, takeLock, tick } from '../../scripts/jobs.js'
 
 let failures = 0
 const check = (label, ok, detail = '') => {
@@ -70,6 +70,21 @@ console.log('Part 1: what is due when')
   const taken = takeLock(lock)
   check('  a lock left by a process that has gone is taken over', typeof taken === 'function' && fs.readFileSync(lock, 'utf8') === String(process.pid))
   taken()
+
+  // Old logs: a folder like logs/jobs, on 7 October 2026 (UK).
+  const logs = path.join(dir, 'logs')
+  fs.mkdirSync(logs)
+  for (const name of ['2026-07-08.log', '2026-07-09.log', '2026-10-06.log', 'state.json', 'notes.log']) fs.writeFileSync(path.join(logs, name), 'x')
+  fs.writeFileSync(path.join(logs, 'tick-output.old.log'), 'the one before')
+  fs.writeFileSync(path.join(logs, 'tick-output.log'), 'y'.repeat(1_000_001))
+  const cleared = clearOldLogs(logs, { now: new Date('2026-10-07T12:00:00Z') })
+  const left = fs.readdirSync(logs).sort().join()
+  check('old logs: daily logs over 90 days old removed (8 July), 9 July on kept, nothing else touched',
+    cleared.removed.join() === '2026-07-08.log' && left === '2026-07-09.log,2026-10-06.log,notes.log,state.json,tick-output.old.log', left)
+  check('  tick-output.log over 1 MB kept once as tick-output.old.log', cleared.rotated && fs.statSync(path.join(logs, 'tick-output.old.log')).size === 1_000_001)
+  fs.writeFileSync(path.join(logs, 'tick-output.log'), 'small')
+  const again = clearOldLogs(logs, { now: new Date('2026-10-07T12:00:00Z') })
+  check('  run again: nothing more to clear', again.removed.length === 0 && !again.rotated)
 }
 
 // ---------------------------------------------------------------- part 2

@@ -104,6 +104,20 @@ before it could log, such as a crash at start-up).
   whether it's overdue on their home page, worked out from `OPS.JOB_RUN`,
   so it shows even when the scheduler itself has stopped.
 
+## Old logs
+
+Each tick clears old files in `~/my-react-app/logs/jobs/` before it checks
+what's due (`clearOldLogs` in `scripts/jobs.js`):
+
+- daily logs (`YYYY-MM-DD.log`) more than 90 days old are deleted;
+- once `tick-output.log` passes 1 MB, it's renamed `tick-output.old.log`
+  (replacing the one before) and the next tick starts a new one.
+
+It logs a line when it clears something. `state.json`, `tick.lock` and
+anything else there are left alone. Manual runs log to
+`logs/import-vacancies/`, `logs/import-skills/` and
+`logs/refresh-companies/`, which aren't cleared.
+
 ## Pausing, changing and removing
 
 - **Task Scheduler**: right-click Rarebit jobs → **Disable** to pause it,

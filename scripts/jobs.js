@@ -17,7 +17,9 @@
 // tick stops (the rest are due next tick).
 //
 // Logs to logs/jobs/<date>.log only when it runs something: a line as each
-// job starts and one as it ends.
+// job starts and one as it ends. Each tick also clears old logs there
+// (clearOldLogs): daily logs older than 90 days, and tick-output.log once
+// it passes 1 MB (kept once, as tick-output.old.log).
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -25,6 +27,11 @@ import { fileURLToPath } from 'node:url'
 import { connect, execute, destroy } from '../server/db.js'
 import { JOB_ORDER, JOB_SCHEDULE } from '../server/jobSchedule.js'
 import { isDue, JobTimeout, makeLog, readState, recordRun, SEED_QUERY, seedState, STATE_FILE, writeState } from './job-run.js'
+import { ukDate } from '../src/ukTime.js'
+
+export const JOBS_LOG_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'logs', 'jobs')
+export const KEEP_LOG_DAYS = 90
+export const MAX_OUTPUT_BYTES = 1_000_000
 
 // How each job runs, loaded only when it's due.
 export const JOB_RUNNERS = {
@@ -86,6 +93,29 @@ export async function tick({
   return done
 }
 
+// Clears old logs in dir: daily logs (YYYY-MM-DD.log, by UK date) older
+// than keepDays, and tick-output.log once it's over maxBytes (renamed to
+// tick-output.old.log, replacing the last one; run-jobs.sh starts a new
+// one next tick). Nothing else there is touched. Returns what it did.
+export function clearOldLogs(dir = JOBS_LOG_DIR, { now = new Date(), keepDays = KEEP_LOG_DAYS, maxBytes = MAX_OUTPUT_BYTES } = {}) {
+  const done = { removed: [], rotated: false }
+  if (!fs.existsSync(dir)) return done
+  const oldest = ukDate(new Date(Date.parse(`${ukDate(now)}T12:00:00Z`) - keepDays * 86_400_000))
+  for (const name of fs.readdirSync(dir)) {
+    const m = name.match(/^(\d{4}-\d{2}-\d{2})\.log$/)
+    if (m && m[1] < oldest) {
+      fs.rmSync(path.join(dir, name), { force: true })
+      done.removed.push(name)
+    }
+  }
+  const output = path.join(dir, 'tick-output.log')
+  if (fs.existsSync(output) && fs.statSync(output).size > maxBytes) {
+    fs.renameSync(output, path.join(dir, 'tick-output.old.log'))
+    done.rotated = true
+  }
+  return done
+}
+
 // One tick per machine at a time: a lock file holding the process ID.
 // Returns a release function, or null if a live process holds it.
 export function takeLock(file) {
@@ -117,6 +147,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (!release) process.exit(0) // a tick is already running here
   let code = 0
   try {
+    const cleared = clearOldLogs()
+    if (cleared.removed.length || cleared.rotated) {
+      makeLog('jobs')(`Cleared old logs: ${cleared.removed.length} daily ${cleared.removed.length === 1 ? 'log' : 'logs'} over ${KEEP_LOG_DAYS} days old${cleared.rotated ? ', and tick-output.log (over 1 MB) kept as tick-output.old.log' : ''}`)
+    }
     const done = await tick()
     if (done.stopped || done.ran.some((r) => r.outcome !== 'succeeded')) code = 1
   } catch (err) {

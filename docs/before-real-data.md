@@ -102,13 +102,12 @@ it. Add to this list rather than keeping these elsewhere.
 - **How long RAW history is kept** (2026-10-06, Alan). Every Companies House
   response is kept in RAW, add-only. Set a retention period (for example 2
   years) and a way to clear older rows.
-- **Where scheduled jobs run** (2026-10-06, Claude). The nightly company
-  refresh (`npm run refresh:companies`, scripts/refresh-companies.js) needs a
-  scheduler: cron on the server, or inside Snowflake with external access.
-  Nothing runs on a schedule yet. It works across every organisation with
-  the app's role; give it its own role limited to ILR.EMPLOYER's company
-  columns, RAW and EXT, and keep its logs (logs/refresh-companies/) as long
-  as RAW.
+- **The company refresh's own role** (2026-10-06, Claude; updated
+  2026-10-07). The nightly company refresh now runs from the scheduler
+  (docs/scheduling.md; what's left of scheduling is under Scheduled jobs
+  below). It works across every organisation with the app's role: give it
+  its own role limited to ILR.EMPLOYER's company columns, RAW and EXT, and
+  keep its logs (logs/refresh-companies/) as long as RAW.
 - **Separate Companies House keys** (2026-10-06, Claude) for development,
   testing and real use: the limit is per application, so one shared key
   shares the 600 requests. Decide who owns the keys and how they're rotated.
@@ -167,7 +166,53 @@ it. Add to this list rather than keeping these elsewhere.
   plain text only (server/vacancyText.js). Showing their formatting needs a
   proper allow-list cleaner first, and a test that a script in an advert
   never runs.
-- **The import's schedule** (2026-10-06, Claude). `npm run import:vacancies
-  -- --full` nightly and `-- --new` every 2 hours, from the same scheduler
-  as the Companies House refresh. A run refuses to start while another is
-  open (an unfinished run older than an hour no longer blocks).
+- **The import's schedule** (2026-10-06, Claude; done 2026-10-07). The full
+  import is due every 24 hours and new adverts every 2 hours, from the
+  scheduler (docs/scheduling.md), which runs on the laptop for now: see
+  Scheduled jobs below.
+
+## Scheduled jobs
+
+The scheduler (`npm run jobs`, docs/scheduling.md) runs the vacancy,
+Companies House and Skills England jobs. Today a Windows scheduled task on
+Alan's laptop starts it, so the jobs only run while the laptop is on.
+
+- **An always-on host** (2026-10-07, Alan). Move the scheduler off the
+  laptop before real users. Only the trigger changes: a systemd timer or
+  cron entry runs `scripts/run-jobs.sh` every 15 minutes. Likely hosts: a
+  small UK-region Linux VM, or a scheduled container job on whatever
+  platform hosts the app. Not Snowflake Tasks (the jobs would have to be
+  rewritten) or GitHub Actions cron (best-effort, often late). The host
+  needs Node 24 on its PATH (the laptop gets it from nvm), the repo at the
+  version the app runs, and somewhere lasting for the state file
+  (`JOBS_STATE_FILE`; it's only a cache of OPS.JOB_RUN, refilled if lost).
+- **Remove the laptop's task when the jobs move** (2026-10-07, Alan). Once
+  the host runs them, remove "Rarebit jobs" from the laptop (PowerShell:
+  `Unregister-ScheduledTask -TaskName 'Rarebit jobs' -Confirm:$false`).
+  The locks would stop the two from running the same job at once, but both
+  would still run, and both would use the same API keys' limits. Check
+  afterwards that new rows in OPS.JOB_RUN all show the host's name (HOST).
+- **Alerts when a job is overdue** (2026-10-07, Claude). Today an overdue
+  job shows on managers' Data updates tile and in `npm run check:jobs`,
+  but nobody is told. On the host, run `npm run check:jobs` after each tick
+  or hourly, and alert someone (for example by email) when it fails.
+  Decide who.
+- **The jobs' own Snowflake user, in UK time** (2026-10-07, Alan). The
+  jobs run as ILR_APP_USER today (see "Imports under their own role"
+  above). Any new Snowflake user for them, or for the app, needs
+  `ALTER USER ... SET TIMEZONE = 'Europe/London'` like ILR_APP_USER
+  (sql/jobs_02_uk_time.sql): Snowflake's default is Los Angeles time, which
+  makes "today" wrong before 08:00 UK time.
+- **Keys in a secrets store** (2026-10-07, Claude). The jobs read the
+  Companies House, Find an apprenticeship and Skills England keys from
+  server/.env. On the host, keep them in its secrets store instead, with
+  separate keys from development (see "Separate Companies House keys" and
+  "Whose key" above).
+- **Keeping logs and run records** (2026-10-07, Alan). On the laptop each
+  tick clears `logs/jobs/` itself: daily logs after 90 days, and
+  `tick-output.log` once it passes 1 MB (docs/scheduling.md, "Old logs").
+  Manual runs' logs (`logs/import-vacancies/`, `logs/import-skills/`,
+  `logs/refresh-companies/`) aren't cleared. On the host, decide how long
+  each is kept (the Companies House refresh's as long as RAW, above), and
+  how long OPS.JOB_RUN rows are kept (one row per job run, a few thousand
+  a year).
