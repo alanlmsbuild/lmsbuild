@@ -56,6 +56,12 @@ built, move it out (or strike it through with where it went).
   (Claude: home postcodes are personal data, so group them, never show them,
   and hide small groups so individuals can't be identified, as for the
   reporting-by-ethnicity idea.)
+- 2026-10-07, Alan: an apprentice's standard version is taken from their
+  start date, but providers can move an apprentice onto a newer version
+  partway through, and the EPA is against that version. A manager needs to
+  record the apprentice's actual version, overriding the start-date
+  default, with the change in the history (audit log). KSB claims already
+  store the version they were made against, so they're unaffected.
 ## Ideas from Alan, 5 October 2026
 
 ### Learners and matching
