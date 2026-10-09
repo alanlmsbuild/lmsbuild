@@ -22,6 +22,7 @@
     "preview": "vite preview",
     "import:ref": "node scripts/import-ref.js",
     "import:skills": "node scripts/import-skills.js",
+    "load:data": "node scripts/load-data.js",
     "jobs": "node scripts/jobs.js"
   },
   "dependencies": {
@@ -32,8 +33,11 @@
     "express": "^5.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "saxes": "^6.0.0",
     "snowflake-sdk": "^3.3.0",
-    "xmllint-wasm": "^5.3.0"
+    "xmllint-wasm": "^5.3.0",
+    "yaml": "^2.9.1",
+    "yauzl": "^3.4.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
