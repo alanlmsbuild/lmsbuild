@@ -83,7 +83,9 @@ const extract = (zip, member) => async (out) => { await pipeline(await zipEntry(
 
 // GIAS without its personal columns: every other field byte for byte
 // (Windows-1252, read and written as latin1, one byte one character).
-const GIAS_PERSONAL = ['HeadTitle (name)', 'HeadFirstName', 'HeadLastName', 'HeadPreferredJobTitle', 'PropsName']
+// TelephoneNum too (sql/load_03_gias_telephone.sql): 157 establishments,
+// mostly small independent schools, give a mobile, which may be a person's.
+const GIAS_PERSONAL = ['HeadTitle (name)', 'HeadFirstName', 'HeadLastName', 'HeadPreferredJobTitle', 'PropsName', 'TelephoneNum']
 const giasWithoutNames = (zip, member) => async (out) => {
   let drop = null
   async function* lines() {
