@@ -7,8 +7,11 @@
 -- sql/ilr_04_capture.sql (so the snapshot has the new columns) and before
 -- testing the capture screens. Safe to run twice: a snapshot table that
 -- already exists is left as it is, so running it again never overwrites the
--- snapshot with edited data. To take a new snapshot, drop the schema first
--- (DROP SCHEMA CAPTURE_DB.TEST_BASELINE) and run this again.
+-- snapshot with edited data. To take a new snapshot, drop the snapshot
+-- tables made below first and run this again. Don't drop the schema: since
+-- sql/load_00_setup.sql it also holds the loaded test files (ILR exports,
+-- FIS reports), their SOURCE_FILE rows and stage, which the reset never
+-- touches. If it is dropped anyway, run load_00_setup.sql again and reload.
 --
 -- The snapshot lives in its own schema, CAPTURE_DB.TEST_BASELINE, owned by
 -- ACCOUNTADMIN. The app's role (ILR_APP_ROLE) is given no access to it.

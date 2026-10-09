@@ -20,7 +20,17 @@
 //   6. It owns or can create anything in SHARED_DB (the shared database:
 //      REF, SKILLS, EXT, RAW, ACCESS, OPS; all owned by ACCOUNTADMIN), or
 //      is missing a grant the imports need (REQUIRED below).
-// Needs the Snowflake connection in server/.env.
+//   7. It can do more than read in OPTIONS_DB (the school leavers app's
+//      database: only the loaders write there), directly or through a
+//      database role it holds; it can use LOAD_WH; or it, or the app's user,
+//      has DATA_LOAD_ROLE (sql/load_00_setup.sql). The live app's key must
+//      never be able to write to OPTIONS_DB.
+//   8. DATA_LOAD_ROLE, checked as DATA_LOAD_USER, has anything on ACCESS, on
+//      the ILR tables or on the test snapshot of them in TEST_BASELINE; can
+//      delete, truncate, own or create anything; or DATA_LOAD_USER has any
+//      role but DATA_LOAD_ROLE.
+// Needs the Snowflake connection in server/.env, and the loaders' key
+// (DATA_LOAD_PRIVATE_KEY_PATH) for 8.
 //
 // Usage:
 //   npm run check:grants
@@ -28,6 +38,10 @@
 import { connect, execute, destroy } from '../server/db.js'
 
 const ROLE = 'ILR_APP_ROLE'
+const LOAD_ROLE = 'DATA_LOAD_ROLE'
+const LOAD_USER = process.env.DATA_LOAD_USERNAME || 'DATA_LOAD_USER'
+// All the app may ever have in OPTIONS_DB.
+const OPTIONS_READS = new Set(['USAGE', 'SELECT', 'REFERENCES'])
 const WRITES = new Set(['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'])
 // ACCESS tables the app may write (none until part 8).
 const ACCESS_WRITABLE = new Set([])
@@ -71,7 +85,9 @@ const REQUIRED = {
 // The problems in a list of grants (from SHOW GRANTS TO ROLE) and future
 // grants on ACCESS (from SHOW FUTURE GRANTS IN SCHEMA). Exported so it can be
 // tried on made-up grants.
-export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []) {
+// appUserRoles: SHOW GRANTS TO USER for the app's user. grants should
+// include the grants of any OPTIONS_DB database role the app holds.
+export function grantProblems(grants, futureAccessGrants, futureLayerGrants = [], appUserRoles = []) {
   const problems = []
   for (const g of grants) {
     const name = String(g.name)
@@ -91,6 +107,14 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
     if (g.granted_on === 'TABLE' && name.startsWith('SHARED_DB.RAW.') && privilege !== 'INSERT') {
       problems.push(`${privilege} on ${name}: the app only adds to RAW`)
     }
+    if (/^OPTIONS_DB(\.|$)/.test(name) && !OPTIONS_READS.has(privilege)) {
+      problems.push(`${privilege} on ${name}: the app only reads OPTIONS_DB; the loaders write it`)
+    }
+    if (name === 'LOAD_WH') problems.push(`${privilege} on LOAD_WH: the load warehouse is for DATA_LOAD_ROLE only`)
+    if (g.granted_on === 'ROLE' && name === LOAD_ROLE) problems.push(`${ROLE} has ${LOAD_ROLE}: the app could write to OPTIONS_DB`)
+  }
+  for (const r of appUserRoles) {
+    if (String(r.role) === LOAD_ROLE) problems.push(`The app's user ${r.grantee_name} has ${LOAD_ROLE}: the app's key could write to OPTIONS_DB`)
   }
   for (const [name, privileges] of Object.entries(REQUIRED)) {
     for (const privilege of privileges) {
@@ -106,9 +130,34 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
   return problems
 }
 
+// The problems in DATA_LOAD_ROLE's grants (SHOW GRANTS TO ROLE, as
+// DATA_LOAD_USER) and DATA_LOAD_USER's roles (SHOW GRANTS TO USER).
+// snapshotNames: the ILR and ACCESS table names, whose test copies in
+// CAPTURE_DB.TEST_BASELINE the loaders must not reach either.
+export function loaderGrantProblems(grants, userRoles, snapshotNames = new Set()) {
+  const problems = []
+  for (const g of grants) {
+    const name = String(g.name)
+    const privilege = String(g.privilege)
+    if (/^SHARED_DB\.ACCESS(\.|$)/.test(name)) problems.push(`${privilege} on ${name}: ${LOAD_ROLE} has nothing on ACCESS`)
+    if (/^CAPTURE_DB\.ILR(\.|$)/.test(name)) problems.push(`${privilege} on ${name}: ${LOAD_ROLE} has nothing on the ILR tables`)
+    const m = name.match(/^CAPTURE_DB\.TEST_BASELINE\.(.+)$/)
+    if (m && snapshotNames.has(m[1])) problems.push(`${privilege} on ${name}: ${LOAD_ROLE} can't reach the test learner snapshot`)
+    if (['DELETE', 'TRUNCATE', 'OWNERSHIP'].includes(privilege) || privilege.startsWith('CREATE')) {
+      problems.push(`${privilege} on ${name}: the loaders add rows to tables made by ACCOUNTADMIN; they never delete, own or create`)
+    }
+  }
+  for (const r of userRoles) {
+    if (String(r.role) !== LOAD_ROLE) problems.push(`${LOAD_USER} also has ${r.role}: it should have ${LOAD_ROLE} only`)
+  }
+  if (!userRoles.some((r) => String(r.role) === LOAD_ROLE)) problems.push(`${LOAD_USER} doesn't have ${LOAD_ROLE}`)
+  return problems
+}
+
 let problems = []
 let checked = 0
 if (process.argv[1]?.endsWith('check-grants.js')) {
+  let snapshotNames = new Set()
   const connection = await connect()
   try {
     const grants = await execute(connection, `show grants to role ${ROLE}`)
@@ -117,14 +166,33 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
       ...(await execute(connection, 'show future grants in schema SHARED_DB.RAW')),
       ...(await execute(connection, 'show future grants in schema SHARED_DB.EXT')),
     ]
-    checked = grants.length + future.length + layers.length
-    problems = grantProblems(grants, future, layers)
+    // A database role in OPTIONS_DB (Warren reading CLEAN, later) carries
+    // grants of its own: check those as if they were the app's.
+    for (const g of grants.filter((x) => x.granted_on === 'DATABASE_ROLE' && /^OPTIONS_DB\./.test(String(x.name)))) {
+      grants.push(...(await execute(connection, `show grants to database role ${g.name}`)))
+    }
+    const appUserRoles = await execute(connection, `show grants to user ${process.env.SNOWFLAKE_USERNAME}`)
+    snapshotNames = new Set([
+      ...(await execute(connection, 'show tables in schema CAPTURE_DB.ILR')),
+      ...(await execute(connection, 'show tables in schema SHARED_DB.ACCESS')),
+    ].map((t) => String(t.name)))
+    checked = grants.length + future.length + layers.length + appUserRoles.length
+    problems = grantProblems(grants, future, layers, appUserRoles)
   } finally {
     await destroy(connection)
   }
+  const loader = await connect({ as: 'loader' })
+  try {
+    const loaderGrants = await execute(loader, `show grants to role ${LOAD_ROLE}`)
+    const loaderRoles = await execute(loader, `show grants to user ${LOAD_USER}`)
+    checked += loaderGrants.length + loaderRoles.length
+    problems.push(...loaderGrantProblems(loaderGrants, loaderRoles, snapshotNames))
+  } finally {
+    await destroy(loader)
+  }
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
-    ? `\n${problems.length} grant problem(s) for ${ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, and it can't reach the test snapshot.`)
+    ? `\n${problems.length} grant problem(s) for ${ROLE} or ${LOAD_ROLE}.`
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything.`)
   process.exit(problems.length ? 1 : 0)
 }
