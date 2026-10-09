@@ -6,6 +6,7 @@
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { once } from 'node:events'
+import { Transform } from 'node:stream'
 import yauzl from 'yauzl'
 import { SaxesParser } from 'saxes'
 
@@ -22,17 +23,31 @@ export async function sha256File(file) {
 
 export const sha256Text = (text) => crypto.createHash('sha256').update(text).digest('hex')
 
-// A readable stream of one file inside a zip.
+// yauzl's own size check rejects a whole zip over one odd entry (the LARS
+// zip's CSV/ folder entry is stored with sizes 0 and 20480), so it's off;
+// zipEntry checks the size of the file it reads instead.
+const ZIP_OPTIONS = { lazyEntries: true, validateEntrySizes: false }
+
+// A readable stream of one file inside a zip. The stream fails if the file
+// comes out a different size from the one the zip records.
 export function zipEntry(zipPath, entryName) {
   return new Promise((resolve, reject) => {
-    yauzl.open(zipPath, { lazyEntries: true, autoClose: false }, (err, zip) => {
+    yauzl.open(zipPath, { ...ZIP_OPTIONS, autoClose: false }, (err, zip) => {
       if (err) return reject(err)
       zip.on('entry', (entry) => {
         if (entry.fileName !== entryName) return zip.readEntry()
         zip.openReadStream(entry, (e, stream) => {
           if (e) return reject(e)
-          stream.on('end', () => zip.close())
-          resolve(stream)
+          let bytes = 0
+          const counted = new Transform({
+            transform(chunk, _encoding, done) { bytes += chunk.length; done(null, chunk) },
+            flush(done) {
+              zip.close()
+              done(bytes === entry.uncompressedSize ? null : new Error(`${entryName} in ${zipPath}: read ${bytes} bytes, the zip says ${entry.uncompressedSize}.`))
+            },
+          })
+          stream.on('error', (e2) => counted.destroy(e2))
+          resolve(stream.pipe(counted))
         })
       })
       zip.on('end', () => reject(new Error(`${entryName} isn't in ${zipPath}`)))
@@ -44,7 +59,7 @@ export function zipEntry(zipPath, entryName) {
 // The names of the files in a zip.
 export function zipNames(zipPath) {
   return new Promise((resolve, reject) => {
-    yauzl.open(zipPath, { lazyEntries: true }, (err, zip) => {
+    yauzl.open(zipPath, ZIP_OPTIONS, (err, zip) => {
       if (err) return reject(err)
       const names = []
       zip.on('entry', (entry) => { names.push(entry.fileName); zip.readEntry() })
