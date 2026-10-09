@@ -4,6 +4,9 @@ Things worth doing one day that aren't planned yet. One line each: the
 date it was raised, who raised it, and the idea. When one is planned or
 built, move it out (or strike it through with where it went).
 
+- 2026-10-09, Alan: next time the school leavers app's page data is
+  reloaded (npm run load:data -- 2), bundle the 2,689 institution files
+  into one file before uploading, so it takes seconds, not 25 minutes.
 - 2026-10-05, Alan: when an apprentice returns from a break on a
   different standard, record that properly (left out of 4g-2, which
   covers returning on the same standard).
