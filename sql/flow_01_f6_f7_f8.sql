@@ -40,8 +40,13 @@
 --   and on enrolment the employer's journey moves to Apprentice placed (F9)
 --   and the candidate's sign-in gets the LEARNER role and learner reference.
 --   Calling it again changes nothing. A null user ID is the scheduler's
---   nightly reconcile: no user check (it only mirrors what Warren already
---   holds).
+--   nightly reconcile: no user check, so it may only copy the status Warren
+--   already holds into the CRM (the lead's journey and its stage history, the
+--   placement, the lead's learner reference, the employer's journey) and
+--   note what it copied (ONBOARDING.LASTREPORTEDSTATUS, OPS.FLOW_RUN). It
+--   never touches sign-ins or roles: those change only when a manager calls
+--   it, so a missed enrolment event is put right in the CRM by the reconcile
+--   and on the sign-in by the next manager's call.
 -- F8 won employer (called by the CRM): F8_WON_EMPLOYER(CRM employer ID,
 --   chosen site IDs, chosen contact IDs, user ID). Makes the Warren employer
 --   with the chosen sites and contacts, and links them back
@@ -348,10 +353,14 @@ BEGIN
       moves := moves + 1;
     END IF;
     -- The candidate's sign-in: their learner reference and the LEARNER role.
-    UPDATE SHARED_DB.ACCESS.APP_USER SET LEARNREFNUMBER = :learn_ref WHERE USERID = :cand_user AND LEARNREFNUMBER IS DISTINCT FROM :learn_ref;
-    INSERT INTO SHARED_DB.ACCESS.USER_ROLE (ROLEGRANTID, USERID, ROLE, GRANTEDBY, ISTESTDATA)
-      SELECT 'RG-' || :cand_user || '-LEARNER', :cand_user, 'LEARNER', COALESCE(:USERID, 'flow:F7'), :test
-      WHERE :cand_user IS NOT NULL AND 'RG-' || :cand_user || '-LEARNER' NOT IN (SELECT ROLEGRANTID FROM SHARED_DB.ACCESS.USER_ROLE);
+    -- Only when a manager calls it: the scheduler's reconcile never touches
+    -- sign-ins or roles.
+    IF (trig = 'event') THEN
+      UPDATE SHARED_DB.ACCESS.APP_USER SET LEARNREFNUMBER = :learn_ref WHERE USERID = :cand_user AND LEARNREFNUMBER IS DISTINCT FROM :learn_ref;
+      INSERT INTO SHARED_DB.ACCESS.USER_ROLE (ROLEGRANTID, USERID, ROLE, GRANTEDBY, ISTESTDATA)
+        SELECT 'RG-' || :cand_user || '-LEARNER', :cand_user, 'LEARNER', :USERID, :test
+        WHERE :cand_user IS NOT NULL AND 'RG-' || :cand_user || '-LEARNER' NOT IN (SELECT ROLEGRANTID FROM SHARED_DB.ACCESS.USER_ROLE);
+    END IF;
   END IF;
   IF (status = 'not_proceeding') THEN
     UPDATE CRM_DB.CRM.PLACEMENT SET STATUS = 'withdrawn', STATUSCHANGEDAT = CURRENT_TIMESTAMP(), OUTCOMEREASONID = :reason_id,

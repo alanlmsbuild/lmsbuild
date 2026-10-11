@@ -229,3 +229,19 @@ Alan's laptop starts it, so the jobs only run while the laptop is on.
   12 months after the last activity), and say it in the privacy notice.
   Leads handed over to the learning side follow the learning record's
   retention instead. Test data keeps its own rules.
+- **Siblings sharing a parent's email at hand-over** (2026-10-11, Alan).
+  The form allows one email for several people (a family's leads are told
+  apart by date of birth), but hand-over (flow F6,
+  sql/flow_01_f6_f7_f8.sql) refuses a lead whose email already has a
+  sign-in, so only the first sibling can be handed over. Decide how a
+  second sibling gets their own sign-in (for example asking for their own
+  email at stage 2, or a sign-in that isn't keyed on email) before real
+  candidates are handed over.
+- **Closing a CANDIDATE sign-in for people who don't go ahead**
+  (2026-10-11, Alan). F6 makes a sign-in with the CANDIDATE role for
+  everyone handed over; nothing ends it when they don't proceed (F7
+  records "not proceeding" in the CRM but never touches sign-ins). Decide
+  when such a sign-in is deactivated and its role revoked (for example at
+  not proceeding, or after the retention period), who or what does it (a
+  logged procedure, since the app can't write ACCESS), and how that fits
+  the lead's retention rule above.
