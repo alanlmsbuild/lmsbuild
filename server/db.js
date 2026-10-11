@@ -23,6 +23,19 @@ function createConnection(as) {
       privateKeyPath: process.env.DATA_LOAD_PRIVATE_KEY_PATH,
     })
   }
+  if (as === 'crm') {
+    // The CRM's own user and key (sql/crm_01_database.sql): only CRM_DB and
+    // shared data, never CAPTURE_DB.
+    if (!process.env.CRM_PRIVATE_KEY_PATH) throw new Error('CRM_PRIVATE_KEY_PATH is not set in server/.env.')
+    return snowflake.createConnection({
+      account: process.env.SNOWFLAKE_ACCOUNT,
+      username: process.env.CRM_USERNAME || 'CRM_APP_USER',
+      role: 'CRM_APP_ROLE',
+      warehouse: 'CRM_WH',
+      authenticator: 'SNOWFLAKE_JWT',
+      privateKeyPath: process.env.CRM_PRIVATE_KEY_PATH,
+    })
+  }
   return snowflake.createConnection({
     account: process.env.SNOWFLAKE_ACCOUNT,
     username: process.env.SNOWFLAKE_USERNAME,
@@ -45,7 +58,8 @@ export const CONNECT_TIMEOUT_MS = Number(process.env.DB_CONNECT_TIMEOUT_MS) || 1
 
 export class ConnectTimeoutError extends Error {}
 
-// as: 'loader' opens the session as the data loaders' user instead of the app's.
+// as: 'loader' opens the session as the data loaders' user, 'crm' as the
+// CRM's, instead of Warren and Burrow's.
 export function connect({ timeoutMs = CONNECT_TIMEOUT_MS, as } = {}) {
   return new Promise((resolve, reject) => {
     const connection = createConnection(as)

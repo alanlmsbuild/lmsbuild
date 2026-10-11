@@ -29,8 +29,16 @@
 //      the ILR tables or on the test snapshot of them in TEST_BASELINE; can
 //      delete, truncate, own or create anything; or DATA_LOAD_USER has any
 //      role but DATA_LOAD_ROLE.
-// Needs the Snowflake connection in server/.env, and the loaders' key
-// (DATA_LOAD_PRIVATE_KEY_PATH) for 8.
+//   9. The two databases can't see each other (sql/crm_01_database.sql):
+//      ILR_APP_ROLE (or the app's user) has anything in CRM_DB or holds
+//      CRM_APP_ROLE or FLOW_OWNER; CRM_APP_ROLE, checked as CRM_APP_USER, has
+//      anything in CAPTURE_DB or OPTIONS_DB, writes anything in SHARED_DB,
+//      can delete, own or create anything, can UPDATE an add-only CRM table
+//      or do more than INSERT into BRONZE, holds another role, or is missing
+//      a grant the CRM needs (CRM_REQUIRED below); CRM_APP_USER has any role
+//      but CRM_APP_ROLE. DATA_LOAD_ROLE has nothing in CRM_DB either.
+// Needs the Snowflake connection in server/.env, and the loaders' and the
+// CRM's keys (DATA_LOAD_PRIVATE_KEY_PATH, CRM_PRIVATE_KEY_PATH) for 8 and 9.
 //
 // Usage:
 //   npm run check:grants
@@ -42,6 +50,27 @@ const LOAD_ROLE = 'DATA_LOAD_ROLE'
 const LOAD_USER = process.env.DATA_LOAD_USERNAME || 'DATA_LOAD_USER'
 // All the app may ever have in OPTIONS_DB.
 const OPTIONS_READS = new Set(['USAGE', 'SELECT', 'REFERENCES'])
+const CRM_ROLE = 'CRM_APP_ROLE'
+const CRM_USER = process.env.CRM_USERNAME || 'CRM_APP_USER'
+// The CRM's tables by what the app may do to them (sql/crm_01_database.sql).
+const CRM_READ_ONLY = ['PIPELINE', 'PIPELINE_STAGE', 'CLOSE_REASON']
+const CRM_ADD_ONLY = ['LEAD_CONSENT', 'STAGE_CHANGE', 'ACTIVITY_LINK', 'RECORD_CHANGE']
+const CRM_CHANGEABLE = ['LEAD', 'LEAD_INTEREST', 'CONFIRM_TOKEN', 'LEAD_MATCH', 'EMAIL_MESSAGE', 'EMPLOYER', 'EMPLOYER_SITE', 'CONTACT',
+  'PIPELINE_ITEM', 'PLACEMENT', 'ACTIVITY', 'TASK']
+const CRM_SHARED_READS = [
+  ...['POSTCODE', 'SIC2007', 'SIC2007_TO_SIC2026', 'SOC2020_INDEX', 'SOC2020_SUB_UNIT_GROUP', 'SOC2020_UNIT_GROUP', 'INTEREST_WORD'].map((t) => `SHARED_DB.REF.${t}`),
+  ...['STANDARD_VERSION', 'STANDARD_KSB', 'STANDARD_DUTY', 'STANDARD_DUTY_KSB', 'STANDARD_OPTION', 'STANDARD_DUTY_OPTION', 'OCCUPATION_PROFILE',
+    'OCCUPATION_SOC', 'OCCUPATION_TERM'].map((t) => `SHARED_DB.SKILLS.${t}`),
+  'SHARED_DB.EXT.VACANCY',
+  ...['APP_USER', 'APP_USER_SITE', 'ORGANISATION', 'USER_ROLE'].map((t) => `SHARED_DB.ACCESS.${t}`),
+]
+const CRM_REQUIRED = {
+  'CRM_DB.BRONZE.FORM_SUBMISSION': ['INSERT'],
+  ...Object.fromEntries(CRM_READ_ONLY.map((t) => [`CRM_DB.CRM.${t}`, ['SELECT']])),
+  ...Object.fromEntries(CRM_ADD_ONLY.map((t) => [`CRM_DB.CRM.${t}`, ['SELECT', 'INSERT']])),
+  ...Object.fromEntries(CRM_CHANGEABLE.map((t) => [`CRM_DB.CRM.${t}`, ['SELECT', 'INSERT', 'UPDATE']])),
+  ...Object.fromEntries(CRM_SHARED_READS.map((t) => [t, ['SELECT']])),
+}
 const WRITES = new Set(['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'])
 // ACCESS tables the app may write (none until part 8).
 const ACCESS_WRITABLE = new Set([])
@@ -112,9 +141,12 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
     }
     if (name === 'LOAD_WH') problems.push(`${privilege} on LOAD_WH: the load warehouse is for DATA_LOAD_ROLE only`)
     if (g.granted_on === 'ROLE' && name === LOAD_ROLE) problems.push(`${ROLE} has ${LOAD_ROLE}: the app could write to OPTIONS_DB`)
+    if (/^CRM_DB(\.|$)/.test(name)) problems.push(`${privilege} on ${name}: Warren and Burrow's role has no access to the CRM's database`)
+    if (g.granted_on === 'ROLE' && [CRM_ROLE, 'FLOW_OWNER'].includes(name)) problems.push(`${ROLE} has ${name}: it could reach the CRM's database`)
   }
   for (const r of appUserRoles) {
     if (String(r.role) === LOAD_ROLE) problems.push(`The app's user ${r.grantee_name} has ${LOAD_ROLE}: the app's key could write to OPTIONS_DB`)
+    if ([CRM_ROLE, 'FLOW_OWNER'].includes(String(r.role))) problems.push(`The app's user ${r.grantee_name} has ${r.role}: the app's key could reach the CRM's database`)
   }
   for (const [name, privileges] of Object.entries(REQUIRED)) {
     for (const privilege of privileges) {
@@ -146,11 +178,41 @@ export function loaderGrantProblems(grants, userRoles, snapshotNames = new Set()
     if (['DELETE', 'TRUNCATE', 'OWNERSHIP'].includes(privilege) || privilege.startsWith('CREATE')) {
       problems.push(`${privilege} on ${name}: the loaders add rows to tables made by ACCOUNTADMIN; they never delete, own or create`)
     }
+    if (/^CRM_DB(\.|$)/.test(name)) problems.push(`${privilege} on ${name}: ${LOAD_ROLE} has nothing in the CRM's database`)
   }
   for (const r of userRoles) {
     if (String(r.role) !== LOAD_ROLE) problems.push(`${LOAD_USER} also has ${r.role}: it should have ${LOAD_ROLE} only`)
   }
   if (!userRoles.some((r) => String(r.role) === LOAD_ROLE)) problems.push(`${LOAD_USER} doesn't have ${LOAD_ROLE}`)
+  return problems
+}
+
+// The problems in CRM_APP_ROLE's grants (SHOW GRANTS TO ROLE, as
+// CRM_APP_USER) and CRM_APP_USER's roles (SHOW GRANTS TO USER).
+export function crmGrantProblems(grants, userRoles) {
+  const problems = []
+  for (const g of grants) {
+    const name = String(g.name)
+    const privilege = String(g.privilege)
+    const db = name.split('.')[0]
+    if (db === 'CAPTURE_DB') problems.push(`${privilege} on ${name}: the CRM's role has no access to the learning database`)
+    if (db === 'OPTIONS_DB') problems.push(`${privilege} on ${name}: the CRM's role has nothing in OPTIONS_DB`)
+    if (db === 'SHARED_DB' && !['USAGE', 'SELECT'].includes(privilege)) problems.push(`${privilege} on ${name}: the CRM reads shared data, it never writes it`)
+    if (['DELETE', 'TRUNCATE', 'OWNERSHIP'].includes(privilege) || privilege.startsWith('CREATE')) problems.push(`${privilege} on ${name}: the CRM never deletes, owns or creates`)
+    if (privilege === 'UPDATE' && CRM_ADD_ONLY.some((t) => name === `CRM_DB.CRM.${t}`)) problems.push(`UPDATE on ${name}: it is add-only`)
+    if (['INSERT', 'UPDATE'].includes(privilege) && CRM_READ_ONLY.some((t) => name === `CRM_DB.CRM.${t}`)) problems.push(`${privilege} on ${name}: pipelines, stages and close reasons are read-only for the app`)
+    if (g.granted_on === 'TABLE' && name.startsWith('CRM_DB.BRONZE.') && privilege !== 'INSERT') problems.push(`${privilege} on ${name}: the app only adds to BRONZE`)
+    if (g.granted_on === 'ROLE') problems.push(`${CRM_ROLE} holds ${name}: it should hold no other role`)
+  }
+  for (const [name, privileges] of Object.entries(CRM_REQUIRED)) {
+    for (const privilege of privileges) {
+      if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the CRM needs it`)
+    }
+  }
+  for (const r of userRoles) {
+    if (String(r.role) !== CRM_ROLE) problems.push(`${CRM_USER} also has ${r.role}: it should have ${CRM_ROLE} only`)
+  }
+  if (!userRoles.some((r) => String(r.role) === CRM_ROLE)) problems.push(`${CRM_USER} doesn't have ${CRM_ROLE}`)
   return problems
 }
 
@@ -190,9 +252,18 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   } finally {
     await destroy(loader)
   }
+  const crm = await connect({ as: 'crm' })
+  try {
+    const crmGrants = await execute(crm, `show grants to role ${CRM_ROLE}`)
+    const crmRoles = await execute(crm, `show grants to user ${CRM_USER}`)
+    checked += crmGrants.length + crmRoles.length
+    problems.push(...crmGrantProblems(crmGrants, crmRoles))
+  } finally {
+    await destroy(crm)
+  }
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
-    ? `\n${problems.length} grant problem(s) for ${ROLE} or ${LOAD_ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything.`)
+    ? `\n${problems.length} grant problem(s) for ${ROLE}, ${LOAD_ROLE} or ${CRM_ROLE}.`
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs.`)
   process.exit(problems.length ? 1 : 0)
 }
