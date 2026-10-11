@@ -12,9 +12,10 @@ import { IN_ORG_LEARNERS, ORG_APP_FIN_RECORD, ORG_LEARNER, ORG_ORGANISATION } fr
 import { loadStandardVersions } from './standards.js'
 import { isEnglishOrMaths, restartOf } from '../../src/programme.js'
 
-// DfE's dummy UKPRN from its sample ILR file, and a second one for the other
-// test organisation. Neither is on the UK Register of Learning Providers.
-export const TEST_UKPRNS = new Set([99999999, 99999998])
+// DfE's dummy UKPRN from its sample ILR file, and one each for the other two
+// test organisations (ORG-T003 holds the generated journeys). None is on the
+// UK Register of Learning Providers.
+export const TEST_UKPRNS = new Set([99999999, 99999998, 99999997])
 
 // The years Warren can produce, with the official schema for each.
 export const ILR_YEARS = {

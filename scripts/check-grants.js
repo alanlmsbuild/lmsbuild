@@ -37,6 +37,9 @@
 //      or do more than INSERT into BRONZE, holds another role, or is missing
 //      a grant the CRM needs (CRM_REQUIRED below); CRM_APP_USER has any role
 //      but CRM_APP_ROLE. DATA_LOAD_ROLE has nothing in CRM_DB either.
+//  10. The flows (sql/flow_01_f6_f7_f8.sql): each app role may call only
+//      its own flow procedures (the CRM F6 and F8, Warren F7), and Warren
+//      may read and update ILR.ONBOARDING but never add to it (only F6 does).
 // Needs the Snowflake connection in server/.env, and the loaders' and the
 // CRM's keys (DATA_LOAD_PRIVATE_KEY_PATH, CRM_PRIVATE_KEY_PATH) for 8 and 9.
 //
@@ -109,6 +112,20 @@ const REQUIRED = {
   'SHARED_DB.REF.REF_IMPORT_CSV': ['USAGE'],
   // Background job runs (sql/jobs_01_job_run.sql).
   'SHARED_DB.OPS.JOB_RUN': ['SELECT', 'INSERT', 'UPDATE'],
+  // Onboarding, made by F6 (sql/flow_01_f6_f7_f8.sql).
+  'CAPTURE_DB.ILR.ONBOARDING': ['SELECT', 'UPDATE'],
+}
+// The flow procedures each app role calls (sql/flow_01_f6_f7_f8.sql),
+// matched on their names as SHOW GRANTS gives them.
+const FLOWS = { F6: /\.FLOW\."?F6_HANDOVER\(/, F7: /\.FLOW\."?F7_ONBOARDING_STATUS\(/, F8: /\.FLOW\."?F8_WON_EMPLOYER\(/ }
+const flowProblems = (role, grants, own) => {
+  const problems = []
+  for (const [flow, re] of Object.entries(FLOWS)) {
+    const has = grants.some((g) => g.granted_on === 'PROCEDURE' && String(g.privilege) === 'USAGE' && re.test(String(g.name)))
+    if (own.includes(flow) && !has) problems.push(`USAGE on flow ${flow} is missing: ${role} calls it`)
+    if (!own.includes(flow) && has) problems.push(`USAGE on flow ${flow}: ${role} doesn't call it`)
+  }
+  return problems
 }
 
 // The problems in a list of grants (from SHOW GRANTS TO ROLE) and future
@@ -152,6 +169,10 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
     for (const privilege of privileges) {
       if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the app needs it`)
     }
+  }
+  problems.push(...flowProblems(ROLE, grants, ['F7']))
+  if (grants.some((g) => String(g.name) === 'CAPTURE_DB.ILR.ONBOARDING' && String(g.privilege) === 'INSERT')) {
+    problems.push('INSERT on CAPTURE_DB.ILR.ONBOARDING: only hand-over (F6) adds onboarding records')
   }
   for (const g of futureLayerGrants.filter((x) => x.grantee_name === ROLE)) {
     problems.push(`${g.privilege} on future ${g.grant_on} in ${g.name}: RAW and EXT are granted table by table`)
@@ -209,6 +230,7 @@ export function crmGrantProblems(grants, userRoles) {
       if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the CRM needs it`)
     }
   }
+  problems.push(...flowProblems(CRM_ROLE, grants, ['F6', 'F8']))
   for (const r of userRoles) {
     if (String(r.role) !== CRM_ROLE) problems.push(`${CRM_USER} also has ${r.role}: it should have ${CRM_ROLE} only`)
   }
