@@ -141,6 +141,9 @@ export class Loader {
     return rows
   }
 
+  // COPY names its one file (FILES = (...)): reading a path reads every
+  // staged file that starts with it (a .source.txt staged beside it, say).
+
   // ------------------------------------------------------------ one file
 
   // Loads one CSV into a RAW table (see the file's head). spec:
@@ -186,8 +189,8 @@ export class Loader {
     await this.q('begin')
     try {
       const result = await this.q(`copy into ${table} (SOURCEFILEID, FILEROWNUMBER, ${columns.map(quote).join(', ')})
-        from (select '${sourceFileId}', METADATA$FILE_ROW_NUMBER, ${select} from @${HOMES[home]}.DOWNLOADS/${stagedPath})
-        file_format = (format_name = '${spec.format}') on_error = abort_statement force = true`)
+        from (select '${sourceFileId}', METADATA$FILE_ROW_NUMBER, ${select} from @${HOMES[home]}.DOWNLOADS/${path.posix.dirname(stagedPath)}/)
+        files = ('${path.posix.basename(stagedPath)}') file_format = (format_name = '${spec.format}') on_error = abort_statement force = true`)
       const rowsLoaded = result.reduce((n, r) => n + Number(r.rows_loaded ?? 0), 0)
       if (rowsLoaded !== rowsRead || result.some((r) => r.status !== 'LOADED')) {
         throw new Error(`${label}: read ${rowsRead} rows, COPY loaded ${rowsLoaded} (${result.map((r) => r.status).join(', ')}).`)
@@ -237,8 +240,8 @@ export class Loader {
       await this.q('begin')
       try {
         const result = await this.q(`copy into ${spec.table} (SOURCEFILEID, ${spec.column})
-          from (select '${sourceFileId}', $1 from @${HOMES[spec.home]}.DOWNLOADS/${stagedPath})
-          file_format = (format_name = '${spec.format}') on_error = abort_statement force = true`)
+          from (select '${sourceFileId}', $1 from @${HOMES[spec.home]}.DOWNLOADS/${path.posix.dirname(stagedPath)}/)
+          files = ('${path.posix.basename(stagedPath)}') file_format = (format_name = '${spec.format}') on_error = abort_statement force = true`)
         const rowsLoaded = result.reduce((n, r) => n + Number(r.rows_loaded ?? 0), 0)
         if (rowsLoaded !== 1) throw new Error(`${label}: expected 1 row, COPY loaded ${rowsLoaded}.`)
         await this.insertSourceFile(spec.home, spec, { sourceFileId, name: path.basename(file), original, modified, stageOriginal: true, kind: 'as-downloaded', stagedPath, staged: original, rowsRead: 1, rowsLoaded })
@@ -293,8 +296,8 @@ export class Loader {
     await this.q('begin')
     try {
       await this.q(`copy into ${spec.table} (SOURCEFILEID, ${names.join(', ')})
-        from (select $1:sf::string, ${names.map((n) => spec.cols[n]).join(', ')} from @${HOMES[spec.home]}.DOWNLOADS/${stagedPath})
-        file_format = (format_name = '${spec.format}') on_error = abort_statement force = true`)
+        from (select $1:sf::string, ${names.map((n) => spec.cols[n]).join(', ')} from @${HOMES[spec.home]}.DOWNLOADS/${path.posix.dirname(stagedPath)}/)
+        files = ('${path.posix.basename(stagedPath)}') file_format = (format_name = '${spec.format}') on_error = abort_statement force = true`)
       const counts = Object.fromEntries((await this.q(`select SOURCEFILEID, count(*) as N from ${spec.table}
         where SOURCEFILEID in (${todo.map(() => '?').join(', ')}) group by 1`, todo.map((o) => o.id))).map((r) => [r.SOURCEFILEID, Number(r.N)]))
       for (const o of todo) {
