@@ -1,0 +1,69 @@
+-- journeys_01b_crm_defaults.sql
+-- The test reset (test_reset_02) put the CRM test rows back to its baseline,
+-- which was taken before ORG-T003 existed, so ORG-T003's pipelines, stages
+-- and close reasons from journeys_01 were removed. This adds them again,
+-- for ORG-T003 only, and copies them into the CRM baseline so the next
+-- reset keeps them. Safe to run more than once. Run as ACCOUNTADMIN, Run All.
+
+USE ROLE ACCOUNTADMIN;
+
+INSERT INTO CRM_DB.CRM.PIPELINE (PIPELINEID, ORGANISATIONID, KIND, NAME, CREATEDBY, ISTESTDATA)
+SELECT 'PL-' || o.ORGANISATIONID || '-' || UPPER(k.KIND), o.ORGANISATIONID, k.KIND, k.NAME, 'setup', o.ISTESTDATA
+FROM (SELECT * FROM SHARED_DB.ACCESS.ORGANISATION WHERE ORGANISATIONID = 'ORG-T003') o
+CROSS JOIN (SELECT 'candidate' AS KIND, 'Candidates' AS NAME UNION ALL SELECT 'employer', 'Employers') k
+WHERE 'PL-' || o.ORGANISATIONID || '-' || UPPER(k.KIND) NOT IN (SELECT PIPELINEID FROM CRM_DB.CRM.PIPELINE);
+
+INSERT INTO CRM_DB.CRM.PIPELINE_STAGE (STAGEID, PIPELINEID, ORGANISATIONID, NAME, SORTORDER, CATEGORY, SYSTEMKEY, CREATEDBY, ISTESTDATA)
+SELECT 'ST-' || o.ORGANISATIONID || '-' || UPPER(s.KIND) || '-' || s.STAGEKEY, 'PL-' || o.ORGANISATIONID || '-' || UPPER(s.KIND),
+       o.ORGANISATIONID, s.NAME, s.SORTORDER, s.CATEGORY, s.SYSTEMKEY, 'setup', o.ISTESTDATA
+FROM (SELECT * FROM SHARED_DB.ACCESS.ORGANISATION WHERE ORGANISATIONID = 'ORG-T003') o
+CROSS JOIN (SELECT * FROM VALUES
+  ('candidate', 'NEW', 'New', 1, 'open', 'NEW'),
+  ('candidate', 'CONFIRMED', 'Confirmed', 2, 'open', 'CONFIRMED'),
+  ('candidate', 'CONTACTED', 'Contacted', 3, 'open', NULL),
+  ('candidate', 'MATCHED', 'Matched', 4, 'open', NULL),
+  ('candidate', 'INTERVIEWING', 'Interviewing', 5, 'open', NULL),
+  ('candidate', 'OFFERED', 'Offered', 6, 'open', NULL),
+  ('candidate', 'ASSESSMENT', 'Initial assessment', 7, 'open', 'ASSESSMENT'),
+  ('candidate', 'ENROLLED', 'Enrolled', 8, 'won', 'ENROLLED'),
+  ('candidate', 'LOST', 'Not proceeding', 9, 'lost', 'LOST'),
+  ('employer', 'PROSPECT', 'Prospect', 1, 'open', 'PROSPECT'),
+  ('employer', 'CONTACTED', 'Contacted', 2, 'open', NULL),
+  ('employer', 'MEETING', 'Meeting', 3, 'open', NULL),
+  ('employer', 'AGREED', 'Vacancy agreed', 4, 'open', NULL),
+  ('employer', 'PLACED', 'Apprentice placed', 5, 'won', 'PLACED'),
+  ('employer', 'LOST', 'Not proceeding', 6, 'lost', 'LOST')
+  AS x (KIND, STAGEKEY, NAME, SORTORDER, CATEGORY, SYSTEMKEY)) s
+WHERE 'ST-' || o.ORGANISATIONID || '-' || UPPER(s.KIND) || '-' || s.STAGEKEY NOT IN (SELECT STAGEID FROM CRM_DB.CRM.PIPELINE_STAGE);
+
+INSERT INTO CRM_DB.CRM.CLOSE_REASON (REASONID, PIPELINEID, ORGANISATIONID, LABEL, SORTORDER, CREATEDBY, ISTESTDATA)
+SELECT 'CR-' || o.ORGANISATIONID || '-' || UPPER(r.KIND) || '-' || r.REASONKEY, 'PL-' || o.ORGANISATIONID || '-' || UPPER(r.KIND),
+       o.ORGANISATIONID, r.LABEL, r.SORTORDER, 'setup', o.ISTESTDATA
+FROM (SELECT * FROM SHARED_DB.ACCESS.ORGANISATION WHERE ORGANISATIONID = 'ORG-T003') o
+CROSS JOIN (SELECT * FROM VALUES
+  ('candidate', 'COLLEGE', 'Chose college or sixth form', 1),
+  ('candidate', 'OTHER_JOB', 'Found other work', 2),
+  ('candidate', 'NOT_ELIGIBLE', 'Not eligible', 3),
+  ('candidate', 'NO_RESPONSE', 'No response', 4),
+  ('candidate', 'CHANGED_MIND', 'Changed their mind', 5),
+  ('employer', 'NOT_NOW', 'Not the right time', 6),
+  ('employer', 'OTHER_PROVIDER', 'Chose another provider', 7),
+  ('employer', 'NO_ROLE', 'No suitable role', 8),
+  ('employer', 'NO_RESPONSE', 'No response', 9)
+  AS x (KIND, REASONKEY, LABEL, SORTORDER)) r
+WHERE 'CR-' || o.ORGANISATIONID || '-' || UPPER(r.KIND) || '-' || r.REASONKEY NOT IN (SELECT REASONID FROM CRM_DB.CRM.CLOSE_REASON);
+
+INSERT INTO CRM_DB.TEST_BASELINE.PIPELINE SELECT * FROM CRM_DB.CRM.PIPELINE
+WHERE ORGANISATIONID = 'ORG-T003' AND PIPELINEID NOT IN (SELECT PIPELINEID FROM CRM_DB.TEST_BASELINE.PIPELINE);
+INSERT INTO CRM_DB.TEST_BASELINE.PIPELINE_STAGE SELECT * FROM CRM_DB.CRM.PIPELINE_STAGE
+WHERE ORGANISATIONID = 'ORG-T003' AND STAGEID NOT IN (SELECT STAGEID FROM CRM_DB.TEST_BASELINE.PIPELINE_STAGE);
+INSERT INTO CRM_DB.TEST_BASELINE.CLOSE_REASON SELECT * FROM CRM_DB.CRM.CLOSE_REASON
+WHERE ORGANISATIONID = 'ORG-T003' AND REASONID NOT IN (SELECT REASONID FROM CRM_DB.TEST_BASELINE.CLOSE_REASON);
+
+-- Expect 2, 15, 9 in both rows.
+SELECT 'live' AS WHERE_, (SELECT COUNT(*) FROM CRM_DB.CRM.PIPELINE WHERE ORGANISATIONID = 'ORG-T003') AS PIPELINES,
+  (SELECT COUNT(*) FROM CRM_DB.CRM.PIPELINE_STAGE WHERE ORGANISATIONID = 'ORG-T003') AS STAGES,
+  (SELECT COUNT(*) FROM CRM_DB.CRM.CLOSE_REASON WHERE ORGANISATIONID = 'ORG-T003') AS REASONS
+UNION ALL SELECT 'baseline', (SELECT COUNT(*) FROM CRM_DB.TEST_BASELINE.PIPELINE WHERE ORGANISATIONID = 'ORG-T003'),
+  (SELECT COUNT(*) FROM CRM_DB.TEST_BASELINE.PIPELINE_STAGE WHERE ORGANISATIONID = 'ORG-T003'),
+  (SELECT COUNT(*) FROM CRM_DB.TEST_BASELINE.CLOSE_REASON WHERE ORGANISATIONID = 'ORG-T003');
