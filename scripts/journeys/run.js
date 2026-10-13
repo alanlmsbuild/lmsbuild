@@ -117,8 +117,9 @@ export async function run(world, ref, { slice = false, log = console.log, api = 
       return [e.id, { userId: `USR-JW${String(i + 1).padStart(2, '0')}`, name: c.name, crmContactId: c.id }]
     }))
     for (const [empId, w] of witnessOf) {
-      await execute(app, `update CAPTURE_DB.ILR.EMPLOYER_CONTACT set USERID = ? where CONTACTID = ? and USERID is null`, [w.userId, warrenContact.get(w.crmContactId)])
       w.employerId = clientOf.get(empId)
+      if (!warrenContact.has(w.crmContactId)) continue // not a client yet (the slice): the full run sets it
+      await execute(app, `update CAPTURE_DB.ILR.EMPLOYER_CONTACT set USERID = ? where CONTACTID = ? and USERID is null`, [w.userId, warrenContact.get(w.crmContactId)])
     }
     const linksFor = (l) => {
       if (l.person.backCohort) return { employerId: l.employer.id, siteId: l.site.id, contactId: l.contact.id }
