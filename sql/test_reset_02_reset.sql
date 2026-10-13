@@ -5,18 +5,18 @@
 -- Run by hand as ACCOUNTADMIN in a Snowflake worksheet, whenever the test
 -- learners need resetting. Run the whole file: the reset is one
 -- transaction, so if any step fails (for example a table has gained a
--- column the snapshot doesn't have) it stops, changes nothing, and says
+-- column the snapshot does not have) it stops, changes nothing, and says
 -- why. Then run the checks below.
 --
 -- What it changes, test data only (every delete and insert is limited to
 -- ISTESTDATA = TRUE rows of test learners):
 --   ILR.LEARNER, LEARNING_DELIVERY, the 8 ILR record tables,
---   OFFICER_ASSIGNMENT and LEARNER_EMPLOYER: every test learner's rows are
---   replaced with the snapshot's. Corrections and removals made in the app
+--   OFFICER_ASSIGNMENT and LEARNER_EMPLOYER: the rows of every test learner are
+--   replaced with those in the snapshot. Corrections and removals made in the app
 --   go, and records added in the app go.
 --   Test learners added in the app after the snapshot go too, with their
 --   rows in these tables. (Their Burrow evidence, if any, stays.)
---   ILR.RECORD_CHANGE: the history of test learners' changes is emptied,
+--   ILR.RECORD_CHANGE: the history of changes to test learners is emptied,
 --   since the changes it describes are undone.
 --   ILR.EMPLOYER: the test employers are put back as in the snapshot
 --   (sql/employers_02_own_copy.sql), and test employers added in the app go.
@@ -26,8 +26,8 @@
 --   ILR.EMPLOYER_VACANCY: links from adverts to test employers made while
 --   testing go (sql/vacancies_01_tables.sql). The adverts themselves
 --   (SHARED_DB.EXT.VACANCY) are public data, not test data, and stay.
---   CRM_DB (sql/crm_01_database.sql): every CRM table's test rows, in
---   BRONZE and CRM, are replaced with the snapshot's (CRM_DB.TEST_BASELINE):
+--   CRM_DB (sql/crm_01_database.sql): the test rows of every CRM table, in
+--   BRONZE and CRM, are replaced with those in the snapshot (CRM_DB.TEST_BASELINE):
 --   leads, journeys, stage history, placements, activities, tasks,
 --   employers and contacts made while testing go, and the test pipelines,
 --   stages and close reasons are put back.
@@ -92,7 +92,7 @@ BEGIN
 
   BEGIN TRANSACTION;
 
-  -- The test learners' records, then the learners themselves.
+  -- The records of the test learners, then the learners themselves.
 
   DELETE FROM CAPTURE_DB.ILR.LEARNING_DELIVERY WHERE ISTESTDATA = TRUE AND LEARNREFNUMBER IN (SELECT LEARNREFNUMBER FROM CAPTURE_DB.TEST_BASELINE.RESET_TEST_LEARNERS);
   DELETE FROM CAPTURE_DB.ILR.PRIOR_ATTAINMENT WHERE ISTESTDATA = TRUE AND LEARNREFNUMBER IN (SELECT LEARNREFNUMBER FROM CAPTURE_DB.TEST_BASELINE.RESET_TEST_LEARNERS);
@@ -134,10 +134,10 @@ BEGIN
   DELETE FROM SHARED_DB.ACCESS.APP_USER_SITE WHERE ISTESTDATA = TRUE;
   INSERT INTO SHARED_DB.ACCESS.APP_USER_SITE SELECT * FROM CAPTURE_DB.TEST_BASELINE.APP_USER_SITE WHERE ISTESTDATA = TRUE;
 
-  -- The test employers' links to adverts.
+  -- Links from adverts to the test employers.
   DELETE FROM CAPTURE_DB.ILR.EMPLOYER_VACANCY WHERE ISTESTDATA = TRUE;
   INSERT INTO CAPTURE_DB.ILR.EMPLOYER_VACANCY SELECT * FROM CAPTURE_DB.TEST_BASELINE.EMPLOYER_VACANCY WHERE ISTESTDATA = TRUE;
-  -- The CRM's test rows (sql/crm_01_database.sql).
+  -- The test rows in the CRM (sql/crm_01_database.sql).
   DELETE FROM CRM_DB.BRONZE.FORM_SUBMISSION WHERE ISTESTDATA = TRUE;
   INSERT INTO CRM_DB.BRONZE.FORM_SUBMISSION SELECT * FROM CRM_DB.TEST_BASELINE.FORM_SUBMISSION WHERE ISTESTDATA = TRUE;
   DELETE FROM CRM_DB.CRM.PIPELINE WHERE ISTESTDATA = TRUE;
@@ -325,7 +325,7 @@ WITH aims AS (
   FROM CAPTURE_DB.ILR.LEARNING_DELIVERY ld
   JOIN CAPTURE_DB.ILR.LEARNER l ON l.LEARNREFNUMBER = ld.LEARNREFNUMBER
   WHERE ld.AIMTYPE = 1 AND ld.PROGTYPE IN (2, 3, 10, 20, 21, 22, 23, 25) AND l.ISTESTDATA = TRUE
-    AND ld.REMOVEDAT IS NULL -- aims removed as entered in error don't count (sql/ilr_05_remove_aims.sql)
+    AND ld.REMOVEDAT IS NULL -- aims removed as entered in error do not count (sql/ilr_05_remove_aims.sql)
 ), flagged AS (
   SELECT *,
          GREATEST(COALESCE(ACHIEVEMENT_YEAR, 0), COALESCE(ACTUAL_END_YEAR, 0), PLANNED_END_YEAR) AS HYBRID_END_YEAR,
@@ -350,9 +350,9 @@ WHERE NOT IS_EXCLUDED AND HYBRID_END_YEAR IN (2024, 2025)
 GROUP BY ORGANISATIONID, HYBRID_END_YEAR
 ORDER BY ORGANISATIONID, HYBRID_END_YEAR;
 
--- 3. Every row carries its learner's ISTESTDATA, so the reset found all of
---    a test learner's rows (a row added with the wrong flag would be left
---    behind, and check 1 wouldn't see it, since it only compares test rows).
+-- 3. Every row carries the ISTESTDATA of its learner, so the reset found all of
+--    the rows of a test learner (a row added with the wrong flag would be left
+--    behind, and check 1 would not see it, since it only compares test rows).
 --    ILR.LEARNER and ILR.EMPLOYER are compared with their organisation.
 --    Expected: 0 in DIFFERENT and NO_LEARNER on every row (for LEARNER and
 --    EMPLOYER, NO_LEARNER counts rows with no organisation). The app checks
@@ -419,7 +419,7 @@ FROM CAPTURE_DB.ILR.EMPLOYER e LEFT JOIN SHARED_DB.ACCESS.ORGANISATION o ON o.OR
 --    the test employers back, and removes ones added while testing), and at
 --    one in the same organisation as the row. Expected: 0 in NO_EMPLOYER
 --    and OTHER_ORGANISATION on every row, and 0 on the last row, which
---    counts tables with an EMPLOYERID column this check doesn't cover (add
+--    counts tables with an EMPLOYERID column this check does not cover (add
 --    them here and in npm run check:test-flags). The app checks the same
 --    with npm run check:test-flags.
 SELECT 'ILR.LEARNER_EMPLOYER' AS TABLE_NAME, COUNT(*) AS ROWS_,
@@ -470,7 +470,7 @@ FROM CAPTURE_DB.ILR.EMPLOYER_VACANCY t
 LEFT JOIN CAPTURE_DB.ILR.EMPLOYER e ON e.EMPLOYERID = t.EMPLOYERID
 UNION ALL
 -- Both databases; the old CAPTURE_DB copies of the shared schemas (until
--- sql/shared_02_drop_old.sql drops them) aren't read by anything.
+-- sql/shared_02_drop_old.sql drops them) are not read by anything.
 SELECT 'Tables with EMPLOYERID not checked here', COUNT(*), COUNT(*), 0
 FROM (SELECT 'CAPTURE_DB.' || TABLE_SCHEMA || '.' || TABLE_NAME AS NAME FROM CAPTURE_DB.INFORMATION_SCHEMA.COLUMNS
       WHERE COLUMN_NAME = 'EMPLOYERID' AND TABLE_SCHEMA NOT IN ('TEST_BASELINE', 'REF', 'SKILLS', 'EXT', 'RAW', 'ACCESS', 'OPS')
