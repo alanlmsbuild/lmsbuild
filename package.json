@@ -17,6 +17,7 @@
     "check:test-flags": "node scripts/check-test-flags.js",
     "check:grants": "node scripts/check-grants.js",
     "check:jobs": "node scripts/check-jobs.js",
+    "check:sql": "node scripts/check-sql.js",
     "refresh:companies": "node scripts/refresh-companies.js",
     "import:vacancies": "node scripts/import-vacancies.js",
     "preview": "vite preview",
