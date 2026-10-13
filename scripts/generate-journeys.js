@@ -3,6 +3,9 @@
 // All test data. See scripts/journeys/world.js for who they are.
 //
 //   npm run generate:journeys -- --dry-run     build and check, write nothing
+//   npm run generate:journeys -- --slice       10 people end to end, Warren and
+//                                              Burrow through the HTTP routes (3002)
+//   npm run generate:journeys -- --run         everyone else
 //
 // The dry run reads reference data only, builds the whole world in memory,
 // checks every learner's ILR records with Warren's own code (the official
@@ -26,8 +29,9 @@ import { ilrRows } from './journeys/ilr.js'
 const args = process.argv.slice(2)
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : fallback }
 const settings = { seed: Number(opt('seed', 20261011)), asOf: opt('as-of', '2026-10-13'), people: Number(opt('people', 500)), backCohort: Number(opt('back-cohort', 80)) }
-if (!args.includes('--dry-run')) {
-  console.error('Only --dry-run is available until the dry run is agreed. Nothing was done.')
+const mode = ['--dry-run', '--slice', '--run'].find((m) => args.includes(m))
+if (!mode) {
+  console.error('Say --dry-run, --slice or --run. Nothing was done.')
   process.exit(1)
 }
 
@@ -46,7 +50,7 @@ try {
 
 // ---------------------------------------------------------------- the funnel
 const STAGES = ['NEW', 'CONFIRMED', 'CONTACTED', 'MATCHED', 'INTERVIEWING', 'OFFERED', 'ASSESSMENT', 'ENROLLED']
-console.log(`Test journeys, dry run: seed ${settings.seed}, as of ${settings.asOf}. Nothing written.\n`)
+console.log(`Test journeys, ${mode === '--dry-run' ? 'dry run' : mode.slice(2)}: seed ${settings.seed}, as of ${settings.asOf}.${mode === '--dry-run' ? ' Nothing written.' : ''}\n`)
 console.log('Stage          reached   lost here   still open here')
 for (const s of STAGES) console.log(`${s.padEnd(14)} ${String(world.stageReached[s] ?? 0).padStart(7)} ${String(world.lostAt[s] ?? 0).padStart(11)} ${String(world.openAt[s] ?? 0).padStart(17)}`)
 
@@ -111,3 +115,13 @@ console.log(`\nILR 2026 to 2027: ${assembled.length} learners in the return, ${a
 console.log(`  Rules (84 official, Warren's checks): ${errors.length} error rule(s), ${warnings.length} warning rule(s).`)
 for (const f of found.slice(0, 12)) console.log(`    ${f.severity} ${f.rule}: ${f.learners.length} learner(s), e.g. ${f.learners.slice(0, 3).join(', ')}`)
 console.log(`  Official schema: ${schema.valid ? 'valid' : `${schema.errors.length} error(s), e.g. ${schema.errors.slice(0, 2).map((e) => JSON.stringify(e)).join('; ')}`}`)
+
+if (mode !== '--dry-run') {
+  const { run } = await import('./journeys/run.js')
+  if (errors.length || !schema.valid) {
+    console.error('\nThe ILR checks failed: nothing written.')
+    process.exit(1)
+  }
+  const result = await run(world, ref, { slice: mode === '--slice' })
+  console.log(`\nDone: JOB_RUN ${result.jobRunId}`)
+}

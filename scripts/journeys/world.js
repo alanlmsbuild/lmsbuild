@@ -447,7 +447,7 @@ export function buildWorld(ref, districts, { seed = 20261011, asOf, people: peop
     const ksbList = ref.ksbs.filter((k) => k.ST_REFERENCE === l.standard.REFERENCE)
     l.evidence = []
     for (let d = addDays(l.start, r.int(14, 28)); d <= addDays(learningEnd, -1); d = addDays(d, r.int(6, 14))) {
-      const type = r.weighted([['reflection', 50], ['photo', 20], ['document', 15], ['witness_statement', 15]])
+      const type = r.weighted([['reflection', 75], ['witness_statement', 25]]) // no photos or documents: they need files
       const claims = Array.from({ length: r.int(1, 3) }, () => r.pick(ksbList)).filter((k, i, a) => k && a.findIndex((x) => x.KSB_REFERENCE === k.KSB_REFERENCE) === i)
       const age = daysBetween(d, today)
       let status = age > 30 ? (r.chance(0.04) ? 'withdrawn' : 'signed_off') : age > 7 ? r.pick(['submitted', 'signed_off', 'changes_requested']) : r.pick(['draft', 'submitted'])
