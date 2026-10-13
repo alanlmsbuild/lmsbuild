@@ -21,6 +21,16 @@
 //   10 Discover Uni (27 CSVs; the zip, with its XML, staged)  -> OPTIONS_DB.RAW
 //   11 LARS, every file as published                   -> SHARED_DB.RAW
 //   12 test ILR exports and FIS output (TEST DATA)     -> CAPTURE_DB.TEST_BASELINE
+// Batch 4, the official data sets (sql/load_04_official_tables.sql;
+// scripts/load/official.js):
+//   13 English indices of deprivation 2025             -> SHARED_DB.RAW
+//   14 claimant count (Nomis)                          -> SHARED_DB.RAW
+//   15 ASHE pay by area (Nomis)                        -> SHARED_DB.RAW
+//   16 ASHE pay by occupation (ONS tables 14 and 15)   -> SHARED_DB.RAW
+//   17 key stage 4 performance                         -> OPTIONS_DB.RAW
+//   18 key stage 4 and 16 to 18 destinations           -> OPTIONS_DB.RAW
+//   19 apprenticeships (headlines, underlying data)    -> SHARED_DB.RAW
+//   20 LEO graduate and further education outcomes     -> OPTIONS_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -36,6 +46,7 @@ import { fileURLToPath } from 'node:url'
 import ExcelJS from 'exceljs'
 import { Loader } from './load/loader.js'
 import { loadContent } from './load/content.js'
+import { officialSteps } from './load/official.js'
 import { odsRows, csvLine, csvRecords, writeLines, zipEntry, zipNames } from './load/files.js'
 
 const RAREBIT_DATA = process.env.RAREBIT_DATA || '/mnt/c/Users/alanb/rarebit-data'
@@ -223,6 +234,7 @@ export const STEPS = {
       rows: async ({ file }) => [{ name: path.basename(file), item: JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')) }],
       cols: { NAME: '$1:name::string', ITEM: '$1:item' } }),
   ] },
+  ...officialSteps(RAREBIT_DATA),
 }
 
 export async function runStep(loader, n) {

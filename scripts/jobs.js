@@ -39,6 +39,10 @@ export const JOB_RUNNERS = {
   'vacancies-new': async (connection, log) => (await import('./import-vacancies.js')).runJob({ connection, kind: 'new', log }),
   'companies-refresh': async (connection, log) => (await import('./refresh-companies.js')).runJob({ connection, log }),
   skills: async (connection, log) => (await import('./import-skills.js')).runJob({ connection, log }),
+  // These load as DATA_LOAD_USER with their own connection (and their own
+  // load-* rows in JOB_RUN); the app's connection only records the run.
+  'official-nomis': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'nomis', log }),
+  'official-api': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'api', log }),
 }
 
 // One tick. Returns what it did: { ran: [{ job, outcome }], seeded, connected }.

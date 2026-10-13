@@ -51,10 +51,31 @@ export const JOB_SCHEDULE = {
     lockHours: 3,
     timeoutMinutes: 60,
   },
+  // The official data sets with an API (scripts/fetch-official.js): fetch
+  // what's new, then load it as DATA_LOAD_USER. Checked weekly; the claimant
+  // count is published monthly, ASHE and the DfE sets yearly or so.
+  'official-nomis': {
+    label: 'Official data: claimant count and pay by area (Nomis)',
+    short: 'Nomis',
+    every: 7 * 24 * HOUR,
+    overdueAfter: 8 * 24 * HOUR,
+    lockGroup: 'official',
+    lockHours: 3,
+    timeoutMinutes: 90,
+  },
+  'official-api': {
+    label: 'Official data: key stage 4, destinations, apprenticeships (DfE)',
+    short: 'DfE statistics',
+    every: 7 * 24 * HOUR,
+    overdueAfter: 8 * 24 * HOUR,
+    lockGroup: 'official',
+    lockHours: 3,
+    timeoutMinutes: 120,
+  },
 }
 
 // The order a tick runs due jobs in, one at a time.
-export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills']
+export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api']
 
 // A failed or refused job isn't tried again sooner than this.
 export const RETRY_AFTER = HOUR
