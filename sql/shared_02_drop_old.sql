@@ -11,6 +11,9 @@
 -- after. Safe to run twice. A dropped schema can be brought back with
 -- UNDROP SCHEMA for as long as Snowflake's Time Travel keeps it.
 
+USE ROLE ACCOUNTADMIN;
+USE WAREHOUSE capture_wh;
+
 -- A. BEFORE: nothing has been written to the originals since the copy
 --    (the same as check 7 of sql/shared_01_checks.sql). Expected: 0.
 SELECT COUNT(*) AS CHANGED_SINCE_COPY

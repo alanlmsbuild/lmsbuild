@@ -4,6 +4,9 @@
 -- Read-only. Run in a Snowflake worksheet (any role that can read REF and
 -- SKILLS, e.g. ACCOUNTADMIN).
 
+USE ROLE ACCOUNTADMIN;
+USE WAREHOUSE capture_wh;
+
 -- 1. The latest REF import. Expected: STATUS succeeded, PARTS
 --    soc,interests,sic,postcodes and ROW_COUNTS:
 --    SOC2020_UNIT_GROUP 412, SOC2020_SUB_UNIT_GROUP 1,384, SOC2020_INDEX 32,439,
