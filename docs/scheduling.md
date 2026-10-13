@@ -1,6 +1,6 @@
 # Scheduling the background jobs
 
-Six jobs keep outside data up to date. Each runs when it's due, and every
+Nine jobs keep outside data up to date. Each runs when it's due, and every
 run, scheduled or by hand, is recorded in `OPS.JOB_RUN`:
 
 | Job | Runs when the last success is older than | Overdue after |
@@ -11,12 +11,17 @@ run, scheduled or by hand, is recorded in `OPS.JOB_RUN`:
 | `skills` (Skills England) | 7 days | 8 days |
 | `official-nomis` (claimant count, ASHE pay by area) | 7 days | 8 days |
 | `official-api` (DfE: key stage 4, destinations, apprenticeship headlines) | 7 days | 8 days |
+| `official-statxplore` (DWP: Universal Credit, Work and Health Programme) | 7 days | 8 days |
+| `official-ons` (ONS: online job adverts, VACS02) | 7 days | 8 days |
+| `official-ofqual` (Ofqual register of qualifications) | 7 days | 8 days |
 
-The two `official-*` jobs (`scripts/fetch-official.js`) fetch only what's
-new into the data folder, then load it as `DATA_LOAD_USER`
-(`npm run load:data` steps 14 and 15, or 17 to 19). The load adds its own
-`load-*` row to `OPS.JOB_RUN`. By hand: `npm run fetch:official -- nomis`
-or `-- api`.
+The `official-*` jobs (`scripts/fetch-official.js`) fetch only what's new
+into the data folder, then load it as `DATA_LOAD_USER` (`npm run load:data`
+steps 14, 15 and 26 for Nomis; 17 to 19 for the DfE API; 24 for
+Stat-Xplore, which needs `STATXPLORE_API_KEY` in `server/.env`; 25 and 29
+for ONS; 27 for Ofqual). The load adds its own `load-*` row to
+`OPS.JOB_RUN`. By hand: `npm run fetch:official -- nomis` (or `api`,
+`statxplore`, `ons`, `ofqual`).
 
 `npm run jobs` is one **tick**. It reads `logs/jobs/state.json` and runs
 whatever is due, one job at a time. If nothing is due, it exits without
@@ -73,7 +78,7 @@ four, about 30 minutes). To follow it:
   For example `2026-10-07T15:03:13+01:00 vacancies-full (schedule): started`
   and later `2026-10-07T15:09:30+01:00 vacancies-full (schedule):
   succeeded`. The tick has finished once every job that started has ended
-  (`official-api` is last). Press Ctrl+C to stop watching.
+  (`official-ofqual` is last). Press Ctrl+C to stop watching.
 - **WSL terminal**: `ls ~/my-react-app/logs/jobs/tick.lock`. The lock file
   exists only while a tick is running. "No such file" means it has finished.
 - **Task Scheduler**: Rarebit jobs shows Status **Running** during the tick

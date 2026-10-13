@@ -151,6 +151,7 @@ export class Loader {
   //   make      (out) => { removed }: writes the copy COPY reads (not for
   //             as-downloaded)
   //   stageOriginal  false: the original never goes into Snowflake (GIAS)
+//   sidecar   a local file staged beside the original (a fetch's .source.txt)
   //   encoding  utf8 (default) or latin1 (Windows-1252 files, byte for byte)
   async loadCsv(spec) {
     const { home, source, table, file, member = null, kind } = spec
@@ -176,6 +177,8 @@ export class Loader {
 
     const stageOriginal = spec.stageOriginal !== false
     const originalPath = stageOriginal ? await this.put(home, asIs ? loadable : file, dir) : null
+    // A note that goes beside the original, as it is (a fetch's full query).
+    if (spec.sidecar) await this.put(home, spec.sidecar, dir)
     const stagedPath = asIs ? originalPath : await this.put(home, loadable, dir, { compress: true, overwrite: true })
 
     const sourceFileId = crypto.randomUUID()

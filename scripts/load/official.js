@@ -142,7 +142,7 @@ export function officialSteps(R) {
   const api = (base, source, dir, id, title, table) => ({ ...base, source, publisher: DFE, licence: OGL, kind: 'as-downloaded', title,
     page: `${EES_API}${id}`, file: apiFile(dir, id), table })
   const nomis = (source, file, title, table) => ({ ...shared, source, publisher: 'Office for National Statistics, via Nomis', licence: OGL_ONS, kind: 'as-downloaded',
-    title, page: fetchedFrom(file), file, table })
+    title, page: `${fetchedFrom(file).split('?')[0]} (query: ${path.basename(file)}.source.txt beside it in the stage)`, file, table, sidecar: `${file}.source.txt` })
   return {
     13: { job: 'load-iod-2025', files: () => {
       const dir = path.join(R, 'iod-2025')

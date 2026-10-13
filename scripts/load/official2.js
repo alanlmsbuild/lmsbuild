@@ -172,10 +172,11 @@ export function officialSteps2(R) {
     if (!fs.existsSync(d)) return []
     return fs.readdirSync(d).filter((n) => n.startsWith(base) && n.endsWith('.csv') && fs.existsSync(path.join(d, `${n}.source.txt`))).sort().map((n) => path.join(d, n))
   }
-  const fromSource = (file) => fs.readFileSync(`${file}.source.txt`, 'utf8').split('\n')[0]
   const nomisSet = (id) => NOMIS_SETS.find((s) => s.id === id)
   const nomis = (id, table, title) => fetched(nomisSet(id).dir, nomisSet(id).base).map((f) => ({ ...shared, source: `nomis-${id.toLowerCase().replaceAll('_', '-')}`,
-    publisher: 'Office for National Statistics, via Nomis', licence: OGL_ONS, kind: 'as-downloaded', title, page: fromSource(f), file: f, table }))
+    publisher: 'Office for National Statistics, via Nomis', licence: OGL_ONS, kind: 'as-downloaded', title, file: f, table,
+    // The full query is longer than PAGEURL takes: it's staged beside the file.
+    page: `https://www.nomisweb.co.uk/api/v01/dataset/${id}.data.csv (query: ${path.basename(f)}.source.txt beside it in the stage)`, sidecar: `${f}.source.txt` }))
 
   return {
     21: { job: 'load-soc-coding-index', files: () => {
@@ -205,7 +206,8 @@ export function officialSteps2(R) {
     } },
     24: { job: 'load-stat-xplore', files: () => SX_SETS.flatMap((s) => sxFetched(path.join(R, s.dir), s.base).map((f) => f.file).sort().map((f) =>
       ({ ...shared, source: `statxplore-${s.base.replaceAll('_', '-')}`, publisher: `${DWP}, via Stat-Xplore`, licence: OGL, kind: 'as-downloaded',
-        title: `Stat-Xplore: ${s.database} by month and local authority`, page: fromSource(f), file: f, table: 'SHARED_DB.RAW.STATXPLORE_TABLE' }))) },
+        title: `Stat-Xplore: ${s.database} by month and local authority`, page: `https://stat-xplore.dwp.gov.uk (query: ${path.basename(f)}.source.txt beside it in the stage)`,
+        sidecar: `${f}.source.txt`, file: f, table: 'SHARED_DB.RAW.STATXPLORE_TABLE' }))) },
     25: { job: 'load-online-job-adverts', files: () => files(path.join(R, 'ons-online-adverts'), /\.xlsx$/).map((f) =>
       cells(shared, 'ons-online-job-adverts', f, null, 'Labour demand volumes by SOC 2020, UK (online job adverts, Textkernel; official statistics in development)', ONS,
         'https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/datasets/labourdemandvolumesbystandardoccupationclassificationsoc2020uk', OGL_ONS)) },

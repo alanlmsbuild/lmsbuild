@@ -43,6 +43,9 @@ export const JOB_RUNNERS = {
   // load-* rows in JOB_RUN); the app's connection only records the run.
   'official-nomis': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'nomis', log }),
   'official-api': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'api', log }),
+  'official-statxplore': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'statxplore', log }),
+  'official-ons': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'ons', log }),
+  'official-ofqual': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'ofqual', log }),
 }
 
 // One tick. Returns what it did: { ran: [{ job, outcome }], seeded, connected }.

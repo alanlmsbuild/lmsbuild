@@ -72,10 +72,37 @@ export const JOB_SCHEDULE = {
     lockHours: 3,
     timeoutMinutes: 120,
   },
+  'official-statxplore': {
+    label: 'Official data: Universal Credit, Work and Health Programme (Stat-Xplore)',
+    short: 'Stat-Xplore',
+    every: 7 * 24 * HOUR,
+    overdueAfter: 8 * 24 * HOUR,
+    lockGroup: 'official',
+    lockHours: 3,
+    timeoutMinutes: 120,
+  },
+  'official-ons': {
+    label: 'Official data: online job adverts, vacancies by industry (ONS)',
+    short: 'ONS',
+    every: 7 * 24 * HOUR,
+    overdueAfter: 8 * 24 * HOUR,
+    lockGroup: 'official',
+    lockHours: 3,
+    timeoutMinutes: 120,
+  },
+  'official-ofqual': {
+    label: 'Official data: Ofqual register of qualifications',
+    short: 'Ofqual',
+    every: 7 * 24 * HOUR,
+    overdueAfter: 8 * 24 * HOUR,
+    lockGroup: 'official',
+    lockHours: 3,
+    timeoutMinutes: 60,
+  },
 }
 
 // The order a tick runs due jobs in, one at a time.
-export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api']
+export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual']
 
 // A failed or refused job isn't tried again sooner than this.
 export const RETRY_AFTER = HOUR

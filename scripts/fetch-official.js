@@ -7,6 +7,8 @@
 //   npm run fetch:official -- api       KS4, destinations, apprenticeships
 //   npm run fetch:official -- statxplore  Universal Credit, Work and Health
 //                                          Programme (scripts/load/statxplore.js)
+//   npm run fetch:official -- ons       online job adverts, VACS02 (new editions)
+//   npm run fetch:official -- ofqual    the Ofqual register (if it changed)
 //   add --no-load to fetch only
 //
 // Nomis: only what's new. Each fetch is a new file, <base>_<from>_<to>.csv,
@@ -74,7 +76,74 @@ export const EES_SETS = [
 ].map(([dir, id]) => ({ dir, id }))
 
 // The load:data steps each kind feeds.
-export const LOAD_STEPS = { nomis: [14, 15], api: [17, 18, 19], statxplore: [] }
+export const LOAD_STEPS = { nomis: [14, 15, 26], api: [17, 18, 19], statxplore: [24], ons: [25, 29], ofqual: [27] }
+
+// ONS datasets published as spreadsheets: a new file only for a new edition.
+// The name is the file's own, with the edition added unless it's "current".
+const ONS_SITE = 'https://www.ons.gov.uk'
+export const ONS_SETS = [
+  { dir: 'ons-online-adverts', page: '/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/datasets/labourdemandvolumesbystandardoccupationclassificationsoc2020uk' },
+  { dir: 'ons-vacancies', page: '/employmentandlabourmarket/peoplenotinwork/unemployment/datasets/vacanciesbyindustryvacs02' },
+]
+
+// ONS refuses quick repeat requests (an empty reply): a pause, and tries.
+async function onsJson(url) {
+  for (let t = 1; ; t++) {
+    await new Promise((r) => setTimeout(r, 4000))
+    const res = await fetch(url, { headers: { 'user-agent': 'Rarebit data loader' } })
+    const text = res.ok ? await res.text() : ''
+    try { return JSON.parse(text) } catch { if (t >= 4) throw new Error(`${url}: ${res.status}, no JSON`) }
+    await new Promise((r) => setTimeout(r, 10000 * t))
+  }
+}
+
+export async function fetchOns(set, { root = RAREBIT_DATA, log = console.log } = {}) {
+  const dir = path.join(root, set.dir)
+  fs.mkdirSync(dir, { recursive: true })
+  const edition = (await onsJson(`${ONS_SITE}${set.page}/data`)).datasets[0].uri
+  const file = (await onsJson(`${ONS_SITE}${edition}/data`)).downloads[0].file
+  const slug = edition.split('/').at(-1)
+  const ext = path.extname(file)
+  const name = slug === 'current' ? file : `${path.basename(file, ext)}_${slug}${ext}`
+  const out = path.join(dir, name)
+  if (fs.existsSync(out)) {
+    log(`  ${name}: already fetched`)
+    return null
+  }
+  await new Promise((r) => setTimeout(r, 4000))
+  const res = await get(`${ONS_SITE}/file?uri=${edition}/${file}`)
+  await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`${out}.part`))
+  fs.renameSync(`${out}.part`, out)
+  log(`  ${name}: fetched (${fs.statSync(out).size} bytes)`)
+  return out
+}
+
+// The Ofqual register (API, no key), every page, as JSON lines; a new
+// dated file only if it differs from the last one fetched.
+export async function fetchOfqual(what, { root = RAREBIT_DATA, log = console.log } = {}) {
+  const dir = path.join(root, 'ofqual')
+  fs.mkdirSync(dir, { recursive: true })
+  const out = path.join(dir, `ofqual_${what.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.jsonl`)
+  const lines = []
+  for (let page = 1, count = Infinity; lines.length < count; page++) {
+    let d
+    for (let t = 1; !d; t++) {
+      try { d = await (await get(`https://register-api.ofqual.gov.uk/api/${what}?page=${page}&limit=200`)).json() } catch (e) { if (t >= 6) throw e; await new Promise((r) => setTimeout(r, 2000 * t)) }
+    }
+    count = d.count
+    if (!d.results.length) break
+    lines.push(...d.results.map((x) => JSON.stringify(x)))
+  }
+  const text = lines.join('\n') + '\n'
+  const previous = fs.readdirSync(dir).filter((n) => n.startsWith(`ofqual_${what.toLowerCase()}_`) && n.endsWith('.jsonl')).sort().at(-1)
+  if (previous && fs.readFileSync(path.join(dir, previous), 'utf8') === text) {
+    log(`  Ofqual ${what}: no change since ${previous}`)
+    return null
+  }
+  fs.writeFileSync(out, text)
+  log(`  Ofqual ${what}: ${lines.length} records, ${path.basename(out)}`)
+  return out
+}
 
 async function get(url, tries = 4) {
   for (let t = 1; ; t++) {
@@ -147,9 +216,11 @@ export async function fetchEes(set, { root = RAREBIT_DATA, log = console.log } =
 // recorded as failed.
 export async function runJob({ kind, load = true, log = console.log }) {
   const fetched = []
-  const sets = { nomis: NOMIS_SETS, api: EES_SETS, statxplore: SX_SETS }[kind]
+  const sets = { nomis: NOMIS_SETS, api: EES_SETS, statxplore: SX_SETS, ons: ONS_SETS, ofqual: ['Qualifications', 'Organisations'] }[kind]
+  const fetchOne = { nomis: (s) => fetchNomis(s, { log }), api: (s) => fetchEes(s, { log }), statxplore: (s) => fetchStatXplore(s, { root: RAREBIT_DATA, log }),
+    ons: (s) => fetchOns(s, { log }), ofqual: (s) => fetchOfqual(s, { log }) }[kind]
   for (const set of sets) {
-    const f = kind === 'nomis' ? await fetchNomis(set, { log }) : kind === 'api' ? await fetchEes(set, { log }) : await fetchStatXplore(set, { root: RAREBIT_DATA, log })
+    const f = await fetchOne(set)
     if (f) fetched.push(path.basename(f))
   }
   const loaded = []
@@ -172,7 +243,7 @@ export async function runJob({ kind, load = true, log = console.log }) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const kind = process.argv[2]
   if (!LOAD_STEPS[kind]) {
-    console.error('Say nomis, api or statxplore: npm run fetch:official -- nomis')
+    console.error('Say nomis, api, statxplore, ons or ofqual: npm run fetch:official -- nomis')
     process.exit(1)
   }
   const result = await runJob({ kind, load: !process.argv.includes('--no-load') })
