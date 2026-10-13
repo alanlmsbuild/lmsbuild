@@ -5,16 +5,16 @@
 -- The CRM design doc: https://claude.ai/code/artifact/33499d3d-8002-442b-90cf-5277e78bdf39
 -- ("How flows run and are logged"). Decided 11 October 2026 (Alan): build
 -- F6, F7 and F8 now; F6 lands in a new CAPTURE_DB.ILR.ONBOARDING table
--- (stage 2 and 3 aren't built yet); candidates get the new CANDIDATE role.
+-- (stage 2 and 3 aren’t built yet); candidates get the new CANDIDATE role.
 --
 -- How every flow works:
 --   - A stored procedure in SHARED_DB.FLOW, owned by FLOW_OWNER and run with
---     its owner's rights, so neither app role needs any right on the other
+--     its owner’s rights, so neither app role needs any right on the other
 --     side. Each app role gets USAGE on exactly the flows it calls: the CRM
 --     (CRM_APP_ROLE) F6 and F8; Warren (ILR_APP_ROLE) F7.
---   - Arguments are record IDs and the signed-in user's ID, never data. The
+--   - Arguments are record IDs and the signed-in user’s ID, never data. The
 --     procedure reads what it needs, checks the user is an active manager
---     in the record's organisation, and takes the organisation and the test
+--     in the record’s organisation, and takes the organisation and the test
 --     flag from the records. A test record never moves into a real
 --     organisation or the reverse: the user, the organisation and every
 --     record must agree on ISTESTDATA.
@@ -22,43 +22,46 @@
 --     IDs and counts only. The writes and the log row are one transaction;
 --     a failure rolls the writes back and logs why.
 --   - Snowflake grants rights per table, not per column: "only the columns
---     the flow names" is kept by the procedures' own SQL, which names every
+--     the flow names" is kept by the procedures’ own SQL, which names every
 --     column it reads or writes. FLOW_OWNER gets only the tables below.
 --
 -- F6 hand-over (called by the CRM): F6_HANDOVER(placement ID, user ID).
 --   The placement must be offered or accepted, its employer already a
---   client (F8 done), the lead's email confirmed and the lead not handed over
---   before. Makes the ILR.ONBOARDING record with the lead's stage 1 answers,
---   the candidate's sign-in (SHARED_DB.ACCESS.APP_USER, refused if the email
+--   client (F8 done), the lead’s email confirmed and the lead not handed over
+--   before. Makes the ILR.ONBOARDING record with the lead’s stage 1 answers,
+--   the candidate’s sign-in (SHARED_DB.ACCESS.APP_USER, refused if the email
 --   already has one) with the CANDIDATE role, and marks the lead handed
 --   over. Returns the onboarding ID.
 -- F7 onboarding status (called by Warren): F7_ONBOARDING_STATUS(onboarding
 --   ID, user ID). Warren sets ILR.ONBOARDING.STATUS (stage2, stage3,
---   enrolled, not_proceeding); F7 mirrors it into the CRM: the lead's
+--   enrolled, not_proceeding); F7 mirrors it into the CRM: the lead’s
 --   journey moves to Initial assessment, Enrolled (with the learner
 --   reference) or Not proceeding (with the reason), the placement follows,
---   and on enrolment the employer's journey moves to Apprentice placed (F9)
---   and the candidate's sign-in gets the LEARNER role and learner reference.
---   Calling it again changes nothing. A null user ID is the scheduler's
+--   and on enrolment the employer’s journey moves to Apprentice placed (F9)
+--   and the candidate’s sign-in gets the LEARNER role and learner reference.
+--   Calling it again changes nothing. A null user ID is the scheduler’s
 --   nightly reconcile: no user check, so it may only copy the status Warren
---   already holds into the CRM (the lead's journey and its stage history, the
---   placement, the lead's learner reference, the employer's journey) and
+--   already holds into the CRM (the lead’s journey and its stage history, the
+--   placement, the lead’s learner reference, the employer’s journey) and
 --   note what it copied (ONBOARDING.LASTREPORTEDSTATUS, OPS.FLOW_RUN). It
 --   never touches sign-ins or roles: those change only when a manager calls
 --   it, so a missed enrolment event is put right in the CRM by the reconcile
---   and on the sign-in by the next manager's call.
+--   and on the sign-in by the next manager’s call.
 -- F8 won employer (called by the CRM): F8_WON_EMPLOYER(CRM employer ID,
 --   chosen site IDs, chosen contact IDs, user ID). Makes the Warren employer
 --   with the chosen sites and contacts, and links them back
 --   (CRM.EMPLOYER.WARRENEMPLOYERID, CRM.CONTACT.WARRENCONTACTID). Company
---   details aren't copied: Warren refreshes from Companies House itself.
+--   details aren’t copied: Warren refreshes from Companies House itself.
 --   Returns the new employer ID.
 --
 -- FLOW_OWNER is granted to SYSADMIN (and so ACCOUNTADMIN) only, so this
 -- file can replace its procedures when run again; no user holds it.
 --
 -- Paste the whole file into a Snowflake worksheet and Run All, as
--- ACCOUNTADMIN. Safe to run twice.
+-- ACCOUNTADMIN. Safe to run twice. Comments use a typographic apostrophe
+-- (13 October 2026): a worksheet counts a plain apostrophe in a comment
+-- inside a dollar-quoted block as a quote, and with an odd number of them it splits the
+-- file in the wrong place, so the procedures were not created.
 
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE capture_wh;
@@ -99,8 +102,11 @@ CREATE TABLE IF NOT EXISTS CAPTURE_DB.ILR.ONBOARDING (
 )
 COMMENT = 'A candidate handed over from the CRM (flow F6), through stage 2 (initial assessment) and stage 3 (documents) to enrolment. Made only by F6; Warren updates its status.';
 
--- Warren reads it and moves it on; only F6 adds to it.
+-- Warren reads it and moves it on; only F6 adds to it. The ILR schema has
+-- FUTURE grants that give the app INSERT on every new table
+-- (docs/before-real-data.md), so INSERT is taken away here.
 GRANT SELECT, UPDATE ON TABLE CAPTURE_DB.ILR.ONBOARDING TO ROLE ILR_APP_ROLE;
+REVOKE INSERT ON TABLE CAPTURE_DB.ILR.ONBOARDING FROM ROLE ILR_APP_ROLE;
 
 -- ---------------------------------------------------------------------------
 -- FLOW_OWNER: the tables the three flows read and write
@@ -289,7 +295,7 @@ BEGIN
   SELECT COUNT(*) INTO :manager_ok
     FROM SHARED_DB.ACCESS.APP_USER u JOIN SHARED_DB.ACCESS.USER_ROLE r ON r.USERID = u.USERID AND r.ROLE = 'MANAGER' AND r.REVOKEDAT IS NULL
     WHERE u.USERID = :USERID AND u.ORGANISATIONID = :org AND u.ISACTIVE AND u.ISTESTDATA = :test;
-  -- The lead's open journey (or, if none is open, its latest).
+  -- The lead’s open journey (or, if none is open, its latest).
   SELECT MAX(ITEMID), MAX(STAGEID), BOOLOR_AGG(ISTESTDATA) INTO :item_id, :item_stage, :item_test
     FROM (SELECT ITEMID, STAGEID, ISTESTDATA FROM CRM_DB.CRM.PIPELINE_ITEM
           WHERE RECORDTYPE = 'lead' AND RECORDID = :lead_id AND ORGANISATIONID = :org
@@ -321,7 +327,7 @@ BEGIN
   END IF;
 
   BEGIN TRANSACTION;
-  -- The lead's journey, unless it's already there (or there's nothing to mirror).
+  -- The lead’s journey, unless it’s already there (or there’s nothing to mirror).
   IF (target_stage IS NOT NULL AND target_stage <> item_stage) THEN
     UPDATE CRM_DB.CRM.PIPELINE_ITEM
       SET STAGEID = :target_stage, STAGECHANGEDAT = CURRENT_TIMESTAMP(),
@@ -338,7 +344,7 @@ BEGIN
       WHERE LEADID = :lead_id AND LEARNREFNUMBER IS DISTINCT FROM :learn_ref;
     UPDATE CRM_DB.CRM.PLACEMENT SET STATUS = 'enrolled', STATUSCHANGEDAT = CURRENT_TIMESTAMP(), UPDATEDAT = CURRENT_TIMESTAMP(), UPDATEDBY = 'flow:F7'
       WHERE PLACEMENTID = :placement_id AND STATUS <> 'enrolled';
-    -- F9: the employer's open journey moves to Apprentice placed.
+    -- F9: the employer’s open journey moves to Apprentice placed.
     SELECT MAX(EMPLOYERID) INTO :crm_emp FROM CRM_DB.CRM.PLACEMENT WHERE PLACEMENTID = :placement_id;
     SELECT MAX(ITEMID), MAX(STAGEID) INTO :emp_item, :emp_stage FROM CRM_DB.CRM.PIPELINE_ITEM
       WHERE RECORDTYPE = 'employer' AND RECORDID = :crm_emp AND CLOSEDAT IS NULL AND ORGANISATIONID = :org AND ISTESTDATA = :test;
@@ -352,8 +358,8 @@ BEGIN
         SELECT UUID_STRING(), :emp_item, :org, :emp_stage, :placed_stage, 'flow:F7', :test;
       moves := moves + 1;
     END IF;
-    -- The candidate's sign-in: their learner reference and the LEARNER role.
-    -- Only when a manager calls it: the scheduler's reconcile never touches
+    -- The candidate’s sign-in: their learner reference and the LEARNER role.
+    -- Only when a manager calls it: the scheduler’s reconcile never touches
     -- sign-ins or roles.
     IF (trig = 'event') THEN
       UPDATE SHARED_DB.ACCESS.APP_USER SET LEARNREFNUMBER = :learn_ref WHERE USERID = :cand_user AND LEARNREFNUMBER IS DISTINCT FROM :learn_ref;
