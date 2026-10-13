@@ -214,7 +214,9 @@ export function officialSteps(R) {
         leo(path.join(g, 'provider_regional_movement_data.csv'), gradPage, 'LEO graduate outcomes: provider regional movement data', 'OPTIONS_DB.RAW.LEO_GRAD_PROVIDER_REGIONAL_MOVEMENT'),
         ...['provider_data_by_sex', 'provider_data_by_ethnicity', 'provider_data_by_ethnicity_by_subject', 'provider_data_by_idaci', 'provider_data_by_priorattainment', 'variable_lookup'].map((m) =>
           leo(zip, gradPage, `LEO graduate outcomes: provider level dashboard data, ${m}.csv`, `OPTIONS_DB.RAW.LEO_GRAD_${m.replace('provider_data_by_', 'PROVIDER_').toUpperCase()}`,
-            { member: `${m}.csv`, kind: 'extracted', make: extract(zip, `${m}.csv`) })),
+            { member: `${m}.csv`, kind: 'extracted', make: extract(zip, `${m}.csv`),
+              // variable_lookup.csv is Windows-1252 (a £): loaded byte for byte, as GIAS is.
+              ...(m === 'variable_lookup' ? { encoding: 'latin1', format: 'OPTIONS_DB.RAW.CSV_WINDOWS1252' } : {}) })),
         ...['PRV01', 'PRV02', 'PRV03', 'PRV04', 'PRV05', 'EAR01', 'EAR02'].map((c) =>
           leo(one(f, new RegExp(`^${c.toLowerCase()}_.*\\.csv$`)), fePage, `Further education outcome-based success measures (${c})`, `OPTIONS_DB.RAW.LEO_FE_${c}`)),
       ]
