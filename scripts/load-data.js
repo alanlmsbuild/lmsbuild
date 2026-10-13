@@ -31,6 +31,19 @@
 //   18 key stage 4 and 16 to 18 destinations           -> OPTIONS_DB.RAW
 //   19 apprenticeships (headlines, underlying data)    -> SHARED_DB.RAW
 //   20 LEO graduate and further education outcomes     -> OPTIONS_DB.RAW
+// Batch 5, more official data (sql/load_05_official_tables.sql;
+// scripts/load/official2.js):
+//   21 SOC 2020 coding index, as published             -> SHARED_DB.RAW
+//   22 Restart Scheme, Work and Health Programme (DWP)  -> SHARED_DB.RAW
+//   23 NEET and participation, 16 to 17                 -> SHARED_DB.RAW
+//   24 Universal Credit, WHP by area (Stat-Xplore)      -> SHARED_DB.RAW
+//   25 online job adverts by SOC 2020 and area (ONS)    -> SHARED_DB.RAW
+//   26 APS, UK Business Counts, BRES, Census 2021       -> SHARED_DB.RAW
+//   27 Ofqual register of regulated qualifications     -> SHARED_DB.RAW
+//   28 Employer Skills Survey, Skills England dashboards -> SHARED_DB.RAW
+//   29 vacancies by industry, VACS02 (ONS)              -> SHARED_DB.RAW
+//   30 history: achievement rates, Ofsted, apprenticeships -> both
+//   31 Nesta skills taxonomy                           -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -47,6 +60,7 @@ import ExcelJS from 'exceljs'
 import { Loader } from './load/loader.js'
 import { loadContent } from './load/content.js'
 import { officialSteps } from './load/official.js'
+import { officialSteps2 } from './load/official2.js'
 import { odsRows, csvLine, csvRecords, writeLines, zipEntry, zipNames } from './load/files.js'
 
 const RAREBIT_DATA = process.env.RAREBIT_DATA || '/mnt/c/Users/alanb/rarebit-data'
@@ -235,6 +249,7 @@ export const STEPS = {
       cols: { NAME: '$1:name::string', ITEM: '$1:item' } }),
   ] },
   ...officialSteps(RAREBIT_DATA),
+  ...officialSteps2(RAREBIT_DATA),
 }
 
 export async function runStep(loader, n) {
@@ -261,7 +276,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (!args.length || args[0] === 'list') {
     for (const [n, s] of Object.entries(STEPS)) {
       const files = typeof s.files === 'function' ? await s.files() : s.files
-      console.log(`${n}  ${s.job}: ${s.content ?? (s.run ? 'test ILR exports and FIS output' : `${files.length} file(s): ${files.slice(0, 3).map((f) => `${path.basename(f.file)}${f.member ? ` [${path.basename(f.member)}]` : ''}`).join(', ')}${files.length > 3 ? ' ...' : ''}`)}`)
+      console.log(`${n}  ${s.job}: ${s.content ?? (s.run ? (s.runLabel ?? 'test ILR exports and FIS output') : `${files.length} file(s): ${files.slice(0, 3).map((f) => `${path.basename(f.file)}${f.member ? ` [${path.basename(f.member)}]` : ''}`).join(', ')}${files.length > 3 ? ' ...' : ''}`)}`)
     }
     process.exit(0)
   }
