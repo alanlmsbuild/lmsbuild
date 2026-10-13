@@ -222,7 +222,7 @@ export function buildWorld(ref, districts, { seed = 20261011, asOf, people: peop
     const district = r.pick(districts)
     const given = r.pick(GIVEN)
     const family = `Test${r.pick(FAMILY_END)}`
-    const sectorsOk = SECTORS.filter((s) => age >= s.minAge)
+    const sectorsOk = SECTORS.filter((s) => s.minAge <= Math.max(age, 16))
     const interests = [r.pick(sectorsOk)]
     if (r.chance(0.2)) { const s = r.pick(sectorsOk); if (s !== interests[0]) interests.push(s) }
     const situation = age <= 16 ? 'school' : age <= 18 ? r.pick(['school', 'college', 'not_working']) : r.pick(['working', 'not_working', 'working'])
