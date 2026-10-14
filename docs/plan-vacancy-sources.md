@@ -38,6 +38,18 @@ ONS online job adverts (Textkernel counts by SOC 2020 and area) are already
 loaded (`SHARED_DB.RAW.PUBLISHED_CELL`): counts for local demand, not
 adverts.
 
+Reed, one test call (14 October 2026, "apprentice" near Sheffield): the
+key works, but its keyword search returns adverts that only mention the word
+(apprenticeship tutors, lecturers, technicians with an apprenticeship
+background): none of the five returned was an apprenticeship. So Reed would
+mainly add entry-level jobs, not apprenticeships; finding real
+apprenticeships there would need more than a keyword. Its locations are
+sometimes a postcode, sometimes a town.
+
+Adzuna: its sign-up page now offers a self-serve plan at £8 a month (5,000
+calls a month, 500 a day); the account is on 25 test calls until then. Not
+called yet.
+
 ## Waiting on
 
 - Alan registers for both keys and sends the two emails.
