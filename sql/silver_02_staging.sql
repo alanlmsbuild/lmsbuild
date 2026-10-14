@@ -41,9 +41,11 @@ GRANT USAGE, CREATE TABLE, CREATE VIEW ON SCHEMA OPTIONS_DB.SILVER_STAGING TO RO
 -- Checks
 -- ---------------------------------------------------------------------------
 
--- 1. The two schemas. Expected: 2 rows, is_managed_access Y, retention 1.
+-- 1. The two schemas. Expected: 2 rows, options MANAGED ACCESS, retention 1.
+--    (SHOW SCHEMAS has no is_managed_access column: managed access shows
+--    in "options".)
 SHOW SCHEMAS LIKE 'SILVER_STAGING' IN ACCOUNT;
-SELECT "database_name", "name", "is_managed_access", "retention_time" FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+SELECT "database_name", "name", "options", "retention_time" FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
 -- 2. TRANSFORM_ROLE's grants on them. Expected: 6 rows, USAGE, CREATE
 --    TABLE and CREATE VIEW on each.
