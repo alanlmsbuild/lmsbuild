@@ -9,7 +9,10 @@
 // check, add-only) as DATA_LOAD_USER.
 //
 // Politeness: one request at a time per host, at least HOST_GAP_MS apart,
-// PARALLEL_HOSTS hosts at once (the busiest first); HEAD first, then a GET
+// PARALLEL_HOSTS hosts at once (the busiest first; each host still sees
+// one request per 10 seconds at most, so more hosts at once only shortens
+// the run: a day's slice is about 22 hours of per-host time, mostly the
+// universities' course pages); HEAD first, then a GET
 // that reads only the headers if HEAD isn't answered properly; TIMEOUT_MS
 // per request; at most MAX_REDIRECTS redirects; no retries in a run; a 429
 // stops that host for the rest of the run. The User-Agent says what it is
@@ -33,11 +36,12 @@ import { connect, execute, destroy } from '../server/db.js'
 import { makeLog, recordRun } from './job-run.js'
 
 export const HOST_GAP_MS = 10_000
-export const PARALLEL_HOSTS = 8
+export const PARALLEL_HOSTS = 64
 export const TIMEOUT_MS = 15_000
 export const MAX_REDIRECTS = 5
 export const USER_AGENT = 'RarebitLinkCheck/1.0 (checks once a week that school, college and university website links still work)'
 const WRITE_BATCH = 500
+export const RECHECK_HOURS = 20
 
 // The links in silver, as listed (cleaned to https://, before any http-only
 // change): WEBSITE_LINK's key.
@@ -159,7 +163,10 @@ export async function runJob({ log = console.log, slice = todaysSlice(), limit =
   try {
     for (let i = 0; i < links.length; i += 10_000) await execute(c, SYNC, [JSON.stringify(links.slice(i, i + 10_000))])
     // 2. Today's slice, with each link's state before the check.
-    let due = await execute(c, `select * from SHARED_DB.EXT.WEBSITE_LINK where SLICE = ? and LASTINSILVERAT >= ?::timestamp_ltz order by URL`, [slice, new Date(started).toISOString()])
+    // A link checked in the last RECHECK_HOURS is left (a run that stopped
+    // half way resumes instead of asking the same sites again).
+    let due = await execute(c, `select * from SHARED_DB.EXT.WEBSITE_LINK where SLICE = ? and LASTINSILVERAT >= ?::timestamp_ltz
+      and (LASTCHECKEDAT is null or LASTCHECKEDAT < dateadd(hour, -${RECHECK_HOURS}, current_timestamp())) order by URL`, [slice, new Date(started).toISOString()])
     if (limit) due = due.slice(0, limit)
     log(`website-links: ${links.length} links in silver; slice ${slice}: ${due.length} to check across ${new Set(due.map((d) => d.HOST)).size} hosts`)
 

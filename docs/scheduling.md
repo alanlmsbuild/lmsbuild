@@ -64,9 +64,12 @@ the silver build, in its own `links` lock group. Each day it checks the
 links whose slice is today's (0 to 6, from a hash of the URL; about 6,600
 of the 46,000 links of open schools and colleges, providers and university
 courses), so each link is checked once a week. It is polite: one request
-at a time per site, 10 seconds apart, 8 sites at once; HEAD, then a GET
+at a time per site, 10 seconds apart, 64 sites at once (a day's slice
+is about 22 hours of per-site time, mostly university course pages, so
+about 25 to 30 minutes); HEAD, then a GET
 that reads only the headers; 15 seconds per request; at most 5 redirects;
-a 429 stops that site for the run. Results go to `SHARED_DB.EXT.WEBSITE_LINK`
+a 429 stops that site for the run; a link checked in the last 20 hours
+is skipped, so a run that stopped half way resumes. Results go to `SHARED_DB.EXT.WEBSITE_LINK`
 (latest state) and `WEBSITE_LINK_CHECK` (every check), as `DATA_LOAD_USER`.
 A 404 or 410 is broken; a server error, timeout or unknown host is
 unreachable; 401, 403 and 429 are blocked (a site refusing robots: not a

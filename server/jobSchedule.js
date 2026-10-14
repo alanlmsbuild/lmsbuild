@@ -129,7 +129,7 @@ export const JOB_SCHEDULE = {
     overdueAfter: 26 * HOUR,
     lockGroup: 'links',
     lockHours: 2,
-    timeoutMinutes: 90,
+    timeoutMinutes: 120,
   },
 }
 
