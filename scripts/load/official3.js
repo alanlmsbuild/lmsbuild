@@ -17,7 +17,7 @@ import { NOMIS_SETS } from '../fetch-official.js'
 import { toCells } from './official2.js'
 
 const OGL = 'Open Government Licence v3.0'
-const OGL_ONS = 'Open Government Licence v3.0 (credit the Office for National Statistics; postcode data also Royal Mail and Ordnance Survey copyright)'
+const OGL_ONS = 'Open Government Licence v3.0 (credit ONS; postcodes also Royal Mail and OS copyright)'
 const DFE = 'Department for Education'
 
 function files(dir, re) {
