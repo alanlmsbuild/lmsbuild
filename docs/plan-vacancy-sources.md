@@ -29,8 +29,8 @@ Started 14 October 2026. Nothing is built until Adzuna and Reed reply (see
 
 | Source | Access | Terms that matter | Status |
 |---|---|---|---|
-| Adzuna API | Free key; default 25 a minute, 250 a day, 2,500 a month | Commercial use beyond a 14-day trial may need a licence; each advert shows the Adzuna logo linked to Adzuna; trial data not used for counts; all data removed if access ends | Email drafted 14 October; Alan to send (terms, pricing, platform use, an evaluation count) |
-| Reed Jobseeker API | Free key, basic auth | No published API terms; Reed's website terms forbid copying for commercial use | Email drafted 14 October; Alan to send (written terms) |
+| Adzuna API | Free key; default 25 a minute, 250 a day, 2,500 a month | Commercial use beyond a 14-day trial may need a licence; each advert shows the Adzuna logo linked to Adzuna; trial data not used for counts; all data removed if access ends | Email sent 14 October to info@adzuna.com (terms, the self-serve plan for platform use, an evaluation count) |
+| Reed Jobseeker API | Free key, basic auth | No published API terms; Reed's website terms forbid copying for commercial use | Email sent 14 October through the reed.co.uk contact form, for the Jobseeker API team (written terms) |
 | DWP Find a Job | No public API for reading adverts (partners send jobs in by SFTP) | | Not available |
 | Indeed, LinkedIn, Totaljobs and others | No public API; scraping not allowed | | Out |
 
@@ -52,7 +52,10 @@ called yet.
 
 ## Waiting on
 
-- Alan registers for both keys and sends the two emails.
+- Both keys registered and working; both emails sent 14 October 2026
+  (Adzuna to info@adzuna.com; Reed through the reed.co.uk contact form,
+  asking for it to go to the Jobseeker API team). Nothing is built until
+  they reply.
 - Adzuna: written terms (storing, showing, counting), whether several
   organisations on one platform need a different licence, pricing and rate
   limits (about 2,000 requests a day for England, fetched once for all
