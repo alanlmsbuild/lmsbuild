@@ -38,7 +38,8 @@ function node(script, args = []) {
   const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts', script), ...args], { cwd: ROOT, encoding: 'utf8' })
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() }
 }
-const lastLines = (text, n = 6) => text.split('\n').filter((l) => l.trim()).slice(-n).join('\n')
+// The last lines of a script's output, without dotenv's "injected env" notices.
+const lastLines = (text, n = 6) => text.split('\n').filter((l) => l.trim() && !/^◇ injected env/.test(l.trim())).slice(-n).join('\n')
 
 // Models built and tests passed or failed, from dbt's run_results.json.
 export function countResults(runResults, manifest) {
