@@ -2,10 +2,20 @@ version: 2
 
 # The school leavers app's group of the silver layer (OPTIONS_DB.SILVER):
 # schools (URN), colleges and sixth forms with 16 to 18 results (URN),
-# providers (UKPRN) and university courses. Joined to the area models
+# providers (UKPRN), university courses and their outcomes. Joined to the area models
 # (SHARED_DB.SILVER) by postcode. Figures as published: withheld or not
 # applicable values are empty (bronze keeps the reason); hiding small
 # numbers is the app's job.
+#
+# HESA (Discover Uni): CC BY 4.0. HESA's requirement, copied by hand by
+# Alan from hesa.ac.uk/kisdata on 9 October 2026: "HESA open data is
+# published under the Creative Commons Attribution 4.0 International (CC BY
+# 4.0) licence. You must give appropriate credit (HESA, www.hesa.ac.uk),
+# provide a link to the licence, and indicate if any changes have been
+# made." The same text is in school-leavers-app/docs/institutions-data.md.
+# The ATTRIBUTION tags here give the credit, the link and silver's own
+# changes, table by table. Silver hides nothing: the app's credit adds its own change
+# (figures based on fewer than 10 hidden) where it shows them.
 #
 # Shared UKPRNs: SCHOOL and COLLEGE_16_18 are keyed by URN and carry the
 # UKPRN as a plain column; PROVIDER is keyed by UKPRN and holds what is
@@ -464,7 +474,7 @@ models:
           meta:
             source: 'discover-uni,gias,ofsted-fe,achievement-et,achievement-app,apar'
             licence: 'cc-by-4'
-            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: HESA (www.hesa.ac.uk), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).'
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Credit: HESA (www.hesa.ac.uk). Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: none.'
         data_tests:
           - not_null
       - name: name_from
@@ -495,7 +505,7 @@ models:
           meta:
             source: 'discover-uni'
             licence: 'cc-by-4'
-            attribution: 'Source: HESA (www.hesa.ac.uk), Discover Uni dataset, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changed: one row per course; a joint course shows its first subject''s outcomes.'
+            attribution: 'Credit: HESA (www.hesa.ac.uk). Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: courses counted per UKPRN.'
         data_tests:
           - not_null
       - name: on_apar
@@ -607,7 +617,7 @@ models:
       meta:
         source: discover-uni,leo-grad-cah3-subject,onspd
         licence: cc-by-4
-        attribution: 'Source: HESA (www.hesa.ac.uk), Discover Uni dataset, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changed: one row per course; a joint course shows its first subject''s outcomes.'
+        attribution: 'Credit: HESA (www.hesa.ac.uk). Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: one row per course; outcomes in UNIVERSITY_COURSE_OUTCOME; columns renamed.'
         refresh: by-hand
         sensitivity: public
     columns:
@@ -744,38 +754,86 @@ models:
       - name: subject_codes
         data_type: varchar
         description: 'All its subjects'' CAH codes, in the file''s order, joined with commas.'
-      - name: outcomes_subject
+      - name: source_file_id
         data_type: varchar
-        description: 'The subject the outcome figures below are for (for a joint course, its first outcome row''s).'
-      - name: continuation_students
+        description: 'The course file''s OPTIONS_DB.RAW.SOURCE_FILE row.'
+
+  - name: university_course_outcome
+    description: >-
+      Discover Uni's outcome figures for each course, one row per course,
+      measure and subject, exactly as HESA splits them: continuation, salary
+      15 months after finishing (Graduate Outcomes) and earnings 3 years
+      after (LEO). A joint course has a row for each subject HESA gives. Each
+      measure has its own split, so subjects are never matched across
+      measures and one subject's figures never stand for the whole course.
+    config:
+      meta:
+        source: discover-uni,leo-grad-cah3-subject
+        licence: cc-by-4
+        attribution: 'Credit: HESA (www.hesa.ac.uk). Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: one row per course, measure and subject; columns renamed; withheld or unavailable values empty.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: outcome_key
+        data_type: varchar
+        description: 'Its key: the course key, the measure and the subject code, joined with |.'
+        data_tests: [unique, not_null]
+      - name: course_key
+        data_type: varchar
+        description: 'The course (UNIVERSITY_COURSE.COURSE_KEY).'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('university_course')
+                field: course_key
+      - name: measure
+        data_type: varchar
+        description: 'continuation (still studying or qualified a year on), salary_15_months (Graduate Outcomes) or earnings_3_years (LEO).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [continuation, salary_15_months, earnings_3_years]
+      - name: subject_code
+        data_type: varchar
+        description: 'The CAH subject (or subject group) the figures are for, as HESA gives it; empty when HESA gives none (the figures are not available for the course).'
+      - name: subject_name
+        data_type: varchar
+        description: 'That subject''s name, from the LEO graduate outcomes subject list (CAH2 or CAH3 level; empty for a code not in it).'
+        config:
+          meta:
+            source: leo-grad-cah3-subject
+            licence: ogl-3
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: unavailable_reason
+        data_type: varchar
+        description: 'HESA''s code for why the figures are or are not available for this course (its UNAVAILREASON field), as published.'
+      - name: aggregation
+        data_type: varchar
+        description: 'HESA''s code for how the figures were aggregated (over years, or a wider subject group), as published.'
+      - name: aggregation_years
+        data_type: varchar
+        description: 'The years the figures cover, e.g. 2022-24.'
+      - name: population
         data_type: number(38,0)
-        description: 'Students the continuation figure is based on.'
-      - name: continuation_percent
+        description: 'The students, respondents or graduates the figures are based on.'
+      - name: value
         data_type: number(38,0)
-        description: 'The percentage still studying or qualified a year on.'
+        description: 'The figure: for continuation, the percentage continuing; for salary and earnings, the median in pounds. Empty when not published.'
         data_tests:
           - between:
               arguments:
                 min: 0
                 max: 100
-      - name: salary_respondents
+              config:
+                where: "measure = 'continuation'"
+      - name: lower_quartile
         data_type: number(38,0)
-        description: 'Graduate Outcomes respondents the salary figures are based on.'
-      - name: salary_median_15_months
+        description: 'Salary and earnings: the lower quartile, in pounds. Empty for continuation.'
+      - name: upper_quartile
         data_type: number(38,0)
-        description: 'Median salary 15 months after finishing, in pounds.'
-      - name: salary_lower_quartile_15_months
-        data_type: number(38,0)
-        description: 'Lower quartile of that salary.'
-      - name: salary_upper_quartile_15_months
-        data_type: number(38,0)
-        description: 'Upper quartile of that salary.'
-      - name: earnings_graduates_3_years
-        data_type: number(38,0)
-        description: 'Graduates the LEO earnings figure is based on.'
-      - name: earnings_median_3_years
-        data_type: number(38,0)
-        description: 'Median earnings 3 years after graduating (LEO), in pounds.'
+        description: 'Salary and earnings: the upper quartile, in pounds. Empty for continuation.'
       - name: source_file_id
         data_type: varchar
-        description: 'The course file''s OPTIONS_DB.RAW.SOURCE_FILE row.'
+        description: 'The OPTIONS_DB.RAW.SOURCE_FILE row of the file the row came from.'
