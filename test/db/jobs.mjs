@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { connect, execute, destroy } from '../../server/db.js'
-import { JOB_SCHEDULE } from '../../server/jobSchedule.js'
+import { JOB_ORDER, JOB_SCHEDULE } from '../../server/jobSchedule.js'
 import { isDue, JobTimeout, readState, recordRun, writeState } from '../../scripts/job-run.js'
 import { clearOldLogs, takeLock, tick } from '../../scripts/jobs.js'
 
@@ -34,7 +34,8 @@ fs.rmSync(dir, { recursive: true, force: true })
 fs.mkdirSync(dir, { recursive: true })
 const stateFile = (name) => path.join(dir, `${name}.json`)
 const ok = (t) => ({ lastSuccessAt: iso(t), lastAttemptAt: iso(t), lastOutcome: 'succeeded' })
-const allDone = (t) => ({ jobs: { 'vacancies-full': ok(t), 'vacancies-new': ok(t), 'companies-refresh': ok(t), skills: ok(t) } })
+// Every job just succeeded (all of JOB_ORDER, so a tick finds nothing missing).
+const allDone = (t) => ({ jobs: Object.fromEntries(JOB_ORDER.map((j) => [j, ok(t)])) })
 const due = (state, t) => ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills'].filter((j) => isDue(j, state, t))
 
 // ---------------------------------------------------------------- part 1
@@ -123,6 +124,7 @@ try {
     'vacancies-new': fake('vacancies-new', async () => ({ outcome: 'succeeded' })),
     'companies-refresh': fake('companies-refresh', async () => { throw new Error('TEST Companies House down') }),
     skills: fake('skills', async () => ({ outcome: 'succeeded' })),
+    'transform-silver': fake('transform-silver', async () => ({ outcome: 'succeeded', summary: { models: { built: 1 } } })),
   }
   const rowsSince = async (t) => q(`select JOBRUNID, JOB, TRIGGEREDBY, HOST, OUTCOME, JOBRUNREF, ERROR, to_json(SUMMARY) as SUMMARY, FINISHEDAT is not null as FINISHED
     from SHARED_DB.OPS.JOB_RUN where STARTEDAT >= ?::timestamp_ltz order by STARTEDAT, JOB`, [iso(t)])
@@ -144,25 +146,26 @@ try {
   check('no state file: filled from SHARED_DB.OPS.JOB_RUN (one connection), and nothing rerun', seeded.seeded && seeded.ran.length === 0 && calls.length === 0 &&
     readState(missing).jobs.skills?.lastSuccessAt === iso(T1), JSON.stringify(readState(missing).jobs.skills))
 
-  // 25 hours on: the full vacancy run and the Companies House refresh are due.
+  // 25 hours on: the full vacancy run, the Companies House refresh and the
+  // silver build (last) are due.
   const T2 = T1 + 25 * H
   const busy = await tick({ stateFile: missing, now: () => T2, runners, log, ...fakeDb })
-  check('due jobs run one at a time, in order; new adverts covered by the full run; skills not due',
-    calls.join() === 'vacancies-full,companies-refresh' && !overlapped &&
-    JSON.stringify(busy.ran) === JSON.stringify([{ job: 'vacancies-full', outcome: 'succeeded' }, { job: 'companies-refresh', outcome: 'failed' }]), JSON.stringify(busy.ran))
+  check('due jobs run one at a time, in order, the silver build last; new adverts covered by the full run; skills not due',
+    calls.join() === 'vacancies-full,companies-refresh,transform-silver' && !overlapped &&
+    JSON.stringify(busy.ran) === JSON.stringify([{ job: 'vacancies-full', outcome: 'succeeded' }, { job: 'companies-refresh', outcome: 'failed' }, { job: 'transform-silver', outcome: 'succeeded' }]), JSON.stringify(busy.ran))
   const rows = await rowsSince(T2)
   created.push(...rows.map((r) => r.JOBRUNID))
   const full = rows.find((r) => r.JOB === 'vacancies-full')
   const ch = rows.find((r) => r.JOB === 'companies-refresh')
   check('  recorded in SHARED_DB.OPS.JOB_RUN as scheduled, with host, outcome, the job\'s run ID and its summary',
-    rows.length === 2 && full.TRIGGEREDBY === 'schedule' && full.HOST === os.hostname() && full.OUTCOME === 'succeeded' && full.JOBRUNREF === 'TEST-REF' &&
+    rows.length === 3 && full.TRIGGEREDBY === 'schedule' && full.HOST === os.hostname() && full.OUTCOME === 'succeeded' && full.JOBRUNREF === 'TEST-REF' &&
     full.SUMMARY === '{"adverts":1}' && full.FINISHED, JSON.stringify(full))
   check('  a job that throws is recorded as failed, with why', ch.OUTCOME === 'failed' && ch.ERROR === 'TEST Companies House down' && ch.FINISHED, JSON.stringify(ch))
-  check('  the state file has both', readState(missing).jobs['vacancies-full'].lastSuccessAt === iso(T2) &&
+  check('  the state file has them', readState(missing).jobs['vacancies-full'].lastSuccessAt === iso(T2) &&
     readState(missing).jobs['companies-refresh'].lastOutcome === 'failed')
 
   const again = await tick({ stateFile: missing, now: () => T2 + 10 * 60_000, runners, log, ...fakeDb })
-  check('the next tick: the failed job isn\'t retried straight away, and nothing else is due', again.ran.length === 0 && !again.connected && calls.length === 2)
+  check('the next tick: the failed job isn\'t retried straight away, and nothing else is due', again.ran.length === 0 && !again.connected && calls.length === 3)
   const later = await tick({ stateFile: missing, now: () => T2 + 61 * 60_000, runners, log, ...fakeDb })
   check('  an hour later it is', later.ran.map((r) => r.job).join() === 'companies-refresh')
 

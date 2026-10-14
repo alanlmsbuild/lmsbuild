@@ -1,9 +1,23 @@
 # dbt's connection: TRANSFORM_USER with its key pair (sql/silver_01_setup.sql).
 # The values come from server/.env, which scripts/dbt.js loads.
+# Two targets, the same login: silver builds straight into SILVER (by hand
+# while developing); staging builds into SILVER_STAGING, which the daily
+# transform job (scripts/transform-silver.js) tests before swapping in.
 rarebit:
   target: silver
   outputs:
     silver:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('TRANSFORM_USERNAME', 'TRANSFORM_USER') }}"
+      private_key_path: "{{ env_var('TRANSFORM_PRIVATE_KEY_PATH') }}"
+      role: TRANSFORM_ROLE
+      warehouse: TRANSFORM_WH
+      database: SHARED_DB
+      schema: SILVER
+      threads: 4
+      query_tag: rarebit-dbt
+    staging:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('TRANSFORM_USERNAME', 'TRANSFORM_USER') }}"

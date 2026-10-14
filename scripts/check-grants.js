@@ -39,11 +39,21 @@
 //      or do more than INSERT into BRONZE, holds another role, or is missing
 //      a grant the CRM needs (CRM_REQUIRED below); CRM_APP_USER has any role
 //      but CRM_APP_ROLE. DATA_LOAD_ROLE has nothing in CRM_DB either.
+//  11. TRANSFORM_ROLE (dbt, the silver layer; sql/silver_01_setup.sql and
+//      silver_02_staging.sql), checked as TRANSFORM_USER: it may only read
+//      RAW (both databases) and the vacancy tables in EXT, make and own
+//      tables and views in SILVER and SILVER_STAGING, apply the governance
+//      tags, log its runs in OPS.JOB_RUN and use TRANSFORM_WH. Anything in
+//      CAPTURE_DB, CRM_DB or ACCESS, any other write, any other role, or a
+//      missing grant the job needs (TRANSFORM_REQUIRED) fails; so does
+//      TRANSFORM_ROLE held by anyone but TRANSFORM_USER, or TRANSFORM_USER
+//      holding any other role.
 //  10. The flows (sql/flow_01_f6_f7_f8.sql): each app role may call only
 //      its own flow procedures (the CRM F6 and F8, Warren F7), and Warren
 //      may read and update ILR.ONBOARDING but never add to it (only F6 does).
-// Needs the Snowflake connection in server/.env, and the loaders' and the
-// CRM's keys (DATA_LOAD_PRIVATE_KEY_PATH, CRM_PRIVATE_KEY_PATH) for 8 and 9.
+// Needs the Snowflake connection in server/.env, and the loaders', the
+// CRM's and dbt's keys (DATA_LOAD_PRIVATE_KEY_PATH, CRM_PRIVATE_KEY_PATH,
+// TRANSFORM_PRIVATE_KEY_PATH) for 8, 9 and 11.
 //
 // Usage:
 //   npm run check:grants
@@ -264,6 +274,61 @@ export function crmGrantProblems(grants, userRoles) {
   return problems
 }
 
+// dbt's role: what it may have, and what the transform job needs.
+const TRANSFORM_ROLE = 'TRANSFORM_ROLE'
+const TRANSFORM_USER = process.env.TRANSFORM_USERNAME || 'TRANSFORM_USER'
+const SILVER_SCHEMAS = ['SHARED_DB.SILVER', 'SHARED_DB.SILVER_STAGING', 'OPTIONS_DB.SILVER', 'OPTIONS_DB.SILVER_STAGING']
+const TRANSFORM_READ_SCHEMAS = ['SHARED_DB.RAW', 'OPTIONS_DB.RAW', 'SHARED_DB.EXT']
+const TRANSFORM_USAGE_SCHEMAS = [...TRANSFORM_READ_SCHEMAS, ...SILVER_SCHEMAS, 'SHARED_DB.GOVERNANCE', 'SHARED_DB.OPS']
+const TAG_NAMES = ['LAYER', 'SOURCE', 'LICENCE', 'ATTRIBUTION', 'OWNER', 'REFRESH', 'SENSITIVITY']
+export const TRANSFORM_REQUIRED = {
+  'SHARED_DB.OPS.JOB_RUN': ['SELECT', 'INSERT', 'UPDATE'],
+  TRANSFORM_WH: ['USAGE'],
+  ...Object.fromEntries(SILVER_SCHEMAS.map((x) => [x, ['USAGE', 'CREATE TABLE']])),
+  ...Object.fromEntries(TAG_NAMES.map((t) => [`SHARED_DB.GOVERNANCE.${t}`, ['APPLY']])),
+  'SHARED_DB.EXT.VACANCY': ['SELECT'],
+  'SHARED_DB.EXT.VACANCY_SOC': ['SELECT'],
+}
+const inSchema = (name, schemas) => schemas.some((x) => name.startsWith(`${x}.`))
+
+// The problems in TRANSFORM_ROLE's grants (SHOW GRANTS TO ROLE, as
+// TRANSFORM_USER), TRANSFORM_USER's roles and who holds TRANSFORM_ROLE.
+export function transformGrantProblems(grants, userRoles, holders) {
+  const problems = []
+  for (const g of grants) {
+    const name = String(g.name)
+    const privilege = String(g.privilege)
+    const on = String(g.granted_on)
+    const what = `${privilege} on ${on.toLowerCase()} ${name}`
+    const db = name.split('.')[0]
+    if (db === 'CAPTURE_DB' || db === 'CRM_DB') { problems.push(`${what}: ${TRANSFORM_ROLE} has nothing in ${db}`); continue }
+    if (/^SHARED_DB\.ACCESS(\.|$)/.test(name)) { problems.push(`${what}: ${TRANSFORM_ROLE} has nothing on ACCESS`); continue }
+    let ok = false
+    if (on === 'DATABASE') ok = privilege === 'USAGE' && ['SHARED_DB', 'OPTIONS_DB'].includes(name)
+    else if (on === 'SCHEMA') ok = (privilege === 'USAGE' && TRANSFORM_USAGE_SCHEMAS.includes(name)) || (['CREATE TABLE', 'CREATE VIEW'].includes(privilege) && SILVER_SCHEMAS.includes(name))
+    else if (on === 'TABLE' || on === 'VIEW') {
+      ok = (privilege === 'SELECT' && inSchema(name, TRANSFORM_READ_SCHEMAS)) ||
+        (privilege === 'OWNERSHIP' && inSchema(name, SILVER_SCHEMAS)) ||
+        (name === 'SHARED_DB.OPS.JOB_RUN' && ['SELECT', 'INSERT', 'UPDATE'].includes(privilege))
+    } else if (on === 'TAG') ok = privilege === 'APPLY' && name.startsWith('SHARED_DB.GOVERNANCE.')
+    else if (on === 'WAREHOUSE') ok = privilege === 'USAGE' && name === 'TRANSFORM_WH'
+    if (!ok) problems.push(`${what}: ${TRANSFORM_ROLE} only reads RAW and EXT, writes SILVER and SILVER_STAGING, applies the tags and logs its runs`)
+  }
+  for (const [name, privileges] of Object.entries(TRANSFORM_REQUIRED)) {
+    for (const privilege of privileges) {
+      if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the transform job needs it`)
+    }
+  }
+  for (const r of userRoles) {
+    if (String(r.role) !== TRANSFORM_ROLE) problems.push(`${TRANSFORM_USER} also has ${r.role}: it should have ${TRANSFORM_ROLE} only`)
+  }
+  if (!userRoles.some((r) => String(r.role) === TRANSFORM_ROLE)) problems.push(`${TRANSFORM_USER} doesn't have ${TRANSFORM_ROLE}`)
+  for (const h of holders) {
+    if (!(String(h.granted_to) === 'USER' && String(h.grantee_name) === TRANSFORM_USER)) problems.push(`${TRANSFORM_ROLE} is held by ${h.granted_to} ${h.grantee_name}: only ${TRANSFORM_USER} may hold it`)
+  }
+  return problems
+}
+
 let problems = []
 let checked = 0
 if (process.argv[1]?.endsWith('check-grants.js')) {
@@ -309,9 +374,19 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   } finally {
     await destroy(crm)
   }
+  const transform = await connect({ as: 'transform' })
+  try {
+    const transformGrants = await execute(transform, `show grants to role ${TRANSFORM_ROLE}`)
+    const transformRoles = await execute(transform, `show grants to user ${TRANSFORM_USER}`)
+    const holders = await execute(transform, `show grants of role ${TRANSFORM_ROLE}`)
+    checked += transformGrants.length + transformRoles.length + holders.length
+    problems.push(...transformGrantProblems(transformGrants, transformRoles, holders))
+  } finally {
+    await destroy(transform)
+  }
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
-    ? `\n${problems.length} grant problem(s) for ${ROLE}, ${LOAD_ROLE} or ${CRM_ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs.`)
+    ? `\n${problems.length} grant problem(s) for ${ROLE}, ${LOAD_ROLE}, ${CRM_ROLE} or ${TRANSFORM_ROLE}.`
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS.`)
   process.exit(problems.length ? 1 : 0)
 }

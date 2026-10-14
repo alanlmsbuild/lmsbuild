@@ -1,7 +1,8 @@
 # Scheduling the background jobs
 
-Ten jobs keep outside data up to date. Each runs when it's due, and every
-run, scheduled or by hand, is recorded in `OPS.JOB_RUN`:
+Ten jobs keep outside data up to date, and an eleventh builds the silver
+layer from it. Each runs when it's due, and every run, scheduled or by
+hand, is recorded in `OPS.JOB_RUN`:
 
 | Job | Runs when the last success is older than | Overdue after |
 |---|---|---|
@@ -15,6 +16,7 @@ run, scheduled or by hand, is recorded in `OPS.JOB_RUN`:
 | `official-ons` (ONS: online job adverts, VACS02) | 7 days | 8 days |
 | `official-ofqual` (Ofqual register of qualifications) | 7 days | 8 days |
 | `official-monthly` (police.uk, provider register, NaPTAN, listed buildings, Wikidata places) | 30 days | 32 days |
+| `transform-silver` (the silver layer: dbt build, tests, swap in) | 24 hours | 26 hours |
 
 The `official-*` jobs (`scripts/fetch-official.js`) fetch only what's new
 into the data folder, then load it as `DATA_LOAD_USER` (`npm run load:data`
@@ -27,6 +29,23 @@ the fuel poverty tables and Graduate Outcomes are fetched by hand: their
 addresses change with each release. The load adds its own `load-*` row to
 `OPS.JOB_RUN`. By hand: `npm run fetch:official -- nomis` (or `api`,
 `statxplore`, `ons`, `ofqual`).
+
+`transform-silver` (`scripts/transform-silver.js`) runs last in a tick
+and is in the `official` lock group, so it never runs while an official
+load is open. It checks every model is described and tagged (`check:dbt`),
+builds every model with dbt into `SILVER_STAGING` and runs its tests,
+checks the tags read back from Snowflake (`check:tags --staging`), and
+only then swaps each table into `SILVER` (its data, comments and tags move
+with it; a new model is cloned in once). If any check or test fails, the
+run is recorded as failed and `SILVER` is left as it was; `SILVER_STAGING`
+keeps the failed build to look at. Its `OPS.JOB_RUN` summary has the
+models built and the tests passed, failed and warned (from dbt's
+`run_results.json`), the tables swapped, and on failure which step and
+which tests. It runs as `TRANSFORM_USER` on `TRANSFORM_WH`, from the dbt
+venv in the checkout (`.venv-dbt`, made as `dbt/requirements.txt` says;
+not committed, so a new checkout needs it made). By hand:
+`npm run transform:silver` (recorded, as manual) or `npm run silver:build`
+(the same, not recorded).
 
 `npm run jobs` is one **tick**. It reads `logs/jobs/state.json` and runs
 whatever is due, one job at a time. If nothing is due, it exits without

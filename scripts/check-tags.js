@@ -7,11 +7,13 @@
 //     RAW table has rows (its SOURCE tags)
 // and the tags' allowed values in Snowflake are those in
 // scripts/governance-tags.js.
-//   npm run check:tags
+//   npm run check:tags                 SILVER
+//   npm run check:tags -- --staging    SILVER_STAGING (the transform job, before it swaps)
 import { connect, execute, destroy } from '../server/db.js'
 import { TAG_SCHEMA, TAGS, ALLOWED, SOURCE, API_SOURCES } from './governance-tags.js'
 
-const SCHEMAS = ['SHARED_DB.SILVER', 'OPTIONS_DB.SILVER']
+const STAGING = process.argv.includes('--staging')
+const SCHEMAS = ['SHARED_DB.SILVER', 'OPTIONS_DB.SILVER'].map((x) => (STAGING ? `${x}_STAGING` : x))
 const problems = []
 const c = await connect({ as: 'transform', timeoutMs: 30000 })
 const q = (sql, binds = []) => execute(c, sql, binds)
@@ -71,7 +73,7 @@ try {
 }
 if (problems.length) {
   for (const p of problems) console.log(`FAIL ${p}`)
-  console.log(`\n${problems.length} problem(s) in ${tables} silver tables.`)
+  console.log(`\n${problems.length} problem(s) in ${tables} ${STAGING ? 'silver staging' : 'silver'} tables.`)
   process.exit(1)
 }
-console.log(`${tables} silver tables, ${columns} columns: every one described, all seven tags on every table, SENSITIVITY on every column, every value allowed, every SOURCE in SOURCE_FILE.`)
+console.log(`${tables} ${STAGING ? 'silver staging' : 'silver'} tables, ${columns} columns: every one described, all seven tags on every table, SENSITIVITY on every column, every value allowed, every SOURCE in SOURCE_FILE.`)

@@ -48,6 +48,8 @@ export const JOB_RUNNERS = {
   'official-ons': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'ons', log }),
   'official-ofqual': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'ofqual', log }),
   'official-monthly': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'monthly', log }),
+  // The silver layer: dbt as TRANSFORM_USER with its own connection.
+  'transform-silver': async (connection, log) => (await import('./transform-silver.js')).runJob({ log }),
 }
 
 // One tick. Returns what it did: { ran: [{ job, outcome }], seeded, connected }.
