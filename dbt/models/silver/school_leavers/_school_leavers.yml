@@ -1,0 +1,781 @@
+version: 2
+
+# The school leavers app's group of the silver layer (OPTIONS_DB.SILVER):
+# schools (URN), colleges and sixth forms with 16 to 18 results (URN),
+# providers (UKPRN) and university courses. Joined to the area models
+# (SHARED_DB.SILVER) by postcode. Figures as published: withheld or not
+# applicable values are empty (bronze keeps the reason); hiding small
+# numbers is the app's job.
+#
+# Shared UKPRNs: SCHOOL and COLLEGE_16_18 are keyed by URN and carry the
+# UKPRN as a plain column; PROVIDER is keyed by UKPRN and holds what is
+# published per UKPRN (achievement rates, Ofsted's FE inspections, APAR).
+# Today no two open establishments share a UKPRN (15 UKPRNs repeat across a
+# closed establishment and its successor); test ukprn_shared_by_open
+# warns if that changes.
+
+models:
+  - name: school
+    description: >-
+      Every school in Get Information about Schools, open or closed (every
+      establishment except colleges and universities), one row per URN: what
+      it is, where it is (local authority and LSOA from its postcode), its
+      latest Ofsted inspection and its latest key stage 4 results.
+    config:
+      meta:
+        source: gias,ofsted-schools,ks4-performance-school,onspd
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: urn
+        data_type: varchar
+        description: 'Its unique reference number in GIAS, e.g. 100000.'
+        data_tests:
+          - unique
+          - not_null
+      - name: ukprn
+        data_type: varchar
+        description: 'Its UK provider reference number, if it has one. Open schools never share one; see PROVIDER for per-UKPRN figures.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('provider')
+                field: ukprn
+              config:
+                where: "is_open"
+      - name: laestab
+        data_type: varchar
+        description: 'Its local authority and establishment number (e.g. 2013614), as in the DfE performance tables.'
+      - name: name
+        data_type: varchar
+        description: 'Its name.'
+        data_tests:
+          - not_null
+      - name: status
+        data_type: varchar
+        description: 'Its GIAS status: Open, Closed, Open but proposed to close, Proposed to open.'
+        data_tests:
+          - not_null
+      - name: is_open
+        data_type: boolean
+        description: 'True when GIAS says it is open (including open but proposed to close).'
+        data_tests:
+          - not_null
+      - name: type
+        data_type: varchar
+        description: 'Its type of establishment, e.g. Academy converter, Community school.'
+        data_tests:
+          - not_null
+      - name: type_group
+        data_type: varchar
+        description: 'Its type group, e.g. Academies, Independent schools.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Local authority maintained schools', 'Academies', 'Independent schools', 'Special schools', 'Welsh schools', 'Other types', 'Free Schools', 'Online provider']
+      - name: kind
+        data_type: varchar
+        description: 'What families would call it, by the school leavers app''s own rule (macros/school_kind.sql).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['school-sixth-form', '16-19-school', 'sixth-form-centre', 'utc', 'studio-school', 'special-school', 'sixth-form-college', 'fe-college', 'land-based-college', 'specialist-college', 'independent-school']
+      - name: phase
+        data_type: varchar
+        description: 'Its phase: Primary, Secondary, All-through, 16 plus and so on.'
+      - name: statutory_low_age
+        data_type: number(38,0)
+        description: 'The youngest age it takes.'
+      - name: statutory_high_age
+        data_type: number(38,0)
+        description: 'The oldest age it takes.'
+      - name: has_sixth_form
+        data_type: boolean
+        description: 'True when GIAS says it has a sixth form, false when it says it has not; empty when not applicable.'
+      - name: gender
+        data_type: varchar
+        description: 'Mixed, Boys or Girls.'
+      - name: religious_character
+        data_type: varchar
+        description: 'Its religious character, if it has one.'
+      - name: admissions_policy
+        data_type: varchar
+        description: 'Selective or non-selective, where it applies.'
+      - name: pupils
+        data_type: number(38,0)
+        description: 'Pupils on roll at the last census.'
+      - name: capacity
+        data_type: number(38,0)
+        description: 'How many pupils it has room for.'
+      - name: percentage_fsm
+        data_type: number(5,1)
+        description: 'The percentage of its pupils eligible for free school meals.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100
+      - name: opened
+        data_type: date
+        description: 'The date it opened, if GIAS gives one.'
+      - name: closed
+        data_type: date
+        description: 'The date it closed, if it has.'
+      - name: trust_name
+        data_type: varchar
+        description: 'Its academy trust, if it is in one.'
+      - name: website
+        data_type: varchar
+        description: 'Its website.'
+      - name: town
+        data_type: varchar
+        description: 'Its town (or locality).'
+      - name: postcode
+        data_type: varchar
+        description: 'Its postcode as GIAS gives it.'
+      - name: matched_postcode
+        data_type: varchar
+        description: 'That postcode as found in the postcode directory; empty when it is not there.'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('postcode')
+                field: postcode
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Its local authority, from its postcode (SHARED_DB.SILVER.POSTCODE). Empty when the postcode is not in the postcode directory (overseas, or missing).'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+      - name: lsoa21_code
+        data_type: varchar
+        description: 'Its 2021 LSOA, from its postcode.'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('lsoa')
+                field: lsoa21_code
+      - name: gias_la_name
+        data_type: varchar
+        description: 'The local authority GIAS gives (its own, older list; LOCAL_AUTHORITY_CODE is today''s, from the postcode).'
+      - name: gias_country
+        data_type: varchar
+        description: 'The country GIAS gives, for schools overseas (British schools overseas and the like).'
+      - name: ofsted_framework
+        data_type: varchar
+        description: 'Which Ofsted framework its latest inspection was under: renewed (from November 2025, report cards) or original (graded).'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['renewed', 'original']
+      - name: ofsted_inspected
+        data_type: date
+        description: 'When that inspection started.'
+      - name: ofsted_oeif_overall
+        data_type: varchar
+        description: 'Its overall effectiveness at its latest graded inspection under the original framework (1 outstanding to 4 inadequate), as published.'
+      - name: ofsted_oeif_inspected
+        data_type: date
+        description: 'When that graded inspection started.'
+      - name: ofsted_achievement
+        data_type: varchar
+        description: 'Its achievement grade under the renewed framework, as published.'
+      - name: ofsted_category_of_concern
+        data_type: varchar
+        description: 'Its category of concern (special measures, serious weaknesses), if any.'
+      - name: ofsted_url
+        data_type: varchar
+        description: 'Its page on the Ofsted website.'
+      - name: ks4_year
+        data_type: varchar
+        description: 'The latest year of key stage 4 results it has, e.g. 2024/25.'
+      - name: ks4_pupils
+        data_type: number(38,0)
+        description: 'Pupils at the end of key stage 4 that year.'
+      - name: attainment8
+        data_type: number(5,1)
+        description: 'Average Attainment 8 score that year.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 90
+      - name: progress8
+        data_type: number(5,2)
+        description: 'Average Progress 8 score that year (empty when not published).'
+      - name: progress8_lower_ci
+        data_type: number(5,2)
+        description: 'Lower end of its Progress 8 confidence interval.'
+      - name: progress8_upper_ci
+        data_type: number(5,2)
+        description: 'Upper end of its Progress 8 confidence interval.'
+      - name: english_maths_grade5_percent
+        data_type: number(5,1)
+        description: 'The percentage achieving grade 5 or above in English and maths.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100
+      - name: source_file_id
+        data_type: varchar
+        description: 'The GIAS file''s OPTIONS_DB.RAW.SOURCE_FILE row.'
+
+  - name: college_16_18
+    description: >-
+      The schools and colleges in the DfE 16 to 18 results, one row per URN,
+      open or closed: their latest year's headline results for A levels,
+      applied general and tech levels, and their latest Ofsted inspection
+      (schools list by URN, else the further education list by URN or UKPRN).
+    config:
+      meta:
+        source: performance-16-18,gias,ofsted-schools,ofsted-fe,onspd
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: urn
+        data_type: varchar
+        description: 'Its URN, as in the 16 to 18 results.'
+        data_tests:
+          - unique
+          - not_null
+      - name: ukprn
+        data_type: varchar
+        description: 'Its UKPRN (from GIAS, or Ofsted''s FE list). No two of these institutions share one.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('provider')
+                field: ukprn
+      - name: name
+        data_type: varchar
+        description: 'Its name in GIAS (or in the results, if GIAS has none).'
+        data_tests:
+          - not_null
+      - name: gias_status
+        data_type: varchar
+        description: 'Its status in GIAS.'
+        data_tests:
+          - not_null
+      - name: is_open
+        data_type: boolean
+        description: 'True when GIAS says it is open: the school leavers app shows only these.'
+        data_tests:
+          - not_null
+      - name: type
+        data_type: varchar
+        description: 'Its type of establishment in GIAS.'
+      - name: kind
+        data_type: varchar
+        description: 'What families would call it (the app''s rule, macros/school_kind.sql).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['school-sixth-form', '16-19-school', 'sixth-form-centre', 'utc', 'studio-school', 'special-school', 'sixth-form-college', 'fe-college', 'land-based-college', 'specialist-college', 'independent-school']
+      - name: town
+        data_type: varchar
+        description: 'Its town.'
+      - name: postcode
+        data_type: varchar
+        description: 'Its postcode as GIAS gives it.'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Its local authority, from its postcode (SHARED_DB.SILVER.POSTCODE). Empty when the postcode is not in the postcode directory (overseas, or missing).'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+      - name: lsoa21_code
+        data_type: varchar
+        description: 'Its 2021 LSOA, from its postcode.'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('lsoa')
+                field: lsoa21_code
+      - name: results_year
+        data_type: varchar
+        description: 'The year of the results below, e.g. 2024/25 (the latest in the file).'
+        data_tests:
+          - not_null
+      - name: students
+        data_type: number(38,0)
+        description: 'Students who finished 16 to 18 study there that year.'
+      - name: a_level_grade
+        data_type: varchar
+        description: 'A levels: average grade per entry, as published (e.g. B-, Merit+).'
+      - name: a_level_points_per_entry
+        data_type: number(6,2)
+        description: 'A levels: average point score per entry.'
+      - name: a_level_students
+        data_type: number(38,0)
+        description: 'A levels: students the average is based on.'
+      - name: a_level_progress
+        data_type: varchar
+        description: 'A levels: progress banding, as published (e.g. Above average).'
+      - name: a_level_value_added
+        data_type: number(6,2)
+        description: 'A levels: value added score.'
+      - name: a_level_retained_percent
+        data_type: number(5,1)
+        description: 'A levels: the percentage retained to the end of their main study programme.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100
+      - name: a_level_retained_students
+        data_type: number(38,0)
+        description: 'A levels: students the retention figure is based on.'
+      - name: applied_general_grade
+        data_type: varchar
+        description: 'Applied general (such as BTECs): average grade per entry, as published (e.g. B-, Merit+).'
+      - name: applied_general_points_per_entry
+        data_type: number(6,2)
+        description: 'Applied general (such as BTECs): average point score per entry.'
+      - name: applied_general_students
+        data_type: number(38,0)
+        description: 'Applied general (such as BTECs): students the average is based on.'
+      - name: applied_general_progress
+        data_type: varchar
+        description: 'Applied general (such as BTECs): progress banding, as published (e.g. Above average).'
+      - name: applied_general_value_added
+        data_type: number(6,2)
+        description: 'Applied general (such as BTECs): value added score.'
+      - name: applied_general_retained_percent
+        data_type: number(5,1)
+        description: 'Applied general (such as BTECs): the percentage retained to the end of their main study programme.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100
+      - name: applied_general_retained_students
+        data_type: number(38,0)
+        description: 'Applied general (such as BTECs): students the retention figure is based on.'
+      - name: tech_level_grade
+        data_type: varchar
+        description: 'Tech levels: average grade per entry, as published (e.g. B-, Merit+).'
+      - name: tech_level_points_per_entry
+        data_type: number(6,2)
+        description: 'Tech levels: average point score per entry.'
+      - name: tech_level_students
+        data_type: number(38,0)
+        description: 'Tech levels: students the average is based on.'
+      - name: tech_level_progress
+        data_type: varchar
+        description: 'Tech levels: progress banding, as published (e.g. Above average).'
+      - name: tech_level_value_added
+        data_type: number(6,2)
+        description: 'Tech levels: value added score.'
+      - name: tech_level_retained_percent
+        data_type: number(5,1)
+        description: 'Tech levels: the percentage retained to the end of their main study programme.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100
+      - name: tech_level_retained_students
+        data_type: number(38,0)
+        description: 'Tech levels: students the retention figure is based on.'
+      - name: a_level_best_three_grade
+        data_type: varchar
+        description: 'A levels: average grade of students'' best three, as published.'
+      - name: ofsted_source
+        data_type: varchar
+        description: 'Which Ofsted list its inspection is from: schools, or further-education (by URN, else by UKPRN for a college that merged).'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['schools', 'further-education']
+      - name: ofsted_renewed_inspected
+        data_type: date
+        description: 'When its latest inspection under the renewed framework started, if it has had one.'
+      - name: ofsted_previous_overall
+        data_type: varchar
+        description: 'Its overall effectiveness at its latest inspection before the renewed framework (1 outstanding to 4 inadequate), as published.'
+      - name: ofsted_previous_inspected
+        data_type: date
+        description: 'When that inspection started.'
+      - name: ofsted_url
+        data_type: varchar
+        description: 'Its page on the Ofsted website.'
+
+  - name: provider
+    description: >-
+      Every learning provider (UKPRN) named in the school leavers app's data
+      (GIAS, the 16 to 18 results, APAR, Ofsted's FE list, achievement rates,
+      Discover Uni), one row per UKPRN, with what is published per UKPRN:
+      achievement rates for 16 to 18 year olds, the latest Ofsted FE
+      inspection and APAR status.
+    config:
+      meta:
+        source: gias,apar,ofsted-fe,achievement-et,achievement-app,discover-uni,onspd
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: ukprn
+        data_type: varchar
+        description: 'Its UK provider reference number (8 digits, starting 1), or for a joint medical or veterinary school Discover Uni''s own 8-digit code starting 9 (e.g. 99999998 Hull York Medical School).'
+        data_tests:
+          - unique
+          - not_null
+      - name: name
+        data_type: varchar
+        description: 'Its name: Discover Uni''s trading name, else GIAS (its open establishment, else the one that closed last), Ofsted, the achievement rates or APAR, in that order.'
+        config:
+          meta:
+            source: 'discover-uni,gias,ofsted-fe,achievement-et,achievement-app,apar'
+            licence: 'cc-by-4'
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: HESA (www.hesa.ac.uk), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).'
+        data_tests:
+          - not_null
+      - name: name_from
+        data_type: varchar
+        description: 'Which source the name is from.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['discover-uni', 'gias', 'ofsted-fe', 'achievement-et', 'achievement-app', 'apar']
+      - name: provider_type
+        data_type: varchar
+        description: 'Its provider type in the achievement rates (e.g. General FE College incl Tertiary).'
+      - name: ofsted_provider_type
+        data_type: varchar
+        description: 'Its provider type in Ofsted''s FE list (e.g. General further education and tertiary colleges).'
+      - name: open_establishments
+        data_type: number(38,0)
+        description: 'How many open GIAS establishments have this UKPRN (0 or 1 today).'
+        data_tests:
+          - not_null
+      - name: establishment_urn
+        data_type: varchar
+        description: 'That establishment''s URN, when there is exactly one.'
+      - name: university_courses
+        data_type: number(38,0)
+        description: 'How many Discover Uni courses it teaches.'
+        config:
+          meta:
+            source: 'discover-uni'
+            licence: 'cc-by-4'
+            attribution: 'Source: HESA (www.hesa.ac.uk), Discover Uni dataset, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changed: one row per course; a joint course shows its first subject''s outcomes.'
+        data_tests:
+          - not_null
+      - name: on_apar
+        data_type: boolean
+        description: 'True when it is on the apprenticeship provider and assessment register.'
+        config:
+          meta:
+            source: 'apar'
+        data_tests:
+          - not_null
+      - name: apar_route
+        data_type: varchar
+        description: 'Its APAR route: Main provider, Employer provider or Supporting provider.'
+        config:
+          meta:
+            source: 'apar'
+      - name: apar_status
+        data_type: varchar
+        description: 'Its APAR status, e.g. Not Currently Starting New Apprentices; empty when active.'
+        config:
+          meta:
+            source: 'apar'
+      - name: apar_can_deliver_apprenticeships
+        data_type: boolean
+        description: 'True when APAR says it can deliver apprenticeships.'
+        config:
+          meta:
+            source: 'apar'
+      - name: ofsted_fe_urn
+        data_type: varchar
+        description: 'Its URN in Ofsted''s further education list.'
+      - name: ofsted_fe_renewed_inspected
+        data_type: date
+        description: 'When its latest full inspection under the renewed framework started, if this year.'
+      - name: ofsted_fe_previous_overall
+        data_type: varchar
+        description: 'Its overall effectiveness at its latest inspection before the renewed framework (1 to 4), as published.'
+      - name: ofsted_fe_previous_inspected
+        data_type: date
+        description: 'When that inspection started.'
+      - name: ofsted_url
+        data_type: varchar
+        description: 'Its page on the Ofsted website.'
+      - name: et_achievement_year
+        data_type: varchar
+        description: 'The latest year of its education and training achievement rate for under-19s.'
+      - name: et_achievement_rate_16_18
+        data_type: number(5,1)
+        description: 'That achievement rate (all subjects, under 19), as a percentage.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100
+      - name: et_leavers_16_18
+        data_type: number(38,0)
+        description: 'Leavers that rate is based on.'
+      - name: app_achievement_year
+        data_type: varchar
+        description: 'The latest year of its apprenticeship achievement rate for those who started aged 16 to 18 (from the newest publication with that year).'
+      - name: app_achievement_rate_16_18
+        data_type: number(5,1)
+        description: 'That achievement rate (all subjects, levels and standards), as a percentage.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100
+      - name: app_leavers_16_18
+        data_type: number(38,0)
+        description: 'Leavers that rate is based on.'
+      - name: postcode
+        data_type: varchar
+        description: 'Its postcode: its GIAS establishment''s (as for the name), else from its Discover Uni address.'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Its local authority, from its postcode (SHARED_DB.SILVER.POSTCODE). Empty when the postcode is not in the postcode directory (overseas, or missing).'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+      - name: lsoa21_code
+        data_type: varchar
+        description: 'Its 2021 LSOA, from its postcode.'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('lsoa')
+                field: lsoa21_code
+
+  - name: university_course
+    description: >-
+      Every course in Discover Uni, one row per publishing provider, course ID
+      and mode, with its provider's name and place, its subjects and its
+      headline outcomes (continuation, salary 15 months on, earnings 3 years
+      on). For a joint course the outcomes are those of its first subject row.
+    config:
+      meta:
+        source: discover-uni,leo-grad-cah3-subject,onspd
+        licence: cc-by-4
+        attribution: 'Source: HESA (www.hesa.ac.uk), Discover Uni dataset, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changed: one row per course; a joint course shows its first subject''s outcomes.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: course_key
+        data_type: varchar
+        description: 'Its key: publishing UKPRN, course ID and mode code, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: publishing_ukprn
+        data_type: varchar
+        description: 'The UKPRN of the provider that publishes it.'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('provider')
+                field: ukprn
+      - name: teaching_ukprn
+        data_type: varchar
+        description: 'The UKPRN of the provider that teaches it (a partner college, sometimes).'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('provider')
+                field: ukprn
+      - name: course_id
+        data_type: varchar
+        description: 'The provider''s own ID for the course.'
+        data_tests:
+          - not_null
+      - name: mode_code
+        data_type: varchar
+        description: '01 full-time, 02 part-time, 03 both.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['01', '02', '03']
+      - name: mode
+        data_type: varchar
+        description: 'Full-time, part-time, or either.'
+      - name: title
+        data_type: varchar
+        description: 'Its title, e.g. Business and Management Practice.'
+        data_tests:
+          - not_null
+      - name: title_welsh
+        data_type: varchar
+        description: 'Its title in Welsh, if given.'
+      - name: qualification
+        data_type: varchar
+        description: 'The qualification it leads to, e.g. BA, BSc, FdA.'
+      - name: level_code
+        data_type: varchar
+        description: 'Its level code in Discover Uni (KISLEVEL), as published.'
+      - name: honours
+        data_type: boolean
+        description: 'True for an honours degree.'
+      - name: foundation_year
+        data_type: varchar
+        description: 'Whether it has a foundation year: no, optional or compulsory.'
+      - name: placement_year
+        data_type: varchar
+        description: 'Whether it has a placement (sandwich) year: no, optional or compulsory.'
+      - name: year_abroad
+        data_type: varchar
+        description: 'Whether it has a year abroad: no, optional or compulsory.'
+      - name: distance_learning
+        data_type: varchar
+        description: 'Whether it is taught at a distance: no, distance only, or optional.'
+      - name: years
+        data_type: number(38,0)
+        description: 'How many years (stages) it lasts.'
+      - name: ucas_programme_code
+        data_type: varchar
+        description: 'Its UCAS programme code, if it has one.'
+      - name: course_url
+        data_type: varchar
+        description: 'Its page on the provider''s website.'
+      - name: provider_name
+        data_type: varchar
+        description: 'The publishing provider''s name in Discover Uni.'
+        data_tests:
+          - not_null
+      - name: provider_country_code
+        data_type: varchar
+        description: 'The provider''s country code in Discover Uni (XF England, XG Northern Ireland, XH Scotland, XI Wales).'
+      - name: provider_postcode
+        data_type: varchar
+        description: 'The postcode in the provider''s address.'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Its local authority, from its postcode (SHARED_DB.SILVER.POSTCODE). Empty when the postcode is not in the postcode directory (overseas, or missing).'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+      - name: lsoa21_code
+        data_type: varchar
+        description: 'Its 2021 LSOA, from its postcode.'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('lsoa')
+                field: lsoa21_code
+      - name: main_subject_code
+        data_type: varchar
+        description: 'Its first subject''s CAH code (e.g. CAH15-01-02).'
+      - name: main_subject_name
+        data_type: varchar
+        description: 'That subject''s name, from the LEO graduate outcomes subject list.'
+        config:
+          meta:
+            source: 'leo-grad-cah3-subject'
+            licence: 'ogl-3'
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: subject_count
+        data_type: number(38,0)
+        description: 'How many subjects it has (more than one for a joint course).'
+        data_tests:
+          - not_null
+      - name: subject_codes
+        data_type: varchar
+        description: 'All its subjects'' CAH codes, in the file''s order, joined with commas.'
+      - name: outcomes_subject
+        data_type: varchar
+        description: 'The subject the outcome figures below are for (for a joint course, its first outcome row''s).'
+      - name: continuation_students
+        data_type: number(38,0)
+        description: 'Students the continuation figure is based on.'
+      - name: continuation_percent
+        data_type: number(38,0)
+        description: 'The percentage still studying or qualified a year on.'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100
+      - name: salary_respondents
+        data_type: number(38,0)
+        description: 'Graduate Outcomes respondents the salary figures are based on.'
+      - name: salary_median_15_months
+        data_type: number(38,0)
+        description: 'Median salary 15 months after finishing, in pounds.'
+      - name: salary_lower_quartile_15_months
+        data_type: number(38,0)
+        description: 'Lower quartile of that salary.'
+      - name: salary_upper_quartile_15_months
+        data_type: number(38,0)
+        description: 'Upper quartile of that salary.'
+      - name: earnings_graduates_3_years
+        data_type: number(38,0)
+        description: 'Graduates the LEO earnings figure is based on.'
+      - name: earnings_median_3_years
+        data_type: number(38,0)
+        description: 'Median earnings 3 years after graduating (LEO), in pounds.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The course file''s OPTIONS_DB.RAW.SOURCE_FILE row.'

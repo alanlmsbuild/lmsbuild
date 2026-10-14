@@ -29,3 +29,63 @@ sources:
       - name: police_street_crime
         identifier: POLICE_STREET_CRIME
         description: police.uk street-level crimes, latest 3-year archive, one row per crime (load:data step 35).
+      - name: apar_provider
+        identifier: APAR_PROVIDER
+        description: The apprenticeship provider and assessment register, one row per UKPRN (load:data step 34).
+
+  # OPTIONS_DB.RAW: the school leavers app's official data, as loaded.
+  - name: options_raw
+    database: OPTIONS_DB
+    schema: RAW
+    tables:
+      - name: source_file
+        identifier: SOURCE_FILE
+        description: One row per file loaded into OPTIONS_DB.RAW, with its source, licence and counts.
+      - name: gias_establishment
+        identifier: GIAS_ESTABLISHMENT
+        description: Get Information about Schools, every establishment open or closed, one row per URN (head teacher and proprietor columns left out before loading).
+      - name: ofsted_schools_most_recent
+        identifier: OFSTED_SCHOOLS_D2_MOST_RECENT
+        description: Ofsted's state-funded schools management information, most recent inspections, one row per URN.
+      - name: ofsted_fe_provider_list
+        identifier: OFSTED_FE_D4_PROVIDER_LIST
+        description: Ofsted's further education and skills providers, one row per provider URN and UKPRN, with the latest inspection before the renewed framework.
+      - name: ofsted_fe_full_inspections
+        identifier: OFSTED_FE_D1_FULL_INSPECTIONS
+        description: Ofsted's further education and skills full inspections under the renewed framework, this year.
+      - name: performance_16_18
+        identifier: PERFORMANCE_16_18_INSTITUTION
+        description: 16 to 18 results by institution (URN), year, cohort and disadvantage status (Explore education statistics).
+      - name: ks4_performance_school
+        identifier: KS4_PERFORMANCE_SCHOOL
+        description: Key stage 4 results by school (URN), year and breakdown.
+      - name: achievement_et
+        identifier: ACHIEVEMENT_ET_PROVIDER_SUMMARY
+        description: Education and training achievement rates by provider (UKPRN), year, age band and subject area.
+      - name: achievement_app
+        identifier: ACHIEVEMENT_APP_PROVIDER
+        description: Apprenticeship achievement rates by provider (UKPRN), year, age, level and standard; two publications whose years overlap.
+      - name: du_kiscourse
+        identifier: DISCOVERUNI_KISCOURSE
+        description: Discover Uni courses, one row per publishing UKPRN, course ID and mode.
+      - name: du_institution
+        identifier: DISCOVERUNI_INSTITUTION
+        description: Discover Uni institutions (names, address, country).
+      - name: du_sbj
+        identifier: DISCOVERUNI_SBJ
+        description: Discover Uni course subjects (CAH codes), one or more per course.
+      - name: du_kisaim
+        identifier: DISCOVERUNI_KISAIM
+        description: Discover Uni qualification codes and names (BA, BSc...).
+      - name: du_continuation
+        identifier: DISCOVERUNI_CONTINUATION
+        description: Discover Uni continuation figures, one row per course and subject.
+      - name: du_gosalary
+        identifier: DISCOVERUNI_GOSALARY
+        description: Discover Uni Graduate Outcomes salaries 15 months after graduating, one row per course and subject.
+      - name: du_leo3
+        identifier: DISCOVERUNI_LEO3
+        description: Discover Uni LEO earnings 3 years after graduating, one row per course and subject.
+      - name: leo_grad_cah3_subject
+        identifier: LEO_GRAD_CAH3_SUBJECT
+        description: LEO graduate outcomes by CAH3 subject; used here only for the CAH3 subject names.

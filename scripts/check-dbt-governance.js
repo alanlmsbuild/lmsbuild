@@ -4,7 +4,8 @@
 //     .yml, and dbt fails the build if the table differs)
 //   - it has a description, and every column has a description and a type
 //   - its meta has all seven tags (layer, owner, source, licence,
-//     attribution, refresh, sensitivity) with allowed values; a column's own
+//     attribution, refresh, sensitivity) with allowed values, none over
+//     Snowflake's 256 characters; a column's own
 //     sensitivity, source, licence or attribution are checked the same way
 // The allowed values: scripts/governance-tags.js (check:tags compares them
 // with Snowflake's after the build).
@@ -27,6 +28,8 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'dbt', 'target', 'ma
 
 const problems = []
 const checkValue = (where, key, value) => {
+  // Snowflake's limit on a tag value.
+  if (String(value ?? '').length > 256) problems.push(`${where}: ${key} is ${String(value).length} characters (Snowflake allows 256)`)
   if (key === 'source') { if (!SOURCE.test(value ?? '')) problems.push(`${where}: source "${value ?? ''}" is not one or more data set names (as in SOURCE_FILE.SOURCE)`) }
   else if (key === 'attribution') { if (!String(value ?? '').trim()) problems.push(`${where}: no attribution (write "none" if the licence asks for none)`) }
   else if (!ALLOWED[key].includes(value)) problems.push(`${where}: ${key} "${value ?? ''}" is not one of ${ALLOWED[key].join(', ')}`)

@@ -35,3 +35,6 @@ models:
       areas:
         +database: SHARED_DB
         +schema: SILVER
+      school_leavers:
+        +database: OPTIONS_DB
+        +schema: SILVER
