@@ -29,7 +29,9 @@
 //      the ILR tables or on the test snapshot of them in TEST_BASELINE; can
 //      delete, truncate, own or create anything; is missing a grant the
 //      vacancy import needs (LOAD_REQUIRED: it writes the vacancy tables and
-//      their SOC codes, sql/vacancies_02_soc.sql); or DATA_LOAD_USER has any
+//      their SOC codes, sql/vacancies_02_soc.sql; and the website link check,
+//      sql/links_01_website_link.sql: WEBSITE_LINK_CHECK only added to); or
+//      DATA_LOAD_USER has any
 //      role but DATA_LOAD_ROLE. The app may only read the vacancy tables.
 //   9. The two databases can't see each other (sql/crm_01_database.sql):
 //      ILR_APP_ROLE (or the app's user) has anything in CRM_DB or holds
@@ -216,6 +218,9 @@ export const LOAD_REQUIRED = {
   'SHARED_DB.EXT.VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
   'SHARED_DB.EXT.VACANCY_IMPORT_RUN': ['SELECT', 'INSERT', 'UPDATE'],
   'SHARED_DB.EXT.VACANCY_SOC': ['SELECT', 'INSERT', 'UPDATE'],
+  // The website link check (sql/links_01_website_link.sql).
+  'SHARED_DB.EXT.WEBSITE_LINK': ['SELECT', 'INSERT', 'UPDATE'],
+  'SHARED_DB.EXT.WEBSITE_LINK_CHECK': ['SELECT', 'INSERT'],
   'SHARED_DB.REF.SOC2020_INDEX': ['SELECT'],
   ...Object.fromEntries(['STANDARD_VERSION', 'STANDARD_OPTION', 'OCCUPATION_SOC'].map((t) => [`SHARED_DB.SKILLS.${t}`, ['SELECT']])),
 }
@@ -238,6 +243,7 @@ export function loaderGrantProblems(grants, userRoles, snapshotNames = new Set()
       problems.push(`${privilege} on ${name}: the loaders add rows to tables made by ACCOUNTADMIN; they never delete, own or create`)
     }
     if (/^CRM_DB(\.|$)/.test(name)) problems.push(`${privilege} on ${name}: ${LOAD_ROLE} has nothing in the CRM's database`)
+    if (name === 'SHARED_DB.EXT.WEBSITE_LINK_CHECK' && !['SELECT', 'INSERT'].includes(privilege)) problems.push(`${privilege} on ${name}: the link check history is add-only`)
   }
   for (const r of userRoles) {
     if (String(r.role) !== LOAD_ROLE) problems.push(`${LOAD_USER} also has ${r.role}: it should have ${LOAD_ROLE} only`)
@@ -290,6 +296,7 @@ export const TRANSFORM_REQUIRED = {
   ...Object.fromEntries(TAG_NAMES.map((t) => [`SHARED_DB.GOVERNANCE.${t}`, ['APPLY']])),
   'SHARED_DB.EXT.VACANCY': ['SELECT'],
   'SHARED_DB.EXT.VACANCY_SOC': ['SELECT'],
+  'SHARED_DB.EXT.WEBSITE_LINK': ['SELECT'],
 }
 const inSchema = (name, schemas) => schemas.some((x) => name.startsWith(`${x}.`))
 
@@ -312,6 +319,11 @@ export function transformGrantProblems(grants, userRoles, holders) {
       ok = (privilege === 'SELECT' && inSchema(name, TRANSFORM_READ_SCHEMAS)) ||
         (privilege === 'OWNERSHIP' && inSchema(name, SILVER_SCHEMAS)) ||
         (name === 'SHARED_DB.OPS.JOB_RUN' && ['SELECT', 'INSERT', 'UPDATE'].includes(privilege))
+    } else if (on === 'DYNAMIC_TABLE') {
+      // Snowflake makes one of these, named by an ID, for each table whose
+      // data metric functions run on TRIGGER_ON_CHANGES (seen 14 October
+      // 2026, scripts/data-quality.js); it is owned by the table's owner.
+      ok = privilege === 'OWNERSHIP' && SILVER_SCHEMAS.some((x) => new RegExp(`^${x.replace('.', '\\.')}\\."[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"$`).test(name))
     } else if (on === 'TAG') ok = privilege === 'APPLY' && name.startsWith('SHARED_DB.GOVERNANCE.')
     else if (on === 'WAREHOUSE') ok = privilege === 'USAGE' && name === 'TRANSFORM_WH'
     else if (on === 'ACCOUNT') ok = privilege === 'EXECUTE DATA METRIC FUNCTION'

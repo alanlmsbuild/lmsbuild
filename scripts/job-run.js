@@ -125,7 +125,7 @@ const FINISH = `
 
 export class JobTimeout extends Error {}
 
-// Runs one job and records it. run(connection) does the work and returns
+// Runs one job and records it. run(connection, jobRunId) does the work and returns
 // { outcome: 'succeeded' | 'failed' | 'refused', ref, error, summary }; a
 // throw is recorded as failed. Returns that result with the JOBRUNID.
 // timeoutMinutes (scheduled runs): a run still going is recorded as failed
@@ -148,7 +148,7 @@ export async function recordRun({ connection, job, triggeredBy, run, log = conso
   } else {
     let timer
     try {
-      const work = Promise.resolve().then(() => run(connection))
+      const work = Promise.resolve().then(() => run(connection, jobRunId))
       const limit = timeoutMinutes
         ? new Promise((_, reject) => { timer = setTimeout(() => reject(new JobTimeout(`Still running after ${timeoutMinutes} minutes: stopped.`)), timeoutMinutes * 60_000) })
         : null

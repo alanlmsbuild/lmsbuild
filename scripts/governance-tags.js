@@ -17,4 +17,6 @@ export const SOURCE = /^[a-z0-9-]+(,[a-z0-9-]+)*$/
 export const API_SOURCES = {
   'faa-vacancies': 'SHARED_DB.RAW.FAA_VACANCY_PAGE',
   'skills-england': 'SHARED_DB.RAW.SE_STANDARD_VERSION',
+  // Rarebit's own weekly check of the website links (decision 26).
+  'website-link-check': 'SHARED_DB.EXT.WEBSITE_LINK',
 }

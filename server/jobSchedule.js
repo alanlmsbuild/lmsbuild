@@ -119,10 +119,22 @@ export const JOB_SCHEDULE = {
     lockHours: 2,
     timeoutMinutes: 45,
   },
+  // Decision 26 (scripts/check-website-links.js): a seventh of the website
+  // links in silver each day, so each is checked weekly. Its own lock group:
+  // it only reads silver and writes its own tables.
+  'website-links': {
+    label: 'Website links: a seventh checked each day',
+    short: 'Links',
+    every: 24 * HOUR,
+    overdueAfter: 26 * HOUR,
+    lockGroup: 'links',
+    lockHours: 2,
+    timeoutMinutes: 90,
+  },
 }
 
 // The order a tick runs due jobs in, one at a time.
-export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-monthly', 'transform-silver']
+export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-monthly', 'transform-silver', 'website-links']
 
 // A failed or refused job isn't tried again sooner than this.
 export const RETRY_AFTER = HOUR

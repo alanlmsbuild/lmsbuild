@@ -76,7 +76,7 @@ select
   {{ school_kind('g') }}::varchar as kind,
   coalesce(nullif(g."Town", ''), nullif(g."Locality", ''))::varchar as town,
   nullif(g."Postcode", '')::varchar as postcode,
-  {{ website_url('g."SchoolWebsite"') }}::varchar as website_url,
+  {{ website_link_columns('g."SchoolWebsite"') }},
   p.local_authority_code::varchar as local_authority_code,
   p.lsoa21_code::varchar as lsoa21_code,
   (left(b.time_period, 4) || '/' || right(b.time_period, 2))::varchar as results_year,
@@ -93,6 +93,7 @@ select
 from by_urn b
 left join gias g on g."URN" = b.urn
 left join {{ ref('postcode') }} p on p.postcode_compact = {{ compact_postcode('g."Postcode"') }}
+{{ website_link_join('g."SchoolWebsite"') }}
 left join ofsted_schools os on os."URN" = b.urn
 left join fe_match m on m.urn = b.urn
 left join ofsted_fe fe on os."URN" is null and fe."Provider URN" = m.fe_urn

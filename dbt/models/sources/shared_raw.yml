@@ -56,6 +56,9 @@ sources:
       - name: vacancy_soc
         identifier: VACANCY_SOC
         description: SOC 2020 codes for the adverts (scripts/vacancy-soc.js), one row per advert and code; a code that stops applying is marked GONEAT, never deleted.
+      - name: website_link
+        identifier: WEBSITE_LINK
+        description: Every institution website link in silver and its latest state from the weekly link check (scripts/check-website-links.js), one row per link.
 
   # OPTIONS_DB.RAW: the school leavers app's official data, as loaded.
   - name: options_raw

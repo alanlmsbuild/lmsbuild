@@ -50,7 +50,7 @@ select
   case c.DISTANCE when '0' then 'no' when '1' then 'distance only' when '2' then 'optional' end::varchar as distance_learning,
   {{ num('c.NUMSTAGE') }}::number(38,0) as years,
   nullif(c.UCASPROGID, '')::varchar as ucas_programme_code,
-  {{ website_url('c.CRSEURL') }}::varchar as website_url,
+  {{ website_link_columns('c.CRSEURL') }},
   i.name::varchar as provider_name,
   i.COUNTRY::varchar as provider_country_code,
   i.postcode::varchar as provider_postcode,
@@ -66,4 +66,5 @@ left join institutions i on i.PUBUKPRN = c.PUBUKPRN and i.UKPRN = c.UKPRN
 left join aims a on a.KISAIMCODE = c.KISAIMCODE
 left join subjects s on s.PUBUKPRN = c.PUBUKPRN and s.KISCOURSEID = c.KISCOURSEID and s.KISMODE = c.KISMODE
 left join cah3 on cah3.code = s.main_subject
+{{ website_link_join('c.CRSEURL') }}
 left join {{ ref('postcode') }} p on p.postcode_compact = {{ compact_postcode('i.postcode') }}

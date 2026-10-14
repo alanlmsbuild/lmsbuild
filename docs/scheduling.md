@@ -1,7 +1,7 @@
 # Scheduling the background jobs
 
-Ten jobs keep outside data up to date, and an eleventh builds the silver
-layer from it. Each runs when it's due, and every run, scheduled or by
+Ten jobs keep outside data up to date, an eleventh builds the silver
+layer from it, and a twelfth checks the website links in it. Each runs when it's due, and every run, scheduled or by
 hand, is recorded in `OPS.JOB_RUN`:
 
 | Job | Runs when the last success is older than | Overdue after |
@@ -17,6 +17,7 @@ hand, is recorded in `OPS.JOB_RUN`:
 | `official-ofqual` (Ofqual register of qualifications) | 7 days | 8 days |
 | `official-monthly` (police.uk, provider register, NaPTAN, listed buildings, Wikidata places) | 30 days | 32 days |
 | `transform-silver` (the silver layer: dbt build, tests, swap in) | 24 hours | 26 hours |
+| `website-links` (a seventh of the website links, so each weekly) | 24 hours | 26 hours |
 
 The `official-*` jobs (`scripts/fetch-official.js`) fetch only what's new
 into the data folder, then load it as `DATA_LOAD_USER` (`npm run load:data`
@@ -57,6 +58,23 @@ venv in the checkout (`.venv-dbt`, made as `dbt/requirements.txt` says;
 not committed, so a new checkout needs it made). By hand:
 `npm run transform:silver` (recorded, as manual) or `npm run silver:build`
 (the same, not recorded).
+
+`website-links` (`scripts/check-website-links.js`, decision 26) runs after
+the silver build, in its own `links` lock group. Each day it checks the
+links whose slice is today's (0 to 6, from a hash of the URL; about 6,600
+of the 46,000 links of open schools and colleges, providers and university
+courses), so each link is checked once a week. It is polite: one request
+at a time per site, 10 seconds apart, 8 sites at once; HEAD, then a GET
+that reads only the headers; 15 seconds per request; at most 5 redirects;
+a 429 stops that site for the run. Results go to `SHARED_DB.EXT.WEBSITE_LINK`
+(latest state) and `WEBSITE_LINK_CHECK` (every check), as `DATA_LOAD_USER`.
+A 404 or 410 is broken; a server error, timeout or unknown host is
+unreachable; 401, 403 and 429 are blocked (a site refusing robots: not a
+failure); a site that fails on https but works on http is http-only. Two
+failures in a row hide a link (silver's `website_link_hidden`) until a
+check passes; silver shows an http-only site's working address. By hand:
+`npm run links:check` (today's slice; `-- --record` to record it,
+`-- --slice 3`, `-- --limit 50`). Where it has got to: `npm run check:links`.
 
 `npm run jobs` is one **tick**. It reads `logs/jobs/state.json` and runs
 whatever is due, one job at a time. If nothing is due, it exits without

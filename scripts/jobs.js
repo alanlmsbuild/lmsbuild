@@ -50,6 +50,9 @@ export const JOB_RUNNERS = {
   'official-monthly': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'monthly', log }),
   // The silver layer: dbt as TRANSFORM_USER with its own connection.
   'transform-silver': async (connection, log) => (await import('./transform-silver.js')).runJob({ log }),
+  // The weekly link check, a seventh a day (decision 26): reads silver as
+  // TRANSFORM_USER, writes EXT.WEBSITE_LINK as DATA_LOAD_USER.
+  'website-links': async (connection, log, jobRunId) => (await import('./check-website-links.js')).runJob({ log, jobRunId }),
 }
 
 // One tick. Returns what it did: { ran: [{ job, outcome }], seeded, connected }.
@@ -87,7 +90,7 @@ export async function tick({
         connection: await db(),
         job,
         triggeredBy: 'schedule',
-        run: (c) => runners[job](c, log),
+        run: (c, jobRunId) => runners[job](c, log, jobRunId),
         log,
         stateFile,
         timeoutMinutes: JOB_SCHEDULE[job].timeoutMinutes,

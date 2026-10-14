@@ -40,7 +40,7 @@ select
   {{ dt('g."OpenDate"', 'DD-MM-YYYY') }} as opened,
   {{ dt('g."CloseDate"', 'DD-MM-YYYY') }} as closed,
   nullif(g."Trusts (name)", '')::varchar as trust_name,
-  {{ website_url('g."SchoolWebsite"') }}::varchar as website_url,
+  {{ website_link_columns('g."SchoolWebsite"') }},
   coalesce(nullif(g."Town", ''), nullif(g."Locality", ''))::varchar as town,
   nullif(g."Postcode", '')::varchar as postcode,
   p.postcode::varchar as matched_postcode,
@@ -68,3 +68,4 @@ from gias g
 left join {{ ref('postcode') }} p on p.postcode_compact = {{ compact_postcode('g."Postcode"') }}
 left join ofsted o on o."URN" = g."URN"
 left join ks4 k on k."school_urn" = g."URN"
+{{ website_link_join('g."SchoolWebsite"') }}

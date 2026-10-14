@@ -119,3 +119,5 @@ built, move it out (or strike it through with where it went).
 - Costings of a Demo (Beta) System by Each different module (Apprenticeships, Traineeships, restart etc)
 
 - 2026-10-07, Alan: just a note for the Caseload tool for Apprenticships. Allocating a certain amount against a tutor or assessor is based on Location, What they deliver, current caseload (dependant on targets set by Managers) and learner ability eg Prior Attainment
+
+- 2026-10-14, Alan (parked): the UK Register of Learning Providers (UKRLP) as the source for the websites of training providers outside GIAS. About 2,900 providers in OPTIONS_DB.SILVER.PROVIDER have no website (1,150 on APAR, 1,474 in Ofsted's FE list). To look into: registering for its web service (a stakeholder ID), and why its provider query service (webservices.ukrlp.co.uk, versions 5 and 6) answered 502 on 14 October 2026.

@@ -127,7 +127,7 @@ select
   (left(app.time_period, 4) || '/' || right(app.time_period, 2))::varchar as app_achievement_year,
   app.rate::number(5,1) as app_achievement_rate_16_18,
   app.leavers::number(38,0) as app_leavers_16_18,
-  coalesce(ga.website_url, du.website_url)::varchar as website_url,
+  {{ website_link_columns('coalesce(ga.website_url, du.website_url)') }},
   case when ga.website_url is not null then 'gias' when du.website_url is not null then 'discover-uni' end::varchar as website_from,
   coalesce(nullif(ga.postcode, ''), du.postcode)::varchar as postcode,
   p.local_authority_code::varchar as local_authority_code,
@@ -142,5 +142,6 @@ left join et on et.ukprn = u.ukprn
 left join app on app.ukprn = u.ukprn
 left join apar ap on ap."Ukprn" = u.ukprn
 left join du_courses dc on dc.ukprn = u.ukprn
+{{ website_link_join('coalesce(ga.website_url, du.website_url)') }}
 left join {{ ref('postcode') }} p on p.postcode_compact = {{ compact_postcode("coalesce(nullif(ga.postcode, ''), du.postcode)") }}
 where u.ukprn is not null and u.ukprn <> ''
