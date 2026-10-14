@@ -1,0 +1,373 @@
+version: 2
+
+# The school leavers app's gold (OPTIONS_DB.GOLD; the gold plan, 14 October
+# 2026): what its pages show, with the honesty rules applied once here
+# (macros/figure.sql: fewer than 10 hidden, 10 to 29 a small group, the
+# publisher's reasons kept, comparisons like for like, every figure with
+# its source and date). Read by the app's reader role OPTIONS_DB.GOLD_SITE
+# (meta.readers, scripts/gold-readers.js). Checked against the site's own
+# data by scripts/compare-gold-site.js.
+
+models:
+
+  - name: institution_card
+    description: >-
+      The institutions the school leavers app shows, one row per URN (open, in
+      the 16 to 18 results, with results to show): name, kind, place, website
+      (empty while the link check hides it) and latest Ofsted inspections in
+      the apps shape.
+    config:
+      meta:
+        source: performance-16-18,gias,ofsted-schools,ofsted-fe,onspd
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
+    columns:
+      - name: urn
+        data_type: varchar
+        description: 'Its URN.'
+        data_tests:
+          - unique
+          - not_null
+      - name: ukprn
+        data_type: varchar
+        description: 'Its UKPRN.'
+      - name: name
+        data_type: varchar
+        description: 'Its name.'
+        data_tests:
+          - not_null
+      - name: kind
+        data_type: varchar
+        description: 'What families would call it (the apps rule).'
+        data_tests:
+          - not_null
+      - name: kind_label
+        data_type: varchar
+        description: 'That kind in words, e.g. Sixth-form college.'
+        data_tests:
+          - not_null
+      - name: compared_with
+        data_type: varchar
+        description: 'The group its figures are compared with, in words (e.g. sixth-form colleges).'
+        data_tests:
+          - not_null
+      - name: town
+        data_type: varchar
+        description: 'Its town.'
+      - name: postcode
+        data_type: varchar
+        description: 'Its postcode.'
+      - name: local_authority_name
+        data_type: varchar
+        description: 'Its local authority as GIAS names it.'
+      - name: region_name
+        data_type: varchar
+        description: 'Its region as GIAS names it.'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Its local authority (todays code, from its postcode).'
+      - name: website_url
+        data_type: varchar
+        description: 'Its own website, unless the link check hides it (two failed weekly checks).'
+      - name: website_link_status
+        data_type: varchar
+        description: 'What the link check last found (ok, http-only, broken, unreachable, blocked, unchecked).'
+      - name: statutory_low_age
+        data_type: number(38,0)
+        description: 'The youngest age it takes.'
+      - name: statutory_high_age
+        data_type: number(38,0)
+        description: 'The oldest age it takes.'
+      - name: gender
+        data_type: varchar
+        description: 'Mixed, Boys or Girls.'
+      - name: religious_character
+        data_type: varchar
+        description: 'Its religious character, if any.'
+      - name: admissions_policy
+        data_type: varchar
+        description: 'Selective or non-selective, where it applies.'
+      - name: pupils
+        data_type: number(38,0)
+        description: 'Pupils on roll.'
+      - name: ofsted_from
+        data_type: varchar
+        description: 'Which Ofsted list its inspections are from: ofstedSchools or ofstedFE.'
+      - name: ofsted_url
+        data_type: varchar
+        description: 'Its page on the Ofsted website.'
+      - name: ofsted_renewed
+        data_type: variant
+        description: 'Its latest renewed-framework inspection (report card): framework, inspected, published, safeguarding, areas ([area, grade] pairs), concern. Never converted into the original grades.'
+      - name: ofsted_original
+        data_type: variant
+        description: 'Its latest graded inspection before: framework, inspected, published, overall, areas, sameSchool.'
+      - name: ofsted_source_file_id
+        data_type: varchar
+        description: 'The Ofsted file it is from (SOURCE_FILE row).'
+
+  - name: institution_result
+    description: >-
+      The 16 to 18 results the app shows, one row per institution, year,
+      cohort and measure (grade, best3, progress, value_added, retained,
+      students), with the honesty rules applied and the national figure for
+      the same institution type, cohort and year beside each.
+    config:
+      meta:
+        source: performance-16-18,ees-national-attainment,ees-national-retention
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
+    columns:
+      - name: result_key
+        data_type: varchar
+        description: 'Its key: URN, year, cohort and measure, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: urn
+        data_type: varchar
+        description: 'The institution (INSTITUTION_CARD.URN).'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('institution_card')
+                field: urn
+      - name: academic_year
+        data_type: varchar
+        description: 'The academic year, e.g. 2024/25.'
+        data_tests:
+          - not_null
+      - name: cohort
+        data_type: varchar
+        description: 'A level, Applied general or Tech level; all for the students measure.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['A level', 'Applied general', 'Tech level', 'all']
+      - name: measure
+        data_type: varchar
+        description: 'grade (average per entry), best3 (best three A levels), progress (banding), value_added (only when shown, with its interval), retained (percentage), students (finished 16 to 18 study there).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['grade', 'best3', 'progress', 'value_added', 'retained', 'students']
+      - name: status
+        data_type: varchar
+        description: 'The honesty rules verdict (macros/figure.sql): shown, or why it is hidden (fewer-than-10, withheld, too-few, unavailable).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['shown', 'fewer-than-10', 'withheld', 'too-few', 'unavailable']
+      - name: value_text
+        data_type: varchar
+        description: 'The figure when it is text (a grade, a banding) and shown; empty otherwise.'
+      - name: value_number
+        data_type: float
+        description: 'The figure when it is a number and shown; empty otherwise.'
+      - name: base
+        data_type: number(38,0)
+        description: 'The number of people it is based on, when shown.'
+      - name: small_group
+        data_type: boolean
+        description: 'True when shown but based on 10 to 29 people: "a small group, treat with care".'
+      - name: hidden_reason
+        data_type: varchar
+        description: 'Why it is hidden, when it is: fewer-than-10, withheld (by the publisher), too-few or unavailable.'
+      - name: value_low
+        data_type: float
+        description: 'For value_added: the lower end of its confidence interval.'
+      - name: value_high
+        data_type: float
+        description: 'For value_added: the upper end of its confidence interval.'
+      - name: national_value_text
+        data_type: varchar
+        description: 'For grade and best3: the national figure for the same institution type, cohort and year.'
+      - name: national_value_number
+        data_type: float
+        description: 'For retained: the national level 3 retention for the same type, cohort and year (none for independent schools).'
+      - name: compared_with_type
+        data_type: varchar
+        description: 'The DfE institution type the national figure is for.'
+      - name: source
+        data_type: varchar
+        description: 'Which data set the figure is from (SOURCE_FILE.SOURCE).'
+        data_tests:
+          - not_null
+      - name: source_file_id
+        data_type: varchar
+        description: 'The file it is from (SOURCE_FILE row).'
+        data_tests:
+          - not_null
+      - name: retrieved_on
+        data_type: date
+        description: 'When that file was downloaded.'
+        data_tests:
+          - not_null
+
+  - name: institution_achievement
+    description: >-
+      Achievement rates for 16 to 18 year olds at the institutions the app
+      shows (by UKPRN), one row per institution, kind and year, with the
+      honesty rules applied, beside the typical rate: our own middle figure of
+      the published rates for the same provider type, kind and year.
+    config:
+      meta:
+        source: achievement-et,achievement-app
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
+    columns:
+      - name: achievement_key
+        data_type: varchar
+        description: 'Its key: URN, kind and year, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: urn
+        data_type: varchar
+        description: 'The institution.'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('institution_card')
+                field: urn
+      - name: ukprn
+        data_type: varchar
+        description: 'The UKPRN the rates are published for.'
+        data_tests:
+          - not_null
+      - name: kind
+        data_type: varchar
+        description: 'education or apprenticeships.'
+        data_tests:
+          - not_null
+      - name: academic_year
+        data_type: varchar
+        description: 'The academic year.'
+        data_tests:
+          - not_null
+      - name: provider_type
+        data_type: varchar
+        description: 'The provider type as published.'
+      - name: provider_type_words
+        data_type: varchar
+        description: 'That type in plain words (the apps), e.g. general FE colleges.'
+      - name: status
+        data_type: varchar
+        description: 'The honesty rules verdict (macros/figure.sql): shown, or why it is hidden (fewer-than-10, withheld, too-few, unavailable).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['shown', 'fewer-than-10', 'withheld', 'too-few', 'unavailable']
+      - name: value_text
+        data_type: varchar
+        description: 'The figure when it is text (a grade, a banding) and shown; empty otherwise.'
+      - name: value_number
+        data_type: float
+        description: 'The figure when it is a number and shown; empty otherwise.'
+      - name: base
+        data_type: number(38,0)
+        description: 'The number of people it is based on, when shown.'
+      - name: small_group
+        data_type: boolean
+        description: 'True when shown but based on 10 to 29 people: "a small group, treat with care".'
+      - name: hidden_reason
+        data_type: varchar
+        description: 'Why it is hidden, when it is: fewer-than-10, withheld (by the publisher), too-few or unavailable.'
+      - name: typical_rate
+        data_type: float
+        description: 'Our own middle figure (median) of the published rates for the same provider type, kind and year, from rates shown and based on 30 or more: labelled as ours, never ranked.'
+      - name: typical_providers
+        data_type: number(38,0)
+        description: 'How many providers that middle figure is from.'
+      - name: source
+        data_type: varchar
+        description: 'Which data set the figure is from (SOURCE_FILE.SOURCE).'
+        data_tests:
+          - not_null
+      - name: source_file_id
+        data_type: varchar
+        description: 'The file it is from (SOURCE_FILE row).'
+        data_tests:
+          - not_null
+      - name: retrieved_on
+        data_type: date
+        description: 'When that file was downloaded.'
+        data_tests:
+          - not_null
+
+  - name: national_comparison
+    description: >-
+      The national 16 to 18 figures an institution is compared with, like for
+      like: one row per DfE institution type, cohort and year (the cohorts the
+      app shows).
+    config:
+      meta:
+        source: ees-national-attainment,ees-national-retention
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
+    columns:
+      - name: national_key
+        data_type: varchar
+        description: 'Its key: type, cohort and year, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: establishment_type
+        data_type: varchar
+        description: 'The DfE institution type.'
+        data_tests:
+          - not_null
+      - name: cohort
+        data_type: varchar
+        description: 'A level, Applied general or Tech level.'
+        data_tests:
+          - not_null
+      - name: academic_year
+        data_type: varchar
+        description: 'The academic year.'
+        data_tests:
+          - not_null
+      - name: grade
+        data_type: varchar
+        description: 'The national average grade per entry.'
+      - name: best3_grade
+        data_type: varchar
+        description: 'The national average of the best three A levels (A level only).'
+      - name: institutions
+        data_type: number(38,0)
+        description: 'Institutions of that type.'
+      - name: retained_percent
+        data_type: float
+        description: 'National level 3 retention, to one decimal place.'
+      - name: source
+        data_type: varchar
+        description: 'The data sets the figures are from.'
+        data_tests:
+          - not_null
+      - name: attainment_source_file_id
+        data_type: varchar
+        description: 'The attainment file (SOURCE_FILE row).'
+      - name: retention_source_file_id
+        data_type: varchar
+        description: 'The retention file (SOURCE_FILE row).'
+      - name: retrieved_on
+        data_type: date
+        description: 'When the attainment file was downloaded.'

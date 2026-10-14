@@ -35,7 +35,8 @@
     "transform:silver": "node scripts/transform-silver.js --record",
     "check:dmf": "node scripts/data-quality.js",
     "links:check": "node scripts/check-website-links.js",
-    "check:links": "node scripts/check-links-summary.js"
+    "check:links": "node scripts/check-links-summary.js",
+    "compare:gold-site": "node scripts/compare-gold-site.js"
   },
   "dependencies": {
     "busboy": "^1.6.0",

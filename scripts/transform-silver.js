@@ -3,10 +3,11 @@
 // before it tests it, so nothing is built straight into SILVER:
 //
 //   1. check:dbt   every model tagged, described and typed (before dbt runs)
-//   2. dbt build --target staging   every model into SILVER_STAGING, with
+//   2. dbt build --target staging   every model into SILVER_STAGING and
+//                  GOLD_STAGING (gold from the new silver), with
 //                  its tests (dbt/target/run_results.json gives the counts)
 //   3. check:tags --staging   the tags and comments, read back from Snowflake
-//   4. swap        each table into SILVER: ALTER TABLE ... SWAP WITH (its
+//   4. swap        each table into SILVER or GOLD: ALTER TABLE ... SWAP WITH (its
 //                  data, comments and tags move with it); a model new to
 //                  SILVER is cloned in once (managed access refuses a rename
 //                  across schemas)
@@ -70,7 +71,8 @@ function builtModels(runResults, manifest) {
   return (runResults.results ?? [])
     .filter((r) => r.status === 'success' && manifest.nodes?.[r.unique_id]?.resource_type === 'model')
     .map((r) => manifest.nodes[r.unique_id])
-    .map((n) => ({ database: String(n.database).toUpperCase(), name: String(n.alias ?? n.name).toUpperCase() }))
+    // Built in <schema>_STAGING; swapped into <schema> (SILVER or GOLD).
+    .map((n) => ({ database: String(n.database).toUpperCase(), schema: String(n.schema).toUpperCase().replace(/_STAGING$/, ''), name: String(n.alias ?? n.name).toUpperCase() }))
 }
 
 export async function runJob({ log = console.log } = {}) {
@@ -108,21 +110,25 @@ export async function runJob({ log = console.log } = {}) {
   const c = await connect({ as: 'transform', timeoutMs: 30000 })
   try {
     for (const m of models) {
-      const live = `${m.database}.SILVER.${m.name}`
-      const staged = `${m.database}.SILVER_STAGING.${m.name}`
-      const [exists] = await execute(c, `select count(*) as N from ${m.database}.INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA = 'SILVER' and TABLE_NAME = ?`, [m.name])
+      const live = `${m.database}.${m.schema}.${m.name}`
+      const staged = `${m.database}.${m.schema}_STAGING.${m.name}`
+      const [exists] = await execute(c, `select count(*) as N from ${m.database}.INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA = ? and TABLE_NAME = ?`, [m.schema, m.name])
       if (Number(exists.N) > 0) {
         await execute(c, `alter table ${live} swap with ${staged}`)
         swapped.push(live)
       } else {
-        await execute(c, `create table ${live} clone ${staged}`)
+        // A new model: cloned in, transient like every dbt table (silver and
+        // gold are rebuilt daily, so no fail-safe). Gold keeps its readers' grants (COPY
+        // GRANTS); SILVER is managed access, where only its owner may copy
+        // grants, and has none to copy.
+        await execute(c, `create transient table ${live} clone ${staged}${m.schema === 'GOLD' ? ' copy grants' : ''}`)
         cloned.push(live)
       }
     }
   } finally {
     await destroy(c)
   }
-  log(`transform-silver: ${swapped.length} tables swapped into SILVER${cloned.length ? `, ${cloned.length} cloned in (new)` : ''}`)
+  log(`transform-silver: ${swapped.length} tables swapped into SILVER and GOLD${cloned.length ? `, ${cloned.length} cloned in (new)` : ''}`)
 
   const silverTags = node('check-tags.js')
   const done = { ...summary, swapped: swapped.length, cloned }

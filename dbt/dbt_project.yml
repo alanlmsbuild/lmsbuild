@@ -13,6 +13,12 @@ test-paths: [tests]
 flags:
   send_anonymous_usage_stats: false
 
+# The honesty rules (macros/figure.sql): the same thresholds as the school
+# leavers app's scripts/lib/rules.mjs (check:dbt checks they still match).
+vars:
+  honesty_hide_below: 10
+  honesty_care_below: 30
+
 models:
   rarebit:
     +materialized: table
@@ -41,3 +47,13 @@ models:
       school_leavers:
         +database: OPTIONS_DB
         +schema: SILVER
+    # Gold: the same tags, plus each table granted to the readers its model
+    # names (meta.readers; macros/gold.sql).
+    gold:
+      +meta:
+        layer: gold
+      +post-hook:
+        - "{{ apply_reader_grants() }}"
+      school_leavers:
+        +database: OPTIONS_DB
+        +schema: GOLD

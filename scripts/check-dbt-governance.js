@@ -16,6 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runDbt } from './dbt.js'
 import { ALLOWED, SOURCE } from './governance-tags.js'
+import { GOLD_READERS } from './gold-readers.js'
 
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -52,6 +53,29 @@ for (const m of models) {
     for (const key of ['sensitivity', 'source', 'licence', 'attribution']) if (key in cm) checkValue(cw, key, cm[key])
   }
 }
+// Gold: each gold model names its readers (meta.readers), and they are
+// exactly the reader roles scripts/gold-readers.js lists it under.
+for (const m of models.filter((x) => x.config.meta?.layer === 'gold')) {
+  const table = String(m.alias ?? m.name).toUpperCase()
+  const db = String(m.database).toUpperCase()
+  const want = Object.entries(GOLD_READERS).filter(([role, tables]) => role.startsWith(`${db}.`) && tables.includes(table)).map(([role]) => role).sort()
+  const have = [...(m.config.meta?.readers ?? [])].sort()
+  if (want.join() !== have.join()) problems.push(`${m.name}: meta.readers ${have.join(', ') || 'none'}, but scripts/gold-readers.js says ${want.join(', ') || 'none'}`)
+}
+
+// The honesty thresholds (dbt vars, macros/figure.sql) are the school
+// leavers app's (scripts/lib/rules.mjs), when that repo is here.
+const rulesFile = path.join(root, '..', 'school-leavers-app', 'scripts', 'lib', 'rules.mjs')
+if (fs.existsSync(rulesFile)) {
+  const rules = fs.readFileSync(rulesFile, 'utf8')
+  const vars = manifest.metadata ? fs.readFileSync(path.join(root, 'dbt', 'dbt_project.yml'), 'utf8') : ''
+  for (const [constant, v] of [['HIDE_BELOW', 'honesty_hide_below'], ['CARE_BELOW', 'honesty_care_below']]) {
+    const app = rules.match(new RegExp(`export const ${constant} = (\\d+)`))?.[1]
+    const ours = vars.match(new RegExp(`${v}: (\\d+)`))?.[1]
+    if (!app || app !== ours) problems.push(`${v} is ${ours}, but the app's ${constant} is ${app} (school-leavers-app/scripts/lib/rules.mjs)`)
+  }
+}
+
 // Skills England's attribution must be worded as Warren and Burrow show it
 // (src/SkillsEnglandCredit.jsx), so the two always match.
 const credit = fs.readFileSync(path.join(root, 'src', 'SkillsEnglandCredit.jsx'), 'utf8').match(/SKILLS_ENGLAND_STATEMENT = '([^']+)'/)?.[1]

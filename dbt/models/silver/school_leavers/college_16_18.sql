@@ -89,7 +89,15 @@ select
   coalesce({{ dt('os."Inspection start date"', 'DD/MM/YYYY') }}, {{ dt('fr."First day of inspection"', 'DD/MM/YYYY') }}) as ofsted_renewed_inspected,
   coalesce({{ txt('os."Latest OEIF overall effectiveness"') }}, {{ txt('fe."Latest overall effectiveness before renewed EIF"') }})::varchar as ofsted_previous_overall,
   coalesce({{ dt('os."Inspection start date of latest OEIF graded inspection"', 'DD/MM/YYYY') }}, {{ dt('fe."First day of inspection of latest inspection before renewed EIF"', 'DD/MM/YYYY') }}) as ofsted_previous_inspected,
-  coalesce({{ txt('os."Web Link (opens in new window) [link address]"') }}, {{ txt('fe."Web link to Ofsted provider webpage (opens in new window) [link address]"') }})::varchar as ofsted_url
+  coalesce({{ txt('os."Web Link (opens in new window) [link address]"') }}, {{ txt('fe."Web link to Ofsted provider webpage (opens in new window) [link address]"') }})::varchar as ofsted_url,
+  nullif(g."LA (name)", '')::varchar as gias_la_name,
+  nullif(g."GOR (name)", '')::varchar as gias_region,
+  {{ num('g."StatutoryLowAge"') }}::number(38,0) as statutory_low_age,
+  {{ num('g."StatutoryHighAge"') }}::number(38,0) as statutory_high_age,
+  case when g."Gender (name)" in ('', 'Not applicable') then null else g."Gender (name)" end::varchar as gender,
+  case when g."ReligiousCharacter (name)" in ('', 'Does not apply', 'None') then null else g."ReligiousCharacter (name)" end::varchar as religious_character,
+  case when g."AdmissionsPolicy (name)" in ('', 'Not applicable') then null else g."AdmissionsPolicy (name)" end::varchar as admissions_policy,
+  {{ num('g."NumberOfPupils"') }}::number(38,0) as pupils
 from by_urn b
 left join gias g on g."URN" = b.urn
 left join {{ ref('postcode') }} p on p.postcode_compact = {{ compact_postcode('g."Postcode"') }}

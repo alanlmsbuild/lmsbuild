@@ -1,5 +1,5 @@
 // After every silver build (decision 21), from Snowflake itself, as
-// TRANSFORM_USER: every table in SHARED_DB.SILVER and OPTIONS_DB.SILVER
+// TRANSFORM_USER: every table in SILVER and GOLD (both databases)
 //   - has a comment, and so does every column
 //   - has all seven governance tags, each with an allowed value
 //   - has SENSITIVITY on every column
@@ -13,7 +13,7 @@ import { connect, execute, destroy } from '../server/db.js'
 import { TAG_SCHEMA, TAGS, ALLOWED, SOURCE, API_SOURCES } from './governance-tags.js'
 
 const STAGING = process.argv.includes('--staging')
-const SCHEMAS = ['SHARED_DB.SILVER', 'OPTIONS_DB.SILVER'].map((x) => (STAGING ? `${x}_STAGING` : x))
+const SCHEMAS = ['SHARED_DB.SILVER', 'OPTIONS_DB.SILVER', 'SHARED_DB.GOLD', 'OPTIONS_DB.GOLD'].map((x) => (STAGING ? `${x}_STAGING` : x))
 const problems = []
 const c = await connect({ as: 'transform', timeoutMs: 30000 })
 const q = (sql, binds = []) => execute(c, sql, binds)
@@ -73,7 +73,7 @@ try {
 }
 if (problems.length) {
   for (const p of problems) console.log(`FAIL ${p}`)
-  console.log(`\n${problems.length} problem(s) in ${tables} ${STAGING ? 'silver staging' : 'silver'} tables.`)
+  console.log(`\n${problems.length} problem(s) in ${tables} ${STAGING ? 'silver and gold staging' : 'silver and gold'} tables.`)
   process.exit(1)
 }
-console.log(`${tables} ${STAGING ? 'silver staging' : 'silver'} tables, ${columns} columns: every one described, all seven tags on every table, SENSITIVITY on every column, every value allowed, every SOURCE in SOURCE_FILE.`)
+console.log(`${tables} ${STAGING ? 'silver and gold staging' : 'silver and gold'} tables, ${columns} columns: every one described, all seven tags on every table, SENSITIVITY on every column, every value allowed, every SOURCE in SOURCE_FILE.`)

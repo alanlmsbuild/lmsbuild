@@ -498,6 +498,30 @@ models:
       - name: ofsted_url
         data_type: varchar
         description: 'Its page on the Ofsted website.'
+      - name: gias_la_name
+        data_type: varchar
+        description: 'The local authority GIAS gives (its own list).'
+      - name: gias_region
+        data_type: varchar
+        description: 'The region GIAS gives.'
+      - name: statutory_low_age
+        data_type: number(38,0)
+        description: 'The youngest age it takes.'
+      - name: statutory_high_age
+        data_type: number(38,0)
+        description: 'The oldest age it takes.'
+      - name: gender
+        data_type: varchar
+        description: 'Mixed, Boys or Girls.'
+      - name: religious_character
+        data_type: varchar
+        description: 'Its religious character, if it has one.'
+      - name: admissions_policy
+        data_type: varchar
+        description: 'Selective or non-selective, where it applies.'
+      - name: pupils
+        data_type: number(38,0)
+        description: 'Pupils on roll at the last census.'
 
   - name: provider
     description: >-
@@ -955,3 +979,377 @@ models:
       - name: source_file_id
         data_type: varchar
         description: 'The OPTIONS_DB.RAW.SOURCE_FILE row of the file the row came from.'
+
+  - name: performance_16_18_result
+    description: >-
+      16 to 18 results by institution, year and cohort (all students), every
+      figure exactly as published, the publishers marks kept apart, so gold
+      can apply the honesty rules. Every year and cohort in the latest file.
+    config:
+      meta:
+        source: performance-16-18
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: result_key
+        data_type: varchar
+        description: 'Its key: URN, time period and cohort, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: urn
+        data_type: varchar
+        description: 'The institutions URN.'
+        data_tests:
+          - not_null
+      - name: time_period
+        data_type: varchar
+        description: 'The year as the file gives it, e.g. 202425.'
+        data_tests:
+          - not_null
+      - name: academic_year
+        data_type: varchar
+        description: 'The academic year, e.g. 2024/25.'
+        data_tests:
+          - not_null
+      - name: cohort
+        data_type: varchar
+        description: 'The cohort: A level, Applied general, Tech level, Academic, Technical certificate or E/M measures.'
+        data_tests:
+          - not_null
+      - name: results_name
+        data_type: varchar
+        description: 'The institutions name in the results.'
+      - name: students_published
+        data_type: varchar
+        description: 'Students who finished 16 to 18 study there (the whole institution), as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: grade_published
+        data_type: varchar
+        description: 'Average grade per entry, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: grade_base_published
+        data_type: varchar
+        description: 'Students the average grade (and progress) is based on, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: best3_grade_published
+        data_type: varchar
+        description: 'Average grade of students best three A levels, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: best3_base_published
+        data_type: varchar
+        description: 'Students the best three is based on, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: progress_published
+        data_type: varchar
+        description: 'Progress banding (e.g. Above average), as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: value_added_published
+        data_type: varchar
+        description: 'Value added score, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: value_added_lower_published
+        data_type: varchar
+        description: 'Lower end of its confidence interval, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: value_added_upper_published
+        data_type: varchar
+        description: 'Upper end of its confidence interval, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: retained_percent_published
+        data_type: varchar
+        description: 'Percentage retained to the end of the main study programme, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: retained_base_published
+        data_type: varchar
+        description: 'Students the retention figure is based on, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The files OPTIONS_DB.RAW.SOURCE_FILE row.'
+
+  - name: national_16_18
+    description: >-
+      National 16 to 18 figures by DfE institution type, cohort and year (all
+      students), as published: average grade, best three A levels, number of
+      institutions (attainment) and level 3 retention. What an institution is
+      compared with, like for like.
+    config:
+      meta:
+        source: ees-national-attainment,ees-national-retention
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: national_key
+        data_type: varchar
+        description: 'Its key: institution type, cohort and time period, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: establishment_type
+        data_type: varchar
+        description: 'The DfE institution type, e.g. Sixth form colleges, All state-funded schools.'
+        data_tests:
+          - not_null
+      - name: cohort
+        data_type: varchar
+        description: 'The cohort.'
+        data_tests:
+          - not_null
+      - name: time_period
+        data_type: varchar
+        description: 'The year as the file gives it.'
+        data_tests:
+          - not_null
+      - name: academic_year
+        data_type: varchar
+        description: 'The academic year, e.g. 2024/25.'
+        data_tests:
+          - not_null
+      - name: grade_published
+        data_type: varchar
+        description: 'National average grade per entry, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: best3_grade_published
+        data_type: varchar
+        description: 'National average of the best three A levels, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: institutions_published
+        data_type: varchar
+        description: 'Institutions of that type, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: retained_percent_published
+        data_type: varchar
+        description: 'National level 3 retention percentage, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: attainment_source_file_id
+        data_type: varchar
+        description: 'The attainment files SOURCE_FILE row.'
+      - name: retention_source_file_id
+        data_type: varchar
+        description: 'The retention files SOURCE_FILE row.'
+
+  - name: achievement_rate
+    description: >-
+      Achievement rates for 16 to 18 year olds by provider (UKPRN), kind and
+      year, as published: education and training (Under 19, all subjects) and
+      apprenticeships (started aged 16 to 18; each year from the newest
+      publication that has it).
+    config:
+      meta:
+        source: achievement-et,achievement-app
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: achievement_key
+        data_type: varchar
+        description: 'Its key: UKPRN, kind and time period, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: ukprn
+        data_type: varchar
+        description: 'The providers UKPRN.'
+        data_tests:
+          - not_null
+      - name: kind
+        data_type: varchar
+        description: 'education (education and training) or apprenticeships.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['education', 'apprenticeships']
+      - name: time_period
+        data_type: varchar
+        description: 'The year as the file gives it.'
+        data_tests:
+          - not_null
+      - name: academic_year
+        data_type: varchar
+        description: 'The academic year.'
+        data_tests:
+          - not_null
+      - name: provider_type
+        data_type: varchar
+        description: 'The provider type as the file gives it.'
+      - name: provider_name
+        data_type: varchar
+        description: 'The providers name in the file.'
+      - name: rate_published
+        data_type: varchar
+        description: 'Achievement rate (a percentage), as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: leavers_published
+        data_type: varchar
+        description: 'Leavers the rate is based on, as published (text: a number, or the publisher''s mark c, low, x or z).'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The files SOURCE_FILE row.'
+
+  - name: ofsted_school
+    description: >-
+      Ofsteds latest inspections of state-funded schools, one row per URN: the
+      latest under the renewed framework (report cards, from November 2025)
+      and the latest graded one before it, each grade as published ("NULL"
+      empty; 9 and 0 kept: not judged).
+    config:
+      meta:
+        source: ofsted-schools
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: urn
+        data_type: varchar
+        description: 'The schools URN.'
+        data_tests:
+          - unique
+          - not_null
+      - name: ofsted_url
+        data_type: varchar
+        description: 'Its page on the Ofsted website (https).'
+      - name: renewed_inspected
+        data_type: date
+        description: 'When its latest renewed-framework inspection started.'
+      - name: renewed_published
+        data_type: date
+        description: 'When that report was published.'
+      - name: renewed_safeguarding
+        data_type: varchar
+        description: 'Safeguarding standards at that inspection.'
+      - name: renewed_category_of_concern
+        data_type: varchar
+        description: 'Category of concern at that inspection (SM special measures, RSI requires significant improvement), if any.'
+      - name: renewed_inclusion
+        data_type: varchar
+        description: 'Inclusion grade (renewed framework), as published.'
+      - name: renewed_curriculum_and_teaching
+        data_type: varchar
+        description: 'Curriculum and teaching grade, as published.'
+      - name: renewed_achievement
+        data_type: varchar
+        description: 'Achievement grade, as published.'
+      - name: renewed_attendance_and_behaviour
+        data_type: varchar
+        description: 'Attendance and behaviour grade, as published.'
+      - name: renewed_personal_development_and_wellbeing
+        data_type: varchar
+        description: 'Personal development and wellbeing grade, as published.'
+      - name: renewed_post_16_provision
+        data_type: varchar
+        description: 'Post-16 provision grade (where applicable), as published.'
+      - name: renewed_leadership_and_governance
+        data_type: varchar
+        description: 'Leadership and governance grade, as published.'
+      - name: original_inspected
+        data_type: date
+        description: 'When its latest graded inspection under the original framework started.'
+      - name: original_published
+        data_type: date
+        description: 'When that report was published.'
+      - name: original_overall
+        data_type: varchar
+        description: 'Overall effectiveness then (1 outstanding to 4 inadequate), as published.'
+      - name: original_quality_of_education
+        data_type: varchar
+        description: 'Quality of education then, as published.'
+      - name: original_behaviour_and_attitudes
+        data_type: varchar
+        description: 'Behaviour and attitudes then, as published.'
+      - name: original_personal_development
+        data_type: varchar
+        description: 'Personal development then, as published.'
+      - name: original_leadership_and_management
+        data_type: varchar
+        description: 'Leadership and management then, as published.'
+      - name: original_sixth_form_provision
+        data_type: varchar
+        description: 'Sixth form provision then (where applicable), as published.'
+      - name: original_same_school
+        data_type: boolean
+        description: 'False when that graded inspection was of a predecessor school (another URN).'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The files SOURCE_FILE row.'
+
+  - name: ofsted_fe_provider
+    description: >-
+      Ofsteds further education and skills providers, one row per provider
+      URN: its full inspection under the renewed framework this year, if any,
+      and its latest inspection before it, each grade as published ("-"
+      empty).
+    config:
+      meta:
+        source: ofsted-fe
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: provider_urn
+        data_type: varchar
+        description: 'The providers URN in Ofsteds list.'
+        data_tests:
+          - unique
+          - not_null
+      - name: ukprn
+        data_type: varchar
+        description: 'Its UKPRN.'
+      - name: provider_name
+        data_type: varchar
+        description: 'Its name in Ofsteds list.'
+      - name: ofsted_url
+        data_type: varchar
+        description: 'Its page on the Ofsted website (https).'
+      - name: renewed_inspected
+        data_type: date
+        description: 'When its renewed-framework full inspection started (this year), if it has had one.'
+      - name: renewed_published
+        data_type: date
+        description: 'When that report was published.'
+      - name: renewed_safeguarding
+        data_type: varchar
+        description: 'Safeguarding standards at that inspection.'
+      - name: renewed_inclusion
+        data_type: varchar
+        description: 'Inclusion, as published.'
+      - name: renewed_leadership_and_governance
+        data_type: varchar
+        description: 'Leadership and governance, as published.'
+      - name: renewed_young_people_curriculum
+        data_type: varchar
+        description: 'Education programmes for young people: curriculum, teaching and training, as published.'
+      - name: renewed_young_people_achievement
+        data_type: varchar
+        description: 'Education programmes for young people: achievement, as published.'
+      - name: renewed_young_people_participation
+        data_type: varchar
+        description: 'Education programmes for young people: participation and development, as published.'
+      - name: renewed_apprenticeships_curriculum
+        data_type: varchar
+        description: 'Apprenticeships: curriculum, teaching and training, as published.'
+      - name: renewed_apprenticeships_achievement
+        data_type: varchar
+        description: 'Apprenticeships: achievement, as published.'
+      - name: renewed_apprenticeships_participation
+        data_type: varchar
+        description: 'Apprenticeships: participation and development, as published.'
+      - name: renewed_high_needs_curriculum
+        data_type: varchar
+        description: 'Provision for learners and apprentices with high needs: curriculum, teaching and training, as published.'
+      - name: renewed_skills_needs
+        data_type: varchar
+        description: 'Contribution to meeting skills needs, as published.'
+      - name: original_inspected
+        data_type: date
+        description: 'When its latest inspection before the renewed framework started.'
+      - name: original_overall
+        data_type: varchar
+        description: 'Overall effectiveness then (1 to 4), as published.'
+      - name: original_quality_of_education
+        data_type: varchar
+        description: 'Quality of education then, as published.'
+      - name: original_behaviour_and_attitudes
+        data_type: varchar
+        description: 'Behaviour and attitudes then, as published.'
+      - name: original_personal_development
+        data_type: varchar
+        description: 'Personal development then, as published.'
+      - name: original_leadership_and_management
+        data_type: varchar
+        description: 'Leadership and management then, as published.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The provider list files SOURCE_FILE row.'

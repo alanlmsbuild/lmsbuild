@@ -83,6 +83,12 @@ sources:
       - name: performance_16_18
         identifier: PERFORMANCE_16_18_INSTITUTION
         description: 16 to 18 results by institution (URN), year, cohort and disadvantage status (Explore education statistics).
+      - name: national_attainment_16_18
+        identifier: EES_NATIONAL_ATTAINMENT_16_18
+        description: 16 to 18 attainment by institution type, cohort, sex and year, national (Explore education statistics, the data set the school leavers app compares with).
+      - name: national_retention_16_18
+        identifier: EES_NATIONAL_RETENTION_16_18
+        description: 16 to 18 retention by institution type, cohort, qualification level, sex and year, national.
       - name: ks4_performance_school
         identifier: KS4_PERFORMANCE_SCHOOL
         description: Key stage 4 results by school (URN), year and breakdown.

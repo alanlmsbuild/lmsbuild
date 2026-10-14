@@ -34,10 +34,10 @@ addresses change with each release. The load adds its own `load-*` row to
 `transform-silver` (`scripts/transform-silver.js`) runs last in a tick
 and is in the `official` lock group, so it never runs while an official
 load is open. It checks every model is described and tagged (`check:dbt`),
-builds every model with dbt into `SILVER_STAGING` and runs its tests,
+builds every model with dbt into `SILVER_STAGING` and `GOLD_STAGING` (gold from the new silver) and runs its tests,
 checks the tags read back from Snowflake (`check:tags --staging`), and
-only then swaps each table into `SILVER` (its data, comments and tags move
-with it; a new model is cloned in once). If any check or test fails, the
+only then swaps each table into `SILVER` or `GOLD` (its data, comments,
+tags and gold's reader grants move with it; a new model is cloned in once). If any check or test fails, the
 run is recorded as failed and `SILVER` is left as it was; `SILVER_STAGING`
 keeps the failed build to look at. Its `OPS.JOB_RUN` summary has the
 models built and the tests passed, failed and warned (from dbt's
