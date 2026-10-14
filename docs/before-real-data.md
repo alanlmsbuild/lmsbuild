@@ -256,3 +256,11 @@ Alan's laptop starts it, so the jobs only run while the laptop is on.
   duplicate before real employers are won: refuse it and ask for the
   contacts to be merged in the CRM, or copy one contact and link both CRM
   records to it.
+- **Jobs shown to 16 and 17 year olds** (2026-10-14, Alan). Vacancy
+  sources beyond Find an apprenticeship (Adzuna, Reed: terms being asked
+  for) will bring entry-level jobs as well as apprenticeships. Jobs are
+  labelled "Job", never shown as a funded apprenticeship. Before a job is
+  shown to a 16 or 17 year old, it needs a suitability check (hours, night
+  work, the kind of work and its risks, as the rules for employing young
+  people require), and the screens need a filter that leaves out jobs that
+  haven't passed it.
