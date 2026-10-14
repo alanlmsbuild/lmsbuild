@@ -86,19 +86,26 @@ Resources"). Where both A and B give a code: the same unit group for 1,659
 about level rather than error (nursery practitioner 3232 against the early
 years standard's 6111); some are errors.
 
-Proposal (not built):
-- Apprenticeships: A gives the codes; B narrows them to one when it agrees
-  with one of A's (1,659 adverts today).
-- Jobs: B alone, improved with a short reviewed list turning activity words
-  into job titles ("dental nursing" to "dental nurse", "business
-  administration" to "business administrator"), and adverts it can't code
-  (or codes ambiguously) kept uncoded and listed for review, never guessed.
-- Stored as one row per advert and code, in a new table (each code with how
-  it was found), so an advert can have several. SQL to be shown first.
+The rule (Alan, 14 October 2026), not built yet:
+- Apprenticeships: the standard wins over the title. When the title's code
+  is one of the standard's, that one is kept; when it isn't (or the title
+  can't be coded, or is ambiguous), every one of the standard's codes is
+  kept and the advert is flagged. With REF fixed: 1,659 title-confirmed,
+  2,389 flagged (1,515 title uncoded, 186 ambiguous, 688 disagreeing), 72
+  coded by title alone (no standard's codes), 43 not coded.
+- Jobs: B alone, helped by a reviewed list of activity words
+  (`scripts/ref/activity-words.csv`: the 203 phrases covering 80% of the
+  1,557 uncoded adverts, each with the SOC its adverts' standards most often
+  have, for Alan to review); adverts it can't code (or codes ambiguously)
+  kept uncoded and listed for review, never guessed.
+- Stored in `SHARED_DB.EXT.VACANCY_SOC`, one row per advert and code, with how
+  each was found and any flag (`sql/vacancies_02_soc.sql`, shown to Alan,
+  not run yet).
 
-Found on the way: `SHARED_DB.REF.SOC2020_INDEX` has broken apostrophes
-("Chef\x92s assistant"): `npm run import:ref` reads the Windows-1252 file as
-Latin-1. The RAW copy is right. To fix in the REF import.
+Found on the way, and fixed: `SHARED_DB.REF.SOC2020_INDEX` had broken
+apostrophes ("Chef\x92s assistant"): `npm run import:ref` read the
+Windows-1252 file as Latin-1. It now reads each SOC file as UTF-8 if it is,
+otherwise Windows-1252; re-imported 14 October 2026 (REF import run 5).
 
 ## Meanwhile (no source needed)
 

@@ -152,11 +152,17 @@ function sha256(file) {
   })
 }
 
-// One file out of a zip, as text (latin1: the ONS SOC files aren't UTF-8).
-function unzipText(zip, member, encoding = 'latin1') {
+// One file out of a zip, as text: UTF-8 if it is, otherwise Windows-1252
+// (the coding index is: its curly apostrophes are byte 0x92, which Latin-1
+// would read as a control character; the framework file is UTF-8).
+function unzipText(zip, member) {
   const out = spawnSync('unzip', ['-p', zip, member], { maxBuffer: 256 * 1024 * 1024 })
   if (out.status !== 0) throw new Error(`unzip failed for ${member}: ${out.stderr.toString()}`)
-  return out.stdout.toString(encoding)
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(out.stdout)
+  } catch {
+    return new TextDecoder('windows-1252').decode(out.stdout)
+  }
 }
 
 // A small CSV parser: quoted fields, doubled quotes, commas and newlines
