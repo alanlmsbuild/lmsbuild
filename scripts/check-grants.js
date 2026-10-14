@@ -43,7 +43,9 @@
 //      silver_02_staging.sql), checked as TRANSFORM_USER: it may only read
 //      RAW (both databases) and the vacancy tables in EXT, make and own
 //      tables and views in SILVER and SILVER_STAGING, apply the governance
-//      tags, log its runs in OPS.JOB_RUN and use TRANSFORM_WH. Anything in
+//      tags, attach data metric functions (EXECUTE DATA METRIC FUNCTION on
+//      the account, sql/silver_03_dmf.sql), log its runs in OPS.JOB_RUN and
+//      use TRANSFORM_WH. Anything in
 //      CAPTURE_DB, CRM_DB or ACCESS, any other write, any other role, or a
 //      missing grant the job needs (TRANSFORM_REQUIRED) fails; so does
 //      TRANSFORM_ROLE held by anyone but TRANSFORM_USER, or TRANSFORM_USER
@@ -312,8 +314,10 @@ export function transformGrantProblems(grants, userRoles, holders) {
         (name === 'SHARED_DB.OPS.JOB_RUN' && ['SELECT', 'INSERT', 'UPDATE'].includes(privilege))
     } else if (on === 'TAG') ok = privilege === 'APPLY' && name.startsWith('SHARED_DB.GOVERNANCE.')
     else if (on === 'WAREHOUSE') ok = privilege === 'USAGE' && name === 'TRANSFORM_WH'
+    else if (on === 'ACCOUNT') ok = privilege === 'EXECUTE DATA METRIC FUNCTION'
     if (!ok) problems.push(`${what}: ${TRANSFORM_ROLE} only reads RAW and EXT, writes SILVER and SILVER_STAGING, applies the tags and logs its runs`)
   }
+  if (!grants.some((g) => String(g.granted_on) === 'ACCOUNT' && String(g.privilege) === 'EXECUTE DATA METRIC FUNCTION')) problems.push('EXECUTE DATA METRIC FUNCTION on the account is missing: the transform job attaches the data metric functions (sql/silver_03_dmf.sql)')
   for (const [name, privileges] of Object.entries(TRANSFORM_REQUIRED)) {
     for (const privilege of privileges) {
       if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the transform job needs it`)

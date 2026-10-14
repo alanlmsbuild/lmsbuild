@@ -32,7 +32,8 @@
     "check:dbt": "node scripts/check-dbt-governance.js",
     "check:tags": "node scripts/check-tags.js",
     "silver:build": "node scripts/transform-silver.js",
-    "transform:silver": "node scripts/transform-silver.js --record"
+    "transform:silver": "node scripts/transform-silver.js --record",
+    "check:dmf": "node scripts/data-quality.js"
   },
   "dependencies": {
     "busboy": "^1.6.0",

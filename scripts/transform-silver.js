@@ -11,6 +11,10 @@
 //                  SILVER is cloned in once (managed access refuses a rename
 //                  across schemas)
 //   5. check:tags  SILVER itself
+//   6. data quality: Snowflake's data metric functions attached to the key
+//                  SILVER tables and measured once (scripts/data-quality.js);
+//                  results in the summary (dataQuality), a missed
+//                  expectation logged as a warning
 //
 // If 1, 2 or 3 fails, SILVER is not touched: the job is recorded as failed
 // with the counts, and SILVER_STAGING keeps the failed build to look at.
@@ -30,6 +34,7 @@ import { fileURLToPath } from 'node:url'
 import { connect, execute, destroy } from '../server/db.js'
 import { makeLog, recordRun } from './job-run.js'
 import { runDbt } from './dbt.js'
+import { measure } from './data-quality.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DBT_TARGET = path.join(ROOT, 'dbt', 'target')
@@ -123,6 +128,23 @@ export async function runJob({ log = console.log } = {}) {
   const done = { ...summary, swapped: swapped.length, cloned }
   if (!silverTags.ok) return { outcome: 'failed', error: `Swapped, but check:tags on SILVER failed: ${lastLines(silverTags.out, 3)}`, summary: { ...done, step: 'check:tags' } }
   log(`transform-silver: ${lastLines(silverTags.out, 1)}`)
+
+  // 6. The data metric functions (scripts/data-quality.js): attached to the
+  // new SILVER tables, measured once, results in the summary. A missed
+  // expectation is a warning (SILVER has passed its dbt tests); failing to
+  // attach or measure fails the run.
+  const dq = await connect({ as: 'transform', timeoutMs: 30000 })
+  try {
+    done.dataQuality = await measure(dq, { log })
+  } catch (err) {
+    return { outcome: 'failed', error: `SILVER swapped and checked, but the data metric functions failed: ${err.message}`, summary: { ...done, step: 'data quality' } }
+  } finally {
+    await destroy(dq)
+  }
+  if (done.dataQuality.notMeasured.length) {
+    return { outcome: 'failed', error: `SILVER swapped and checked, but ${done.dataQuality.notMeasured.length} data metric(s) were not measured in time.`, summary: { ...done, step: 'data quality' } }
+  }
+  if (done.dataQuality.missed.length) log(`transform-silver: WARNING ${done.dataQuality.missed.length} data quality expectation(s) missed (listed in the summary)`)
   return { outcome: 'succeeded', summary: done }
 }
 

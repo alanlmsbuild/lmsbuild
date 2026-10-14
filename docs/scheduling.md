@@ -41,7 +41,18 @@ run is recorded as failed and `SILVER` is left as it was; `SILVER_STAGING`
 keeps the failed build to look at. Its `OPS.JOB_RUN` summary has the
 models built and the tests passed, failed and warned (from dbt's
 `run_results.json`), the tables swapped, and on failure which step and
-which tests. It runs as `TRANSFORM_USER` on `TRANSFORM_WH`, from the dbt
+which tests. After the swap it attaches Snowflake's data metric functions to seven key
+tables (postcode, lsoa, local_authority, vacancy, vacancy_soc, provider,
+college_16_18: row counts, duplicates, nulls, and the vacancies'
+freshness, each with an expectation; the list and thresholds are in
+`scripts/data-quality.js`). It waits for one measurement of each (about 5
+minutes), then sets them to run only when a table changes, so each day's
+tables are measured once, complete and tested. The results show in each
+table's Data Quality tab in Snowsight and in the run's summary
+(`dataQuality`: measured, met, missed with values). A missed expectation
+is a warning, not a failure; a metric not measured within 15 minutes fails
+the run. `npm run check:dmf` checks they are all attached. It runs as
+`TRANSFORM_USER` on `TRANSFORM_WH`, from the dbt
 venv in the checkout (`.venv-dbt`, made as `dbt/requirements.txt` says;
 not committed, so a new checkout needs it made). By hand:
 `npm run transform:silver` (recorded, as manual) or `npm run silver:build`
