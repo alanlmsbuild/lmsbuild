@@ -349,13 +349,26 @@ export async function runScheduledJob({ kind, log }) {
 }
 
 // One run as a job (scripts/job-run.js): its outcome for SHARED_DB.OPS.JOB_RUN.
+// After every run that wasn't refused, the live adverts' SOC 2020 codes
+// (scripts/vacancy-soc.js); a coding error fails the job, the adverts stay.
 export async function runJob({ connection, kind, log }) {
   const counts = await runImport({ connection, kind, log })
+  let soc = null
+  if (!counts.refused) {
+    try {
+      const { codeAdverts } = await import('./vacancy-soc.js')
+      const c = await codeAdverts({ connection, log })
+      soc = { titleConfirmed: c.titleConfirmed, standard: c.standard, title: c.title, uncoded: c.uncoded, inserted: c.inserted, updated: c.updated, markedGone: c.markedGone }
+    } catch (err) {
+      soc = { error: err.message }
+      log(`SOC coding failed: ${err.message}`)
+    }
+  }
   return {
-    outcome: counts.refused ? 'refused' : counts.complete ? 'succeeded' : 'failed',
+    outcome: counts.refused ? 'refused' : counts.complete && !soc?.error ? 'succeeded' : 'failed',
     ref: counts.runId,
-    error: counts.refused ?? counts.error ?? null,
-    summary: { kind, requests: counts.requests, adverts: counts.adverts, added: counts.added, changed: counts.changed, gone: counts.gone },
+    error: counts.refused ?? counts.error ?? (soc?.error ? `SOC coding: ${soc.error}` : null),
+    summary: { kind, requests: counts.requests, adverts: counts.adverts, added: counts.added, changed: counts.changed, gone: counts.gone, soc },
   }
 }
 

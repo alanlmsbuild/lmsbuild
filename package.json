@@ -25,6 +25,7 @@
     "import:skills": "node scripts/import-skills.js",
     "load:data": "node scripts/load-data.js",
     "fetch:official": "node scripts/fetch-official.js",
+    "code:vacancies": "node scripts/vacancy-soc.js",
     "generate:journeys": "node scripts/generate-journeys.js",
     "jobs": "node scripts/jobs.js"
   },

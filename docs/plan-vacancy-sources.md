@@ -99,8 +99,16 @@ The rule (Alan, 14 October 2026), not built yet:
   have, for Alan to review); adverts it can't code (or codes ambiguously)
   kept uncoded and listed for review, never guessed.
 - Stored in `SHARED_DB.EXT.VACANCY_SOC`, one row per advert and code, with how
-  each was found and any flag (`sql/vacancies_02_soc.sql`, shown to Alan,
-  not run yet).
+  each was found and any flag (`sql/vacancies_02_soc.sql`, run 14 October
+  2026).
+
+Built 14 October 2026 (`scripts/vacancy-soc.js`, `npm run code:vacancies`;
+run after every vacancy import, as DATA_LOAD_USER; test/db/vacancy-soc.mjs),
+with the activity words as Alan reviewed them (149 OK, 40 changed codes, 14
+NOT A JOB). First run, 4,232 live adverts: 2,792 title-confirmed, 1,323 with
+all their standard's codes and flagged (384 title not coded, 189 ambiguous,
+750 disagreeing), 92 by title alone, 25 not coded (67 titles were NOT A
+JOB); 5,711 rows.
 
 Found on the way, and fixed: `SHARED_DB.REF.SOC2020_INDEX` had broken
 apostrophes ("Chef\x92s assistant"): `npm run import:ref` read the

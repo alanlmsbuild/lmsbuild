@@ -13,6 +13,7 @@ puts it back.
     node test/db/refresh-companies.mjs  # the nightly refresh (after employers.mjs)
     node test/db/employer-sites.mjs     # sites, and who sees whom in Burrow
     node test/db/vacancy-import.mjs     # the vacancy import (one live request)
+    node test/db/vacancy-soc.mjs        # SOC 2020 codes for adverts (writes the real codes)
     node test/db/skills-import.mjs      # the Skills England import (one live request each)
     node test/db/jobs.mjs               # the scheduler and job records, fake jobs
     node test/uk-time.mjs               # UK time either side of the clocks changing
