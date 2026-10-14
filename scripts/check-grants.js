@@ -60,6 +60,11 @@
 //      CRM_APP_ROLE and TRANSFORM_ROLE were found granted to a person), but
 //      for the named exceptions in ROLE_HOLDER_EXCEPTIONS (SYSADMIN holds
 //      ILR_APP_ROLE, so ACCOUNTADMIN can reach the LARS tables the app owns).
+//  13. Gold (sql/gold_01_setup.sql, scripts/gold-readers.js), as
+//      TRANSFORM_USER: each reader database role (GOLD_WARREN, GOLD_MEADOW,
+//      GOLD_SITE) uses only GOLD and selects exactly its own gold tables;
+//      only TRANSFORM_ROLE creates in the gold schemas and owns or writes
+//      gold tables; each reader is held only by its product's role.
 //  10. The flows (sql/flow_01_f6_f7_f8.sql): each app role may call only
 //      its own flow procedures (the CRM F6 and F8, Warren F7), and Warren
 //      may read and update ILR.ONBOARDING but never add to it (only F6 does).
@@ -71,6 +76,7 @@
 //   npm run check:grants
 
 import { connect, execute, destroy } from '../server/db.js'
+import { GOLD_HOLDERS, GOLD_READERS, GOLD_SCHEMAS, GOLD_STAGING_SCHEMAS } from './gold-readers.js'
 
 const ROLE = 'ILR_APP_ROLE'
 const LOAD_ROLE = 'DATA_LOAD_ROLE'
@@ -294,13 +300,16 @@ export function crmGrantProblems(grants, userRoles) {
 const TRANSFORM_ROLE = 'TRANSFORM_ROLE'
 const TRANSFORM_USER = process.env.TRANSFORM_USERNAME || 'TRANSFORM_USER'
 const SILVER_SCHEMAS = ['SHARED_DB.SILVER', 'SHARED_DB.SILVER_STAGING', 'OPTIONS_DB.SILVER', 'OPTIONS_DB.SILVER_STAGING']
+// What dbt builds and owns: silver and gold, each with its staging schema.
+const BUILT_SCHEMAS = [...SILVER_SCHEMAS, ...GOLD_SCHEMAS, ...GOLD_STAGING_SCHEMAS]
 const TRANSFORM_READ_SCHEMAS = ['SHARED_DB.RAW', 'OPTIONS_DB.RAW', 'SHARED_DB.EXT']
-const TRANSFORM_USAGE_SCHEMAS = [...TRANSFORM_READ_SCHEMAS, ...SILVER_SCHEMAS, 'SHARED_DB.GOVERNANCE', 'SHARED_DB.OPS']
+const TRANSFORM_USAGE_SCHEMAS = [...TRANSFORM_READ_SCHEMAS, ...BUILT_SCHEMAS, 'SHARED_DB.GOVERNANCE', 'SHARED_DB.OPS']
 const TAG_NAMES = ['LAYER', 'SOURCE', 'LICENCE', 'ATTRIBUTION', 'OWNER', 'REFRESH', 'SENSITIVITY']
 export const TRANSFORM_REQUIRED = {
   'SHARED_DB.OPS.JOB_RUN': ['SELECT', 'INSERT', 'UPDATE'],
   TRANSFORM_WH: ['USAGE'],
-  ...Object.fromEntries(SILVER_SCHEMAS.map((x) => [x, ['USAGE', 'CREATE TABLE']])),
+  ...Object.fromEntries(BUILT_SCHEMAS.map((x) => [x, ['USAGE', 'CREATE TABLE']])),
+  'SHARED_DB.GOVERNANCE': ['USAGE', 'CREATE DATA METRIC FUNCTION'],
   ...Object.fromEntries(TAG_NAMES.map((t) => [`SHARED_DB.GOVERNANCE.${t}`, ['APPLY']])),
   'SHARED_DB.EXT.VACANCY': ['SELECT'],
   'SHARED_DB.EXT.VACANCY_SOC': ['SELECT'],
@@ -322,20 +331,23 @@ export function transformGrantProblems(grants, userRoles, holders) {
     if (/^SHARED_DB\.ACCESS(\.|$)/.test(name)) { problems.push(`${what}: ${TRANSFORM_ROLE} has nothing on ACCESS`); continue }
     let ok = false
     if (on === 'DATABASE') ok = privilege === 'USAGE' && ['SHARED_DB', 'OPTIONS_DB'].includes(name)
-    else if (on === 'SCHEMA') ok = (privilege === 'USAGE' && TRANSFORM_USAGE_SCHEMAS.includes(name)) || (['CREATE TABLE', 'CREATE VIEW'].includes(privilege) && SILVER_SCHEMAS.includes(name))
+    else if (on === 'SCHEMA') ok = (privilege === 'USAGE' && TRANSFORM_USAGE_SCHEMAS.includes(name)) || (['CREATE TABLE', 'CREATE VIEW'].includes(privilege) && BUILT_SCHEMAS.includes(name)) ||
+      (privilege === 'CREATE DATA METRIC FUNCTION' && name === 'SHARED_DB.GOVERNANCE')
     else if (on === 'TABLE' || on === 'VIEW') {
       ok = (privilege === 'SELECT' && inSchema(name, TRANSFORM_READ_SCHEMAS)) ||
-        (privilege === 'OWNERSHIP' && inSchema(name, SILVER_SCHEMAS)) ||
+        (privilege === 'OWNERSHIP' && inSchema(name, BUILT_SCHEMAS)) ||
         (name === 'SHARED_DB.OPS.JOB_RUN' && ['SELECT', 'INSERT', 'UPDATE'].includes(privilege))
     } else if (on === 'DYNAMIC_TABLE') {
       // Snowflake makes one of these, named by an ID, for each table whose
       // data metric functions run on TRIGGER_ON_CHANGES (seen 14 October
       // 2026, scripts/data-quality.js); it is owned by the table's owner.
-      ok = privilege === 'OWNERSHIP' && SILVER_SCHEMAS.some((x) => new RegExp(`^${x.replace('.', '\\.')}\\."[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"$`).test(name))
+      ok = privilege === 'OWNERSHIP' && BUILT_SCHEMAS.some((x) => new RegExp(`^${x.replace('.', '\\.')}\\."[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"$`).test(name))
     } else if (on === 'TAG') ok = privilege === 'APPLY' && name.startsWith('SHARED_DB.GOVERNANCE.')
     else if (on === 'WAREHOUSE') ok = privilege === 'USAGE' && name === 'TRANSFORM_WH'
     else if (on === 'ACCOUNT') ok = privilege === 'EXECUTE DATA METRIC FUNCTION'
-    if (!ok) problems.push(`${what}: ${TRANSFORM_ROLE} only reads RAW and EXT, writes SILVER and SILVER_STAGING, applies the tags and logs its runs`)
+    // Its own data metric functions (the gold "shown with a base under 10" one).
+    else if (on === 'DATA_METRIC_FUNCTION' || on === 'FUNCTION') ok = privilege === 'OWNERSHIP' && name.startsWith('SHARED_DB.GOVERNANCE.')
+    if (!ok) problems.push(`${what}: ${TRANSFORM_ROLE} only reads RAW and EXT, writes SILVER, GOLD and their staging schemas, applies the tags and logs its runs`)
   }
   if (!grants.some((g) => String(g.granted_on) === 'ACCOUNT' && String(g.privilege) === 'EXECUTE DATA METRIC FUNCTION')) problems.push('EXECUTE DATA METRIC FUNCTION on the account is missing: the transform job attaches the data metric functions (sql/silver_03_dmf.sql)')
   for (const [name, privileges] of Object.entries(TRANSFORM_REQUIRED)) {
@@ -348,6 +360,70 @@ export function transformGrantProblems(grants, userRoles, holders) {
   }
   if (!userRoles.some((r) => String(r.role) === TRANSFORM_ROLE)) problems.push(`${TRANSFORM_USER} doesn't have ${TRANSFORM_ROLE}`)
   problems.push(...roleHolderProblems(TRANSFORM_ROLE, holders, TRANSFORM_USER))
+  return problems
+}
+
+// The problems in gold's readers (rule 13), as TRANSFORM_USER:
+//   readerGrants  { role: SHOW GRANTS TO DATABASE ROLE rows }
+//   holders       { role: SHOW GRANTS OF DATABASE ROLE rows }
+//   schemaGrants  { schema: SHOW GRANTS ON SCHEMA rows } for GOLD and GOLD_STAGING
+//   tableGrants   { 'DB.GOLD.T': SHOW GRANTS ON TABLE rows } for every gold table
+// Each reader may use its own database and GOLD (never GOLD_STAGING) and
+// select exactly its tables in GOLD_READERS that exist; nothing else. Only
+// TRANSFORM_ROLE may create in the gold schemas or own or write a gold
+// table; a gold table's only other grants are SELECT to its readers. Each
+// reader is held only by the roles in GOLD_HOLDERS.
+export function goldProblems({ readerGrants, holders, schemaGrants, tableGrants }) {
+  const problems = []
+  const existing = new Set(Object.keys(tableGrants))
+  for (const [role, grants] of Object.entries(readerGrants)) {
+    const db = role.split('.')[0]
+    const want = new Set(GOLD_READERS[role].map((t) => `${db}.GOLD.${t}`).filter((t) => existing.has(t)))
+    const have = new Set()
+    for (const g of grants) {
+      const name = String(g.name)
+      const privilege = String(g.privilege)
+      const on = String(g.granted_on)
+      if (on === 'DATABASE' && privilege === 'USAGE' && name === db) continue
+      if (on === 'SCHEMA' && privilege === 'USAGE' && name === `${db}.GOLD`) continue
+      // Built and granted in GOLD_STAGING before the swap: unreadable there (no USAGE).
+      if (on === 'TABLE' && privilege === 'SELECT' && name.startsWith(`${db}.GOLD_STAGING.`) && GOLD_READERS[role].includes(name.split('.').at(-1))) continue
+      if (on === 'TABLE' && privilege === 'SELECT' && name.startsWith(`${db}.GOLD.`)) {
+        have.add(name)
+        if (!want.has(name)) problems.push(`${role} can read ${name}: not one of its gold tables (scripts/gold-readers.js)`)
+        continue
+      }
+      problems.push(`${role} has ${privilege} on ${on.toLowerCase()} ${name}: a gold reader only reads its own GOLD tables`)
+    }
+    for (const t of want) if (!have.has(t)) problems.push(`${role} can't read ${t}: it should (scripts/gold-readers.js)`)
+  }
+  for (const [role, rows] of Object.entries(holders)) {
+    const allowed = GOLD_HOLDERS[role]
+    for (const h of rows) {
+      if (!(String(h.granted_to) === 'ROLE' && allowed.includes(String(h.grantee_name)))) problems.push(`${role} is held by ${String(h.granted_to).toLowerCase()} ${h.grantee_name}: only ${allowed.join(', ') || 'nobody yet'} may hold it`)
+    }
+    for (const a of allowed) if (!rows.some((h) => String(h.granted_to) === 'ROLE' && String(h.grantee_name) === a)) problems.push(`${a} doesn't hold ${role}`)
+  }
+  for (const [schema, grants] of Object.entries(schemaGrants)) {
+    const readers = Object.keys(GOLD_READERS).filter((r) => schema === `${r.split('.')[0]}.GOLD`)
+    for (const g of grants) {
+      const privilege = String(g.privilege)
+      const who = `${g.granted_to} ${g.grantee_name}`
+      if (privilege === 'OWNERSHIP' && String(g.grantee_name) === 'ACCOUNTADMIN') continue
+      if (String(g.grantee_name) === 'TRANSFORM_ROLE' && ['USAGE', 'CREATE TABLE', 'CREATE VIEW'].includes(privilege)) continue
+      if (privilege === 'USAGE' && String(g.granted_to) === 'DATABASE_ROLE' && readers.some((r) => r.endsWith(`.${g.grantee_name}`))) continue
+      problems.push(`${privilege} on schema ${schema} to ${who}: only TRANSFORM_ROLE builds gold, and only the gold readers use GOLD`)
+    }
+  }
+  for (const [table, grants] of Object.entries(tableGrants)) {
+    const db = table.split('.')[0]
+    for (const g of grants) {
+      const privilege = String(g.privilege)
+      if (privilege === 'OWNERSHIP' && String(g.grantee_name) === 'TRANSFORM_ROLE') continue
+      if (privilege === 'SELECT' && String(g.granted_to) === 'DATABASE_ROLE' && Object.keys(GOLD_READERS).includes(`${db}.${g.grantee_name}`)) continue
+      problems.push(`${privilege} on ${table} to ${g.granted_to} ${g.grantee_name}: only TRANSFORM_ROLE owns and writes gold; readers only select`)
+    }
+  }
   return problems
 }
 
@@ -442,12 +518,29 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
     const holders = await execute(transform, `show grants of role ${TRANSFORM_ROLE}`)
     checked += transformGrants.length + transformRoles.length + holders.length
     problems.push(...transformGrantProblems(transformGrants, transformRoles, holders))
+    const readerGrants = {}
+    const readerHolders = {}
+    for (const role of Object.keys(GOLD_READERS)) {
+      readerGrants[role] = await execute(transform, `show grants to database role ${role}`)
+      readerHolders[role] = await execute(transform, `show grants of database role ${role}`)
+    }
+    const schemaGrants = {}
+    for (const schema of [...GOLD_SCHEMAS, ...GOLD_STAGING_SCHEMAS]) schemaGrants[schema] = await execute(transform, `show grants on schema ${schema}`)
+    const tableGrants = {}
+    for (const schema of GOLD_SCHEMAS) {
+      const [db, sc] = schema.split('.')
+      for (const t of await execute(transform, `select TABLE_NAME from ${db}.INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA = ?`, [sc])) {
+        tableGrants[`${schema}.${t.TABLE_NAME}`] = await execute(transform, `show grants on table ${schema}.${t.TABLE_NAME}`)
+      }
+    }
+    checked += Object.values(readerGrants).flat().length + Object.values(schemaGrants).flat().length + Object.values(tableGrants).flat().length
+    problems.push(...goldProblems({ readerGrants, holders: readerHolders, schemaGrants, tableGrants }))
   } finally {
     await destroy(transform)
   }
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}, ${LOAD_ROLE}, ${CRM_ROLE} or ${TRANSFORM_ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS. Each service role is held by its own service user and nothing else (but SYSADMIN holding ILR_APP_ROLE, the named exception).`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS. Each service role is held by its own service user and nothing else (but SYSADMIN holding ILR_APP_ROLE, the named exception). Each gold reader reads only its own GOLD tables, and only TRANSFORM_ROLE builds gold.`)
   process.exit(problems.length ? 1 : 0)
 }
