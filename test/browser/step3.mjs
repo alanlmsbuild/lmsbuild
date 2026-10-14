@@ -63,7 +63,7 @@ async function go(p, path) {
   const showAll = await p.locator('.signin-more').allInnerTexts()
   console.log('     show all buttons:', showAll.join(' | '))
   await p.screenshot({ path: `${OUT}/signin.png`, fullPage: true })
-  await p.getByLabel('Find a name').fill('testiqa')
+  await p.getByLabel('Find a name').fill('testiqa01') // Ivy Testiqa01 only: ORG-T003 has Iris Testiqa02
   check('search narrows to Ivy', (await p.locator('.signin-person').count()) === 1)
   await p.getByLabel('Find a name').fill('')
 
