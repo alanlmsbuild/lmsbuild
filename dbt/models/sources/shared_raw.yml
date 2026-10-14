@@ -32,6 +32,27 @@ sources:
       - name: apar_provider
         identifier: APAR_PROVIDER
         description: The apprenticeship provider and assessment register, one row per UKPRN (load:data step 34).
+      - name: soc2020_framework
+        identifier: SOC2020_FRAMEWORK
+        description: The ONS SOC 2020 framework, every group with its code and title (load:data, soc-coding-index).
+      - name: se_occupation
+        identifier: SE_OCCUPATION
+        description: Every Skills England occupational maps API response, by run (scripts/import-skills.js), with each occupation's SOC codes.
+      - name: se_standard_version
+        identifier: SE_STANDARD_VERSION
+        description: Every apprenticeship standard version from Skills England's standards API, by run, with its LARS code, occupation and options.
+
+  # SHARED_DB.EXT: data kept up to date by the app's own imports (not files).
+  - name: shared_ext
+    database: SHARED_DB
+    schema: EXT
+    tables:
+      - name: vacancy
+        identifier: VACANCY
+        description: Every apprenticeship advert seen by the vacancy import (Find an apprenticeship, with NHS Jobs and Civil Service Jobs), one row per advert, live or gone (GONEAT), updated every 2 hours.
+      - name: vacancy_soc
+        identifier: VACANCY_SOC
+        description: SOC 2020 codes for the adverts (scripts/vacancy-soc.js), one row per advert and code; a code that stops applying is marked GONEAT, never deleted.
 
   # OPTIONS_DB.RAW: the school leavers app's official data, as loaded.
   - name: options_raw

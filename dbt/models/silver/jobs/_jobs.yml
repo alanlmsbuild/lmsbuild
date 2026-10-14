@@ -1,0 +1,440 @@
+version: 2
+
+# The "Jobs for you" group of the silver layer (SHARED_DB.SILVER): adverts
+# with their SOC codes and places, standards' SOC codes, and labour demand
+# from online adverts.
+#
+# Vacancies change every 2 hours (scripts/import-vacancies.js): silver is a
+# copy of SHARED_DB.EXT at build time, so it can be up to a day behind; the
+# app's live search reads EXT. An advert that closes keeps its row (GONE_AT
+# set); one that comes back has GONE_AT cleared on the same row. SOC codes
+# keep the coder's GONEAT rule (VACANCY_SOC).
+#
+# REFRESH: vacancies are imported every 2 hours and in full daily; the tag
+# has no value under daily, so they are tagged daily.
+#
+# Licences: Find an apprenticeship's API site says "All content is
+# available under the Open Government Licence v3.0, except where otherwise
+# stated" (to confirm for the advert data). Skills England: OGL, to confirm.
+
+models:
+  - name: vacancy
+    description: >-
+      Every apprenticeship advert the vacancy import has seen (Find an
+      apprenticeship, with NHS Jobs and Civil Service Jobs), one row per
+      advert, live or gone, with its place (by postcode) and its current SOC
+      2020 codes. A copy of SHARED_DB.EXT.VACANCY at build time; long texts
+      stay in EXT.
+    config:
+      meta:
+        source: faa-vacancies
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+    columns:
+      - name: vacancy_reference
+        data_type: varchar
+        description: 'The advert''s reference (VAC... for Find an apprenticeship; its own for NHS Jobs and Civil Service Jobs).'
+        data_tests:
+          - unique
+          - not_null
+      - name: source
+        data_type: varchar
+        description: 'Where it was listed: FAA (Find an apprenticeship), NHS (NHS Jobs) or CSJ (Civil Service Jobs), all through the Find an apprenticeship API.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['FAA', 'NHS', 'CSJ']
+      - name: title
+        data_type: varchar
+        description: 'The advert''s title.'
+        data_tests:
+          - not_null
+      - name: employer_name
+        data_type: varchar
+        description: 'The employer, as the advert gives it.'
+      - name: provider_name
+        data_type: varchar
+        description: 'The training provider, as the advert gives it.'
+      - name: ukprn
+        data_type: varchar
+        description: 'The training provider''s UKPRN.'
+      - name: positions
+        data_type: number(38,0)
+        description: 'How many apprentices it is for.'
+      - name: posted_at
+        data_type: timestamp_ltz
+        description: 'When it was posted.'
+      - name: closing_at
+        data_type: timestamp_ltz
+        description: 'When applications close.'
+      - name: starts_at
+        data_type: timestamp_ltz
+        description: 'When the apprenticeship starts.'
+      - name: wage_type
+        data_type: varchar
+        description: 'The kind of wage, as published (e.g. NationalMinimumWageForApprentices, Custom).'
+      - name: wage_unit
+        data_type: varchar
+        description: 'What the wage is per (e.g. Annually).'
+      - name: wage_text
+        data_type: varchar
+        description: 'The wage as the advert words it.'
+      - name: hours_per_week
+        data_type: number(6,2)
+        description: 'Hours a week.'
+      - name: expected_duration
+        data_type: varchar
+        description: 'How long it is expected to last, as worded.'
+      - name: apprenticeship_level
+        data_type: varchar
+        description: 'Its level, as published (e.g. Advanced).'
+      - name: lars_code
+        data_type: number(38,0)
+        description: 'The apprenticeship standard''s LARS code: joins STANDARD_SOC.LARS_CODE.'
+      - name: course_title
+        data_type: varchar
+        description: 'The standard''s title.'
+      - name: course_level
+        data_type: number(38,0)
+        description: 'The standard''s level (2 to 7).'
+      - name: route
+        data_type: varchar
+        description: 'The standard''s route (e.g. Engineering and manufacturing).'
+      - name: is_disability_confident
+        data_type: boolean
+        description: 'True when the employer is Disability Confident.'
+      - name: is_national
+        data_type: boolean
+        description: 'True for an advert across the country, not one place.'
+      - name: postcode
+        data_type: varchar
+        description: 'The postcode of its (first) workplace, as the advert gives it.'
+      - name: matched_postcode
+        data_type: varchar
+        description: 'That postcode as found in the postcode directory; empty when it is not there.'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('postcode')
+                field: postcode
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Its local authority, from its postcode.'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+      - name: lsoa21_code
+        data_type: varchar
+        description: 'Its 2021 LSOA, from its postcode.'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('lsoa')
+                field: lsoa21_code
+      - name: latitude
+        data_type: float
+        description: 'Latitude, as the advert gives it.'
+      - name: longitude
+        data_type: float
+        description: 'Longitude, as the advert gives it.'
+      - name: soc_codes
+        data_type: varchar
+        description: 'Its current SOC 2020 unit groups (VACANCY_SOC rows not gone), joined with commas; empty when not coded.'
+      - name: soc_count
+        data_type: number(38,0)
+        description: 'How many current SOC codes it has.'
+        data_tests:
+          - not_null
+      - name: soc_method
+        data_type: varchar
+        description: 'How it was coded: title-confirmed, standard or title (scripts/vacancy-soc.js).'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['title-confirmed', 'standard', 'title']
+      - name: soc_flag
+        data_type: varchar
+        description: 'For a standard-coded advert, why the title did not settle it: title-uncoded, title-ambiguous or title-disagrees.'
+      - name: vacancy_url
+        data_type: varchar
+        description: 'Its page on Find an apprenticeship (or the listing site).'
+      - name: first_seen_at
+        data_type: timestamp_ltz
+        description: 'When the import first saw it.'
+      - name: last_seen_at
+        data_type: timestamp_ltz
+        description: 'When the import last saw it.'
+      - name: gone_at
+        data_type: timestamp_ltz
+        description: 'When a complete import stopped finding it; cleared on the same row if it comes back.'
+      - name: is_live
+        data_type: boolean
+        description: 'True while the last complete import still found it (GONE_AT empty). Open also needs CLOSING_AT in the future.'
+        data_tests:
+          - not_null
+      - name: last_changed_at
+        data_type: timestamp_ltz
+        description: 'When any of its details last changed.'
+
+  - name: vacancy_soc
+    description: >-
+      The SOC 2020 codes of every advert, one row per advert and code, with
+      the occupation's title, kept by the coder's rule: a code that stops
+      applying is marked gone, never deleted; one that applies again is
+      cleared on the same row; a gone advert keeps its codes.
+    config:
+      meta:
+        source: faa-vacancies,soc-coding-index
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+    columns:
+      - name: vacancy_soc_key
+        data_type: varchar
+        description: 'Its key: the advert''s reference and the SOC code, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: vacancy_reference
+        data_type: varchar
+        description: 'The advert.'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('vacancy')
+                field: vacancy_reference
+      - name: soc2020
+        data_type: varchar
+        description: 'A SOC 2020 unit group (4 digits).'
+        data_tests:
+          - not_null
+      - name: soc_title
+        data_type: varchar
+        description: 'That unit group''s title in the ONS framework.'
+        config:
+          meta:
+            source: 'soc-coding-index'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        data_tests:
+          - not_null
+      - name: soc_minor_group
+        data_type: varchar
+        description: 'Its minor group (the first 3 digits): joins LABOUR_DEMAND''s local authority months (SOC_DIGITS 3).'
+      - name: method
+        data_type: varchar
+        description: 'How it was coded: title-confirmed, standard or title.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['title-confirmed', 'standard', 'title']
+      - name: flag
+        data_type: varchar
+        description: 'For a standard-coded advert, why the title did not settle it.'
+      - name: title_soc
+        data_type: varchar
+        description: 'The code the title alone gave, when it differs or is ambiguous (for review).'
+      - name: matched_title
+        data_type: varchar
+        description: 'The index title or activity words the title matched.'
+      - name: coder_version
+        data_type: varchar
+        description: 'The coder''s rules version and its activity words'' checksum.'
+      - name: is_current
+        data_type: boolean
+        description: 'True when the code applies now (GONE_AT empty). A gone advert keeps the codes it had when it went.'
+        data_tests:
+          - not_null
+      - name: first_seen_at
+        data_type: timestamp_ltz
+        description: 'When the coder first gave the advert this code.'
+      - name: last_changed_at
+        data_type: timestamp_ltz
+        description: 'When this row last changed.'
+      - name: gone_at
+        data_type: timestamp_ltz
+        description: 'When the code stopped applying to the (live) advert; cleared if it applies again. Never deleted.'
+
+  - name: standard_soc
+    description: >-
+      The SOC 2020 unit groups of every apprenticeship standard, one row per
+      standard and unit group, from Skills England's latest import run: its
+      own occupation's and its options' occupations' SOC codes, the rule the
+      SOC coder uses.
+    config:
+      meta:
+        source: skills-england,soc-coding-index
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: weekly
+        sensitivity: public
+    columns:
+      - name: standard_soc_key
+        data_type: varchar
+        description: 'Its key: the standard''s reference and the SOC code, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: st_reference
+        data_type: varchar
+        description: 'The standard''s reference, e.g. ST0001.'
+        data_tests:
+          - not_null
+      - name: lars_code
+        data_type: number(38,0)
+        description: 'Its LARS code: joins VACANCY.LARS_CODE.'
+      - name: standard_title
+        data_type: varchar
+        description: 'Its title.'
+      - name: soc2020
+        data_type: varchar
+        description: 'A SOC 2020 unit group (4 digits) of its occupation or one of its options'' occupations.'
+        data_tests:
+          - not_null
+      - name: soc_title
+        data_type: varchar
+        description: 'That unit group''s title in the ONS framework.'
+        config:
+          meta:
+            source: 'soc-coding-index'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        data_tests:
+          - not_null
+      - name: via
+        data_type: varchar
+        description: 'Where the code comes from: standard (its own occupation), option (an option''s occupation) or both.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['standard', 'option', 'both']
+      - name: occupation_codes
+        data_type: varchar
+        description: 'The Skills England occupations (OCC...) that give it, joined with commas.'
+      - name: is_primary
+        data_type: boolean
+        description: 'True when Skills England marks it the primary code of one of those occupations.'
+
+  - name: labour_demand
+    description: >-
+      New online job adverts by place, occupation and period (ONS, from
+      Textkernel; official statistics in development), unpivoted: one row per
+      table, area, SOC group and month or quarter. Regions by month at 4-digit
+      SOC; local authorities by month at 3-digit SOC and by quarter at 4-digit
+      SOC.
+    config:
+      meta:
+        source: ons-online-job-adverts
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics (online job adverts from Textkernel), licensed under the Open Government Licence v3.0.'
+        refresh: weekly
+        sensitivity: public
+    columns:
+      - name: labour_demand_key
+        data_type: varchar
+        description: 'Its key: table, area (code, or region name), SOC code and period, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: source_table
+        data_type: varchar
+        description: 'Which table of the spreadsheet: Table 3 (regions by month), Table 4 (local authorities by month, 3-digit SOC) or Table 5 (local authorities by quarter, 4-digit SOC).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Table 3', 'Table 4', 'Table 5']
+      - name: geography
+        data_type: varchar
+        description: 'itl1_region (Table 3, including Total UK), local_authority, or london: the file gives London''s boroughs as one area (its note 2).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['itl1_region', 'local_authority', 'london']
+      - name: area_name
+        data_type: varchar
+        description: 'The local authority or region, as named in the file.'
+        data_tests:
+          - not_null
+      - name: region_name
+        data_type: varchar
+        description: 'Its region (ITL1), as named in the file.'
+      - name: itl2_name
+        data_type: varchar
+        description: 'Its ITL2 area, as named in the file (local authorities only).'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Today''s code for the local authority (the code as published, or by name for E08000016 Barnsley and E08000019 Sheffield).'
+        config:
+          meta:
+            source: 'onspd'
+            licence: 'ogl-3'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+          - not_null:
+              config:
+                where: "geography = 'local_authority'"
+      - name: local_authority_code_published
+        data_type: varchar
+        description: 'The local authority code as the file gives it (April 2023 codes; empty for London).'
+      - name: soc_digits
+        data_type: number(38,0)
+        description: '3 for a SOC 2020 minor group, 4 for a unit group.'
+        data_tests:
+          - not_null
+      - name: soc_code
+        data_type: varchar
+        description: 'The SOC 2020 group code.'
+        data_tests:
+          - not_null
+      - name: soc_label
+        data_type: varchar
+        description: 'Its title, as the file gives it.'
+      - name: period_type
+        data_type: varchar
+        description: 'month or quarter.'
+        data_tests:
+          - not_null
+      - name: period_start
+        data_type: date
+        description: 'The first day of the month or quarter.'
+        data_tests:
+          - not_null
+      - name: period_label
+        data_type: varchar
+        description: 'The period as the file gives it (Jan-17, 2017Q1).'
+      - name: adverts
+        data_type: number(38,0)
+        description: 'New online job adverts in that period. Empty when not available (see ADVERTS_NOTE).'
+      - name: adverts_note
+        data_type: varchar
+        description: 'The file''s mark when there is no count: [x] not available (including months the ONS notes as affected).'

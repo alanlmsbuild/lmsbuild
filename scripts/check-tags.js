@@ -3,12 +3,13 @@
 //   - has a comment, and so does every column
 //   - has all seven governance tags, each with an allowed value
 //   - has SENSITIVITY on every column
-//   - names only data sets that are in SOURCE_FILE (its SOURCE tags)
+//   - names only data sets that are in SOURCE_FILE, or API sources whose
+//     RAW table has rows (its SOURCE tags)
 // and the tags' allowed values in Snowflake are those in
 // scripts/governance-tags.js.
 //   npm run check:tags
 import { connect, execute, destroy } from '../server/db.js'
-import { TAG_SCHEMA, TAGS, ALLOWED, SOURCE } from './governance-tags.js'
+import { TAG_SCHEMA, TAGS, ALLOWED, SOURCE, API_SOURCES } from './governance-tags.js'
 
 const SCHEMAS = ['SHARED_DB.SILVER', 'OPTIONS_DB.SILVER']
 const problems = []
@@ -23,7 +24,11 @@ try {
     if (snowflake !== [...ALLOWED[tag]].sort().join(',')) problems.push(`tag ${tag}: Snowflake allows ${snowflake}, scripts/governance-tags.js ${[...ALLOWED[tag]].sort().join(',')}`)
   }
   const sources = new Set((await q(`select distinct SOURCE from SHARED_DB.RAW.SOURCE_FILE union select distinct SOURCE from OPTIONS_DB.RAW.SOURCE_FILE`)).map((r) => r.SOURCE))
-  const checkSource = (where, value) => { for (const s of value.split(',')) if (!sources.has(s)) problems.push(`${where}: SOURCE ${s} is not in SOURCE_FILE`) }
+  for (const [name, table] of Object.entries(API_SOURCES)) {
+    const [r] = await q(`select count(*) as N from ${table}`)
+    if (Number(r.N) > 0) sources.add(name)
+  }
+  const checkSource = (where, value) => { for (const s of value.split(',')) if (!sources.has(s)) problems.push(`${where}: SOURCE ${s} is not in SOURCE_FILE or API_SOURCES (scripts/governance-tags.js)`) }
   const checkValue = (where, tag, value) => {
     const key = tag.toLowerCase()
     if (key === 'source') { if (!SOURCE.test(value)) problems.push(`${where}: SOURCE "${value}"`); else checkSource(where, value) }

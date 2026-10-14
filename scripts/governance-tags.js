@@ -11,3 +11,10 @@ export const ALLOWED = {
 }
 // SOURCE: one or more SOURCE_FILE.SOURCE names, joined with commas.
 export const SOURCE = /^[a-z0-9-]+(,[a-z0-9-]+)*$/
+// Data that comes from an API, not a file, so has no SOURCE_FILE row: its
+// SOURCE name and the RAW table that keeps every response (check:tags
+// checks that table has rows).
+export const API_SOURCES = {
+  'faa-vacancies': 'SHARED_DB.RAW.FAA_VACANCY_PAGE',
+  'skills-england': 'SHARED_DB.RAW.SE_STANDARD_VERSION',
+}
