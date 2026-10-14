@@ -115,8 +115,12 @@ export async function checkLink(url, { wait = async () => {}, fetchImpl = fetch 
 }
 
 // The new state of a link after a check (the two-failures rule).
+// A failure counts only if the last check was at least RECHECK_HOURS ago:
+// two checks on one day are not two weekly failures.
 export function nextState(prev, check, checkedAt) {
-  const failures = isFailure(check.result) ? (prev?.CONSECUTIVEFAILURES ?? 0) + 1
+  const sinceLast = prev?.LASTCHECKEDAT ? Date.parse(checkedAt) - new Date(prev.LASTCHECKEDAT).getTime() : Infinity
+  const counts = sinceLast >= RECHECK_HOURS * 3_600_000
+  const failures = isFailure(check.result) ? (prev?.CONSECUTIVEFAILURES ?? 0) + (counts ? 1 : 0) || 1
     : check.result === 'blocked' ? (prev?.CONSECUTIVEFAILURES ?? 0) : 0
   const working = check.result === 'ok' || check.result === 'http-only'
   return {

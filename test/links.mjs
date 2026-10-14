@@ -13,12 +13,14 @@ check('200 ok, 404 and 410 broken, 500 unreachable, 403 and 429 blocked', classi
   classify(503) === 'unreachable' && classify(403) === 'blocked' && classify(429) === 'blocked' && classify(401) === 'blocked' && classify(400) === 'broken')
 
 const t1 = '2026-10-14T10:00:00.000Z', t2 = '2026-10-21T10:00:00.000Z', t3 = '2026-10-28T10:00:00.000Z'
-const s1 = nextState({ CONSECUTIVEFAILURES: 0 }, { url: 'u', result: 'broken', status: 404 }, t1)
+const s1 = { ...nextState({ CONSECUTIVEFAILURES: 0 }, { url: 'u', result: 'broken', status: 404 }, t1), LASTCHECKEDAT: t1 }
 check('one failure: not hidden yet, broken since then', s1.CONSECUTIVEFAILURES === 1 && !s1.ISHIDDEN && s1.BROKENSINCE === t1)
-const s2 = nextState(s1, { url: 'u', result: 'unreachable' }, t2)
+const s2 = { ...nextState(s1, { url: 'u', result: 'unreachable' }, t2), LASTCHECKEDAT: t2 }
 check('two in a row: hidden, still broken since the first', s2.CONSECUTIVEFAILURES === 2 && s2.ISHIDDEN && s2.BROKENSINCE === t1)
 const sb = nextState(s2, { url: 'u', result: 'blocked', status: 403 }, t3)
 check('blocked changes nothing about the failures', sb.CONSECUTIVEFAILURES === 2 && sb.ISHIDDEN && sb.BROKENSINCE === t1)
+const same = nextState(s1, { url: 'u', result: 'broken', status: 404 }, '2026-10-14T11:00:00.000Z')
+check('a second failure the same day does not count: not hidden', same.CONSECUTIVEFAILURES === 1 && !same.ISHIDDEN)
 const s3 = nextState(s2, { url: 'u', result: 'ok', status: 200 }, t3)
 check('a good check shows it again and clears the run', s3.CONSECUTIVEFAILURES === 0 && !s3.ISHIDDEN && s3.BROKENSINCE === null && s3.LASTOKAT === t3)
 const sh = nextState(s2, { url: 'u', result: 'http-only', status: 200 }, t3)
