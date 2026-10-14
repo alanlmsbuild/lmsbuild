@@ -52,6 +52,12 @@
 //      missing grant the job needs (TRANSFORM_REQUIRED) fails; so does
 //      TRANSFORM_ROLE held by anyone but TRANSFORM_USER, or TRANSFORM_USER
 //      holding any other role.
+//  12. Each service role is held by its own service user and nothing else:
+//      ILR_APP_ROLE by the app's user, DATA_LOAD_ROLE by DATA_LOAD_USER,
+//      CRM_APP_ROLE by CRM_APP_USER, TRANSFORM_ROLE by TRANSFORM_USER (SHOW
+//      GRANTS OF ROLE, each as its own user). Another user (a person's
+//      login) or a role holding one fails (added 14 October 2026, after
+//      CRM_APP_ROLE and TRANSFORM_ROLE were found granted to a person).
 //  10. The flows (sql/flow_01_f6_f7_f8.sql): each app role may call only
 //      its own flow procedures (the CRM F6 and F8, Warren F7), and Warren
 //      may read and update ILR.ONBOARDING but never add to it (only F6 does).
@@ -339,9 +345,26 @@ export function transformGrantProblems(grants, userRoles, holders) {
     if (String(r.role) !== TRANSFORM_ROLE) problems.push(`${TRANSFORM_USER} also has ${r.role}: it should have ${TRANSFORM_ROLE} only`)
   }
   if (!userRoles.some((r) => String(r.role) === TRANSFORM_ROLE)) problems.push(`${TRANSFORM_USER} doesn't have ${TRANSFORM_ROLE}`)
+  problems.push(...roleHolderProblems(TRANSFORM_ROLE, holders, TRANSFORM_USER))
+  return problems
+}
+
+// Who may hold each service role: its own user, nothing else.
+export const SERVICE_ROLES = {
+  [ROLE]: process.env.SNOWFLAKE_USERNAME,
+  [LOAD_ROLE]: LOAD_USER,
+  [CRM_ROLE]: CRM_USER,
+  [TRANSFORM_ROLE]: TRANSFORM_USER,
+}
+// The problems in who holds a service role (SHOW GRANTS OF ROLE).
+export function roleHolderProblems(role, holders, user = SERVICE_ROLES[role]) {
+  const problems = []
   for (const h of holders) {
-    if (!(String(h.granted_to) === 'USER' && String(h.grantee_name) === TRANSFORM_USER)) problems.push(`${TRANSFORM_ROLE} is held by ${h.granted_to} ${h.grantee_name}: only ${TRANSFORM_USER} may hold it`)
+    if (!(String(h.granted_to) === 'USER' && String(h.grantee_name).toUpperCase() === String(user).toUpperCase())) {
+      problems.push(`${role} is held by ${String(h.granted_to).toLowerCase()} ${h.grantee_name} (granted by ${h.granted_by || 'unknown'}): only ${user} may hold it`)
+    }
   }
+  if (!holders.some((h) => String(h.granted_to) === 'USER' && String(h.grantee_name).toUpperCase() === String(user).toUpperCase())) problems.push(`${user} doesn't hold ${role}`)
   return problems
 }
 
@@ -367,8 +390,10 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
       ...(await execute(connection, 'show tables in schema CAPTURE_DB.ILR')),
       ...(await execute(connection, 'show tables in schema SHARED_DB.ACCESS')),
     ].map((t) => String(t.name)))
-    checked = grants.length + future.length + layers.length + appUserRoles.length
+    const appHolders = await execute(connection, `show grants of role ${ROLE}`)
+    checked = grants.length + future.length + layers.length + appUserRoles.length + appHolders.length
     problems = grantProblems(grants, future, layers, appUserRoles)
+    problems.push(...roleHolderProblems(ROLE, appHolders))
   } finally {
     await destroy(connection)
   }
@@ -376,8 +401,10 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   try {
     const loaderGrants = await execute(loader, `show grants to role ${LOAD_ROLE}`)
     const loaderRoles = await execute(loader, `show grants to user ${LOAD_USER}`)
-    checked += loaderGrants.length + loaderRoles.length
+    const loaderHolders = await execute(loader, `show grants of role ${LOAD_ROLE}`)
+    checked += loaderGrants.length + loaderRoles.length + loaderHolders.length
     problems.push(...loaderGrantProblems(loaderGrants, loaderRoles, snapshotNames))
+    problems.push(...roleHolderProblems(LOAD_ROLE, loaderHolders))
   } finally {
     await destroy(loader)
   }
@@ -385,8 +412,10 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   try {
     const crmGrants = await execute(crm, `show grants to role ${CRM_ROLE}`)
     const crmRoles = await execute(crm, `show grants to user ${CRM_USER}`)
-    checked += crmGrants.length + crmRoles.length
+    const crmHolders = await execute(crm, `show grants of role ${CRM_ROLE}`)
+    checked += crmGrants.length + crmRoles.length + crmHolders.length
     problems.push(...crmGrantProblems(crmGrants, crmRoles))
+    problems.push(...roleHolderProblems(CRM_ROLE, crmHolders))
   } finally {
     await destroy(crm)
   }
@@ -403,6 +432,6 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}, ${LOAD_ROLE}, ${CRM_ROLE} or ${TRANSFORM_ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS. Each service role is held by its own service user and nothing else.`)
   process.exit(problems.length ? 1 : 0)
 }
