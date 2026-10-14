@@ -1,0 +1,530 @@
+version: 2
+
+# The areas group of the silver layer: postcodes, area names, local
+# authorities. Every model and column described (the comments in Snowflake)
+# and tagged (macros/governance.sql). meta.sensitivity on a column overrides
+# the model's; meta.source, licence and attribution on a column mark data
+# joined in from another data set.
+
+models:
+  - name: area_lookup
+    description: >-
+      Area codes and their names, one row per area type and code (countries,
+      regions, local authorities, wards, parishes, constituencies, LSOAs and
+      the rest), from the lookup files that come with the ONS Postcode
+      Directory. Rebuilt from the latest release.
+    config:
+      meta:
+        source: onspd-lookups
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: area_type
+        data_type: varchar
+        description: 'What kind of area: country, region, local_authority, county, electoral_division, ward, parish, constituency, lsoa21, msoa21, built_up_area, national_park, police_force, travel_to_work_area, icb, rural_urban_2021_ew, rural_urban_2021_sc.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [country, region, local_authority, county, electoral_division, ward, parish, constituency, lsoa21, msoa21, built_up_area, national_park, police_force, travel_to_work_area, icb, rural_urban_2021_ew, rural_urban_2021_sc]
+      - name: code
+        data_type: varchar
+        description: 'The area''s code: a GSS code such as E06000001, or for rural_urban the indicator (e.g. UN1).'
+        data_tests: [not_null]
+      - name: name
+        data_type: varchar
+        description: The area's name in English, as the ONS publishes it.
+        data_tests: [not_null]
+      - name: name_welsh
+        data_type: varchar
+        description: Its name in Welsh, for Welsh areas where the ONS gives one; otherwise empty.
+      - name: lookup_file
+        data_type: varchar
+        description: The lookup file in the postcode directory's zip it came from.
+      - name: source_file_id
+        data_type: varchar
+        description: That file's SHARED_DB.RAW.SOURCE_FILE row.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "area_type || '|' || code"
+
+  - name: postcode
+    description: >-
+      Every UK postcode in the latest ONS Postcode Directory, live and
+      terminated, one row per postcode: when it was in use, where it is, the
+      areas it is in (ONS "no area" codes as empty) and, in Great Britain,
+      the electricity region it lies in.
+    config:
+      meta:
+        source: onspd
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: postcode
+        data_type: varchar
+        description: The postcode, written the usual way (one space), e.g. SW1A 1AA.
+        data_tests: [unique, not_null]
+      - name: postcode_7
+        data_type: varchar
+        description: The postcode in 7 characters (padded or squeezed), as the ONS gives it.
+      - name: postcode_compact
+        data_type: varchar
+        description: The postcode with no spaces, for matching what people type.
+        data_tests: [unique, not_null]
+      - name: introduced
+        data_type: date
+        description: The month it came into use (first of the month).
+        data_tests: [not_null]
+      - name: terminated
+        data_type: date
+        description: The month it stopped being used; empty while it is live.
+      - name: is_live
+        data_type: boolean
+        description: True while it is in use.
+        data_tests: [not_null]
+      - name: is_large_user
+        data_type: boolean
+        description: True for a large-user postcode (one organisation that gets a lot of post).
+        data_tests: [not_null]
+      - name: easting
+        data_type: number(38,0)
+        description: Easting in metres (British National Grid; Irish Grid in Northern Ireland). Empty when it has no grid reference.
+      - name: northing
+        data_type: number(38,0)
+        description: Northing in metres, as for easting.
+      - name: grid_quality
+        data_type: number(38,0)
+        description: 'How good the position is: 1 (within the building) to 8; 9 means no grid reference.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+                quote: false
+      - name: latitude
+        data_type: float
+        description: Latitude (WGS84). Empty when it has no grid reference.
+      - name: longitude
+        data_type: float
+        description: Longitude (WGS84). Empty when it has no grid reference.
+      - name: country_code
+        data_type: varchar
+        description: Its country (E92000001 England, W92000004 Wales, S92000003 Scotland, N92000002 Northern Ireland). Empty for the Channel Islands and Isle of Man.
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: country
+      - name: region_code
+        data_type: varchar
+        description: Its region (England only).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: region
+      - name: local_authority_code
+        data_type: varchar
+        description: Its local authority district or unitary authority.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+              config:
+                where: is_live
+      - name: county_code
+        data_type: varchar
+        description: Its county, where it is in a two-tier area (England only).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: county
+      - name: electoral_division_code
+        data_type: varchar
+        description: Its county electoral division (England, two-tier areas only).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: electoral_division
+      - name: ward_code
+        data_type: varchar
+        description: Its electoral ward.
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: ward
+      - name: parish_code
+        data_type: varchar
+        description: Its parish, or the unparished part of its local authority (England and Wales).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: parish
+      - name: constituency_code
+        data_type: varchar
+        description: Its Westminster parliamentary constituency (2024 boundaries).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: constituency
+      - name: oa21_code
+        data_type: varchar
+        description: Its 2021 census output area.
+      - name: lsoa21_code
+        data_type: varchar
+        description: Its 2021 lower layer super output area (data zone in Scotland, super data zone in Northern Ireland).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: lsoa21
+      - name: msoa21_code
+        data_type: varchar
+        description: Its 2021 middle layer super output area (intermediate zone in Scotland).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: msoa21
+      - name: built_up_area_code
+        data_type: varchar
+        description: Its built-up area (2024; England and Wales). Empty outside one.
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: built_up_area
+      - name: national_park_code
+        data_type: varchar
+        description: The national park it is in, if any.
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: national_park
+      - name: police_force_code
+        data_type: varchar
+        description: Its police force area.
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: police_force
+      - name: travel_to_work_area_code
+        data_type: varchar
+        description: Its travel to work area (2011 based).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: travel_to_work_area
+      - name: icb_code
+        data_type: varchar
+        description: Its integrated care board (England only).
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: icb
+      - name: rural_urban_2021
+        data_type: varchar
+        description: The 2021 rural-urban classification of its output area (England and Wales and Scotland use different classifications; see area_lookup).
+      - name: output_area_class_2021
+        data_type: varchar
+        description: The 2021 output area classification of its output area.
+      - name: imd_rank_2025
+        data_type: number(38,0)
+        description: The 2025 deprivation rank of its LSOA in its own country's index (England or Wales; 1 is the most deprived). Empty elsewhere.
+      - name: electricity_region
+        data_type: varchar
+        description: The GB electricity region (DNO licence area, GSP group letter A to P) its grid reference lies in, or for a point just outside NESO's approximate boundaries (on the coast) the nearest one. Empty in Northern Ireland and without a grid reference.
+        config:
+          meta:
+            source: neso-dno-areas
+            licence: neso-odl
+            attribution: 'Supported by National Energy SO Open Data'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [A, B, C, D, E, F, G, H, J, K, L, M, N, P]
+          - not_null:
+              config:
+                where: "is_live and grid_quality <> 9 and country_code in ('E92000001', 'W92000004', 'S92000003')"
+      - name: electricity_region_by_distance
+        data_type: boolean
+        description: True when the postcode is just outside every region's boundary and was given the nearest region; false when it lies inside one; empty when it has no region.
+        config:
+          meta:
+            source: onspd,neso-dno-areas
+            licence: neso-odl
+            attribution: 'Supported by National Energy SO Open Data'
+      - name: electricity_region_distance_m
+        data_type: number(38,0)
+        description: For a region given by distance, how far the postcode is from that region's boundary, in metres; 0 when it lies inside.
+        config:
+          meta:
+            source: onspd,neso-dno-areas
+            licence: neso-odl
+            attribution: 'Supported by National Energy SO Open Data'
+      - name: electricity_region_name
+        data_type: varchar
+        description: That region's name, e.g. East Midlands, North Scotland.
+        config:
+          meta:
+            source: neso-dno-areas
+            licence: neso-odl
+            attribution: 'Supported by National Energy SO Open Data'
+      - name: electricity_distributor
+        data_type: varchar
+        description: The company that runs the electricity network there, e.g. UK Power Networks.
+        config:
+          meta:
+            source: neso-dno-areas
+            licence: neso-odl
+            attribution: 'Supported by National Energy SO Open Data'
+      - name: source_file_id
+        data_type: varchar
+        description: The postcode directory file's SHARED_DB.RAW.SOURCE_FILE row.
+
+  - name: local_authority
+    description: >-
+      The local authorities (districts and unitary authorities) with live
+      postcodes in the latest ONS Postcode Directory, one row each, with
+      their names, country, region and county.
+    config:
+      meta:
+        source: onspd,onspd-lookups
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: local_authority_code
+        data_type: varchar
+        description: Its GSS code, e.g. E06000001.
+        data_tests: [unique, not_null]
+      - name: name
+        data_type: varchar
+        description: Its name, e.g. Hartlepool.
+        data_tests: [not_null]
+      - name: name_welsh
+        data_type: varchar
+        description: Its Welsh name (Welsh authorities only).
+      - name: country_code
+        data_type: varchar
+        description: Its country's code.
+        data_tests: [not_null]
+      - name: country_name
+        data_type: varchar
+        description: Its country, e.g. England.
+        data_tests: [not_null]
+      - name: region_code
+        data_type: varchar
+        description: Its region's code (England only).
+      - name: region_name
+        data_type: varchar
+        description: Its region, e.g. North East (England only).
+      - name: county_code
+        data_type: varchar
+        description: Its county's code, for a district in a two-tier area.
+      - name: county_name
+        data_type: varchar
+        description: Its county, e.g. Kent, for a district in a two-tier area.
+      - name: live_postcodes
+        data_type: number(38,0)
+        description: How many live postcodes it has.
+        data_tests: [not_null]
+
+  - name: lsoa
+    description: >-
+      Every 2021 lower layer super output area (data zone in Scotland, super
+      data zone in Northern Ireland), one row each: its name, local
+      authority and MSOA, its latest population estimate and its 2025
+      deprivation (both England only; Wales's own index is not loaded).
+    config:
+      meta:
+        source: onspd-lookups,onspd,nomis-nm-2014-1,iod-2025
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: lsoa21_code
+        data_type: varchar
+        description: Its 2021 code, e.g. E01000001 (S01 data zones in Scotland, 95 super data zones in Northern Ireland). police.uk's LSOA code joins to it directly.
+        data_tests: [unique, not_null]
+      - name: name
+        data_type: varchar
+        description: Its name, e.g. City of London 001A.
+        data_tests: [not_null]
+      - name: country_code
+        data_type: varchar
+        description: Its country, from its postcodes.
+      - name: local_authority_code
+        data_type: varchar
+        description: Its local authority, from its postcodes (the most common among its live ones).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+      - name: local_authority_name
+        data_type: varchar
+        description: That local authority's name.
+      - name: msoa21_code
+        data_type: varchar
+        description: Its 2021 MSOA (intermediate zone in Scotland), from its postcodes.
+        data_tests:
+          - in_area_lookup:
+              arguments:
+                area_type: msoa21
+      - name: msoa21_name
+        data_type: varchar
+        description: That MSOA's name.
+      - name: live_postcodes
+        data_type: number(38,0)
+        description: How many live postcodes it has.
+        data_tests: [not_null]
+      - name: population_year
+        data_type: varchar
+        description: The year (mid-year) of the population estimate. England only.
+        config:
+          meta:
+            source: nomis-nm-2014-1
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        data_tests:
+          - not_null:
+              config:
+                where: "lsoa21_code like 'E%'"
+      - name: population
+        data_type: number(38,0)
+        description: Its estimated population, all ages. England only.
+        config:
+          meta:
+            source: nomis-nm-2014-1
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        data_tests:
+          - not_null:
+              config:
+                where: "lsoa21_code like 'E%'"
+      - name: aged_0_15
+        data_type: number(38,0)
+        description: Of whom aged 0 to 15.
+        config:
+          meta:
+            source: nomis-nm-2014-1
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+      - name: aged_16_17
+        data_type: number(38,0)
+        description: Of whom aged 16 to 17.
+        config:
+          meta:
+            source: nomis-nm-2014-1
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+      - name: aged_18_24
+        data_type: number(38,0)
+        description: Of whom aged 18 to 24.
+        config:
+          meta:
+            source: nomis-nm-2014-1
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+      - name: aged_16_64
+        data_type: number(38,0)
+        description: Of whom aged 16 to 64.
+        config:
+          meta:
+            source: nomis-nm-2014-1
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+      - name: aged_65_plus
+        data_type: number(38,0)
+        description: Of whom aged 65 and over.
+        config:
+          meta:
+            source: nomis-nm-2014-1
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+      - name: imd_score
+        data_type: number(10,3)
+        description: Its Index of Multiple Deprivation 2025 score (higher is more deprived). England only.
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        data_tests:
+          - not_null:
+              config:
+                where: "lsoa21_code like 'E%'"
+      - name: imd_rank
+        data_type: number(38,0)
+        description: Its IMD 2025 rank among England's 33,755 LSOAs (1 is the most deprived).
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        data_tests:
+          - not_null:
+              config:
+                where: "lsoa21_code like 'E%'"
+      - name: imd_decile
+        data_type: number(38,0)
+        description: Its IMD 2025 decile (1 is the most deprived 10%).
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                quote: false
+      - name: income_decile
+        data_type: number(38,0)
+        description: Its income deprivation decile (1 is the most deprived 10%).
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: employment_decile
+        data_type: number(38,0)
+        description: Its employment deprivation decile.
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: education_decile
+        data_type: number(38,0)
+        description: Its education, skills and training deprivation decile.
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: health_decile
+        data_type: number(38,0)
+        description: Its health deprivation and disability decile.
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: crime_decile
+        data_type: number(38,0)
+        description: Its crime decile.
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: housing_decile
+        data_type: number(38,0)
+        description: Its barriers to housing and services decile.
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: living_environment_decile
+        data_type: number(38,0)
+        description: Its living environment deprivation decile.
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: idaci_decile
+        data_type: number(38,0)
+        description: Its income deprivation affecting children (IDACI) decile.
+        config:
+          meta:
+            source: iod-2025
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'

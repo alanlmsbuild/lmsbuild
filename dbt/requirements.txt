@@ -1,0 +1,5 @@
+# dbt for the silver layer, in .venv-dbt (Python 3.12):
+#   ~/.cache/rarebit-uv/uv venv --python 3.12 .venv-dbt
+#   ~/.cache/rarebit-uv/uv pip install --python .venv-dbt/bin/python -r dbt/requirements.txt
+dbt-core==1.12.6
+dbt-snowflake==1.12.3

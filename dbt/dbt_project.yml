@@ -1,0 +1,37 @@
+# The silver layer (decision 16), with decision 21's governance built in.
+# Run it with npm run dbt -- <command> (scripts/dbt.js), never dbt directly:
+# that loads server/.env and points dbt at this folder.
+name: rarebit
+version: '1.0.0'
+profile: rarebit
+config-version: 2
+
+model-paths: [models]
+macro-paths: [macros]
+test-paths: [tests]
+
+flags:
+  send_anonymous_usage_stats: false
+
+models:
+  rarebit:
+    +materialized: table
+    +copy_grants: true
+    +persist_docs:
+      relation: true
+      columns: true
+    # Every model: a contract (every column declared, typed and described in
+    # its .yml; dbt fails the build if the table differs), then the tags.
+    # scripts/check-dbt-governance.js checks the .yml before the build.
+    +contract:
+      enforced: true
+    +post-hook:
+      - "{{ apply_table_tags() }}"
+      - "{{ apply_column_tags() }}"
+    +meta:
+      layer: silver
+      owner: rarebit-data
+    silver:
+      areas:
+        +database: SHARED_DB
+        +schema: SILVER

@@ -27,7 +27,11 @@
     "fetch:official": "node scripts/fetch-official.js",
     "code:vacancies": "node scripts/vacancy-soc.js",
     "generate:journeys": "node scripts/generate-journeys.js",
-    "jobs": "node scripts/jobs.js"
+    "jobs": "node scripts/jobs.js",
+    "dbt": "node scripts/dbt.js",
+    "check:dbt": "node scripts/check-dbt-governance.js",
+    "check:tags": "node scripts/check-tags.js",
+    "silver:build": "node scripts/check-dbt-governance.js && node scripts/dbt.js build && node scripts/check-tags.js"
   },
   "dependencies": {
     "busboy": "^1.6.0",

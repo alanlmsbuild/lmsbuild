@@ -37,3 +37,10 @@ data/
 
 # Test output (screenshots), kept in the repo so it's easy to look at
 test/.output/
+
+# dbt (the silver layer): its Python venv and what it writes when it runs
+.venv-dbt/
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml

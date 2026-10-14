@@ -1,0 +1,31 @@
+version: 2
+
+# Bronze: SHARED_DB.RAW, as the loaders left it (add-only; text exactly as in
+# each file). Silver reads only the latest file of each data set
+# (macros/latest_file.sql).
+sources:
+  - name: shared_raw
+    database: SHARED_DB
+    schema: RAW
+    tables:
+      - name: source_file
+        identifier: SOURCE_FILE
+        description: One row per file loaded into SHARED_DB.RAW, with its source, licence and counts.
+      - name: onspd
+        identifier: ONSPD
+        description: The ONS Postcode Directory in full, one row per postcode ever used (load:data step 32). Columns named as in the file, in lower case.
+      - name: published_cell
+        identifier: PUBLISHED_CELL
+        description: Files with varying layouts, one row per cell. The postcode directory's code-to-name lookups are here (source onspd-lookups).
+      - name: neso_dno_area
+        identifier: NESO_DNO_AREA
+        description: The 14 GB electricity regions (DNO licence areas), approximate boundaries in British National Grid, one GeoJSON feature per row.
+      - name: nomis_population_lsoa
+        identifier: NOMIS_POPULATION_LSOA
+        description: Population estimates by 2021 LSOA (England), every year from 2011, in broad age bands (Nomis NM_2014_1, load:data step 33).
+      - name: iod2025_lsoa
+        identifier: IOD2025_LSOA
+        description: The English Indices of Deprivation 2025, one row per 2021 LSOA (England), columns named as in the file.
+      - name: police_street_crime
+        identifier: POLICE_STREET_CRIME
+        description: police.uk street-level crimes, latest 3-year archive, one row per crime (load:data step 35).
