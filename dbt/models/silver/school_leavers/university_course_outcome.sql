@@ -2,8 +2,9 @@
 -- measure and subject, exactly as HESA splits them: continuation, salary
 -- 15 months after finishing (Graduate Outcomes) and earnings 3 years after
 -- (LEO). A joint course has a row for each subject HESA gives; each measure
--- has its own split (a subject group, or none when the figures are not
--- available), so subjects are never matched across measures.
+-- has its own split (by subject or subject group, or none: figures for the
+-- whole course, or not available), so subjects are never matched across
+-- measures.
 with cah as (
   select "CAH3_code" as code, max("CAH3_subject") as name
   from {{ source('options_raw', 'leo_grad_cah3_subject') }}

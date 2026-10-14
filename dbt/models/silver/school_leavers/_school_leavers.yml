@@ -797,7 +797,7 @@ models:
                 values: [continuation, salary_15_months, earnings_3_years]
       - name: subject_code
         data_type: varchar
-        description: 'The CAH subject (or subject group) the figures are for, as HESA gives it; empty when HESA gives none (the figures are not available for the course).'
+        description: 'The CAH subject (or subject group) the figures are for, as HESA gives it. Empty when HESA gives none: then the figures are for the course as a whole (continuation, often) or not available (VALUE empty).'
       - name: subject_name
         data_type: varchar
         description: 'That subject''s name, from the LEO graduate outcomes subject list (CAH2 or CAH3 level; empty for a code not in it).'

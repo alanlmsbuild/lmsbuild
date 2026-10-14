@@ -1,7 +1,7 @@
 -- UNIVERSITY_COURSE_OUTCOME has one row per row of the three Discover Uni
 -- outcome files (continuation, salary, LEO earnings), every course has rows
--- for all three measures, and a measure with no subject (figures not
--- available) has only that one row for the course.
+-- for all three measures, and a row with no subject (figures for the
+-- whole course, or none) is the course's only row for that measure.
 with bronze as (
   select (select count(*) from {{ source('options_raw', 'du_continuation') }} where SOURCEFILEID = {{ latest_file('discover-uni', 'DISCOVERUNI_CONTINUATION', 'options') }})
        + (select count(*) from {{ source('options_raw', 'du_gosalary') }} where SOURCEFILEID = {{ latest_file('discover-uni', 'DISCOVERUNI_GOSALARY', 'options') }})
