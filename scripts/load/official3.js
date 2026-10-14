@@ -30,8 +30,11 @@ const extract = (zip, member) => async (out) => { const { pipeline } = await imp
 
 // One kind of police.uk monthly file (street, outcomes), every month and
 // force, as one CSV with MEMBER first. Every file must have the same header.
-const policeKind = (zip, kind) => async (out) => {
-  const members = (await zipNames(zip)).filter((n) => n.endsWith(`-${kind}.csv`)).sort()
+// after: a month (YYYY-MM); only later months are taken (each archive
+// repeats the previous 3 years, so a monthly archive adds only its new ones).
+const policeKind = (zip, kind, after = '') => async (out) => {
+  const members = (await zipNames(zip)).filter((n) => n.endsWith(`-${kind}.csv`) && n.slice(0, 7) > after).sort()
+  if (!members.length) throw new Error(`${path.basename(zip)}: no ${kind} files after ${after}`)
   let header = null
   async function* lines() {
     for (const m of members) {
@@ -84,10 +87,14 @@ export function officialSteps3(R) {
     34: { job: 'load-apar', files: () => [
       csv(shared, 'apar', latest(path.join(R, 'apar'), /^apar-.*\.csv$/), 'Apprenticeship provider and assessment register', DFE, 'https://download.apprenticeships.education.gov.uk', 'SHARED_DB.RAW.APAR_PROVIDER'),
     ] },
-    35: { job: 'load-police-uk', files: () => {
-      const zip = latest(path.join(R, 'police-uk'), /^police-uk-archive-.*\.zip$/)
+    // The latest archive; if there's an earlier one, only the months after
+    // its last (the earlier ones are loaded already).
+    35: { job: 'load-police-uk', files: async () => {
+      const zips = files(path.join(R, 'police-uk'), /^police-uk-archive-.*\.zip$/)
+      const zip = zips.at(-1)
+      const after = zips.length > 1 ? (await zipNames(zips.at(-2))).filter((n) => /^\d{4}-\d{2}\//.test(n)).map((n) => n.slice(0, 7)).sort().at(-1) : ''
       const k = (kind, table, title) => ({ ...shared, source: `police-uk-${kind}`, publisher: 'police.uk (Home Office)', licence: OGL, page: 'https://data.police.uk/data/archive/',
-        title, file: zip, member: `*-${kind}.csv (every month and force, joined)`, kind: 'converted', table, make: policeKind(zip, kind) })
+        title, file: zip, member: `*-${kind}.csv (every month and force${after ? ` after ${after}` : ''}, joined)`, kind: 'converted', table, make: policeKind(zip, kind, after) })
       return [
         k('street', 'SHARED_DB.RAW.POLICE_STREET_CRIME', 'police.uk street-level crimes, latest 3-year archive'),
         k('outcomes', 'SHARED_DB.RAW.POLICE_OUTCOME', 'police.uk outcomes, latest 3-year archive'),

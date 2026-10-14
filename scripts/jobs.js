@@ -47,6 +47,7 @@ export const JOB_RUNNERS = {
   'official-statxplore': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'statxplore', log }),
   'official-ons': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'ons', log }),
   'official-ofqual': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'ofqual', log }),
+  'official-monthly': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'monthly', log }),
 }
 
 // One tick. Returns what it did: { ran: [{ job, outcome }], seeded, connected }.

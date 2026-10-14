@@ -9,6 +9,8 @@
 //                                          Programme (scripts/load/statxplore.js)
 //   npm run fetch:official -- ons       online job adverts, VACS02 (new editions)
 //   npm run fetch:official -- ofqual    the Ofqual register (if it changed)
+//   npm run fetch:official -- monthly   police.uk, APAR, NaPTAN, listed buildings,
+//                                          Wikidata places (batch 6, each only if new)
 //   add --no-load to fetch only
 //
 // Nomis: only what's new. Each fetch is a new file, <base>_<from>_<to>.csv,
@@ -85,7 +87,7 @@ export const EES_SETS = [
 ].map(([dir, id]) => ({ dir, id }))
 
 // The load:data steps each kind feeds.
-export const LOAD_STEPS = { nomis: [14, 15, 26], api: [17, 18, 19], statxplore: [24], ons: [25, 29], ofqual: [27] }
+export const LOAD_STEPS = { nomis: [14, 15, 26, 33], api: [17, 18, 19], statxplore: [24], ons: [25, 29], ofqual: [27], monthly: [34, 35, 36, 38] }
 
 // ONS datasets published as spreadsheets: a new file only for a new edition.
 // The name is the file's own, with the edition added unless it's "current".
@@ -154,9 +156,9 @@ export async function fetchOfqual(what, { root = RAREBIT_DATA, log = console.log
   return out
 }
 
-async function get(url, tries = 4) {
+async function get(url, tries = 4, headers = {}) {
   for (let t = 1; ; t++) {
-    const res = await fetch(url)
+    const res = await fetch(url, { headers })
     if (res.ok) return res
     if (t >= tries) throw new Error(`${url}: ${res.status} ${res.statusText}`)
     await new Promise((r) => setTimeout(r, 3000 * t))
@@ -220,14 +222,108 @@ export async function fetchEes(set, { root = RAREBIT_DATA, log = console.log } =
   return file
 }
 
+
+// ---------------------------------------------------------------- monthly (batch 6)
+// Each a new dated file only if it differs from the last one kept.
+const today = () => new Date().toISOString().slice(0, 10)
+function keepIfNew(dir, prefix, ext, file, log, label) {
+  const previous = fs.readdirSync(dir).filter((n) => n.startsWith(prefix) && n.endsWith(ext) && path.join(dir, n) !== file).sort().at(-1)
+  if (previous && fs.readFileSync(path.join(dir, previous)).equals(fs.readFileSync(file))) {
+    fs.rmSync(file)
+    log(`  ${label}: no change since ${previous}`)
+    return null
+  }
+  log(`  ${label}: ${path.basename(file)} (${fs.statSync(file).size} bytes)`)
+  return file
+}
+async function download(url, file, headers = {}) {
+  const res = await get(url, 4, headers)
+  await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(`${file}.part`))
+  fs.renameSync(`${file}.part`, file)
+}
+
+// police.uk: the latest 3-year archive, only if the server's copy is newer
+// than the last one kept (its Last-Modified date names the file).
+async function fetchPolice({ root = RAREBIT_DATA, log }) {
+  const dir = path.join(root, 'police-uk'); fs.mkdirSync(dir, { recursive: true })
+  const head = await fetch('https://data.police.uk/data/archive/latest.zip', { method: 'HEAD' })
+  const stamp = new Date(head.headers.get('last-modified') ?? Date.now()).toISOString().slice(0, 10)
+  const file = path.join(dir, `police-uk-archive-${stamp}.zip`)
+  const kept = fs.readdirSync(dir).filter((n) => /^police-uk-archive-.*\.zip$/.test(n)).sort()
+  if (kept.length && kept.at(-1).slice(18, 28) >= stamp) { log(`  police.uk: nothing newer than ${kept.at(-1)}`); return null }
+  await download('https://data.police.uk/data/archive/latest.zip', file)
+  log(`  police.uk: ${path.basename(file)} (${fs.statSync(file).size} bytes)`)
+  return file
+}
+async function fetchApar({ root = RAREBIT_DATA, log }) {
+  const dir = path.join(root, 'apar'); fs.mkdirSync(dir, { recursive: true })
+  const page = await (await get('https://download.apprenticeships.education.gov.uk')).text()
+  const link = page.match(/apar\/downloadcsv\?filename=([^"&]+)/)
+  if (!link) throw new Error('APAR: no CSV link on the download page')
+  const file = path.join(dir, link[1])
+  if (fs.existsSync(file)) { log(`  APAR: ${link[1]} already fetched`); return null }
+  await download(`https://download.apprenticeships.education.gov.uk/${link[0]}`, file)
+  return keepIfNew(dir, 'apar-', '.csv', file, log, 'APAR')
+}
+async function fetchNaptan({ root = RAREBIT_DATA, log }) {
+  const dir = path.join(root, 'naptan'); fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, `naptan_stops_${today()}.csv`)
+  if (fs.existsSync(file)) { log('  NaPTAN: fetched today already'); return null }
+  await download('https://naptan.api.dft.gov.uk/v1/access-nodes?dataFormat=csv', file)
+  return keepIfNew(dir, 'naptan_stops_', '.csv', file, log, 'NaPTAN')
+}
+// Historic England's listed building points (ArcGIS, 2,000 a request).
+const HE = 'https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/arcgis/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query'
+const HE_FIELDS = ['OBJECTID', 'ListEntry', 'Name', 'Grade', 'ListDate', 'AmendDate', 'CaptureScale', 'hyperlink', 'NGR', 'Easting', 'Northing']
+async function fetchListed({ root = RAREBIT_DATA, log }) {
+  const dir = path.join(root, 'historic-england'); fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, `listed_building_points_${today()}.csv`)
+  if (fs.existsSync(file)) { log('  listed buildings: fetched today already'); return null }
+  const q = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`
+  const lines = [HE_FIELDS.map(q).join(',')]
+  for (let off = 0; ; off += 2000) {
+    const d = await (await get(`${HE}?where=1%3D1&outFields=${HE_FIELDS.join(',')}&orderByFields=OBJECTID&resultOffset=${off}&resultRecordCount=2000&returnGeometry=false&f=json`)).json()
+    if (d.error) throw new Error(`Historic England: ${JSON.stringify(d.error)}`)
+    for (const f of d.features ?? []) lines.push(HE_FIELDS.map((k) => q(['ListDate', 'AmendDate'].includes(k) && f.attributes[k] ? new Date(f.attributes[k]).toISOString().slice(0, 10) : f.attributes[k])).join(','))
+    if ((d.features ?? []).length < 2000 && !d.exceededTransferLimit) break
+  }
+  fs.writeFileSync(file, lines.join('\n') + '\n')
+  fs.writeFileSync(`${file}.source.txt`, `${HE}?where=1=1&outFields=${HE_FIELDS.join(',')}&orderByFields=OBJECTID (paged, 2000 a request; dates as YYYY-MM-DD) <each of ${lines.length - 1} rows, 0 to ${lines.length - 1}>\nFetched ${new Date().toISOString()}\n`)
+  const kept = keepIfNew(dir, 'listed_building_points_', '.csv', file, log, 'listed buildings')
+  if (!kept) fs.rmSync(`${file}.source.txt`, { force: true })
+  return kept
+}
+// Wikidata places with an English GSS code. Identifies itself without any
+// personal contact details.
+const WIKIDATA_QUERY = `SELECT ?item ?gss ?itemLabel ?itemDescription ?inception ?coord ?type WHERE {
+  ?item wdt:P836 ?gss .
+  FILTER(STRSTARTS(?gss, "E"))
+  OPTIONAL { ?item wdt:P571 ?inception . }
+  OPTIONAL { ?item wdt:P625 ?coord . }
+  OPTIONAL { ?item wdt:P31 ?type . }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}
+`
+async function fetchWikidata({ root = RAREBIT_DATA, log }) {
+  const dir = path.join(root, 'wikidata'); fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, `wikidata_england_gss_places_${today()}.csv`)
+  if (fs.existsSync(file)) { log('  Wikidata: fetched today already'); return null }
+  await download(`https://query.wikidata.org/sparql?query=${encodeURIComponent(WIKIDATA_QUERY)}`, file, { Accept: 'text/csv', 'User-Agent': 'RarebitDataLoader/1.0' })
+  fs.writeFileSync(`${file}.query.rq`, WIKIDATA_QUERY)
+  const kept = keepIfNew(dir, 'wikidata_england_gss_places_', '.csv', file, log, 'Wikidata')
+  if (!kept) fs.rmSync(`${file}.query.rq`, { force: true })
+  return kept
+}
+export const MONTHLY_FETCHES = [fetchPolice, fetchApar, fetchNaptan, fetchListed, fetchWikidata]
+
 // Fetch one kind ('nomis' or 'api'), then load its steps as DATA_LOAD_USER.
 // Returns the scheduler's result (scripts/job-run.js recordRun); a throw is
 // recorded as failed.
 export async function runJob({ kind, load = true, log = console.log }) {
   const fetched = []
-  const sets = { nomis: NOMIS_SETS, api: EES_SETS, statxplore: SX_SETS, ons: ONS_SETS, ofqual: ['Qualifications', 'Organisations'] }[kind]
+  const sets = { nomis: NOMIS_SETS, api: EES_SETS, statxplore: SX_SETS, ons: ONS_SETS, ofqual: ['Qualifications', 'Organisations'], monthly: MONTHLY_FETCHES }[kind]
   const fetchOne = { nomis: (s) => fetchNomis(s, { log }), api: (s) => fetchEes(s, { log }), statxplore: (s) => fetchStatXplore(s, { root: RAREBIT_DATA, log }),
-    ons: (s) => fetchOns(s, { log }), ofqual: (s) => fetchOfqual(s, { log }) }[kind]
+    ons: (s) => fetchOns(s, { log }), ofqual: (s) => fetchOfqual(s, { log }), monthly: (f) => f({ log }) }[kind]
   for (const set of sets) {
     const f = await fetchOne(set)
     if (f) fetched.push(path.basename(f))
@@ -252,7 +348,7 @@ export async function runJob({ kind, load = true, log = console.log }) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const kind = process.argv[2]
   if (!LOAD_STEPS[kind]) {
-    console.error('Say nomis, api, statxplore, ons or ofqual: npm run fetch:official -- nomis')
+    console.error('Say nomis, api, statxplore, ons, ofqual or monthly: npm run fetch:official -- nomis')
     process.exit(1)
   }
   const result = await runJob({ kind, load: !process.argv.includes('--no-load') })

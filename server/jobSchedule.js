@@ -90,6 +90,15 @@ export const JOB_SCHEDULE = {
     lockHours: 3,
     timeoutMinutes: 120,
   },
+  'official-monthly': {
+    label: 'Official data: police.uk, provider register, NaPTAN, listed buildings, Wikidata',
+    short: 'Monthly data',
+    every: 30 * 24 * HOUR,
+    overdueAfter: 32 * 24 * HOUR,
+    lockGroup: 'official',
+    lockHours: 3,
+    timeoutMinutes: 240,
+  },
   'official-ofqual': {
     label: 'Official data: Ofqual register of qualifications',
     short: 'Ofqual',
@@ -102,7 +111,7 @@ export const JOB_SCHEDULE = {
 }
 
 // The order a tick runs due jobs in, one at a time.
-export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual']
+export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-monthly']
 
 // A failed or refused job isn't tried again sooner than this.
 export const RETRY_AFTER = HOUR
