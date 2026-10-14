@@ -1,0 +1,108 @@
+# Plan: vacancy sources beyond Find an apprenticeship
+
+Started 14 October 2026. Nothing is built until Adzuna and Reed reply (see
+"Waiting on").
+
+## Where things stand
+
+- **Find an apprenticeship** is imported already (`npm run import:vacancies`,
+  nightly in full and every 2 hours for new adverts), with its NHS Jobs and
+  Civil Service Jobs passes: sources FAA, NHS and CSJ in `SHARED_DB.EXT.VACANCY`.
+  On 14 October 2026, 4,163 live adverts (4,130 FAA, 32 NHS, 1 CSJ).
+- Rarebit is software for training providers and colleges (LMS, e-portfolio,
+  CRM, school leavers options app), in development. Adverts are public data,
+  fetched once centrally and shown to each organisation's candidates and
+  staff in its own area of the app.
+
+## Decisions (Alan, 14 October 2026)
+
+1. **Scope: apprenticeships and entry-level jobs.** A job is labelled "Job",
+   never shown as a funded apprenticeship.
+2. **Jobs and 16 to 17 year olds:** a suitability check and a filter before
+   jobs are shown to them (docs/before-real-data.md).
+3. **Adzuna licence:** undecided until the price is known.
+4. **No count during Adzuna's trial** until Adzuna confirms in writing that
+   an evaluation count is allowed (its terms forbid using trial data "in
+   aggregation").
+
+## The sources
+
+| Source | Access | Terms that matter | Status |
+|---|---|---|---|
+| Adzuna API | Free key; default 25 a minute, 250 a day, 2,500 a month | Commercial use beyond a 14-day trial may need a licence; each advert shows the Adzuna logo linked to Adzuna; trial data not used for counts; all data removed if access ends | Email drafted 14 October; Alan to send (terms, pricing, platform use, an evaluation count) |
+| Reed Jobseeker API | Free key, basic auth | No published API terms; Reed's website terms forbid copying for commercial use | Email drafted 14 October; Alan to send (written terms) |
+| DWP Find a Job | No public API for reading adverts (partners send jobs in by SFTP) | | Not available |
+| Indeed, LinkedIn, Totaljobs and others | No public API; scraping not allowed | | Out |
+
+ONS online job adverts (Textkernel counts by SOC 2020 and area) are already
+loaded (`SHARED_DB.RAW.PUBLISHED_CELL`): counts for local demand, not
+adverts.
+
+## Waiting on
+
+- Alan registers for both keys and sends the two emails.
+- Adzuna: written terms (storing, showing, counting), whether several
+  organisations on one platform need a different licence, pricing and rate
+  limits (about 2,000 requests a day for England, fetched once for all
+  organisations), and whether a short evaluation count is allowed.
+- Reed: written terms (storing, showing, counting), platform use, charges.
+
+## Once a source is agreed
+
+- Responses go to `SHARED_DB.RAW.<SOURCE>_VACANCY_PAGE` as returned
+  (add-only); adverts are cleaned into `EXT.VACANCY` with their SOURCE.
+- Every advert is coded to SOC 2020 (below), so all sources match the same
+  way.
+- An advert seen in more than one source is kept once (employer, title,
+  postcode and closing date), with the source that won recorded.
+- Each source's display rules are kept (Adzuna's logo and link on every
+  Adzuna advert); its adverts are removed when they expire or access ends.
+- A scheduled job per source within its rate limits. Public data: no
+  organisation's data, `check:scoping` as it is.
+- The SQL is shown to Alan before anything changes.
+
+## SOC 2020 coding (decision 18), the prototype of 14 October 2026
+
+Read-only, on the 4,163 live adverts, nothing written. Two ways to a SOC
+2020 unit group:
+
+- **A, the advert's standard**: LARS code to Skills England occupation
+  (`SKILLS.STANDARD_VERSION`), its SOC codes and its options'
+  (`SKILLS.OCCUPATION_SOC`, `SOC2020`). Authoritative, but only for
+  apprenticeships: 4,048 adverts have one (some standards have several SOC
+  codes, up to 34).
+- **B, the title**, through the ONS coding index as published
+  (`SHARED_DB.RAW.SOC2020_CODING_INDEX`, natural word order), after taking
+  out "apprentice", "level 3", places after a dash and the like: the
+  whole title, else the longest index title inside it (a one-word match
+  only if that word means one SOC). This is what jobs will need.
+
+What B does on these titles: 65% coded (1,960 whole titles, 747 by a title
+inside them), 3% ambiguous (140, e.g. "teaching assistant": 6113, 3231,
+2311 or 6112), 35% not coded (1,456: mostly activity words, "Childcare",
+"Business Administration", "Dental Nursing", "Groundwork", "Human
+Resources"). Where both A and B give a code: the same unit group for 1,659
+(67%), the same minor group for 46, different for 790. Many differences are
+about level rather than error (nursery practitioner 3232 against the early
+years standard's 6111); some are errors.
+
+Proposal (not built):
+- Apprenticeships: A gives the codes; B narrows them to one when it agrees
+  with one of A's (1,659 adverts today).
+- Jobs: B alone, improved with a short reviewed list turning activity words
+  into job titles ("dental nursing" to "dental nurse", "business
+  administration" to "business administrator"), and adverts it can't code
+  (or codes ambiguously) kept uncoded and listed for review, never guessed.
+- Stored as one row per advert and code, in a new table (each code with how
+  it was found), so an advert can have several. SQL to be shown first.
+
+Found on the way: `SHARED_DB.REF.SOC2020_INDEX` has broken apostrophes
+("Chef\x92s assistant"): `npm run import:ref` reads the Windows-1252 file as
+Latin-1. The RAW copy is right. To fix in the REF import.
+
+## Meanwhile (no source needed)
+
+1. SOC coding of the adverts we have (above): next, the list of activity
+   words, then the SQL for the codes table.
+2. Duplicate rules, tried on FAA against its NHS and CSJ passes.
+3. The "Job" label and each source's credit on the Vacancies screens.
