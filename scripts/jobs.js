@@ -35,8 +35,9 @@ export const MAX_OUTPUT_BYTES = 1_000_000
 
 // How each job runs, loaded only when it's due.
 export const JOB_RUNNERS = {
-  'vacancies-full': async (connection, log) => (await import('./import-vacancies.js')).runJob({ connection, kind: 'full', log }),
-  'vacancies-new': async (connection, log) => (await import('./import-vacancies.js')).runJob({ connection, kind: 'new', log }),
+  // The vacancy import writes as DATA_LOAD_USER with its own connection.
+  'vacancies-full': async (connection, log) => (await import('./import-vacancies.js')).runScheduledJob({ kind: 'full', log }),
+  'vacancies-new': async (connection, log) => (await import('./import-vacancies.js')).runScheduledJob({ kind: 'new', log }),
   'companies-refresh': async (connection, log) => (await import('./refresh-companies.js')).runJob({ connection, log }),
   skills: async (connection, log) => (await import('./import-skills.js')).runJob({ connection, log }),
   // These load as DATA_LOAD_USER with their own connection (and their own

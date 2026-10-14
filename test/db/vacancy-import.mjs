@@ -16,7 +16,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { connect, execute, destroy } from '../../server/db.js'
 import { htmlToText, safeUrl } from '../../server/vacancyText.js'
 import {
-  advertRow, endpointFor, getPage, labelSources, makePacer, PAUSE_MS, ruleSource, runImport, sourceFor, WINDOW_LIMIT,
+  advertRow, endpointFor, getPage, labelSources, makePacer, PAUSE_MS, referenceFor, ruleSource, runImport, sourceFor, WINDOW_LIMIT,
 } from '../../scripts/import-vacancies.js'
 
 let failures = 0
@@ -94,7 +94,8 @@ const nhs = asTest(saved.nhs, `TEST-${saved.nhs.vacancyReference}`)
 const csj = asTest(saved.csj, `999${saved.csj.vacancyReference}`)
 const hostile = asTest({ ...saved.faa[0], title: 'TEST <b>advert</b>', description: '<p>Hello</p><script>alert(document.cookie)</script>',
   fullDescription: '<div onclick="steal()">Click</div><iframe src="https://evil.example"></iframe>' }, '90000000001')
-const ALL_REFS = [...f, nhs, csj, hostile].map((v) => v.vacancyReference)
+// As stored: NHS and CSJ references carry their source in front (referenceFor).
+const ALL_REFS = [...f.map((v) => referenceFor(v, 'FAA')), referenceFor(nhs, 'NHS'), referenceFor(csj, 'CSJ'), referenceFor(hostile, 'FAA')]
 
 // A fake API: { FAA: adverts, NHS: adverts, CSJ: adverts }, one page each,
 // or 'busy' for a 429. Records every request's URL and headers.
@@ -112,7 +113,7 @@ function fakeApi(passes) {
 const everyPass = (faa, extra = {}) => ({ FAA: faa, NHS: [...faa, nhs], CSJ: [...faa, csj], ...extra })
 const noWait = async () => {}
 
-const c = await connect()
+const c = await connect({ as: 'loader' }) // the import writes as DATA_LOAD_USER
 const q = (sql, binds = []) => execute(c, sql, binds)
 const stored = async () => Object.fromEntries((await q(`select VACANCYREFERENCE as R, SOURCE, TITLE, DESCRIPTION, FULLDESCRIPTION,
     to_varchar(GONEAT) as GONE, to_varchar(LASTCHANGEDAT) as CH from SHARED_DB.EXT.VACANCY where VACANCYREFERENCE in (${ALL_REFS.map(() => '?').join(',')})`, ALL_REFS)).map((r) => [r.R, r]))
@@ -128,7 +129,7 @@ try {
     check('a full run: 3 passes, 6 adverts, all new, complete', first.complete && first.requests === 3 && first.adverts === 6 && first.added === 6 && first.changed === 0,
       JSON.stringify({ complete: first.complete, requests: first.requests, adverts: first.adverts, added: first.added, error: first.error }))
     check('  each labelled by its pass: FAA, NHS, CSJ',
-      f.every((v) => rows[v.vacancyReference]?.SOURCE === 'FAA') && rows[nhs.vacancyReference]?.SOURCE === 'NHS' && rows[csj.vacancyReference]?.SOURCE === 'CSJ')
+      f.every((v) => rows[v.vacancyReference]?.SOURCE === 'FAA') && rows[referenceFor(nhs, 'NHS')]?.SOURCE === 'NHS' && rows[referenceFor(csj, 'CSJ')]?.SOURCE === 'CSJ')
     const h = rows[hostile.vacancyReference]
     check('  the advert with a <script> is stored as plain text', h.TITLE === 'TEST advert' && h.DESCRIPTION === 'Hello' && h.FULLDESCRIPTION === 'Click' &&
       ![h.TITLE, h.DESCRIPTION, h.FULLDESCRIPTION].some((s) => TAG.test(s ?? '')), JSON.stringify(h))

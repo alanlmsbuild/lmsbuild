@@ -27,8 +27,10 @@
 //      never be able to write to OPTIONS_DB.
 //   8. DATA_LOAD_ROLE, checked as DATA_LOAD_USER, has anything on ACCESS, on
 //      the ILR tables or on the test snapshot of them in TEST_BASELINE; can
-//      delete, truncate, own or create anything; or DATA_LOAD_USER has any
-//      role but DATA_LOAD_ROLE.
+//      delete, truncate, own or create anything; is missing a grant the
+//      vacancy import needs (LOAD_REQUIRED: it writes the vacancy tables and
+//      their SOC codes, sql/vacancies_02_soc.sql); or DATA_LOAD_USER has any
+//      role but DATA_LOAD_ROLE. The app may only read the vacancy tables.
 //   9. The two databases can't see each other (sql/crm_01_database.sql):
 //      ILR_APP_ROLE (or the app's user) has anything in CRM_DB or holds
 //      CRM_APP_ROLE or FLOW_OWNER; CRM_APP_ROLE, checked as CRM_APP_USER, has
@@ -65,6 +67,7 @@ const CRM_SHARED_READS = [
   ...['STANDARD_VERSION', 'STANDARD_KSB', 'STANDARD_DUTY', 'STANDARD_DUTY_KSB', 'STANDARD_OPTION', 'STANDARD_DUTY_OPTION', 'OCCUPATION_PROFILE',
     'OCCUPATION_SOC', 'OCCUPATION_TERM'].map((t) => `SHARED_DB.SKILLS.${t}`),
   'SHARED_DB.EXT.VACANCY',
+  'SHARED_DB.EXT.VACANCY_SOC',
   ...['APP_USER', 'APP_USER_SITE', 'ORGANISATION', 'USER_ROLE'].map((t) => `SHARED_DB.ACCESS.${t}`),
 ]
 const CRM_REQUIRED = {
@@ -95,10 +98,11 @@ const REQUIRED = {
   'CAPTURE_DB.ILR.EMPLOYER_SITE': ['SELECT', 'INSERT', 'UPDATE'],
   'CAPTURE_DB.ILR.EMPLOYER_CONTACT': ['SELECT', 'INSERT', 'UPDATE'],
   'SHARED_DB.ACCESS.APP_USER_SITE': ['SELECT'],
-  // Vacancies (sql/vacancies_01_tables.sql).
-  'SHARED_DB.RAW.FAA_VACANCY_PAGE': ['INSERT'],
-  'SHARED_DB.EXT.VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
-  'SHARED_DB.EXT.VACANCY_IMPORT_RUN': ['SELECT', 'INSERT', 'UPDATE'],
+  // Vacancies (sql/vacancies_01_tables.sql): the app reads them; since
+  // sql/vacancies_02_soc.sql the import writes them as DATA_LOAD_USER.
+  'SHARED_DB.EXT.VACANCY': ['SELECT'],
+  'SHARED_DB.EXT.VACANCY_IMPORT_RUN': ['SELECT'],
+  'SHARED_DB.EXT.VACANCY_SOC': ['SELECT'],
   'CAPTURE_DB.ILR.EMPLOYER_VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
   // Skills England (sql/skills_01_tables.sql).
   'SHARED_DB.RAW.SE_STANDARD_VERSION': ['INSERT'],
@@ -150,6 +154,9 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
       problems.push(`${privilege} on ${name}: the app can't create anything in SHARED_DB`)
     }
     if (privilege === 'UPDATE' && ADD_ONLY.has(name)) problems.push(`UPDATE on ${name}: it is add-only`)
+    if (VACANCY_IMPORT_TABLES.includes(name) && privilege !== 'SELECT') {
+      problems.push(`${privilege} on ${name}: the vacancy import writes it as ${LOAD_ROLE}; the app only reads it`)
+    }
     if (g.granted_on === 'TABLE' && name.startsWith('SHARED_DB.RAW.') && privilege !== 'INSERT') {
       problems.push(`${privilege} on ${name}: the app only adds to RAW`)
     }
@@ -187,8 +194,27 @@ export function grantProblems(grants, futureAccessGrants, futureLayerGrants = []
 // DATA_LOAD_USER) and DATA_LOAD_USER's roles (SHOW GRANTS TO USER).
 // snapshotNames: the ILR and ACCESS table names, whose test copies in
 // CAPTURE_DB.TEST_BASELINE the loaders must not reach either.
+// The vacancy tables only the import writes (as DATA_LOAD_USER): the app
+// reads them and nothing more.
+const VACANCY_IMPORT_TABLES = ['SHARED_DB.RAW.FAA_VACANCY_PAGE', 'SHARED_DB.EXT.VACANCY', 'SHARED_DB.EXT.VACANCY_IMPORT_RUN', 'SHARED_DB.EXT.VACANCY_SOC']
+// Grants the loaders need beyond their RAW tables: the vacancy import, and
+// the SOC coding of adverts it does (sql/vacancies_02_soc.sql).
+export const LOAD_REQUIRED = {
+  'SHARED_DB.RAW.FAA_VACANCY_PAGE': ['SELECT', 'INSERT'],
+  'SHARED_DB.EXT.VACANCY': ['SELECT', 'INSERT', 'UPDATE'],
+  'SHARED_DB.EXT.VACANCY_IMPORT_RUN': ['SELECT', 'INSERT', 'UPDATE'],
+  'SHARED_DB.EXT.VACANCY_SOC': ['SELECT', 'INSERT', 'UPDATE'],
+  'SHARED_DB.REF.SOC2020_INDEX': ['SELECT'],
+  ...Object.fromEntries(['STANDARD_VERSION', 'STANDARD_OPTION', 'OCCUPATION_SOC'].map((t) => [`SHARED_DB.SKILLS.${t}`, ['SELECT']])),
+}
+
 export function loaderGrantProblems(grants, userRoles, snapshotNames = new Set()) {
   const problems = []
+  for (const [name, privileges] of Object.entries(LOAD_REQUIRED)) {
+    for (const privilege of privileges) {
+      if (!grants.some((g) => String(g.name) === name && String(g.privilege) === privilege)) problems.push(`${privilege} on ${name} is missing: the vacancy import needs it`)
+    }
+  }
   for (const g of grants) {
     const name = String(g.name)
     const privilege = String(g.privilege)

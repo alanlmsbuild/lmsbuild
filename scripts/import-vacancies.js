@@ -5,7 +5,9 @@
 //   npm run import:vacancies -- --new    every 2 hours: adverts posted in the last day
 //
 // Every response goes to SHARED_DB.RAW.FAA_VACANCY_PAGE as returned (add-only); each
-// advert is cleaned into SHARED_DB.EXT.VACANCY with MERGE on VACANCYREFERENCE. Adverts
+// advert is cleaned into SHARED_DB.EXT.VACANCY with MERGE on VACANCYREFERENCE
+// (referenceFor: unique across sources). It runs as DATA_LOAD_USER; the app
+// only reads the vacancy tables. Adverts
 // are public and the same for every organisation: this touches no
 // organisation's data, and nothing in server/ or src/ may import it (npm
 // run check:scoping).
@@ -113,13 +115,19 @@ const deepText = (value) => (Array.isArray(value) ? value.map(deepText)
   : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, deepText(v)]))
     : typeof value === 'string' ? htmlToText(value) : value)
 
+// An advert's reference in EXT.VACANCY, unique across sources: Find an
+// apprenticeship's own (10 digits), every other source's with the source in
+// front (NHS-A0141-26-0003, CSJ-467350; later ADZUNA-..., REED-...), so two
+// sources' numbers can never be taken for one advert.
+export const referenceFor = (v, source) => (source === 'FAA' ? String(v.vacancyReference) : `${source}-${v.vacancyReference}`)
+
 // The SHARED_DB.EXT.VACANCY columns for one advert, all text plain. Leaves out the
 // employer contact name, email and phone some adverts carry (RAW keeps
 // them) and the search-only distance.
 export function advertRow(v, source) {
   const first = Array.isArray(v.addresses) ? v.addresses[0] ?? null : null
   return {
-    VACANCYREFERENCE: String(v.vacancyReference),
+    VACANCYREFERENCE: referenceFor(v, source),
     SOURCE: source,
     TITLE: text(v.title, 500) ?? '(no title)',
     DESCRIPTION: text(v.description),
@@ -329,6 +337,17 @@ export async function runImport({ connection, kind, fetchImpl = fetch, pace = ma
 }
 
 // Run as a script (not when a test imports it).
+// A scheduled run (scripts/jobs.js): the import writes as DATA_LOAD_USER,
+// with its own connection; the scheduler's (the app's) only records the run.
+export async function runScheduledJob({ kind, log }) {
+  const connection = await connect({ as: 'loader' })
+  try {
+    return await runJob({ connection, kind, log })
+  } finally {
+    await destroy(connection)
+  }
+}
+
 // One run as a job (scripts/job-run.js): its outcome for SHARED_DB.OPS.JOB_RUN.
 export async function runJob({ connection, kind, log }) {
   const counts = await runImport({ connection, kind, log })
@@ -350,7 +369,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const log = makeLog('import-vacancies')
   log(`Vacancy import (${kind}) started.`)
-  const connection = await connect()
+  const connection = await connect({ as: 'loader' }) // the import writes as DATA_LOAD_USER
   let result
   try {
     result = await recordRun({ connection, job: `vacancies-${kind}`, triggeredBy: 'manual', log, run: (c) => runJob({ connection: c, kind, log }) })
