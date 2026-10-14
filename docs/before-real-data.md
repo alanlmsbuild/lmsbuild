@@ -245,3 +245,14 @@ Alan's laptop starts it, so the jobs only run while the laptop is on.
   not proceeding, or after the retention period), who or what does it (a
   logged procedure, since the app can't write ACCESS), and how that fits
   the lead's retention rule above.
+- **Two contacts with the same email at one employer, through F8**
+  (2026-10-14, Claude). When an employer is won, flow F8
+  (sql/flow_01_f6_f7_f8.sql) copies its CRM contacts into Warren's
+  ILR.EMPLOYER_CONTACT without checking whether two of them share an
+  email. Warren treats one email as one person (npm run check:test-flags:
+  "same email twice among an employer's current contacts"), and a Burrow
+  sign-in is matched to a contact by email. The test journeys made two such
+  pairs (fixed by sql/journeys_03_fixes.sql). Decide what F8 does with a
+  duplicate before real employers are won: refuse it and ask for the
+  contacts to be merged in the CRM, or copy one contact and link both CRM
+  records to it.

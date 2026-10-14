@@ -3,11 +3,14 @@
 //   Alex  USR-T0101  learner TESTL0001, ST0072, started in version 1.1's
 //                    dates: the portfolio and Add evidence list 1.1's 35
 //                    KSBs with the Skills England credit; a claim records
-//                    the version and wording; one not in 1.1 is refused
+//                    the version and wording; one not in 1.1 is refused,
+//                    and evidence holding one (written straight to the
+//                    table) can't be sent until it's unticked
 //   Max   USR-T0008  manager: Alex's evidence page shows the stored wording
 //   Sam   USR-T0207  employer contact (Crosspool): Alex's KSB total is 35
-// Alex's draft "TEST: KSB versions" is added once and stays until the next
-// test reset (like step4g2's evidence); nothing else is changed.
+// Alex's drafts "TEST: KSB versions" and "TEST: off-version claim" are added
+// once and stay until the next test reset (like step4g2's evidence); nothing
+// else is changed.
 // Run against the test servers (test/start-test-servers.sh); see setup.mjs.
 import { BASE, OUT, launch } from './setup.mjs'
 import { connect, execute, destroy } from '../../server/db.js'
@@ -68,6 +71,32 @@ const claims = await q(`select ek.KSB_REFERENCE, ek.STANDARD_VERSION, ek.KSB_TEX
   where ek.EVIDENCE_ID = ? and ek.UNCLAIMED_AT is null order by 1`, [VERSION, evidence.EVIDENCE_ID])
 check('  each claim records version 1.1 and its wording', claims.length === 2 && claims.every((c) => c.STANDARD_VERSION === VERSION && c.SAME),
   JSON.stringify(claims))
+
+// A claim that reached the evidence without the add and edit routes (written
+// straight to the table, as the test journeys did, or left behind when a
+// learner's version changes): sending it is refused, naming the KSB, until
+// it's unticked. The draft is kept for the next run, with its stray claim off.
+const OFF = 'TEST: off-version claim'
+let off = portfolio.evidence.find((e) => e.TITLE === OFF)
+if (!off) {
+  const r = await api('USR-T0101', `/api/burrow/learners/${ALEX}/evidence`, {
+    method: 'POST', body: { title: OFF, evidenceType: 'reflection', occurredOn: '2025-05-19', reflection: 'Written by the KSB browser test.', ksbs: ['K1'] },
+  })
+  off = { EVIDENCE_ID: r.body?.evidenceId }
+}
+await q(`insert into BURROW.EVIDENCE_KSB (EVIDENCE_ID, ST_REFERENCE, KSB_TYPE, KSB_REFERENCE, KSB_TEXT, STANDARD_VERSION, CLAIMED_AT, CLAIMED_BY)
+  select ?, 'ST0072', 'K', 'K99', 'Not in any version (test)', '9.9', current_timestamp(), 'test:ksbs'
+  where not exists (select 1 from BURROW.EVIDENCE_KSB where EVIDENCE_ID = ? and KSB_REFERENCE = 'K99' and UNCLAIMED_AT is null)`, [off.EVIDENCE_ID, off.EVIDENCE_ID])
+const sent = await api('USR-T0101', `/api/burrow/learners/${ALEX}/evidence/${off.EVIDENCE_ID}/submit`, { method: 'POST', body: {} })
+check('sending evidence with a claim not in his version is refused', sent.status === 400 && /K99/.test(sent.body?.fields?.ksbs ?? ''),
+  `${sent.status} ${JSON.stringify(sent.body).slice(0, 160)}`)
+const [still] = await q('select STATUS from BURROW.EVIDENCE where EVIDENCE_ID = ?', [off.EVIDENCE_ID])
+check('  and it stays a draft', still?.STATUS === 'draft', still?.STATUS)
+const untick = await api('USR-T0101', `/api/burrow/learners/${ALEX}/evidence/${off.EVIDENCE_ID}`, {
+  method: 'PUT', body: { title: OFF, evidenceType: 'reflection', occurredOn: '2025-05-19', reflection: 'Written by the KSB browser test.', ksbs: ['K1'] },
+})
+const [left] = await q(`select count(*) as N from BURROW.EVIDENCE_KSB where EVIDENCE_ID = ? and KSB_REFERENCE = 'K99' and UNCLAIMED_AT is null`, [off.EVIDENCE_ID])
+check('  unticking it through the edit route takes the stray claim off', untick.status === 200 && Number(left.N) === 0, `${untick.status} ${left.N}`)
 
 const sam = (await api('USR-T0207', '/api/employer/apprentices')).body
 const alexForSam = (Array.isArray(sam) ? sam : sam?.apprentices ?? []).find((a) => a.LEARNREFNUMBER === ALEX)

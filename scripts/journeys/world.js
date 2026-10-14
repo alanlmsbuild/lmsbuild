@@ -21,6 +21,7 @@
 
 import crypto from 'node:crypto'
 import { SECTORS } from './reference.js'
+import { ksbVersionFor } from '../../server/ksbVersions.js'
 
 export const ORG = 'ORG-T003'
 export const MANAGERS = ['USR-T3001', 'USR-T3002']
@@ -182,8 +183,9 @@ export function buildWorld(ref, districts, { seed = 20261011, asOf, people: peop
       ...(r.chance(0.4) ? [{ role: 'finance', title: 'Finance officer', marketing: false }] : []),
     ].map((c, i) => {
       const given = r.pick(GIVEN)
+      // The email ends with the contact's position: two contacts can share a name.
       return { id: `CCON-${id}-${i + 1}`, name: `${given} ${first}`, jobTitle: c.title, salesRole: c.role, method: r.pick(['email', 'phone']),
-        email: `${given.toLowerCase()}.${first.toLowerCase()}${empSeq}@example.com`, phone: `07700900${String(r.int(0, 999)).padStart(3, '0')}`, marketing: c.marketing }
+        email: `${given.toLowerCase()}.${first.toLowerCase()}${empSeq}.${i + 1}@example.com`, phone: `07700900${String(r.int(0, 999)).padStart(3, '0')}`, marketing: c.marketing }
     })
     // The employer's journey runs ahead of its first placement.
     const prospect = addDays(firstNeed, -r.int(30, 60))
@@ -442,9 +444,12 @@ export function buildWorld(ref, districts, { seed = 20261011, asOf, people: peop
     for (let d = addDays(l.start, r.int(56, 84)); d <= learningEnd; d = addDays(d, r.int(70, 98))) {
       l.reviews.push({ date: d, officer: l.tutor, employerAttended: r.chance(0.8) })
     }
-    // Evidence: about three items a month, KSBs claimed from the standard's
-    // latest version; older items signed off, recent ones waiting.
-    const ksbList = ref.ksbs.filter((k) => k.ST_REFERENCE === l.standard.REFERENCE)
+    // Evidence: about three items a month, KSBs claimed from the learner's
+    // version of the standard (the version Burrow shows them, by their start
+    // date: server/ksbVersions.js); older items signed off, recent ones waiting.
+    const stKsbs = ref.ksbs.filter((k) => k.ST_REFERENCE === l.standard.REFERENCE)
+    const version = ksbVersionFor(ref.standardVersions.get(l.std) ?? [], new Set(stKsbs.map((k) => k.VERSION)), l.start)
+    const ksbList = stKsbs.filter((k) => k.VERSION === version)
     l.evidence = []
     for (let d = addDays(l.start, r.int(14, 28)); d <= addDays(learningEnd, -1); d = addDays(d, r.int(6, 14))) {
       const type = r.weighted([['reflection', 75], ['witness_statement', 25]]) // no photos or documents: they need files

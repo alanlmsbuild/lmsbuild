@@ -43,7 +43,6 @@ export async function loadReference(connection, loader) {
     select k.ST_REFERENCE, k.VERSION, k.KSB_TYPE, k.KSB_REFERENCE, k.DETAIL, k.SORT_ORDER
     from SHARED_DB.SKILLS.STANDARD_KSB k
     where k.GONEAT is null and k.ST_REFERENCE in (select REFERENCE from LARS.STANDARD where STANDARD_CODE in (${stdCodes.join(', ')}))
-    qualify dense_rank() over (partition by k.ST_REFERENCE order by try_to_decimal(k.VERSION, 6, 2) desc) = 1
     order by k.ST_REFERENCE, k.SORT_ORDER`)
   const socs = await q(`select SOC2020, TITLE from SHARED_DB.REF.SOC2020_UNIT_GROUP where SOC2020 in (${SECTORS.map((s) => `'${s.soc}'`).join(', ')})`)
   // Districts: the outward code, its region and centre, from live English

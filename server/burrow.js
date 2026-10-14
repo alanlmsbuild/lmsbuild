@@ -760,6 +760,15 @@ export function registerBurrowRoutes(app) {
         ksbs: claims.map((c) => c.KSB_REFERENCE),
       }
       const fieldErrors = validateEvidenceSubmission(saved, files.length)
+      // Every claim must still be on the learner's version of the standard:
+      // the same rule as adding and editing (checkKsbs), checked again here
+      // because a claim can reach the evidence without them (written outside
+      // the app, or the learner's version changing after they ticked it).
+      const standard = await standardKsbs(connection, learner.LEARNREFNUMBER, evidence.ST_REFERENCE)
+      const offVersion = saved.ksbs.filter((ref) => !standard.has(ref))
+      if (offVersion.length > 0 && !fieldErrors.ksbs) {
+        fieldErrors.ksbs = `${offVersion.join(', ')} ${offVersion.length === 1 ? "isn't" : "aren't"} on your version of the standard, so ${offVersion.length === 1 ? "it can't" : "they can't"} count. Untick ${offVersion.length === 1 ? 'it' : 'them'} and send it again.`
+      }
       if (Object.keys(fieldErrors).length > 0) {
         res.status(400).json({ error: 'This isn’t ready to send yet.', fields: fieldErrors })
         return

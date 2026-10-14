@@ -54,6 +54,8 @@ const EMPLOYER_REFERENCES = [
   ['ILR.EMPLOYER_CONTACT', 'left join SHARED_DB.ACCESS.APP_USER u on u.USERID = t.USERID', 'coalesce(u.ORGANISATIONID, e.ORGANISATIONID)', ''],
   // An advert's link to an employer: the link's own organisation.
   ['ILR.EMPLOYER_VACANCY', '', 't.ORGANISATIONID', ''],
+  // A hand-over from the CRM (flow F6): the onboarding record's organisation.
+  ['ILR.ONBOARDING', '', 't.ORGANISATIONID', 'where t.EMPLOYERID is not null'],
 ]
 
 // Sites, contacts and site assignments point within the same employer, and

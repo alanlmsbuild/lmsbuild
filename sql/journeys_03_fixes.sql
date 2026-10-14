@@ -1,0 +1,371 @@
+-- Test journeys, fixes (file 3): TEST DATA ONLY, ORG-T003. Fixes the three
+-- things npm run check:test-flags found in the data sql/journeys_01 and the
+-- generator made, in the live tables and in the test snapshot
+-- (CAPTURE_DB.TEST_BASELINE, CRM_DB.TEST_BASELINE) alike, so a reset keeps
+-- them fixed. Run by hand as ACCOUNTADMIN in a Snowflake worksheet, with Run
+-- All. Safe to run twice: each change only touches rows still wrong.
+--
+--   1. Two employers each had two current contacts with the same email
+--      (made by the generator, copied to Warren by flow F8). The contact
+--      without a Burrow sign-in gets its own email, ending in its position
+--      at the employer, as the generator now makes them:
+--        CCON-J016-3 / CON-343A43FEDE40  charlie.teststone16.3@example.com
+--        CCON-J039-2 / CON-59961B3BB58F  george.testwell39.2@example.com
+--   2. Burrow claims recorded version 2.0 of each standard, and 2.0's
+--      wording, for every learner; the learner's version is the one Burrow
+--      shows them (server/ksbVersions.js: by their start date). 7116 claims on
+--      93 learners' evidence get their version and that version's wording.
+--   3. 108 of those claims are on a KSB their version doesn't have (all on
+--      signed-off evidence). Each is replaced with a KSB of the same type
+--      (K, S or B) from the learner's version that the evidence doesn't
+--      already have, and the review that signed it off (its decisions and
+--      its copy of the evidence) is changed to match.
+--
+-- The learners' versions and the replacements below were worked out with
+-- Burrow's own rule on 14 October 2026. The temporary tables vanish when the
+-- worksheet session ends.
+
+USE ROLE ACCOUNTADMIN;
+USE WAREHOUSE capture_wh;
+
+-- ---------------------------------------------------------------------------
+-- 1. Contacts
+-- ---------------------------------------------------------------------------
+
+UPDATE CRM_DB.CRM.CONTACT SET EMAIL = 'charlie.teststone16.3@example.com'
+WHERE CONTACTID = 'CCON-J016-3' AND EMAIL = 'charlie.teststone16@example.com' AND ISTESTDATA = TRUE;
+UPDATE CRM_DB.CRM.CONTACT SET EMAIL = 'george.testwell39.2@example.com'
+WHERE CONTACTID = 'CCON-J039-2' AND EMAIL = 'george.testwell39@example.com' AND ISTESTDATA = TRUE;
+UPDATE CRM_DB.TEST_BASELINE.CONTACT SET EMAIL = 'charlie.teststone16.3@example.com'
+WHERE CONTACTID = 'CCON-J016-3' AND EMAIL = 'charlie.teststone16@example.com' AND ISTESTDATA = TRUE;
+UPDATE CRM_DB.TEST_BASELINE.CONTACT SET EMAIL = 'george.testwell39.2@example.com'
+WHERE CONTACTID = 'CCON-J039-2' AND EMAIL = 'george.testwell39@example.com' AND ISTESTDATA = TRUE;
+UPDATE CAPTURE_DB.ILR.EMPLOYER_CONTACT SET EMAIL = 'charlie.teststone16.3@example.com'
+WHERE CONTACTID = 'CON-343A43FEDE40' AND EMAIL = 'charlie.teststone16@example.com' AND ISTESTDATA = TRUE;
+UPDATE CAPTURE_DB.ILR.EMPLOYER_CONTACT SET EMAIL = 'george.testwell39.2@example.com'
+WHERE CONTACTID = 'CON-59961B3BB58F' AND EMAIL = 'george.testwell39@example.com' AND ISTESTDATA = TRUE;
+UPDATE CAPTURE_DB.TEST_BASELINE.EMPLOYER_CONTACT SET EMAIL = 'charlie.teststone16.3@example.com'
+WHERE CONTACTID = 'CON-343A43FEDE40' AND EMAIL = 'charlie.teststone16@example.com' AND ISTESTDATA = TRUE;
+UPDATE CAPTURE_DB.TEST_BASELINE.EMPLOYER_CONTACT SET EMAIL = 'george.testwell39.2@example.com'
+WHERE CONTACTID = 'CON-59961B3BB58F' AND EMAIL = 'george.testwell39@example.com' AND ISTESTDATA = TRUE;
+
+-- ---------------------------------------------------------------------------
+-- 2 and 3. Claims: the learners' versions and the replacements
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE TEMPORARY TABLE CAPTURE_DB.TEST_BASELINE.J03_LEARNER_VERSION (LEARNREFNUMBER VARCHAR, ST_REFERENCE VARCHAR, VERSION VARCHAR) AS
+SELECT * FROM VALUES
+  ('TESTJ0006', 'ST0135', '1.5'),
+  ('TESTJ0010', 'ST0005', '1.3'),
+  ('TESTJ0020', 'ST0005', '1.2'),
+  ('TESTJ0021', 'ST0005', '1.3'),
+  ('TESTJ0022', 'ST0229', '1.0'),
+  ('TESTJ0024', 'ST0228', '1.4'),
+  ('TESTJ0026', 'ST0505', '1.1'),
+  ('TESTJ0028', 'ST0135', '1.5'),
+  ('TESTJ0030', 'ST0228', '1.4'),
+  ('TESTJ0033', 'ST0135', '1.5'),
+  ('TESTJ0034', 'ST0229', '1.0'),
+  ('TESTJ0035', 'ST0005', '1.3'),
+  ('TESTJ0037', 'ST0228', '1.4'),
+  ('TESTJ0040', 'ST0135', '1.5'),
+  ('TESTJ0043', 'ST0228', '1.4'),
+  ('TESTJ0045', 'ST0005', '1.3'),
+  ('TESTJ0048', 'ST0135', '1.5'),
+  ('TESTJ0050', 'ST0228', '1.4'),
+  ('TESTJ0052', 'ST0228', '1.4'),
+  ('TESTJ0056', 'ST0005', '1.3'),
+  ('TESTJ0059', 'ST0135', '1.5'),
+  ('TESTJ0060', 'ST0135', '1.5'),
+  ('TESTJ0065', 'ST0135', '1.5'),
+  ('TESTJ0072', 'ST0005', '1.2'),
+  ('TESTJ0074', 'ST0135', '1.5'),
+  ('TESTJ0076', 'ST0505', '1.1'),
+  ('TESTJ0077', 'ST0505', '1.1'),
+  ('TESTJ0080', 'ST0228', '1.4'),
+  ('TESTJ0081', 'ST0505', '1.1'),
+  ('TESTJ0082', 'ST0005', '1.2'),
+  ('TESTJ0086', 'ST0005', '1.3'),
+  ('TESTJ0087', 'ST0505', '1.1'),
+  ('TESTJ0088', 'ST0005', '1.3'),
+  ('TESTJ0093', 'ST0228', '1.4'),
+  ('TESTJ0094', 'ST0228', '1.4'),
+  ('TESTJ0096', 'ST0228', '1.4'),
+  ('TESTJ0099', 'ST0505', '1.1'),
+  ('TESTJ0101', 'ST0135', '1.3'),
+  ('TESTJ0103', 'ST0505', '1.1'),
+  ('TESTJ0104', 'ST0135', '1.3'),
+  ('TESTJ0106', 'ST0228', '1.3'),
+  ('TESTJ0108', 'ST0005', '1.2'),
+  ('TESTJ0109', 'ST0005', '1.2'),
+  ('TESTJ0110', 'ST0228', '1.3'),
+  ('TESTJ0111', 'ST0135', '1.3'),
+  ('TESTJ0113', 'ST0005', '1.2'),
+  ('TESTJ0114', 'ST0005', '1.2'),
+  ('TESTJ0116', 'ST0135', '1.3'),
+  ('TESTJ0117', 'ST0135', '1.3'),
+  ('TESTJ0120', 'ST0505', '1.1'),
+  ('TESTJ0121', 'ST0135', '1.3'),
+  ('TESTJ0123', 'ST0505', '1.0'),
+  ('TESTJ0126', 'ST0505', '1.1'),
+  ('TESTJ0127', 'ST0505', '1.0'),
+  ('TESTJ0129', 'ST0135', '1.3'),
+  ('TESTJ0130', 'ST0135', '1.3'),
+  ('TESTJ0133', 'ST0505', '1.0'),
+  ('TESTJ0134', 'ST0135', '1.3'),
+  ('TESTJ0135', 'ST0135', '1.4'),
+  ('TESTJ0136', 'ST0505', '1.0'),
+  ('TESTJ0137', 'ST0505', '1.0'),
+  ('TESTJ0138', 'ST0228', '1.4'),
+  ('TESTJ0139', 'ST0135', '1.3'),
+  ('TESTJ0140', 'ST0005', '1.2'),
+  ('TESTJ0141', 'ST0135', '1.3'),
+  ('TESTJ0143', 'ST0135', '1.4'),
+  ('TESTJ0144', 'ST0135', '1.5'),
+  ('TESTJ0145', 'ST0228', '1.3'),
+  ('TESTJ0146', 'ST0505', '1.0'),
+  ('TESTJ0147', 'ST0135', '1.3'),
+  ('TESTJ0148', 'ST0505', '1.1'),
+  ('TESTJ0150', 'ST0228', '1.4'),
+  ('TESTJ0151', 'ST0135', '1.3'),
+  ('TESTJ0152', 'ST0505', '1.0'),
+  ('TESTJ0153', 'ST0005', '1.2'),
+  ('TESTJ0154', 'ST0135', '1.4'),
+  ('TESTJ0155', 'ST0135', '1.3'),
+  ('TESTJ0156', 'ST0505', '1.0'),
+  ('TESTJ0157', 'ST0228', '1.3'),
+  ('TESTJ0158', 'ST0135', '1.3'),
+  ('TESTJ0160', 'ST0135', '1.3'),
+  ('TESTJ0161', 'ST0005', '1.2'),
+  ('TESTJ0163', 'ST0005', '1.2'),
+  ('TESTJ0164', 'ST0005', '1.2'),
+  ('TESTJ0165', 'ST0135', '1.4'),
+  ('TESTJ0166', 'ST0005', '1.2'),
+  ('TESTJ0167', 'ST0228', '1.4'),
+  ('TESTJ0168', 'ST0135', '1.3'),
+  ('TESTJ0172', 'ST0505', '1.1'),
+  ('TESTJ0173', 'ST0505', '1.0'),
+  ('TESTJ0174', 'ST0505', '1.0'),
+  ('TESTJ0175', 'ST0135', '1.4'),
+  ('TESTJ0176', 'ST0135', '1.5');
+
+CREATE OR REPLACE TEMPORARY TABLE CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT (EVIDENCE_ID VARCHAR, OLD_REF VARCHAR, NEW_REF VARCHAR) AS
+SELECT * FROM VALUES
+  ('0030b1ce-8049-4a86-90ac-628548b05789', 'B5', 'B1'),
+  ('01a15045-f872-4611-a590-6a1cfa8ed420', 'B5', 'B2'),
+  ('02ccafe8-825f-4bc5-b93a-00039b2745f2', 'S37', 'S3'),
+  ('05bdd465-e9a1-4b05-866c-9974cbda298a', 'S22', 'S15'),
+  ('07607864-2009-48ac-877a-8ec96330ade5', 'B6', 'B2'),
+  ('09f0e9bf-0f16-48b0-a54e-7d017eb837c2', 'S31', 'S8'),
+  ('0be67918-5908-4e33-99af-c2603586e2b6', 'S30', 'S5'),
+  ('0dff657b-4dfc-453c-83be-f571eacce059', 'S20', 'S6'),
+  ('0dff657b-4dfc-453c-83be-f571eacce059', 'S26', 'S15'),
+  ('0f4f2e7b-f80b-46c2-809d-dc8c06e0aaad', 'S22', 'S3'),
+  ('123d8a2f-9cd2-43e0-83e9-132571b052e0', 'B5', 'B3'),
+  ('137c28bb-2730-4ef5-bdcd-f1d6caae70f0', 'B5', 'B1'),
+  ('16a7b563-5ff4-44dc-92a3-be0314b20ddc', 'S19', 'S16'),
+  ('18b97f1b-a2a0-4ca8-9de7-be2c1a2418ae', 'S37', 'S1'),
+  ('1debb2b9-4250-4ed8-9324-ce8b7f9baad0', 'S26', 'S12'),
+  ('1f968cfc-0155-4817-b5f0-2be3138df736', 'S38', 'S14'),
+  ('2033a892-1d93-4dfb-a7bf-f4d9faf92249', 'B6', 'B4'),
+  ('20b3f4f0-1898-4194-800f-2e9f89ae0fa4', 'S28', 'S13'),
+  ('22304c87-729c-4c35-b390-ef7df02dc145', 'S29', 'S10'),
+  ('22e0fb92-dc30-41fa-9d88-2ebe2e08c00f', 'B6', 'B3'),
+  ('24566ac5-deab-4ce9-aa3d-566902e33dec', 'B6', 'B3'),
+  ('24e55ec2-4578-4938-86a5-e26066abe087', 'B6', 'B3'),
+  ('27521e4e-e952-44c6-b916-66024c120c98', 'S24', 'S6'),
+  ('2ad750ae-8c5f-4683-860e-e4a9c3b7a89c', 'B6', 'B1'),
+  ('3014872c-614f-4c9d-a638-4b7451f6b16b', 'S21', 'S1'),
+  ('306adf7d-8474-4a32-99f0-8a188520672c', 'B5', 'B3'),
+  ('3122e116-858c-4d60-816d-1c3325d46d95', 'B6', 'B1'),
+  ('318358b0-f571-416d-9ebc-90c47c971d45', 'B5', 'B1'),
+  ('328c0a82-4106-4c0b-9767-03ea2ec55ae3', 'S26', 'S16'),
+  ('33d3be71-fa25-4469-8134-2a95d59e3068', 'S31', 'S6'),
+  ('35f3b2a7-6d3b-4052-933f-15fff21e8df8', 'B6', 'B4'),
+  ('39fb9e08-52bc-443b-91ea-064c519761f5', 'B5', 'B3'),
+  ('3b0487b2-61cd-4d82-a719-c51d1ffc5492', 'B6', 'B3'),
+  ('3e3b5e5e-a603-4dac-b973-80b488ffc24b', 'B6', 'B4'),
+  ('42b7dbeb-b6c9-486d-9293-7673a466c5d4', 'B6', 'B2'),
+  ('4819d2be-9c42-46e0-a1bf-d954aa30152c', 'S28', 'S8'),
+  ('48a86d6b-f829-4b5f-ae7c-1bfe2ac4b6f6', 'B5', 'B4'),
+  ('4bf2f79b-585a-474b-a620-c5b108646422', 'B6', 'B1'),
+  ('4cda9182-1ea7-45be-8b86-8edd79232c5c', 'B6', 'B4'),
+  ('4f8f5097-e62f-4f60-942d-116f9f801e01', 'S18', 'S4'),
+  ('51984a22-c8ec-4582-9d94-3d3f96cd355f', 'B6', 'B4'),
+  ('5565a507-b790-4bbe-bcfa-c45f4f5f5d52', 'S34', 'S13'),
+  ('5570d626-0f2f-4d7a-9523-63e85ec80280', 'S29', 'S5'),
+  ('5c5e8210-e85a-429d-9034-e2551b577069', 'S24', 'S7'),
+  ('6430df5e-9b34-46a7-9165-e9ae1079d7cf', 'B5', 'B3'),
+  ('6477ee40-3542-452e-b569-26a675e9a7e0', 'B5', 'B2'),
+  ('65afbf4f-4a50-4fe0-9bf9-908a73ed292d', 'B5', 'B2'),
+  ('66321917-2eca-497a-9f51-e2314f1faf9a', 'S35', 'S12'),
+  ('6bd3f176-b2b3-48c5-9d4b-e7f182809468', 'B5', 'B4'),
+  ('6bd3f176-b2b3-48c5-9d4b-e7f182809468', 'B6', 'B1'),
+  ('6f89d3cf-9a4c-4c62-9d4b-2a43617a3152', 'B5', 'B3'),
+  ('6fbabc77-6106-4928-8184-3d04a41ae894', 'S28', 'S10'),
+  ('70e286ca-eb86-4b10-9c8e-bf65c06a6ea2', 'B6', 'B1'),
+  ('753fb443-1da8-46df-a665-78fa83c8d068', 'S23', 'S3'),
+  ('78a2c671-b7cd-4369-b1e3-463a380bac02', 'B5', 'B2'),
+  ('8000e73b-6004-4378-9b2e-1ad4b700f489', 'B6', 'B1'),
+  ('80b63cb7-68b4-4306-8b4b-66660e5204af', 'B5', 'B1'),
+  ('82dedd7f-c1a2-447a-b79a-27a706728fc1', 'B5', 'B1'),
+  ('8393a314-6d2f-4569-8e0a-e14710dc1b2a', 'S35', 'S2'),
+  ('851163b9-d0bb-4dc8-8ec5-c8b17b0e68e9', 'B5', 'B2'),
+  ('86ba7fd9-944a-491a-b110-bf5091b10768', 'S25', 'S5'),
+  ('894797e5-f5fb-422f-be86-449bba41e98e', 'B5', 'B3'),
+  ('8af6407b-57ae-439e-a74d-992e29f40035', 'B5', 'B1'),
+  ('9400b5f3-7cf6-4723-a073-d4151277b3a8', 'B5', 'B2'),
+  ('9c94edfd-e8fb-46af-ba81-e257cef53368', 'S36', 'S4'),
+  ('9e0177ef-12cf-474b-8abe-5378c30a8080', 'B5', 'B3'),
+  ('a405d624-ebff-4946-85bd-f6c89b331abd', 'B5', 'B1'),
+  ('a672603f-e2a8-4a7f-b7aa-31ec8a9bd7e6', 'B5', 'B4'),
+  ('a6b94040-17af-4382-bbf3-23de7566fda8', 'B5', 'B2'),
+  ('a6bdb6db-c960-4994-8f83-b8c35af9fce6', 'B5', 'B3'),
+  ('a9e97245-bbf9-4ea9-9961-41c8d8dd2363', 'S21', 'S5'),
+  ('aac8e9b0-ce8d-4048-8e9c-014562179155', 'S31', 'S1'),
+  ('ac7136a8-5dac-42fe-b9ca-ba16b02c0c9b', 'B5', 'B4'),
+  ('ac83f27f-b7fb-4888-973b-43658c0c9f6d', 'B6', 'B2'),
+  ('acf5e989-8ac9-4ea8-9a8d-fc59035107c7', 'S38', 'S5'),
+  ('aef6ffd9-7978-40d8-b556-1eccd16f9562', 'S26', 'S16'),
+  ('aef6ffd9-7978-40d8-b556-1eccd16f9562', 'S30', 'S12'),
+  ('b10e9a40-e24a-451c-9f9d-6ed1cda81f33', 'S22', 'S15'),
+  ('b22ec2c7-66e4-4138-bf63-fd058aa07f0e', 'B6', 'B4'),
+  ('b4cbc743-e99c-4c24-adc3-2d6e46ce1a75', 'B5', 'B4'),
+  ('b977efe8-2e6d-4f2c-87aa-487441c532bc', 'B5', 'B4'),
+  ('bad6c827-255a-4144-a11f-9f961d2fb4b4', 'B5', 'B1'),
+  ('c2ce0c02-8b63-48aa-a057-0de52c5c73cc', 'S22', 'S4'),
+  ('c3a38ad2-2f85-495e-b6a6-788402502636', 'B6', 'B4'),
+  ('c7d97f6b-11a6-4297-a5f2-780cfbadf5f2', 'B6', 'B3'),
+  ('c8668ef7-a6ee-487f-bdcc-c5e447100033', 'S30', 'S15'),
+  ('cc0ac186-aba6-4b5f-897a-a4bef56cfa0b', 'S36', 'S12'),
+  ('cef1363f-4d0f-469c-aaed-0ba99d15fd3c', 'S32', 'S9'),
+  ('d1992e8b-7dd9-49e5-9b58-c9e405d6d3e8', 'B6', 'B4'),
+  ('d4326d00-6890-41fa-8513-ffb1c2b0de90', 'B5', 'B4'),
+  ('d4dfd435-8fe5-4700-b79e-2f13b7536407', 'B6', 'B1'),
+  ('d5d01fe9-1a79-43cb-b1b6-e50495a7f9a3', 'B6', 'B3'),
+  ('d8ba8808-2cac-41bb-89b1-05644a57a3b2', 'S30', 'S6'),
+  ('dcfb0cd1-737a-4482-9d21-dca578b25c48', 'B5', 'B1'),
+  ('dd9b789a-4b59-4cb3-b83f-1255796c3f1b', 'S37', 'S9'),
+  ('dfb978e4-5ce5-464b-84bc-1dd007017ffb', 'B5', 'B4'),
+  ('e14ed3ac-31c0-485a-91fd-6798c554a9df', 'S37', 'S1'),
+  ('e49c59d3-7544-4242-abfe-19c205b01164', 'B5', 'B3'),
+  ('e8dae04a-2c4a-4fe5-80b7-65a97be09cd0', 'S23', 'S17'),
+  ('e8dae04a-2c4a-4fe5-80b7-65a97be09cd0', 'S28', 'S2'),
+  ('e8f2e753-4c45-4bf8-8e6f-6577775b414e', 'B6', 'B1'),
+  ('ea134c8b-3bdb-4bd8-a8ed-573d48077937', 'B6', 'B1'),
+  ('ea58d42c-fe50-4457-8b62-20166e1d2887', 'B5', 'B1'),
+  ('eae68783-815b-45c6-aebb-32535570a022', 'B6', 'B1'),
+  ('eea23a6a-f823-4428-9eab-ede1cdfde869', 'S25', 'S15'),
+  ('fa99c9bb-f2e4-487e-aab5-222ebe4d2919', 'S20', 'S8'),
+  ('fccdfd7f-a4b0-4dab-b369-77f997871cd8', 'B6', 'B3'),
+  ('fd79b9d9-25e5-4e33-9614-e48878eaa931', 'B5', 'B2');
+
+-- For the live tables, then the snapshot: replace the references, then set
+-- each claim's version and wording, then rebuild the affected reviews'
+-- decisions and evidence copies with the new references.
+
+UPDATE CAPTURE_DB.BURROW.EVIDENCE_KSB ek SET KSB_REFERENCE = x.NEW_REF
+FROM CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT x
+WHERE ek.EVIDENCE_ID = x.EVIDENCE_ID AND ek.KSB_REFERENCE = x.OLD_REF;
+
+UPDATE CAPTURE_DB.BURROW.EVIDENCE_KSB ek SET STANDARD_VERSION = lv.VERSION, KSB_TEXT = k.DETAIL
+FROM CAPTURE_DB.BURROW.EVIDENCE e, CAPTURE_DB.TEST_BASELINE.J03_LEARNER_VERSION lv, SHARED_DB.SKILLS.STANDARD_KSB k
+WHERE ek.EVIDENCE_ID = e.EVIDENCE_ID AND e.LEARNREFNUMBER = lv.LEARNREFNUMBER AND ek.ST_REFERENCE = lv.ST_REFERENCE
+  AND k.ST_REFERENCE = ek.ST_REFERENCE AND k.VERSION = lv.VERSION AND k.KSB_TYPE = ek.KSB_TYPE AND k.KSB_REFERENCE = ek.KSB_REFERENCE
+  AND k.GONEAT IS NULL AND ek.STANDARD_VERSION IS DISTINCT FROM lv.VERSION;
+
+CREATE OR REPLACE TEMPORARY TABLE CAPTURE_DB.TEST_BASELINE.J03_DECISIONS AS
+SELECT d.REVIEW_ID, ARRAY_AGG(OBJECT_INSERT(d.VALUE, 'reference', COALESCE(x.NEW_REF, d.VALUE:reference::STRING), TRUE)) WITHIN GROUP (ORDER BY d.INDEX) AS DECISIONS
+FROM (SELECT r.REVIEW_ID, r.EVIDENCE_ID, f.INDEX, f.VALUE FROM CAPTURE_DB.BURROW.EVIDENCE_REVIEW r, LATERAL FLATTEN(INPUT => r.KSB_DECISIONS) f
+      WHERE r.EVIDENCE_ID IN (SELECT EVIDENCE_ID FROM CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT)) d
+LEFT JOIN CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT x ON x.EVIDENCE_ID = d.EVIDENCE_ID AND x.OLD_REF = d.VALUE:reference::STRING
+GROUP BY d.REVIEW_ID;
+
+CREATE OR REPLACE TEMPORARY TABLE CAPTURE_DB.TEST_BASELINE.J03_SNAPSHOT_KSBS AS
+SELECT s.REVIEW_ID, ARRAY_AGG(COALESCE(x.NEW_REF, s.VALUE::STRING)) WITHIN GROUP (ORDER BY s.INDEX) AS KSBS
+FROM (SELECT r.REVIEW_ID, r.EVIDENCE_ID, f.INDEX, f.VALUE FROM CAPTURE_DB.BURROW.EVIDENCE_REVIEW r, LATERAL FLATTEN(INPUT => r.EVIDENCE_SNAPSHOT:ksbs) f
+      WHERE r.EVIDENCE_ID IN (SELECT EVIDENCE_ID FROM CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT)) s
+LEFT JOIN CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT x ON x.EVIDENCE_ID = s.EVIDENCE_ID AND x.OLD_REF = s.VALUE::STRING
+GROUP BY s.REVIEW_ID;
+
+UPDATE CAPTURE_DB.BURROW.EVIDENCE_REVIEW r SET KSB_DECISIONS = n.DECISIONS
+FROM CAPTURE_DB.TEST_BASELINE.J03_DECISIONS n
+WHERE r.REVIEW_ID = n.REVIEW_ID;
+
+UPDATE CAPTURE_DB.BURROW.EVIDENCE_REVIEW r SET EVIDENCE_SNAPSHOT = OBJECT_INSERT(r.EVIDENCE_SNAPSHOT, 'ksbs', n.KSBS, TRUE)
+FROM CAPTURE_DB.TEST_BASELINE.J03_SNAPSHOT_KSBS n
+WHERE r.REVIEW_ID = n.REVIEW_ID;
+
+UPDATE CAPTURE_DB.TEST_BASELINE.EVIDENCE_KSB ek SET KSB_REFERENCE = x.NEW_REF
+FROM CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT x
+WHERE ek.EVIDENCE_ID = x.EVIDENCE_ID AND ek.KSB_REFERENCE = x.OLD_REF;
+
+UPDATE CAPTURE_DB.TEST_BASELINE.EVIDENCE_KSB ek SET STANDARD_VERSION = lv.VERSION, KSB_TEXT = k.DETAIL
+FROM CAPTURE_DB.TEST_BASELINE.EVIDENCE e, CAPTURE_DB.TEST_BASELINE.J03_LEARNER_VERSION lv, SHARED_DB.SKILLS.STANDARD_KSB k
+WHERE ek.EVIDENCE_ID = e.EVIDENCE_ID AND e.LEARNREFNUMBER = lv.LEARNREFNUMBER AND ek.ST_REFERENCE = lv.ST_REFERENCE
+  AND k.ST_REFERENCE = ek.ST_REFERENCE AND k.VERSION = lv.VERSION AND k.KSB_TYPE = ek.KSB_TYPE AND k.KSB_REFERENCE = ek.KSB_REFERENCE
+  AND k.GONEAT IS NULL AND ek.STANDARD_VERSION IS DISTINCT FROM lv.VERSION;
+
+CREATE OR REPLACE TEMPORARY TABLE CAPTURE_DB.TEST_BASELINE.J03_DECISIONS AS
+SELECT d.REVIEW_ID, ARRAY_AGG(OBJECT_INSERT(d.VALUE, 'reference', COALESCE(x.NEW_REF, d.VALUE:reference::STRING), TRUE)) WITHIN GROUP (ORDER BY d.INDEX) AS DECISIONS
+FROM (SELECT r.REVIEW_ID, r.EVIDENCE_ID, f.INDEX, f.VALUE FROM CAPTURE_DB.TEST_BASELINE.EVIDENCE_REVIEW r, LATERAL FLATTEN(INPUT => r.KSB_DECISIONS) f
+      WHERE r.EVIDENCE_ID IN (SELECT EVIDENCE_ID FROM CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT)) d
+LEFT JOIN CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT x ON x.EVIDENCE_ID = d.EVIDENCE_ID AND x.OLD_REF = d.VALUE:reference::STRING
+GROUP BY d.REVIEW_ID;
+
+CREATE OR REPLACE TEMPORARY TABLE CAPTURE_DB.TEST_BASELINE.J03_SNAPSHOT_KSBS AS
+SELECT s.REVIEW_ID, ARRAY_AGG(COALESCE(x.NEW_REF, s.VALUE::STRING)) WITHIN GROUP (ORDER BY s.INDEX) AS KSBS
+FROM (SELECT r.REVIEW_ID, r.EVIDENCE_ID, f.INDEX, f.VALUE FROM CAPTURE_DB.TEST_BASELINE.EVIDENCE_REVIEW r, LATERAL FLATTEN(INPUT => r.EVIDENCE_SNAPSHOT:ksbs) f
+      WHERE r.EVIDENCE_ID IN (SELECT EVIDENCE_ID FROM CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT)) s
+LEFT JOIN CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT x ON x.EVIDENCE_ID = s.EVIDENCE_ID AND x.OLD_REF = s.VALUE::STRING
+GROUP BY s.REVIEW_ID;
+
+UPDATE CAPTURE_DB.TEST_BASELINE.EVIDENCE_REVIEW r SET KSB_DECISIONS = n.DECISIONS
+FROM CAPTURE_DB.TEST_BASELINE.J03_DECISIONS n
+WHERE r.REVIEW_ID = n.REVIEW_ID;
+
+UPDATE CAPTURE_DB.TEST_BASELINE.EVIDENCE_REVIEW r SET EVIDENCE_SNAPSHOT = OBJECT_INSERT(r.EVIDENCE_SNAPSHOT, 'ksbs', n.KSBS, TRUE)
+FROM CAPTURE_DB.TEST_BASELINE.J03_SNAPSHOT_KSBS n
+WHERE r.REVIEW_ID = n.REVIEW_ID;
+
+-- ---------------------------------------------------------------------------
+-- Checks (live, then snapshot). Expected: 0 on every row.
+-- ---------------------------------------------------------------------------
+
+SELECT 'contacts: same email twice at an employer (live)' AS CHECK_, COUNT(*) AS N
+FROM (SELECT EMPLOYERID, LOWER(EMAIL) FROM CAPTURE_DB.ILR.EMPLOYER_CONTACT WHERE ISCURRENT AND EMAIL IS NOT NULL GROUP BY 1, 2 HAVING COUNT(*) > 1)
+UNION ALL SELECT 'contacts: same email twice at an employer (CRM)', COUNT(*)
+FROM (SELECT EMPLOYERID, LOWER(EMAIL) FROM CRM_DB.CRM.CONTACT WHERE EMAIL IS NOT NULL GROUP BY 1, 2 HAVING COUNT(*) > 1)
+UNION ALL SELECT 'contacts: snapshots not fixed', COUNT(*)
+FROM (SELECT CONTACTID FROM CAPTURE_DB.TEST_BASELINE.EMPLOYER_CONTACT WHERE CONTACTID IN ('CON-343A43FEDE40', 'CON-59961B3BB58F') AND EMAIL NOT LIKE '%.%.%@%'
+      UNION ALL SELECT CONTACTID FROM CRM_DB.TEST_BASELINE.CONTACT WHERE CONTACTID IN ('CCON-J016-3', 'CCON-J039-2') AND EMAIL NOT LIKE '%.%.%@%')
+UNION ALL
+SELECT 'claims with a version not the learner''s (live)', COUNT(*)
+FROM CAPTURE_DB.BURROW.EVIDENCE_KSB ek JOIN CAPTURE_DB.BURROW.EVIDENCE e ON e.EVIDENCE_ID = ek.EVIDENCE_ID
+JOIN CAPTURE_DB.TEST_BASELINE.J03_LEARNER_VERSION lv ON lv.LEARNREFNUMBER = e.LEARNREFNUMBER AND lv.ST_REFERENCE = ek.ST_REFERENCE
+WHERE ek.STANDARD_VERSION IS DISTINCT FROM lv.VERSION
+UNION ALL SELECT 'claims on a KSB not in the learner''s version (live)', COUNT(*)
+FROM CAPTURE_DB.BURROW.EVIDENCE_KSB ek JOIN CAPTURE_DB.BURROW.EVIDENCE e ON e.EVIDENCE_ID = ek.EVIDENCE_ID
+JOIN CAPTURE_DB.TEST_BASELINE.J03_LEARNER_VERSION lv ON lv.LEARNREFNUMBER = e.LEARNREFNUMBER AND lv.ST_REFERENCE = ek.ST_REFERENCE
+LEFT JOIN SHARED_DB.SKILLS.STANDARD_KSB k ON k.ST_REFERENCE = ek.ST_REFERENCE AND k.VERSION = lv.VERSION AND k.KSB_TYPE = ek.KSB_TYPE
+  AND k.KSB_REFERENCE = ek.KSB_REFERENCE AND k.GONEAT IS NULL
+WHERE k.KSB_REFERENCE IS NULL
+UNION ALL SELECT 'reviews still naming a replaced KSB (live)', COUNT(DISTINCT r.REVIEW_ID)
+FROM CAPTURE_DB.BURROW.EVIDENCE_REVIEW r JOIN CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT x ON x.EVIDENCE_ID = r.EVIDENCE_ID,
+  LATERAL FLATTEN(INPUT => r.KSB_DECISIONS, OUTER => TRUE) d
+WHERE ARRAY_CONTAINS(x.OLD_REF::VARIANT, r.EVIDENCE_SNAPSHOT:ksbs) OR d.VALUE:reference::STRING = x.OLD_REF
+UNION ALL
+SELECT 'claims with a version not the learner''s (snapshot)', COUNT(*)
+FROM CAPTURE_DB.TEST_BASELINE.EVIDENCE_KSB ek JOIN CAPTURE_DB.TEST_BASELINE.EVIDENCE e ON e.EVIDENCE_ID = ek.EVIDENCE_ID
+JOIN CAPTURE_DB.TEST_BASELINE.J03_LEARNER_VERSION lv ON lv.LEARNREFNUMBER = e.LEARNREFNUMBER AND lv.ST_REFERENCE = ek.ST_REFERENCE
+WHERE ek.STANDARD_VERSION IS DISTINCT FROM lv.VERSION
+UNION ALL SELECT 'claims on a KSB not in the learner''s version (snapshot)', COUNT(*)
+FROM CAPTURE_DB.TEST_BASELINE.EVIDENCE_KSB ek JOIN CAPTURE_DB.TEST_BASELINE.EVIDENCE e ON e.EVIDENCE_ID = ek.EVIDENCE_ID
+JOIN CAPTURE_DB.TEST_BASELINE.J03_LEARNER_VERSION lv ON lv.LEARNREFNUMBER = e.LEARNREFNUMBER AND lv.ST_REFERENCE = ek.ST_REFERENCE
+LEFT JOIN SHARED_DB.SKILLS.STANDARD_KSB k ON k.ST_REFERENCE = ek.ST_REFERENCE AND k.VERSION = lv.VERSION AND k.KSB_TYPE = ek.KSB_TYPE
+  AND k.KSB_REFERENCE = ek.KSB_REFERENCE AND k.GONEAT IS NULL
+WHERE k.KSB_REFERENCE IS NULL
+UNION ALL SELECT 'reviews still naming a replaced KSB (snapshot)', COUNT(DISTINCT r.REVIEW_ID)
+FROM CAPTURE_DB.TEST_BASELINE.EVIDENCE_REVIEW r JOIN CAPTURE_DB.TEST_BASELINE.J03_REPLACEMENT x ON x.EVIDENCE_ID = r.EVIDENCE_ID,
+  LATERAL FLATTEN(INPUT => r.KSB_DECISIONS, OUTER => TRUE) d
+WHERE ARRAY_CONTAINS(x.OLD_REF::VARIANT, r.EVIDENCE_SNAPSHOT:ksbs) OR d.VALUE:reference::STRING = x.OLD_REF;

@@ -25,3 +25,21 @@ export function ksbVersionsSql(learnersSql) {
     ) = 1
   )`
 }
+
+// The same rule in JavaScript, for code that already has the versions (the
+// test journeys generator, scripts/journeys/world.js). versions: one
+// standard's versions, { VERSION, EARLIEST_START_DATE, LATEST_START_DATE }
+// with ISO dates (server/ilr/standards.js loadStandardVersions); withKsbs:
+// the set of its versions that publish KSBs; startDate: ISO. Returns the
+// version, or null if none publishes KSBs.
+export function ksbVersionFor(versions, withKsbs, startDate) {
+  const inRange = (v) => v.EARLIEST_START_DATE <= startDate && (!v.LATEST_START_DATE || v.LATEST_START_DATE >= startDate)
+  const later = (v) => v.EARLIEST_START_DATE > startDate
+  const days = (v) => Math.abs(Date.parse(v.EARLIEST_START_DATE) - Date.parse(startDate))
+  const ranked = versions.filter((v) => withKsbs.has(v.VERSION)).sort((a, b) =>
+    (inRange(a) ? 0 : 1) - (inRange(b) ? 0 : 1)
+    || (later(a) ? 0 : 1) - (later(b) ? 0 : 1)
+    || days(a) - days(b)
+    || (a.EARLIEST_START_DATE < b.EARLIEST_START_DATE ? 1 : a.EARLIEST_START_DATE > b.EARLIEST_START_DATE ? -1 : 0))
+  return ranked[0]?.VERSION ?? null
+}
