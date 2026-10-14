@@ -41,6 +41,9 @@ sources:
       - name: se_standard_version
         identifier: SE_STANDARD_VERSION
         description: Every apprenticeship standard version from Skills England's standards API, by run, with its LARS code, occupation and options.
+      - name: ashe_occupation
+        identifier: ASHE_OCCUPATION
+        description: ASHE Tables 14 (UK) and 15 (work region) by SOC 2020, 2024 revised and 2025 provisional, one row per spreadsheet row; a files are the figures, b files their coefficients of variation.
 
   # SHARED_DB.EXT: data kept up to date by the app's own imports (not files).
   - name: shared_ext

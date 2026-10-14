@@ -1,8 +1,8 @@
 version: 2
 
 # The "Jobs for you" group of the silver layer (SHARED_DB.SILVER): adverts
-# with their SOC codes and places, standards' SOC codes, and labour demand
-# from online adverts.
+# with their SOC codes and places, standards' SOC codes, labour demand from
+# online adverts, and pay by occupation and area (ASHE).
 #
 # Vacancies change every 2 hours (scripts/import-vacancies.js): silver is a
 # copy of SHARED_DB.EXT at build time, so it can be up to a day behind; the
@@ -13,9 +13,19 @@ version: 2
 # REFRESH: vacancies are imported every 2 hours and in full daily; the tag
 # has no value under daily, so they are tagged daily.
 #
-# Licences: Find an apprenticeship's API site says "All content is
-# available under the Open Government Licence v3.0, except where otherwise
-# stated" (to confirm for the advert data). Skills England: OGL, to confirm.
+# Licences:
+#   Find an apprenticeship: OGL v3.0, from the API site's statement "All
+#     content is available under the Open Government Licence v3.0, except
+#     where otherwise stated". NHS Jobs and Civil Service Jobs adverts come
+#     through the same API: their re-use terms are assumed, not confirmed
+#     (said in the ATTRIBUTION tags too).
+#   Skills England: OGL, credited with Skills England's own attribution
+#     statement for online publications, worded as Warren and Burrow show it
+#     (src/SkillsEnglandCredit.jsx, SKILLS_ENGLAND_STATEMENT, from
+#     https://occupational-maps.skillsengland.education.gov.uk/public-api/#licence).
+#     Their terms also ask for their logo wherever the data is shown: a tag
+#     can't carry that, the app must.
+#   SOC titles: ONS, credited on the SOC_TITLE columns.
 
 models:
   - name: vacancy
@@ -29,7 +39,7 @@ models:
       meta:
         source: faa-vacancies
         licence: ogl-3
-        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. NHS Jobs and Civil Service Jobs adverts come through the same API; their re-use terms are assumed, not confirmed.'
         refresh: daily
         sensitivity: public
     columns:
@@ -204,9 +214,9 @@ models:
       cleared on the same row; a gone advert keeps its codes.
     config:
       meta:
-        source: faa-vacancies,soc-coding-index
+        source: faa-vacancies
         licence: ogl-3
-        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. NHS Jobs and Civil Service Jobs adverts come through the same API; their re-use terms are assumed, not confirmed.'
         refresh: daily
         sensitivity: public
     columns:
@@ -286,9 +296,9 @@ models:
       SOC coder uses.
     config:
       meta:
-        source: skills-england,soc-coding-index
+        source: skills-england
         licence: ogl-3
-        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        attribution: '© Skills England 2025. This information is licensed under the Open Government Licence https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/'
         refresh: weekly
         sensitivity: public
     columns:
@@ -438,3 +448,152 @@ models:
       - name: adverts_note
         data_type: varchar
         description: 'The file''s mark when there is no count: [x] not available (including months the ONS notes as affected).'
+
+  - name: soc_pay
+    description: >-
+      Pay by occupation (SOC 2020) and area from the Annual Survey of Hours
+      and Earnings: Table 14 for the UK and Table 15 for work regions, 2024
+      revised and 2025 provisional, one row per year, table, pay measure,
+      worker group, area and SOC code, with the median, mean, percentiles and
+      coefficients of variation. ONS publishes no pay by SOC for local
+      authorities.
+    config:
+      meta:
+        source: ashe-occupation
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: soc_pay_key
+        data_type: varchar
+        description: 'Its key: year, table, pay measure, group, area and SOC code (all for every employee, not-classified for those ASHE could not place), joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: year
+        data_type: number(38,0)
+        description: 'The ASHE year (April of that year).'
+        data_tests:
+          - not_null
+      - name: is_provisional
+        data_type: boolean
+        description: 'True for provisional figures (2025); false for revised ones (2024).'
+        data_tests:
+          - not_null
+      - name: ashe_table
+        data_type: varchar
+        description: 'Table 14 (UK by SOC), Table 15 (3) or Table 15 (4) (work region by 3- or 4-digit SOC).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Table 14', 'Table 15 (3)', 'Table 15 (4)']
+      - name: pay_measure_number
+        data_type: number(38,0)
+        description: 'The measure''s number in the table (1 weekly gross ... 7 annual gross ... 11 overtime hours).'
+        data_tests:
+          - not_null
+      - name: pay_measure
+        data_type: varchar
+        description: 'What is measured, as the file names it, e.g. Annual pay - Gross, Hourly pay - Excluding overtime, Paid hours worked - Total.'
+        data_tests:
+          - not_null
+      - name: worker_group
+        data_type: varchar
+        description: 'Whose pay: All, Male, Female, Full-Time, Part-Time and their combinations (the spreadsheet''s sheet).'
+        data_tests:
+          - not_null
+      - name: geography
+        data_type: varchar
+        description: 'uk (Table 14) or region (Table 15, by place of work).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['uk', 'region']
+      - name: area_name
+        data_type: varchar
+        description: 'The area as the file names it (United Kingdom, or a region: East is East of England).'
+        data_tests:
+          - not_null
+      - name: area_code
+        data_type: varchar
+        description: 'Its code: K02000001 for the UK, a region (E12...) or Wales or Scotland.'
+        data_tests:
+          - not_null
+      - name: soc_code
+        data_type: varchar
+        description: 'The SOC 2020 group (1 to 4 digits); empty for All employees and Not Classified (see SOC_TITLE).'
+      - name: soc_digits
+        data_type: number(38,0)
+        description: 'How many digits the SOC code has (0 for all employees).'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4]
+                quote: false
+      - name: soc_title
+        data_type: varchar
+        description: 'The group''s title, as the file gives it.'
+        data_tests:
+          - not_null
+      - name: jobs_thousands
+        data_type: number(12,1)
+        description: 'Employee jobs in the group, in thousands.'
+      - name: median
+        data_type: number(14,2)
+        description: 'The median (pounds, or hours for the hours measures). Empty when ASHE marks it x (unreliable or disclosive).'
+        data_tests:
+          - between:
+              arguments:
+                min: 0
+                max: 100000000
+      - name: mean
+        data_type: number(14,2)
+        description: 'The mean.'
+      - name: p10
+        data_type: number(14,2)
+        description: 'The 10th percentile.'
+      - name: p20
+        data_type: number(14,2)
+        description: 'The 20th percentile.'
+      - name: p25
+        data_type: number(14,2)
+        description: 'The 25th percentile (lower quartile).'
+      - name: p30
+        data_type: number(14,2)
+        description: 'The 30th percentile.'
+      - name: p40
+        data_type: number(14,2)
+        description: 'The 40th percentile.'
+      - name: p60
+        data_type: number(14,2)
+        description: 'The 60th percentile.'
+      - name: p70
+        data_type: number(14,2)
+        description: 'The 70th percentile.'
+      - name: p75
+        data_type: number(14,2)
+        description: 'The 75th percentile (upper quartile).'
+      - name: p80
+        data_type: number(14,2)
+        description: 'The 80th percentile.'
+      - name: p90
+        data_type: number(14,2)
+        description: 'The 90th percentile.'
+      - name: median_change_percent
+        data_type: number(8,1)
+        description: 'The median''s change on the year before, as a percentage.'
+      - name: mean_change_percent
+        data_type: number(8,1)
+        description: 'The mean''s change on the year before, as a percentage.'
+      - name: median_cv
+        data_type: number(8,1)
+        description: 'The median''s coefficient of variation, as a percentage (ONS: under 5 precise, 5 to 10 reasonably precise, 10 to 20 acceptable; over 20 is not published).'
+      - name: mean_cv
+        data_type: number(8,1)
+        description: 'The mean''s coefficient of variation, as a percentage.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The figures file''s SHARED_DB.RAW.SOURCE_FILE row.'

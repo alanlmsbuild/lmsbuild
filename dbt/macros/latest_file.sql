@@ -16,10 +16,14 @@
 {%- endmacro %}
 
 {#- A number as published, or null when it isn't one: blank, z (not
-    applicable), c and low (withheld by the publisher), x (not available).
+    applicable), c and low (withheld by the publisher), x (not available),
+    and ASHE's "." and ":" and "..".
     Bronze keeps the reason; hiding small numbers is the app's job. -#}
+{#- Only a real number converts: try_to_number alone turns "." (ASHE's
+    "not published") into 0. -#}
 {% macro num(column, scale=0) -%}
-  try_to_number(replace({{ column }}, ',', ''), 38, {{ scale }})
+  case when regexp_like(trim(replace({{ column }}, ',', '')), '[-+]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][-+]?[0-9]+)?')
+       then try_to_number(trim(replace({{ column }}, ',', '')), 38, {{ scale }}) end
 {%- endmacro %}
 
 {#- Text as published, or null for blank, z, NULL and the like. -#}

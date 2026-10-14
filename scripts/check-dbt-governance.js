@@ -9,6 +9,7 @@
 //     sensitivity, source, licence or attribution are checked the same way
 // The allowed values: scripts/governance-tags.js (check:tags compares them
 // with Snowflake's after the build).
+// Skills England's attribution is checked against src/SkillsEnglandCredit.jsx.
 //   npm run check:dbt
 import fs from 'node:fs'
 import path from 'node:path'
@@ -51,6 +52,16 @@ for (const m of models) {
     for (const key of ['sensitivity', 'source', 'licence', 'attribution']) if (key in cm) checkValue(cw, key, cm[key])
   }
 }
+// Skills England's attribution must be worded as Warren and Burrow show it
+// (src/SkillsEnglandCredit.jsx), so the two always match.
+const credit = fs.readFileSync(path.join(root, 'src', 'SkillsEnglandCredit.jsx'), 'utf8').match(/SKILLS_ENGLAND_STATEMENT = '([^']+)'/)?.[1]
+for (const m of models) {
+  const meta = m.config.meta ?? {}
+  if (!String(meta.source ?? '').split(',').includes('skills-england')) continue
+  if (!credit) problems.push(`${m.name}: SKILLS_ENGLAND_STATEMENT not found in src/SkillsEnglandCredit.jsx`)
+  else if (!String(meta.attribution ?? '').startsWith(credit)) problems.push(`${m.name}: attribution must start with Skills England's statement as in src/SkillsEnglandCredit.jsx`)
+}
+
 if (problems.length) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(`\n${problems.length} problem(s): fix the .yml before building.`)
