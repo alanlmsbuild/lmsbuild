@@ -32,7 +32,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { connect, execute, destroy } from '../server/db.js'
-import { makeLog, recordRun } from './job-run.js'
+import { JobTimeout, makeLog, recordRun } from './job-run.js'
 import { runDbt } from './dbt.js'
 import { measure } from './data-quality.js'
 
@@ -157,6 +157,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const connection = await connect()
     try {
       result = await recordRun({ connection, job: 'transform-silver', triggeredBy: 'manual', log, timeoutMinutes: JOB_SCHEDULE['transform-silver'].timeoutMinutes, run: () => runJob({ log }) })
+    } catch (err) {
+      // A run stopped at its time limit is already recorded as failed.
+      if (!(err instanceof JobTimeout)) throw err
+      result = { outcome: 'failed', error: err.message }
     } finally {
       await destroy(connection)
     }

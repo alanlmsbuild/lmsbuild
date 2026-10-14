@@ -33,7 +33,7 @@
 import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { connect, execute, destroy } from '../server/db.js'
-import { makeLog, recordRun } from './job-run.js'
+import { JobTimeout, makeLog, recordRun } from './job-run.js'
 
 export const HOST_GAP_MS = 10_000
 export const PARALLEL_HOSTS = 64
@@ -241,6 +241,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     try {
       result = await recordRun({ connection, job: 'website-links', triggeredBy: 'manual', log, timeoutMinutes: JOB_SCHEDULE['website-links'].timeoutMinutes,
         run: (_, jobRunId) => runJob({ ...options, jobRunId }) })
+    } catch (err) {
+      // A run stopped at its time limit is already recorded as failed.
+      if (!(err instanceof JobTimeout)) throw err
+      result = { outcome: 'failed', error: err.message }
     } finally {
       await destroy(connection)
     }
