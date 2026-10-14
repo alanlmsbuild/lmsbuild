@@ -40,7 +40,7 @@ select
   {{ dt('g."OpenDate"', 'DD-MM-YYYY') }} as opened,
   {{ dt('g."CloseDate"', 'DD-MM-YYYY') }} as closed,
   nullif(g."Trusts (name)", '')::varchar as trust_name,
-  case when g."SchoolWebsite" = '' then null when g."SchoolWebsite" ilike 'http%' then g."SchoolWebsite" else 'https://' || g."SchoolWebsite" end::varchar as website,
+  {{ website_url('g."SchoolWebsite"') }}::varchar as website_url,
   coalesce(nullif(g."Town", ''), nullif(g."Locality", ''))::varchar as town,
   nullif(g."Postcode", '')::varchar as postcode,
   p.postcode::varchar as matched_postcode,

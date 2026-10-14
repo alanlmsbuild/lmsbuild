@@ -76,6 +76,7 @@ select
   {{ school_kind('g') }}::varchar as kind,
   coalesce(nullif(g."Town", ''), nullif(g."Locality", ''))::varchar as town,
   nullif(g."Postcode", '')::varchar as postcode,
+  {{ website_url('g."SchoolWebsite"') }}::varchar as website_url,
   p.local_authority_code::varchar as local_authority_code,
   p.lsoa21_code::varchar as lsoa21_code,
   (left(b.time_period, 4) || '/' || right(b.time_period, 2))::varchar as results_year,

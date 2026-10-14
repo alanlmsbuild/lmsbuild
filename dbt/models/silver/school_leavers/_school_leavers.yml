@@ -137,9 +137,11 @@ models:
       - name: trust_name
         data_type: varchar
         description: 'Its academy trust, if it is in one.'
-      - name: website
+      - name: website_url
         data_type: varchar
-        description: 'Its website.'
+        description: 'Its own website (decision 26), from GIAS, cleaned to an https:// address (macros/url.sql); empty when GIAS has none or it is not a valid address.'
+        data_tests:
+          - valid_website_url
       - name: town
         data_type: varchar
         description: 'Its town (or locality).'
@@ -311,6 +313,11 @@ models:
       - name: postcode
         data_type: varchar
         description: 'Its postcode as GIAS gives it.'
+      - name: website_url
+        data_type: varchar
+        description: 'Its own website (decision 26), from GIAS, cleaned to an https:// address (macros/url.sql); empty when GIAS has none.'
+        data_tests:
+          - valid_website_url
       - name: local_authority_code
         data_type: varchar
         description: 'Its local authority, from its postcode (SHARED_DB.SILVER.POSTCODE). Empty when the postcode is not in the postcode directory (overseas, or missing).'
@@ -577,6 +584,23 @@ models:
       - name: app_leavers_16_18
         data_type: number(38,0)
         description: 'Leavers that rate is based on.'
+      - name: website_url
+        data_type: varchar
+        description: 'Its own website (decision 26): its GIAS establishment''s (open, else the one that closed last), else Discover Uni''s, cleaned to an https:// address (macros/url.sql). Empty for most training providers outside GIAS (the UK Register of Learning Providers would fill these).'
+        config:
+          meta:
+            source: 'gias,discover-uni'
+            licence: 'cc-by-4'
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Credit: HESA (www.hesa.ac.uk). Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: none.'
+        data_tests:
+          - valid_website_url
+      - name: website_from
+        data_type: varchar
+        description: 'Where the website is from: gias or discover-uni.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['gias', 'discover-uni']
       - name: postcode
         data_type: varchar
         description: 'Its postcode: its GIAS establishment''s (as for the name), else from its Discover Uni address.'
@@ -695,9 +719,11 @@ models:
       - name: ucas_programme_code
         data_type: varchar
         description: 'Its UCAS programme code, if it has one.'
-      - name: course_url
+      - name: website_url
         data_type: varchar
-        description: 'Its page on the provider''s website.'
+        description: 'The course''s own page on the provider''s website (decision 26), from Discover Uni, cleaned to an https:// address (macros/url.sql).'
+        data_tests:
+          - valid_website_url
       - name: provider_name
         data_type: varchar
         description: 'The publishing provider''s name in Discover Uni.'

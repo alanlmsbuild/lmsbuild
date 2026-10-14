@@ -3,7 +3,9 @@
 -- register (APAR), Ofsted's further education list, achievement rates and
 -- Discover Uni. One row per UKPRN, with the figures published per UKPRN:
 -- achievement rates for 16 to 18 year olds (education and training, and
--- apprenticeships), the latest Ofsted FE inspection, and APAR status.
+-- apprenticeships), the latest Ofsted FE inspection, and APAR status;
+-- and its website (decision 26): its GIAS establishment's, else Discover
+-- Uni's.
 with gias as (
   select * from {{ source('options_raw', 'gias_establishment') }}
   where SOURCEFILEID = {{ latest_file('gias', 'GIAS_ESTABLISHMENT', 'options') }}
@@ -18,7 +20,7 @@ gias_open as (
 -- Any establishment with the UKPRN, open or closed: the open one, else the
 -- one that closed last (for a UKPRN known only from a closed college).
 gias_any as (
-  select "UKPRN" as ukprn, "EstablishmentName" as name, "Postcode" as postcode
+  select "UKPRN" as ukprn, "EstablishmentName" as name, "Postcode" as postcode, {{ website_url('"SchoolWebsite"') }} as website_url
   from gias where "UKPRN" <> ''
   qualify row_number() over (partition by "UKPRN" order by ("EstablishmentStatus (name)" like 'Open%') desc,
                              {{ dt('"CloseDate"', 'DD-MM-YYYY') }} desc nulls last, "URN" desc) = 1
@@ -71,14 +73,14 @@ app as (
 -- Discover Uni's institutions, by their own UKPRN and by the UKPRN that
 -- publishes for them (a row whose own UKPRN it is wins).
 du_institution as (
-  select ukprn, name, postcode from (
+  select ukprn, name, postcode, website_url from (
     select UKPRN as ukprn, 1 as pref, coalesce(nullif(FIRST_TRADING_NAME, ''), LEGAL_NAME) as name,
-           regexp_substr(upper(PROVADDRESS), '[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}') as postcode
+           regexp_substr(upper(PROVADDRESS), '[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}') as postcode, {{ website_url('PROVURL') }} as website_url
     from {{ source('options_raw', 'du_institution') }}
     where SOURCEFILEID = {{ latest_file('discover-uni', 'DISCOVERUNI_INSTITUTION', 'options') }}
     union all
     select PUBUKPRN, 2, coalesce(nullif(FIRST_TRADING_NAME, ''), LEGAL_NAME),
-           regexp_substr(upper(PROVADDRESS), '[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}')
+           regexp_substr(upper(PROVADDRESS), '[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}'), {{ website_url('PROVURL') }}
     from {{ source('options_raw', 'du_institution') }}
     where SOURCEFILEID = {{ latest_file('discover-uni', 'DISCOVERUNI_INSTITUTION', 'options') }}
   )
@@ -125,6 +127,8 @@ select
   (left(app.time_period, 4) || '/' || right(app.time_period, 2))::varchar as app_achievement_year,
   app.rate::number(5,1) as app_achievement_rate_16_18,
   app.leavers::number(38,0) as app_leavers_16_18,
+  coalesce(ga.website_url, du.website_url)::varchar as website_url,
+  case when ga.website_url is not null then 'gias' when du.website_url is not null then 'discover-uni' end::varchar as website_from,
   coalesce(nullif(ga.postcode, ''), du.postcode)::varchar as postcode,
   p.local_authority_code::varchar as local_authority_code,
   p.lsoa21_code::varchar as lsoa21_code

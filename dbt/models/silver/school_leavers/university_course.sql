@@ -50,7 +50,7 @@ select
   case c.DISTANCE when '0' then 'no' when '1' then 'distance only' when '2' then 'optional' end::varchar as distance_learning,
   {{ num('c.NUMSTAGE') }}::number(38,0) as years,
   nullif(c.UCASPROGID, '')::varchar as ucas_programme_code,
-  nullif(c.CRSEURL, '')::varchar as course_url,
+  {{ website_url('c.CRSEURL') }}::varchar as website_url,
   i.name::varchar as provider_name,
   i.COUNTRY::varchar as provider_country_code,
   i.postcode::varchar as provider_postcode,
