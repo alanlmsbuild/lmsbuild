@@ -57,7 +57,9 @@
 //      CRM_APP_ROLE by CRM_APP_USER, TRANSFORM_ROLE by TRANSFORM_USER (SHOW
 //      GRANTS OF ROLE, each as its own user). Another user (a person's
 //      login) or a role holding one fails (added 14 October 2026, after
-//      CRM_APP_ROLE and TRANSFORM_ROLE were found granted to a person).
+//      CRM_APP_ROLE and TRANSFORM_ROLE were found granted to a person), but
+//      for the named exceptions in ROLE_HOLDER_EXCEPTIONS (SYSADMIN holds
+//      ILR_APP_ROLE, so ACCOUNTADMIN can reach the LARS tables the app owns).
 //  10. The flows (sql/flow_01_f6_f7_f8.sql): each app role may call only
 //      its own flow procedures (the CRM F6 and F8, Warren F7), and Warren
 //      may read and update ILR.ONBOARDING but never add to it (only F6 does).
@@ -356,10 +358,24 @@ export const SERVICE_ROLES = {
   [CRM_ROLE]: CRM_USER,
   [TRANSFORM_ROLE]: TRANSFORM_USER,
 }
+// Holders allowed besides the service user, each with why
+// (docs/decisions.md, "SYSADMIN holds ILR_APP_ROLE").
+export const ROLE_HOLDER_EXCEPTIONS = {
+  // The app creates and owns the 18 CAPTURE_DB.LARS tables
+  // (scripts/import-lars.js); nothing else is granted on them. ACCOUNTADMIN
+  // reaches them only through ACCOUNTADMIN -> SYSADMIN -> ILR_APP_ROLE: the
+  // test-data scripts run as ACCOUNTADMIN join LARS.STANDARD
+  // (witness_test_statements.sql, iqa_test_signoffs.sql,
+  // test_learners_more.sql). Granted 27 September 2026, outside the repo.
+  [ROLE]: [{ granted_to: 'ROLE', grantee_name: 'SYSADMIN' }],
+}
+
 // The problems in who holds a service role (SHOW GRANTS OF ROLE).
 export function roleHolderProblems(role, holders, user = SERVICE_ROLES[role]) {
   const problems = []
+  const allowed = ROLE_HOLDER_EXCEPTIONS[role] ?? []
   for (const h of holders) {
+    if (allowed.some((a) => String(h.granted_to) === a.granted_to && String(h.grantee_name).toUpperCase() === a.grantee_name)) continue
     if (!(String(h.granted_to) === 'USER' && String(h.grantee_name).toUpperCase() === String(user).toUpperCase())) {
       problems.push(`${role} is held by ${String(h.granted_to).toLowerCase()} ${h.grantee_name} (granted by ${h.granted_by || 'unknown'}): only ${user} may hold it`)
     }
@@ -432,6 +448,6 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}, ${LOAD_ROLE}, ${CRM_ROLE} or ${TRANSFORM_ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS. Each service role is held by its own service user and nothing else.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS. Each service role is held by its own service user and nothing else (but SYSADMIN holding ILR_APP_ROLE, the named exception).`)
   process.exit(problems.length ? 1 : 0)
 }
