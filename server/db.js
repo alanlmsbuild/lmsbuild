@@ -36,6 +36,20 @@ function createConnection(as) {
       privateKeyPath: process.env.CRM_PRIVATE_KEY_PATH,
     })
   }
+  if (as === 'transform') {
+    // dbt's own user and key (sql/silver_01_setup.sql): reads RAW, makes
+    // SILVER, never CAPTURE_DB or CRM_DB.
+    if (!process.env.TRANSFORM_PRIVATE_KEY_PATH) throw new Error('TRANSFORM_PRIVATE_KEY_PATH is not set in server/.env.')
+    return snowflake.createConnection({
+      account: process.env.SNOWFLAKE_ACCOUNT,
+      username: process.env.TRANSFORM_USERNAME || 'TRANSFORM_USER',
+      role: 'TRANSFORM_ROLE',
+      warehouse: 'TRANSFORM_WH',
+      authenticator: 'SNOWFLAKE_JWT',
+      privateKeyPath: process.env.TRANSFORM_PRIVATE_KEY_PATH,
+    })
+  }
+  if (as) throw new Error(`Unknown connection: ${as}`)
   return snowflake.createConnection({
     account: process.env.SNOWFLAKE_ACCOUNT,
     username: process.env.SNOWFLAKE_USERNAME,
@@ -59,7 +73,7 @@ export const CONNECT_TIMEOUT_MS = Number(process.env.DB_CONNECT_TIMEOUT_MS) || 1
 export class ConnectTimeoutError extends Error {}
 
 // as: 'loader' opens the session as the data loaders' user, 'crm' as the
-// CRM's, instead of Warren and Burrow's.
+// CRM's, 'transform' as dbt's, instead of Warren and Burrow's.
 export function connect({ timeoutMs = CONNECT_TIMEOUT_MS, as } = {}) {
   return new Promise((resolve, reject) => {
     const connection = createConnection(as)
