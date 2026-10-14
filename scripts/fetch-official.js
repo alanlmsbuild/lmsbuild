@@ -64,6 +64,15 @@ export const NOMIS_SETS = [
   { id: 'NM_2080_1', dir: 'census-2021', base: 'census_ts063_occupation_nm_2080_1', from: '',
     query: `${AREAS}&measures=20100,20301`,
     select: 'date_name,geography_code,geography_name,geography_type,c2021_occ_10_name,measures_name,obs_value,obs_status_name' },
+  // Population (ONS mid-year estimates), for rates per 1,000 people: by
+  // LSOA (2021 areas) in broad age groups, all persons; by local authority
+  // in five-year age bands, by sex.
+  { id: 'NM_2014_1', dir: 'population', base: 'population_lsoa_nm_2014_1', from: '',
+    query: 'geography=2092957699TYPE151&gender=0&c_age=200,201,202,203,250,204,205,207,208,209&measures=20100',
+    select: 'date_name,geography_code,geography_name,geography_type,gender_name,c_age_name,measures_name,obs_value,obs_status_name' },
+  { id: 'NM_31_1', dir: 'population', base: 'population_la_nm_31_1', from: '',
+    query: `${AREAS}&sex=5,6,7&measures=20100`,
+    select: 'date_name,geography_code,geography_name,geography_type,sex_name,age_name,measures_name,obs_value,obs_status_name' },
   { id: 'NM_2077_1', dir: 'census-2021', base: 'census_ts060_industry_nm_2077_1', from: '',
     query: `${AREAS}&measures=20100,20301`,
     select: 'date_name,geography_code,geography_name,geography_type,c2021_ind_88_name,measures_name,obs_value,obs_status_name' },

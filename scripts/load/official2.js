@@ -130,7 +130,7 @@ async function* csvRowsDecoded(file) {
 }
 
 // A file (or a member of a zip) as cell rows, written to out.
-const toCells = (file, member = null) => async (out) => {
+export const toCells = (file, member = null) => async (out) => {
   let local = file
   let tmp = null
   if (member) {

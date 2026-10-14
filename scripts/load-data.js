@@ -44,6 +44,15 @@
 //   29 vacancies by industry, VACS02 (ONS)              -> SHARED_DB.RAW
 //   30 history: achievement rates, Ofsted, apprenticeships -> both
 //   31 Nesta skills taxonomy                           -> SHARED_DB.RAW
+// Batch 6 (sql/load_06_official_tables.sql; scripts/load/official3.js):
+//   32 ONS Postcode Directory in full, and its lookups -> SHARED_DB.RAW
+//   33 population by LSOA and local authority (Nomis)   -> SHARED_DB.RAW
+//   34 apprenticeship provider and assessment register -> SHARED_DB.RAW
+//   35 police.uk street crimes and outcomes (3 years)   -> SHARED_DB.RAW
+//   36 NaPTAN stops                                    -> SHARED_DB.RAW
+//   37 Graduate Outcomes (HESA, via DfE)                -> OPTIONS_DB.RAW
+//   38 listed buildings (Historic England), Wikidata places -> SHARED_DB.RAW
+//   39 Ofgem price caps, fuel poverty, electricity regions -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -61,6 +70,7 @@ import { Loader } from './load/loader.js'
 import { loadContent } from './load/content.js'
 import { officialSteps } from './load/official.js'
 import { officialSteps2 } from './load/official2.js'
+import { officialSteps3 } from './load/official3.js'
 import { odsRows, csvLine, csvRecords, writeLines, zipEntry, zipNames } from './load/files.js'
 
 const RAREBIT_DATA = process.env.RAREBIT_DATA || '/mnt/c/Users/alanb/rarebit-data'
@@ -250,6 +260,7 @@ export const STEPS = {
   ] },
   ...officialSteps(RAREBIT_DATA),
   ...officialSteps2(RAREBIT_DATA),
+  ...officialSteps3(RAREBIT_DATA),
 }
 
 export async function runStep(loader, n) {
