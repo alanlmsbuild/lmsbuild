@@ -1,50 +1,45 @@
-/* The Rarebit front page (Landing.jsx), recreated from the "Toasted" design
-   reference in docs/design/landing-toasted.html.
+/* The Rarebit front door (Landing.jsx), recreated from the design
+   reference in docs/design/landing-front-door.html.
 
-   The reference is a fixed 1440px layout. Sizes here use clamp() with a vw
-   middle value chosen so that at 1440px wide every size equals the
-   reference exactly (e.g. 6.667vw = 96px), and scales down smoothly below
-   that. Under 900px the multi-column sections stack into one column.
+   The reference is laid out for a wide screen (1280px content). Headings
+   use clamp() so they equal the reference at full width and shrink
+   smoothly on smaller screens; under 900px the three-column grids stack
+   into one column, and the audience buttons stack under 640px.
 
    Everything is scoped under .landing, and headings set their own font,
-   size and colour, so the learner app's global heading styles (index.css)
-   don't leak in. The app's own App.css is only loaded at /app. */
+   size and colour, so the global heading styles (index.css) don't leak in.
+   It's a light-only design: the tokens keep their light values while
+   data-area is "rarebit". */
 
-/* The landing page's names for the Rarebit design tokens
-   (src/ui/tokens.css). It's a light-only design: the tokens keep their
-   light values while data-area is "rarebit". */
 .landing {
-  --toast: var(--rb-page);
-  --ink: var(--rb-ink);
-  --crumb: var(--rb-crumb);
-  --cheddar: var(--rb-cheddar);
-  --crust: var(--rb-crust);
-  --cream: var(--rb-card);
-  --warren-green: var(--rb-warren);
-  --burrow-rust: var(--rb-burrow);
-  --rule: var(--rb-rule);
-  --muted: var(--rb-muted);
-  --body-text: var(--rb-body);
-  --tan: var(--rb-input-border);
-  --fraunces: var(--rb-font-heading);
-  --dm-sans: var(--rb-font-body);
-
-  --pad: clamp(24px, 6.667vw, 96px);
-  --section-pad: clamp(64px, 6.667vw, 96px);
+  /* The design tokens (src/ui/tokens.css) where they match the reference. */
+  --fd-page: var(--rb-page); /* #F6EEDC */
+  --fd-ink: var(--rb-ink); /* #2A1F17 */
+  --fd-cheddar: var(--rb-cheddar); /* #E9A23B */
+  --fd-warren: var(--rb-warren); /* #2E5A4C */
+  --fd-burrow: var(--rb-burrow); /* #B4532A */
+  /* The reference's own colours, close to but not the same as a token. */
+  --fd-body: #4a3b2e;
+  --fd-muted: #6b5a48;
+  --fd-rule: #e6d9bf;
+  --fd-card: #fff8ec;
+  --fd-on-dark-soft: #e6d9bf;
+  --fd-teal: #7fc4b8;
+  --fd-coral: #f0a08d;
+  --fd-meadow: #3f5683;
+  --fd-burrow-dark: #8a3e1e;
+  --fd-meadow-dark: #2b3d60;
+  --fd-heading: 'Bricolage Grotesque', var(--rb-font-body);
+  --fd-text: 'Instrument Sans', var(--rb-font-body);
 
   flex: 1;
-  background: var(--toast);
-  color: var(--ink);
-  font-family: var(--dm-sans);
+  background: var(--fd-page);
+  color: var(--fd-ink);
+  font-family: var(--fd-text);
 }
 
-.landing-page {
-  box-sizing: border-box;
-  max-width: 1440px;
-  min-height: 100svh;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
+.landing a {
+  color: var(--fd-ink);
 }
 
 .landing h1,
@@ -52,461 +47,390 @@
 .landing h3 {
   margin: 0;
   color: inherit;
-  font-family: var(--fraunces);
-  font-weight: 600;
+  font-family: var(--fd-heading);
+  font-weight: 800;
+  line-height: 1.15;
 }
 
 .landing p {
   margin: 0;
 }
 
-.landing-eyebrow {
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--muted);
+.landing-page {
+  box-sizing: border-box;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
 }
 
-/* Buttons */
-
-.landing-button {
-  border-radius: 999px;
-  font-weight: 500;
-  font-size: 18px;
-  text-decoration: none;
-}
-
-.landing-button-crust {
-  padding: 18px 32px;
-  background: var(--crust);
-  color: var(--cream);
-}
-
-.landing-button-outline {
-  padding: 16px 30px;
-  border: 2px solid var(--ink);
-  color: var(--ink);
-}
-
-.landing-button-ink {
-  padding: 20px 36px;
-  background: var(--ink);
-  color: var(--crumb);
-  font-size: 19px;
-}
-
-/* Hero */
+/* ------------------------------------------------------------- hero */
 
 .landing-hero {
-  padding: var(--section-pad) var(--pad) clamp(64px, 7.22vw, 104px);
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(32px, 4.445vw, 64px);
-  align-items: center;
-}
-
-.landing-hero-text {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
+  padding: 32px 0 8px;
 }
 
 .landing-hero h1 {
-  font-size: clamp(48px, 6.945vw, 100px);
-  line-height: 0.98;
-  letter-spacing: -3px;
+  max-width: 900px;
+  font-size: clamp(44px, 5.625vw, 72px);
+  line-height: 1.02;
+  letter-spacing: -1.5px;
 }
 
-.landing-hero-text p {
-  max-width: 560px;
-  font-size: clamp(19px, 1.528vw, 22px);
+.landing-hero p {
+  margin-top: 18px;
+  max-width: 720px;
+  font-size: clamp(18px, 1.64vw, 21px);
   line-height: 1.5;
-  color: var(--body-text);
+  color: var(--fd-body);
 }
 
-.landing-hero-actions {
+/* --------------------------------------------------------- door one */
+
+.landing-door-one {
+  margin-top: 36px;
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  padding-top: 8px;
-}
-
-.landing-hero-art {
-  height: clamp(320px, 37.5vw, 540px);
-  border-radius: 40px;
-  background: var(--cheddar);
-  display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 28px;
+  padding: 40px;
+  border-radius: 28px;
+  background: var(--fd-ink);
+  color: #ffffff;
 }
 
-.landing-hero-plate {
-  width: min(400px, 76%);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--crumb);
+.landing-door-one-text {
+  flex: 1 1 320px;
+}
+
+.landing-door-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--fd-cheddar);
+}
+
+.landing-door-one h2 {
+  margin-top: 8px;
+  font-size: clamp(32px, 3.28vw, 42px);
+  letter-spacing: -0.5px;
+}
+
+.landing-door-one p {
+  margin-top: 10px;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--fd-on-dark-soft);
+}
+
+.landing-audiences {
+  flex: 2 1 560px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.landing .landing-audience {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 150px;
+  box-sizing: border-box;
+  padding: 22px 18px;
+  border-radius: 20px;
+  color: var(--fd-ink);
+  text-decoration: none;
 }
 
-/* 290px of the 400px plate in the reference. */
-.landing-hero-mark {
-  width: 72.5%;
-  height: auto;
+.landing-audience:hover .landing-audience-name {
+  text-decoration: underline;
 }
 
-/* Products */
+.landing-audience:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.landing-audience-cheddar {
+  background: var(--fd-cheddar);
+}
+
+.landing-audience-teal {
+  background: var(--fd-teal);
+}
+
+.landing-audience-coral {
+  background: var(--fd-coral);
+}
+
+.landing-audience-name {
+  font-family: var(--fd-heading);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.landing-audience-text {
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------------- door two */
+
+.landing-door-two {
+  margin-top: 72px;
+  scroll-margin-top: 16px;
+}
+
+.landing-eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--fd-muted);
+}
+
+.landing-door-two h2 {
+  margin-top: 12px;
+  font-size: clamp(36px, 4.22vw, 54px);
+  line-height: 1.05;
+  letter-spacing: -1px;
+}
 
 .landing-products {
-  padding: var(--section-pad) var(--pad);
-  background: var(--cream);
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
-}
-
-.landing-section-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.landing-products h2 {
-  font-size: clamp(38px, 4.445vw, 64px);
-  line-height: 1.05;
-  letter-spacing: -2px;
-}
-
-.landing-product-grid {
+  margin-top: 32px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 32px;
-}
-
-.landing-product {
-  padding: clamp(28px, 3.334vw, 48px);
-  border-radius: 32px;
-  display: flex;
-  flex-direction: column;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
 
+.landing-product {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 36px 32px;
+  border-radius: 28px;
+  color: #ffffff;
+}
+
 .landing-product-warren {
-  --badge-bg: var(--toast);
-  --kind-colour: var(--crumb);
-  --dot: var(--cheddar);
-  --status-border: var(--crumb);
-  background: var(--warren-green);
-  color: var(--toast);
+  background: var(--fd-warren);
 }
 
 .landing-product-burrow {
-  --badge-bg: var(--crumb);
-  --kind-colour: var(--cream);
-  --dot: var(--crumb);
-  --status-border: var(--cream);
-  background: var(--burrow-rust);
-  color: var(--cream);
+  background: var(--fd-burrow);
+}
+
+.landing-product-meadow {
+  background: var(--fd-meadow);
 }
 
 .landing-product-title {
   display: flex;
   align-items: center;
-  gap: 24px;
-}
-
-.landing-product-title > div:last-child {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 16px;
 }
 
 .landing-product-badge {
   flex: none;
-  width: 96px;
-  height: 96px;
-  border-radius: 24px;
-  background: var(--badge-bg);
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
+  background: var(--fd-page);
 }
 
 .landing-product h3 {
-  font-size: clamp(38px, 3.612vw, 52px);
+  font-size: 40px;
   line-height: 1;
-  letter-spacing: -1px;
 }
 
 .landing-product-kind {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 3px;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--kind-colour);
+  color: var(--fd-page);
 }
 
 .landing-product > p {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.5;
 }
 
 .landing-product-points {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  font-size: 18px;
-  line-height: 1.4;
+  font-size: 16px;
 }
 
 .landing-product-points li {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .landing-dot {
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
-  border-radius: 5px;
-  background: var(--dot);
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--fd-cheddar);
 }
 
-.landing-product-status {
-  align-self: flex-start;
-  padding: 8px 16px;
-  border: 1.5px solid var(--status-border);
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 500;
+.landing-product-burrow .landing-dot {
+  background: var(--fd-page);
 }
 
-/* Who it's for */
-
-.landing-who {
-  padding: var(--section-pad) var(--pad);
-  background: var(--ink);
-  color: var(--toast);
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(32px, 3.89vw, 56px);
-}
-
-.landing .landing-who h2 {
-  font-size: clamp(36px, 3.89vw, 56px);
-  line-height: 1.05;
-  letter-spacing: -2px;
-  color: var(--cheddar);
-}
-
-.landing-who-item {
+.landing-product-foot {
+  margin-top: auto;
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding-top: 8px;
 }
 
-.landing .landing-who-item h3 {
-  font-weight: 500;
-  font-size: 30px;
-}
-
-.landing-who-item p {
-  font-size: 19px;
-  line-height: 1.55;
-  color: var(--tan);
-}
-
-/* Why Rarebit */
-
-.landing-why {
-  padding: var(--section-pad) var(--pad);
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
-}
-
-.landing-why h2 {
-  font-size: clamp(36px, 3.89vw, 56px);
-  line-height: 1.05;
-  letter-spacing: -2px;
-}
-
-.landing-why-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 40px;
-}
-
-.landing-why-item {
-  padding-top: 28px;
-  border-top: 3px solid var(--ink);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.landing-why-number {
-  font-family: var(--fraunces);
+.landing-product-status {
+  padding: 6px 14px;
+  border: 1.5px solid var(--fd-page);
+  border-radius: 999px;
+  font-size: 13px;
   font-weight: 600;
-  font-size: 44px;
-  color: var(--crust);
 }
 
-.landing .landing-why-item h3 {
-  font-family: var(--dm-sans);
+.landing .landing-product-signin {
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: var(--fd-page);
+  font-size: 15px;
   font-weight: 700;
-  font-size: 24px;
-}
-
-.landing-why-item p {
-  font-size: 18px;
-  line-height: 1.55;
-  color: var(--body-text);
-}
-
-/* Contact */
-
-.landing-contact {
-  margin: 0 var(--pad);
-  padding: clamp(36px, 5vw, 72px) clamp(24px, 5.556vw, 80px);
-  border-radius: 40px;
-  background: var(--cheddar);
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 48px;
-}
-
-.landing-contact-text {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 720px;
-}
-
-.landing-contact h2 {
-  font-size: clamp(36px, 3.89vw, 56px);
-  line-height: 1.05;
-  letter-spacing: -2px;
-}
-
-.landing-contact-text p {
-  font-size: 20px;
-  line-height: 1.5;
-}
-
-.landing-contact-actions {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-}
-
-.landing-contact-email {
-  font-size: 16px;
-}
-
-/* Footer */
-
-.landing-footer {
-  flex-grow: 1;
-  padding: var(--section-pad) var(--pad) 64px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 48px;
-}
-
-.landing-footer-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 48px;
-}
-
-.landing-footer-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.landing-footer-wordmark {
-  font-family: var(--fraunces);
-  font-weight: 600;
-  font-size: 40px;
-  letter-spacing: -1px;
-}
-
-.landing-footer-tagline {
-  font-size: 16px;
-  color: var(--muted);
-}
-
-.landing-footer-links {
-  display: flex;
-  gap: clamp(48px, 6.667vw, 96px);
-  font-size: 17px;
-}
-
-.landing-footer-column {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.landing-footer-heading {
-  font-weight: 700;
-}
-
-.landing-footer-column a {
-  color: var(--body-text);
   text-decoration: none;
 }
 
-.landing-footer-bottom {
-  padding-top: 24px;
-  border-top: 1px solid var(--rule);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px 24px;
-  font-size: 15px;
-  color: var(--muted);
+.landing .landing-product-signin:hover {
+  text-decoration: underline;
 }
 
-/* Narrow screens: one column throughout. */
+.landing-product-signin:focus-visible {
+  outline: 3px solid var(--fd-page);
+  outline-offset: 3px;
+}
+
+.landing .landing-product-warren .landing-product-signin {
+  color: var(--fd-warren);
+}
+
+.landing .landing-product-burrow .landing-product-signin {
+  color: var(--fd-burrow-dark);
+}
+
+.landing .landing-product-meadow .landing-product-signin {
+  color: var(--fd-meadow-dark);
+}
+
+/* --------------------------------------------------------- promises */
+
+.landing-promises {
+  margin-top: 72px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.landing-promise {
+  padding: 24px;
+  border: 1.5px solid var(--fd-rule);
+  border-radius: 20px;
+  background: var(--fd-card);
+}
+
+.landing-promise h3 {
+  font-size: 22px;
+}
+
+.landing-promise p {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--fd-body);
+}
+
+/* ----------------------------------------------------------- footer */
+
+/* The shared Skills England footer (SkillsEnglandFooter), in the front
+   door's colours. */
+.landing-footer {
+  --footer-background: var(--fd-page);
+  --footer-border: var(--fd-rule);
+  --footer-text: var(--fd-muted);
+  --footer-link: var(--fd-ink);
+  box-sizing: border-box;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px 24px;
+}
+
+.landing-footer .app-footer-inner {
+  max-width: none;
+  padding: 20px 0 0;
+}
+
+/* ------------------------------------------------------- small screens */
+
 @media (max-width: 900px) {
-  .landing-hero,
-  .landing-product-grid,
-  .landing-who,
-  .landing-why-grid {
+  .landing-products,
+  .landing-promises {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .landing-hero-art {
-    height: auto;
-    padding: 40px 0;
+  .landing-door-two,
+  .landing-promises {
+    margin-top: 56px;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-page {
+    padding: 16px 16px 40px;
   }
 
-  .landing-contact {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 32px;
+  .landing-footer {
+    padding: 0 16px 20px;
   }
 
-  .landing-contact-actions {
-    align-items: flex-start;
+  .landing-door-one {
+    padding: 28px 20px;
+    border-radius: 24px;
   }
 
-  .landing-footer-top {
-    flex-direction: column;
+  .landing-audiences {
+    flex-basis: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing .landing-audience {
+    min-height: 0;
+  }
+
+  .landing-product {
+    padding: 28px 22px;
+    border-radius: 24px;
+  }
+
+  .landing-product h3 {
+    font-size: 34px;
+  }
+
+  .landing-product-badge {
+    width: 72px;
+    height: 72px;
   }
 }

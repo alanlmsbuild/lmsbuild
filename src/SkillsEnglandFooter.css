@@ -46,7 +46,7 @@
 @media (prefers-color-scheme: dark) {
   /* The white logo is landscape rather than stacked, so it's shorter for
      the same visual weight. */
-  .footer-logo {
+  .footer-logo:not(.footer-logo-light) {
     height: 40px;
   }
 }

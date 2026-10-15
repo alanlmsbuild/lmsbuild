@@ -3,21 +3,25 @@ import './SkillsEnglandFooter.css'
 // The Skills England logo and attribution (required by their data terms),
 // the OGL credit for the LARS data, and our copyright. Shared by Warren and
 // every Burrow screen, so the required wording lives in one place.
-function SkillsEnglandFooter() {
+// alwaysLight: for a light-only page (the front door), the blue logo even
+// when the device is in dark mode.
+function SkillsEnglandFooter({ alwaysLight = false }) {
   return (
     <footer className="app-footer">
       <div className="app-footer-inner">
         {/* Skills England's official colourways, used unchanged: the blue
             stacked logo normally, their all-white landscape one in dark mode. */}
         <picture>
-          <source
-            media="(prefers-color-scheme: dark)"
-            srcSet="/brand/skills-england_lesser_arms_landscape-se-logo-white.svg"
-          />
+          {!alwaysLight && (
+            <source
+              media="(prefers-color-scheme: dark)"
+              srcSet="/brand/skills-england_lesser_arms_landscape-se-logo-white.svg"
+            />
+          )}
           <img
             src="/brand/skills-england_lesser_arms_stacked-dfe-blue-se-logo.svg"
             alt="Skills England"
-            className="footer-logo"
+            className={alwaysLight ? 'footer-logo footer-logo-light' : 'footer-logo'}
           />
         </picture>
         {/* Attribution statement for online publications, worded exactly

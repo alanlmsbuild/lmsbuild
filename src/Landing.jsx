@@ -1,23 +1,100 @@
 import { createPortal } from 'react-dom'
 import './Landing.css'
-import { useShell } from './shell/navigation'
-import RarebitMark from './logos/RarebitMark'
-import WarrenMark from './logos/WarrenMark'
-import BurrowMark from './logos/BurrowMark'
+import { signInPath, useShell } from './shell/navigation'
+import SkillsEnglandFooter from './SkillsEnglandFooter'
 
-// The Rarebit front page at "/". Recreated from the "Toasted" design
-// reference in docs/design/landing-toasted.html - same sections, wording,
-// colours and fonts - but responsive instead of a fixed 1440px layout.
-// "Book a demo" goes to #contact until there's a booking form.
+// The Rarebit front door at "/" (decision 29). Recreated from the design
+// reference in docs/design/landing-front-door.html - same sections, wording,
+// colours and fonts - and responsive. Two doors: people exploring their
+// options (the options app, not built here yet: its buttons go to "#"), and
+// the products for providers, colleges and employers. Warren and Burrow sign
+// in on the sign-in page; Meadow's screens aren't built here yet ("#").
 
-function ProductPoint({ children }) {
+const AUDIENCES = [
+  { name: 'School leaver', text: 'Work out what you like, then see where it could take you.', tone: 'cheddar' },
+  { name: '18 or over', text: 'Just show me my options: courses, apprenticeships, jobs and support.', tone: 'teal' },
+  { name: 'Parent or carer', text: 'Compare colleges, universities and the places around them.', tone: 'coral' },
+]
+
+function WarrenIcon() {
   return (
-    <li>
-      <span className="landing-dot" aria-hidden="true" />
-      <span>{children}</span>
-    </li>
+    <svg width="52" height="40" viewBox="0 0 52 40">
+      <path d="M6 8l10 24 10-18 10 18 10-24" stroke="#2E5A4C" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="6" cy="8" r="4" fill="#E9A23B" />
+      <circle cx="26" cy="14" r="4" fill="#E9A23B" />
+      <circle cx="46" cy="8" r="4" fill="#E9A23B" />
+    </svg>
   )
 }
+
+function BurrowIcon() {
+  return (
+    <svg width="44" height="48" viewBox="0 0 44 48">
+      <path d="M4 46V24a18 18 0 0 1 36 0v22z" fill="#B4532A" />
+      <path d="M11 46V25a11 11 0 0 1 22 0v21z" fill="#2A1F17" />
+      <rect x="15" y="28" width="15" height="12" rx="2" fill="#F6EEDC" />
+      <rect x="15" y="28" width="15" height="4" rx="2" fill="#E9A23B" />
+    </svg>
+  )
+}
+
+function MeadowIcon() {
+  return (
+    <svg width="52" height="40" viewBox="0 0 52 40">
+      <circle cx="38" cy="12" r="7" fill="#E9A23B" />
+      <path d="M2 36c8-14 16-20 24-20s16 6 24 20z" fill="#3F5683" />
+      <path d="M14 36v-7M20 36v-9M32 36v-8M38 36v-6" stroke="#F6EEDC" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+const PRODUCTS = [
+  {
+    key: 'warren',
+    name: 'Warren',
+    kind: 'Learning management',
+    Icon: WarrenIcon,
+    text: 'Everything a training provider records about a learner, in one place.',
+    points: ['Learner records built on the ILR specification', 'Real apprenticeship standards from LARS', 'Caseloads, reviews and a live dashboard'],
+    status: 'In pilot',
+    signIn: signInPath('/app'),
+  },
+  {
+    key: 'burrow',
+    name: 'Burrow',
+    kind: 'E-portfolio',
+    Icon: BurrowIcon,
+    text: 'A home for the evidence learners build, and the proof they’ve built it.',
+    points: ['Evidence mapped to each standard’s KSBs', 'Assessor review and sign-off', 'Learners keep what they’ve learned'],
+    status: 'In development',
+    signIn: signInPath('/burrow'),
+  },
+  {
+    key: 'meadow',
+    name: 'Meadow',
+    kind: 'Recruitment CRM',
+    Icon: MeadowIcon,
+    text: 'From first enquiry to someone who stays the course, with employers alongside.',
+    points: ['People and employer pipelines', 'Matching on interests, skills and travel', 'Hands over to Warren, no questions asked twice'],
+    status: 'Designed',
+    signIn: '#',
+  },
+]
+
+const PROMISES = [
+  {
+    title: 'Nobody pays to be higher',
+    text: 'Colleges, universities and providers can’t buy a better place. Every option is shown the same way.',
+  },
+  {
+    title: 'Official facts, plainly put',
+    text: 'Every figure says where it came from and when. Small groups are flagged, never hidden behind a percentage.',
+  },
+  {
+    title: 'Your details stay yours',
+    text: 'Nothing is shared with a college, provider or employer unless you choose to, and you can delete it any time.',
+  },
+]
 
 function Landing() {
   // The shared header (src/shell) shows the Rarebit mark and "Sign in";
@@ -25,167 +102,94 @@ function Landing() {
   const { tabSlot } = useShell()
   return (
     <div className="landing">
-      <div id="top" className="landing-page">
-        {tabSlot &&
-          createPortal(
-            <nav aria-label="Main">
-              <a href="#products" className="shell-tab">
-                Products
-              </a>
-              <a href="#who" className="shell-tab">
-                Who it’s for
-              </a>
-              <a href="#why" className="shell-tab">
-                Why Rarebit
-              </a>
-            </nav>,
-            tabSlot,
-          )}
-
-        <section className="landing-hero">
-          <div className="landing-hero-text">
-            <div className="landing-eyebrow">Learning &amp; e-portfolio systems</div>
-            <h1>Learning, well toasted.</h1>
-            <p>
-              Rarebit makes Warren, a learning management system, and Burrow, an e-portfolio, for training
-              providers running apprenticeships and the Restart Scheme.
-            </p>
-            <div className="landing-hero-actions">
-              <a href="#contact" className="landing-button landing-button-crust">
-                Book a demo
-              </a>
-              <a href="#products" className="landing-button landing-button-outline">
-                See the products
-              </a>
-            </div>
-          </div>
-          <div className="landing-hero-art">
-            <div className="landing-hero-plate">
-              <RarebitMark size={290} className="landing-hero-mark" />
-            </div>
-          </div>
-        </section>
-
-        <section id="products" className="landing-products">
-          <div className="landing-section-heading">
-            <div className="landing-eyebrow">Two products</div>
-            <h2>One warren for learning and evidence.</h2>
-          </div>
-          <div className="landing-product-grid">
-            <article className="landing-product landing-product-warren">
-              <div className="landing-product-title">
-                <div className="landing-product-badge">
-                  <WarrenMark size={70} />
-                </div>
-                <div>
-                  <h3>Warren</h3>
-                  <div className="landing-product-kind">Learning management</div>
-                </div>
-              </div>
-              <p>Everything a training provider records about a learner, in one place.</p>
-              <ul className="landing-product-points">
-                <ProductPoint>Learner records built on the ILR specification</ProductPoint>
-                <ProductPoint>Real apprenticeship standards from LARS</ProductPoint>
-                <ProductPoint>Tutors, assessors and a live dashboard</ProductPoint>
-              </ul>
-              <div className="landing-product-status">In pilot</div>
-            </article>
-
-            <article className="landing-product landing-product-burrow">
-              <div className="landing-product-title">
-                <div className="landing-product-badge">
-                  <BurrowMark size={74} />
-                </div>
-                <div>
-                  <h3>Burrow</h3>
-                  <div className="landing-product-kind">E-portfolio</div>
-                </div>
-              </div>
-              <p>A home for the evidence learners build, and the proof they’ve built it.</p>
-              <ul className="landing-product-points">
-                <ProductPoint>Evidence mapped to each standard’s knowledge, skills and behaviours</ProductPoint>
-                <ProductPoint>Assessor review and sign-off</ProductPoint>
-                <ProductPoint>Learners keep what they’ve learned</ProductPoint>
-              </ul>
-              <div className="landing-product-status">In development</div>
-            </article>
-          </div>
-        </section>
-
-        <section id="who" className="landing-who">
-          <h2>Built for two kinds of provider.</h2>
-          <div className="landing-who-item">
-            <h3>Apprenticeship providers</h3>
-            <p>Track each apprentice against their standard, from the first day to end-point assessment.</p>
-          </div>
-          <div className="landing-who-item">
-            <h3>Restart Scheme providers</h3>
-            <p>Keep participants’ progress, support and outcomes together, ready for reporting.</p>
-          </div>
-        </section>
-
-        <section id="why" className="landing-why">
-          <h2>Why Rarebit</h2>
-          <div className="landing-why-grid">
-            <div className="landing-why-item">
-              <div className="landing-why-number">01</div>
-              <h3>Official data at the core</h3>
-              <p>
-                Apprenticeship standards and learning aims come from the government’s LARS data, refreshed in
-                minutes when a new version is published.
-              </p>
-            </div>
-            <div className="landing-why-item">
-              <div className="landing-why-number">02</div>
-              <h3>Built around the ILR</h3>
-              <p>Learner records follow the Individualised Learner Record, so your returns start from clean data.</p>
-            </div>
-            <div className="landing-why-item">
-              <div className="landing-why-number">03</div>
-              <h3>Your learners stay yours</h3>
-              <p>Designed so each provider sees only its own learners and their evidence.</p>
-            </div>
-          </div>
-        </section>
-
-        <section id="contact" className="landing-contact">
-          <div className="landing-contact-text">
-            <h2>See Warren in action.</h2>
-            <p>Book a short demo, and we’ll walk you through it with your own programmes in mind.</p>
-          </div>
-          <div className="landing-contact-actions">
-            <a href="#contact" className="landing-button landing-button-ink">
-              Book a demo
+      {tabSlot &&
+        createPortal(
+          <nav aria-label="Main">
+            <a href="#explore" className="shell-tab">
+              Explore options
             </a>
-            {/* Placeholder kept exactly as in the design until the real address is decided. */}
-            <div className="landing-contact-email">or email [your email address]</div>
+            <a href="#products" className="shell-tab">
+              For providers and employers
+            </a>
+            <a href="#promise" className="shell-tab">
+              Our promise
+            </a>
+          </nav>,
+          tabSlot,
+        )}
+
+      <main className="landing-page">
+        <section className="landing-hero">
+          <h1>Honest options, for everyone.</h1>
+          <p>
+            College, sixth form, university, apprenticeships, gap years and jobs, explained plainly, with the same
+            facts for everyone. Pick the door that fits you.
+          </p>
+        </section>
+
+        <section id="explore" aria-label="Exploring my options" className="landing-door-one">
+          <div className="landing-door-one-text">
+            <div className="landing-door-label">Door one</div>
+            <h2>I’m exploring my options</h2>
+            <p>Free, no account needed. Nothing is compulsory, and you can change your mind any time.</p>
+          </div>
+          <div className="landing-audiences">
+            {AUDIENCES.map((a) => (
+              <a key={a.name} href="#" className={`landing-audience landing-audience-${a.tone}`}>
+                <span className="landing-audience-name">{a.name}</span>
+                <span className="landing-audience-text">{a.text}</span>
+              </a>
+            ))}
           </div>
         </section>
 
-        <footer className="landing-footer">
-          <div className="landing-footer-top">
-            <div className="landing-footer-brand">
-              <div className="landing-footer-wordmark">rarebit</div>
-              <div className="landing-footer-tagline">Learning &amp; e-portfolio systems</div>
-            </div>
-            <div className="landing-footer-links">
-              <div className="landing-footer-column">
-                <div className="landing-footer-heading">Products</div>
-                <a href="#products">Warren</a>
-                <a href="#products">Burrow</a>
-              </div>
-              <div className="landing-footer-column">
-                <div className="landing-footer-heading">Company</div>
-                <a href="#contact">Contact</a>
-                <a href="#top">Privacy policy</a>
-              </div>
-            </div>
+        <section id="products" aria-label="I work with learners" className="landing-door-two">
+          <div className="landing-eyebrow">Door two · for providers, colleges and employers</div>
+          <h2>One warren for recruitment, learning and evidence.</h2>
+          <div className="landing-products">
+            {PRODUCTS.map(({ key, name, kind, Icon, text, points, status, signIn }) => (
+              <article key={key} className={`landing-product landing-product-${key}`}>
+                <div className="landing-product-title">
+                  <div className="landing-product-badge" aria-hidden="true">
+                    <Icon />
+                  </div>
+                  <div>
+                    <h3>{name}</h3>
+                    <div className="landing-product-kind">{kind}</div>
+                  </div>
+                </div>
+                <p>{text}</p>
+                <ul className="landing-product-points">
+                  {points.map((point) => (
+                    <li key={point}>
+                      <span className="landing-dot" aria-hidden="true" />
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+                <div className="landing-product-foot">
+                  <span className="landing-product-status">{status}</span>
+                  <a href={signIn} className="landing-product-signin">
+                    Sign in to {name}
+                  </a>
+                </div>
+              </article>
+            ))}
           </div>
-          <div className="landing-footer-bottom">
-            <div>© 2026 Rarebit. All rights reserved.</div>
-            <div>Warren · Burrow</div>
-          </div>
-        </footer>
+        </section>
+
+        <section id="promise" aria-label="Our promise" className="landing-promises">
+          {PROMISES.map((p) => (
+            <div key={p.title} className="landing-promise">
+              <h3>{p.title}</h3>
+              <p>{p.text}</p>
+            </div>
+          ))}
+        </section>
+      </main>
+
+      <div className="landing-footer">
+        <SkillsEnglandFooter alwaysLight />
       </div>
     </div>
   )
