@@ -13,7 +13,9 @@
 //                  across schemas)
 //   5. check:tags  SILVER itself
 //   6. data quality: Snowflake's data metric functions attached to the key
-//                  SILVER tables and measured once (scripts/data-quality.js);
+//                  SILVER and GOLD tables and measured once
+//                  (scripts/data-quality.js; on gold, also the honesty
+//                  rules' SHOWN_BASE_UNDER_10);
 //                  results in the summary (dataQuality), a missed
 //                  expectation logged as a warning
 //
@@ -136,8 +138,9 @@ export async function runJob({ log = console.log } = {}) {
   log(`transform-silver: ${lastLines(silverTags.out, 1)}`)
 
   // 6. The data metric functions (scripts/data-quality.js): attached to the
-  // new SILVER tables, measured once, results in the summary. A missed
-  // expectation is a warning (SILVER has passed its dbt tests); failing to
+  // new SILVER and GOLD tables, measured once, results in the summary. A
+  // missed expectation is a warning (the tables have passed their dbt
+  // tests); failing to
   // attach or measure fails the run.
   const dq = await connect({ as: 'transform', timeoutMs: 30000 })
   try {

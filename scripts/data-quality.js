@@ -1,13 +1,16 @@
-// data-quality.js - Snowflake data metric functions on the key silver tables
-// (decision 21; sql/silver_03_dmf.sql), attached by the transform job after
-// each day's swap (scripts/transform-silver.js).
+// data-quality.js - Snowflake data metric functions on the key silver and
+// gold tables (decision 21; sql/silver_03_dmf.sql, sql/gold_01_setup.sql),
+// attached by the transform job after each day's swap
+// (scripts/transform-silver.js).
 //
 // A swapped-in table is new each day: dbt builds it from scratch in
-// SILVER_STAGING, and a swap moves a table's metric bindings with it (tested
-// 14 October 2026). So after the swap the SILVER tables have none, and the
-// previous versions, now in SILVER_STAGING, carry yesterday's. The job:
-//   1. removes the bindings from the SILVER_STAGING tables
-//   2. attaches every metric below to its SILVER table, each with its
+// SILVER_STAGING or GOLD_STAGING, and a swap moves a table's metric
+// bindings with it (tested 14 October 2026). So after the swap the SILVER
+// and GOLD tables have none, and the previous versions, now in the
+// _STAGING schemas, carry yesterday's. The job:
+//   0. makes the custom metric if it isn't there (SHOWN_BASE_UNDER_10, below)
+//   1. removes the bindings from the _STAGING tables
+//   2. attaches every metric below to its table, each with its
 //      expectation, on a 5-minute schedule
 //   3. waits until every metric has a measurement taken after it was
 //      attached (about 5 minutes; at most WAIT_MINUTES)
@@ -19,11 +22,24 @@
 // Results show in Snowsight (each table's Data Quality tab) and in
 // SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_RESULTS().
 //
-//   npm run check:dmf    every metric below is bound to its SILVER table,
-//                        on TRIGGER_ON_CHANGES, and SILVER_STAGING has none
+//   npm run check:dmf    every metric below is bound to its table, on
+//                        TRIGGER_ON_CHANGES, and the _STAGING tables have none
 
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { connect, execute, destroy } from '../server/db.js'
+
+// The honesty rules' "hidden below" (dbt var honesty_hide_below, checked
+// against the app's rules.mjs by check:dbt): one source for both.
+const HIDE_BELOW = Number(fs.readFileSync(new URL('../dbt/dbt_project.yml', import.meta.url), 'utf8').match(/honesty_hide_below:\s*(\d+)/)[1])
+
+// The custom metric on gold (the gold plan): how many rows show a figure
+// based on fewer than HIDE_BELOW people. Always 0 if the honesty rules hold.
+export const SHOWN_BASE_UNDER = `SHARED_DB.GOVERNANCE.SHOWN_BASE_UNDER_${HIDE_BELOW}`
+const CREATE_SHOWN_BASE_UNDER = `create data metric function if not exists ${SHOWN_BASE_UNDER}(ARG_T table(ARG_STATUS varchar, ARG_BASE number))
+  returns number
+  comment = 'Rows that show a figure (status shown) based on fewer than ${HIDE_BELOW} people: the honesty rules (dbt macros/figure.sql) say none. Attached to the gold figure tables by scripts/data-quality.js.'
+  as 'select count_if(ARG_STATUS = ''shown'' and ARG_BASE < ${HIDE_BELOW}) from ARG_T'`
 
 // The metrics, with thresholds from the tables on 14 October 2026 (in
 // brackets) and room for normal change. FRESHNESS needs a timestamp column,
@@ -33,6 +49,7 @@ const rows = (min, max) => ({ fn: 'ROW_COUNT', on: [], name: 'ROWS_IN_RANGE', ex
 const nulls = (col, max = 0) => ({ fn: 'NULL_COUNT', on: [col], name: `${col}_NULLS`.toUpperCase(), expect: max ? `VALUE <= ${max}` : 'VALUE = 0' })
 const dupes = (col) => ({ fn: 'DUPLICATE_COUNT', on: [col], name: `${col}_UNIQUE`.toUpperCase(), expect: 'VALUE = 0' })
 const fresh = (col, hours) => ({ fn: 'FRESHNESS', on: [col], name: `${col}_FRESH`.toUpperCase(), expect: `VALUE <= ${hours * 3600}` })
+const honest = () => ({ fn: SHOWN_BASE_UNDER, on: ['status', 'base'], name: `SHOWN_BASE_UNDER_${HIDE_BELOW}`, expect: 'VALUE = 0' })
 
 export const QUALITY = {
   'SHARED_DB.SILVER.POSTCODE': [rows(2_600_000, 2_900_000), dupes('postcode'), nulls('postcode'), nulls('local_authority_code', 30_000)], // 2,729,090; 24,265 no LA
@@ -42,13 +59,24 @@ export const QUALITY = {
   'SHARED_DB.SILVER.VACANCY_SOC': [rows(1_000), dupes('vacancy_soc_key'), nulls('soc_title')], // 5,898
   'OPTIONS_DB.SILVER.PROVIDER': [rows(25_000, 29_000), dupes('ukprn'), nulls('name')], // 26,696
   'OPTIONS_DB.SILVER.COLLEGE_16_18': [rows(2_500, 3_100), dupes('urn'), nulls('name'), nulls('results_year')], // 2,792
+  // Gold (15 October 2026): the figure tables also get the honesty metric.
+  'OPTIONS_DB.GOLD.INSTITUTION_CARD': [rows(2_500, 2_900), dupes('urn'), nulls('name')], // 2,689
+  'OPTIONS_DB.GOLD.INSTITUTION_RESULT': [rows(65_000, 85_000), dupes('result_key'), honest()], // 74,281
+  'OPTIONS_DB.GOLD.INSTITUTION_ACHIEVEMENT': [rows(1_000, 1_500), dupes('achievement_key'), honest()], // 1,246
+  'OPTIONS_DB.GOLD.UNIVERSITY_COURSE_CARD': [rows(27_000, 34_000), dupes('course_key'), nulls('title')], // 30,562
+  'OPTIONS_DB.GOLD.UNIVERSITY_COURSE_RESULT': [rows(100_000, 125_000), dupes('outcome_key'), honest()], // 112,156
+  'SHARED_DB.GOLD.VACANCY_CARD': [rows(1_000), dupes('vacancy_reference'), nulls('title')], // 3,799
+  'SHARED_DB.GOLD.JOB_OUTLOOK': [rows(5_300, 5_400), dupes('outlook_key')], // 5,356: every SOC unit group by 13 areas
+  'SHARED_DB.GOLD.AREA_PROFILE': [rows(350, 370), dupes('local_authority_code'), nulls('name')], // 361
+  'SHARED_DB.GOLD.POSTCODE_AREA': [rows(2_600_000, 2_900_000), dupes('postcode_compact')], // 2,729,090
+  'SHARED_DB.GOLD.PROVIDER_BENCHMARK': [rows(55_000, 85_000), dupes('benchmark_key'), honest()], // 68,061
 }
 export const WAIT_MINUTES = 15
 const POLL_SECONDS = 30
 
-const staged = (table) => table.replace('.SILVER.', '.SILVER_STAGING.')
+const staged = (table) => table.replace(/\.(SILVER|GOLD)\./, '.$1_STAGING.')
 const db = (table) => table.split('.')[0]
-const fnName = (m) => `SNOWFLAKE.CORE.${m.fn}`
+const fnName = (m) => (m.fn.includes('.') ? m.fn : `SNOWFLAKE.CORE.${m.fn}`)
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms))
 // A list Snowflake returns as an array or as JSON text.
 const list = (x) => (Array.isArray(x) ? x : JSON.parse(x || '[]'))
@@ -69,7 +97,9 @@ async function tableExists(c, table) {
 // Steps 1 to 5. Returns the summary for OPS.JOB_RUN: metrics measured,
 // expectations met and missed (each missed one with its value).
 export async function measure(c, { log = console.log, waitMinutes = WAIT_MINUTES } = {}) {
-  // 1. Yesterday's bindings, carried into SILVER_STAGING by the swap.
+  // 0. The custom metric.
+  await execute(c, CREATE_SHOWN_BASE_UNDER)
+  // 1. Yesterday's bindings, carried into the _STAGING schemas by the swap.
   let removed = 0
   for (const table of Object.keys(QUALITY).map(staged)) {
     if (!(await tableExists(c, table))) continue
@@ -91,7 +121,7 @@ export async function measure(c, { log = console.log, waitMinutes = WAIT_MINUTES
       attached++
     }
   }
-  log(`data quality: ${removed} old bindings removed from SILVER_STAGING; ${attached} metrics attached to ${Object.keys(QUALITY).length} SILVER tables; waiting for their first measurement`)
+  log(`data quality: ${removed} old bindings removed from the _STAGING schemas; ${attached} metrics attached to ${Object.keys(QUALITY).length} SILVER and GOLD tables; waiting for their first measurement`)
   // 3. Wait for a measurement of every expectation after attachedAt.
   const expected = Object.values(QUALITY).flat().length
   const deadline = Date.now() + waitMinutes * 60_000
@@ -121,8 +151,8 @@ export async function measure(c, { log = console.log, waitMinutes = WAIT_MINUTES
   return summary
 }
 
-// check:dmf - every metric bound to its SILVER table on TRIGGER_ON_CHANGES,
-// nothing else bound there, and nothing bound in SILVER_STAGING.
+// check:dmf - every metric bound to its table on TRIGGER_ON_CHANGES,
+// nothing else bound there, and nothing bound in the _STAGING schemas.
 export async function checkBindings(c) {
   const problems = []
   for (const [table, metrics] of Object.entries(QUALITY)) {
@@ -151,6 +181,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     await destroy(c)
   }
   for (const p of problems) console.log(`FAIL ${p}`)
-  console.log(problems.length ? `\n${problems.length} problem(s).` : `${Object.values(QUALITY).flat().length} data metric functions on ${Object.keys(QUALITY).length} SILVER tables, all attached on TRIGGER_ON_CHANGES; none left in SILVER_STAGING.`)
+  console.log(problems.length ? `\n${problems.length} problem(s).` : `${Object.values(QUALITY).flat().length} data metric functions on ${Object.keys(QUALITY).length} SILVER and GOLD tables, all attached on TRIGGER_ON_CHANGES; none left in the _STAGING schemas.`)
   process.exit(problems.length ? 1 : 0)
 }

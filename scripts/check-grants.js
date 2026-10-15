@@ -337,10 +337,13 @@ export function transformGrantProblems(grants, userRoles, holders) {
       ok = (privilege === 'SELECT' && inSchema(name, TRANSFORM_READ_SCHEMAS)) ||
         (privilege === 'OWNERSHIP' && inSchema(name, BUILT_SCHEMAS)) ||
         (name === 'SHARED_DB.OPS.JOB_RUN' && ['SELECT', 'INSERT', 'UPDATE'].includes(privilege))
-    } else if (on === 'DYNAMIC_TABLE') {
+    } else if (on === 'DYNAMIC_TABLE' || on === 'MATERIALIZED_VIEW') {
       // Snowflake makes one of these, named by an ID, for each table whose
-      // data metric functions run on TRIGGER_ON_CHANGES (seen 14 October
-      // 2026, scripts/data-quality.js); it is owned by the table's owner.
+      // data metric functions run on TRIGGER_ON_CHANGES (a dynamic table,
+      // seen 14 October 2026), and a materialized view for each table with
+      // our own metric, SHOWN_BASE_UNDER_10 (seen 15 October 2026; hidden
+      // from SHOW; scripts/data-quality.js). Each is owned by the table's
+      // owner.
       ok = privilege === 'OWNERSHIP' && BUILT_SCHEMAS.some((x) => new RegExp(`^${x.replace('.', '\\.')}\\."[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}"$`).test(name))
     } else if (on === 'TAG') ok = privilege === 'APPLY' && name.startsWith('SHARED_DB.GOVERNANCE.')
     else if (on === 'WAREHOUSE') ok = privilege === 'USAGE' && name === 'TRANSFORM_WH'
