@@ -328,10 +328,15 @@ models:
       they compare and whether rising or falling (like for like), fuel
       poverty, and the most-advertised occupations. Crime is England and Wales
       (police.uk has no Police Scotland data), using only months the area's
-      force sent in full (at least half its usual month); none where no force
+      force sent in full (at least half its usual month) and that are not
+      far below the area's own usual month (under a quarter, where that is
+      20 or more: a force can leave one kind out for part of its area); none
+      where no force
       recorded reports in at least half the area's LSOAs (Greater Manchester
-      Police sends none to police.uk). The 10%, 5% and
-      half thresholds and the similar-areas grouping are Rarebit's own rules,
+      Police sends none to police.uk). POLICE_DATA_NOTE says why any figures
+      are missing or held back (the City of London gets counts, not rates, as
+      so few people live there). The 10%, 5%, half and quarter thresholds and the
+      similar-areas grouping are Rarebit's own rules,
       not ONS's or the police's.
     config:
       meta:
@@ -361,7 +366,7 @@ models:
         description: 'Its country.'
       - name: population
         data_type: number(38,0)
-        description: 'Its latest mid-year population estimate (England only).'
+        description: 'Its latest mid-year population estimate (England and Wales).'
       - name: population_year
         data_type: number(38,0)
         description: 'The year of that estimate.'
@@ -382,10 +387,10 @@ models:
         description: 'Crimes (not anti-social behaviour) in police.uk for the last 12 months, only when all 12 are complete for the area''s force.'
       - name: crime_rate_per_1000
         data_type: number(10,1)
-        description: 'Those crimes per 1,000 people (England, where population is known).'
+        description: 'Those crimes per 1,000 residents (England and Wales). Empty where POLICE_DATA_NOTE says why; never empty because there was no crime.'
       - name: crime_months_present
         data_type: number(38,0)
-        description: 'How many of the last 12 months are complete: the area''s force sent at least half its usual month (Rarebit''s rule).'
+        description: 'How many of the last 12 months are complete for crime: the area''s force sent at least half its usual month, and the area has at least a quarter of its own usual month where that is 20 or more (Rarebit''s rules).'
       - name: crime_rate_similar_areas
         data_type: number(10,1)
         description: 'The crime rate of similar areas together (same rural-urban class and deprivation fifth: Rarebit''s grouping).'
@@ -404,7 +409,7 @@ models:
         description: 'England''s crime rate per 1,000, from the English areas with figures (all 12 months complete; not Greater Manchester).'
       - name: crime_vs_england
         data_type: varchar
-        description: 'higher, lower or about the same as England (10%, Rarebit''s rule).'
+        description: 'higher, lower or about the same as England (10%, Rarebit''s rule); Welsh areas are compared with England too.'
         data_tests:
           - accepted_values:
               arguments:
@@ -427,7 +432,7 @@ models:
         description: 'Anti-social behaviour reports in the last 12 months (all 12 there).'
       - name: asb_rate_per_1000
         data_type: number(10,1)
-        description: 'Those per 1,000 people.'
+        description: 'Those per 1,000 residents. Empty where POLICE_DATA_NOTE says why.'
       - name: asb_rate_england
         data_type: number(10,1)
         description: 'England''s anti-social behaviour rate per 1,000, from the English areas with figures.'
@@ -444,6 +449,9 @@ models:
       - name: crime_last_month
         data_type: date
         description: 'The last month of the police.uk figures.'
+      - name: police_data_note
+        data_type: varchar
+        description: 'Why the crime and anti-social behaviour figures are missing or held back, in plain words (no police.uk data for Scotland, or from the area''s force; months missing; Northern Ireland''s reports carry no small-area codes; the City of London''s rates would mislead), so a blank never reads as no crime. Empty when the figures are all there.'
       - name: households
         data_type: number(38,0)
         description: 'Households (DESNZ fuel poverty statistics, England).'

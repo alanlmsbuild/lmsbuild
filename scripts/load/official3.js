@@ -59,8 +59,8 @@ export function officialSteps3(R) {
   const csv = (base, source, file, title, publisher, page, table, licence = OGL) => ({ ...base, source, publisher, licence, page, title, file, kind: 'as-downloaded', table })
   const cells = (base, source, file, member, title, publisher, page, licence = OGL) => ({ ...base, source, publisher, licence, page, title, file, member: member ?? path.basename(file),
     kind: 'converted', table: `${base.home}.RAW.PUBLISHED_CELL`, make: toCells(file, member) })
-  const nomisFiles = (id) => {
-    const set = NOMIS_SETS.find((s) => s.id === id)
+  const nomisFiles = (id, base) => {
+    const set = NOMIS_SETS.find((s) => s.id === id && (!base || s.base === base))
     const dir = path.join(R, set.dir)
     return (fs.existsSync(dir) ? fs.readdirSync(dir) : []).filter((n) => n.startsWith(set.base) && n.endsWith('.csv') && fs.existsSync(path.join(dir, `${n}.source.txt`))).sort().map((n) => path.join(dir, n))
   }
@@ -80,8 +80,11 @@ export function officialSteps3(R) {
       ...nomisFiles('NM_2014_1').map((f) => ({ ...shared, source: 'nomis-nm-2014-1', publisher: 'Office for National Statistics, via Nomis', licence: OGL, kind: 'as-downloaded',
         title: 'Population estimates, small area (2021 based), broad age groups (Nomis NM_2014_1)', file: f, table: 'SHARED_DB.RAW.NOMIS_POPULATION_LSOA',
         page: `https://www.nomisweb.co.uk/api/v01/dataset/NM_2014_1.data.csv (query: ${path.basename(f)}.source.txt beside it in the stage)`, sidecar: `${f}.source.txt` })),
-      ...nomisFiles('NM_31_1').map((f) => ({ ...shared, source: 'nomis-nm-31-1', publisher: 'Office for National Statistics, via Nomis', licence: OGL, kind: 'as-downloaded',
+      ...nomisFiles('NM_31_1', 'population_la_nm_31_1').map((f) => ({ ...shared, source: 'nomis-nm-31-1', publisher: 'Office for National Statistics, via Nomis', licence: OGL, kind: 'as-downloaded',
         title: 'Population estimates, local authority, five-year age bands (Nomis NM_31_1)', file: f, table: 'SHARED_DB.RAW.NOMIS_POPULATION_LA',
+        page: `https://www.nomisweb.co.uk/api/v01/dataset/NM_31_1.data.csv (query: ${path.basename(f)}.source.txt beside it in the stage)`, sidecar: `${f}.source.txt` })),
+      ...nomisFiles('NM_31_1', 'population_la_wales_nm_31_1').map((f) => ({ ...shared, source: 'nomis-nm-31-1', publisher: 'Office for National Statistics, via Nomis', licence: OGL, kind: 'as-downloaded',
+        title: 'Population estimates, local authority, five-year age bands, Wales (Nomis NM_31_1)', file: f, table: 'SHARED_DB.RAW.NOMIS_POPULATION_LA',
         page: `https://www.nomisweb.co.uk/api/v01/dataset/NM_31_1.data.csv (query: ${path.basename(f)}.source.txt beside it in the stage)`, sidecar: `${f}.source.txt` })),
     ] },
     34: { job: 'load-apar', files: () => [

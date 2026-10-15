@@ -2,25 +2,32 @@
 -- LOCAL_AUTHORITY), for Meadow and the school leavers app. Nothing is
 -- ranked: an area is described in words against similar areas and
 -- England, never placed in a league.
---   Population: the latest mid-year estimate (England only: Nomis NM_31_1
---     as loaded covers England).
+--   Population: the latest mid-year estimate (England and Wales: Nomis
+--     NM_31_1).
 --   Deprivation: the share of its LSOAs in England's most deprived 10%
 --     (IMD 2025; England only).
---   Crime and anti-social behaviour (police.uk; England and Wales, as
---     police.uk has no Police Scotland data): reports in the last 12 months
---     per 1,000 people, only when every one of those months is complete for
---     the area and the population is known. A month is complete when the
---     area's force (the one recording most of its reports) sent at least
---     half its usual month (its median); a force that stops sending data
---     can leave a handful of reports from neighbouring forces, which would
---     otherwise look like a fall. An area has no crime figures when no
---     force recorded reports in at least half its LSOAs (Greater Manchester
---     Police sends none to police.uk; its boroughs have only stray reports
---     from neighbouring forces). Both halves are Rarebit's own rules. Compared with similar areas and England in words: higher
---     or lower when more than 10% apart, about the same otherwise. Rising
---     or falling compares like for like: each month against the same
---     month a year before, where both are complete; rising or falling
---     when more than 5% apart (at least 6 months). Both thresholds and the
+--   Crime and anti-social behaviour (police.uk; England and Wales):
+--     reports in the last 12 months per 1,000 people, only when every one
+--     of those months is complete for the area and the population is
+--     known. A month is complete when the area's force (the one recording
+--     most of its reports) sent at least half its usual month (its
+--     median): a force that stops sending data leaves a handful of reports
+--     from neighbouring forces, which would otherwise look like a fall. A
+--     month is also missing for an area and kind (crime, or anti-social
+--     behaviour) under a quarter of the area's own usual month, where that
+--     is at least 20: a force can leave one kind out for part of its area.
+--     An area has no crime figures when no force recorded reports in at
+--     least half its LSOAs (Greater Manchester's force sends none to
+--     police.uk; its boroughs have only stray reports from neighbouring
+--     forces). The
+--     City of London gets counts but no rates: few people live there and
+--     far more work in or visit it. POLICE_DATA_NOTE says why figures are
+--     missing or held back, so a blank never reads as no crime. Compared
+--     with similar areas and England in words: higher or lower when more
+--     than 10% apart, about the same otherwise. Rising or falling compares
+--     like for like: each month against the same month a year before,
+--     where both are complete; rising or falling when more than 5% apart
+--     (at least 6 months). The half, the quarter, both thresholds and the
 --     similar-areas grouping are Rarebit's own rules, not ONS's or the
 --     police's: similar areas are English authorities whose postcodes are
 --     mostly in the same 2021 rural-urban class and which are in the same
@@ -76,15 +83,44 @@ la_force as (
   -- reports from neighbouring forces near the border).
   having count(distinct c.lsoa21_code) >= a.lsoas * 0.5
 ),
-crime_la as (
+crime_counts as (
   select l.local_authority_code, c.month, c.kind, sum(c.reports) as reports
   from {{ ref('crime_lsoa_month') }} c
   join {{ ref('lsoa') }} l on l.lsoa21_code = c.lsoa21_code
-  join la_force f on f.local_authority_code = l.local_authority_code and f.n = 1
-  join force_complete fc on fc.force = f.force and fc.month = c.month
+  where l.local_authority_code is not null
   group by 1, 2, 3
 ),
+-- Every month the area's force sent in full, for both kinds; an area with
+-- no reports in such a month had none (0).
+crime_grid as (
+  select f.local_authority_code, fc.month, k.kind, coalesce(c.reports, 0) as reports
+  from la_force f
+  join force_complete fc on fc.force = f.force
+  cross join (select 'crime' as kind union all select 'anti-social behaviour') k
+  left join crime_counts c on c.local_authority_code = f.local_authority_code and c.month = fc.month and c.kind = k.kind
+  where f.n = 1
+),
+crime_usual as (select local_authority_code, kind, median(reports) as usual from crime_grid group by 1, 2),
+-- A force can send a month in full but leave out one kind for part of its
+-- area (West Mercia: no anti-social behaviour in Worcestershire and
+-- Herefordshire in April and May 2026). So a month is also missing for an
+-- area and kind under a quarter of its usual month, where that is at least
+-- 20 (a quiet area's empty month is real). A quarter, not a half: anti-
+-- social behaviour is seasonal, and its quiet winter months fall to 25-50%
+-- of the usual, while the missing months fall to under 10%.
+crime_la as (
+  select g.local_authority_code, g.month, g.kind, g.reports
+  from crime_grid g join crime_usual u on u.local_authority_code = g.local_authority_code and u.kind = g.kind
+  where u.usual < 20 or g.reports >= u.usual * 0.25
+),
 crime_last as (select max(month) as last_month from {{ ref('crime_lsoa_month') }}),
+-- The police force area the authority is in (most of its postcodes), to
+-- name in POLICE_DATA_NOTE.
+la_pfa as (
+  select p.local_authority_code, mode(p.police_force_code) as pfa_code
+  from {{ ref('postcode') }} p where p.is_live and p.local_authority_code is not null group by 1
+),
+pfa_name as (select code, name from {{ ref('area_lookup') }} where area_type = 'police_force'),
 crime_12 as (
   select c.local_authority_code, c.kind,
          count(distinct c.month) as months_present,
@@ -105,7 +141,8 @@ crime_trend as (
 rates as (
   select c.local_authority_code, c.kind,
          case when c.months_present = 12 then c.reports end as reports_12,
-         case when c.months_present = 12 and p.population > 0 then c.reports / p.population * 1000 end as rate,
+         -- The City of London: a per-resident rate would mislead (see POLICE_DATA_NOTE).
+         case when c.months_present = 12 and p.population > 0 and c.local_authority_code <> 'E09000001' then c.reports / p.population * 1000 end as rate,
          c.months_present
   from crime_12 c left join pop p on p.area_code = c.local_authority_code
 ),
@@ -195,6 +232,15 @@ select
        when (ta.compared_last - ta.compared_previous) / ta.compared_previous < -0.05 then 'falling'
        else 'about the same' end::varchar as asb_trend,
   (select last_month from crime_last)::date as crime_last_month,
+  case
+    when la.country_name = 'Scotland' then 'police.uk has no data from Police Scotland, so there are no crime figures for Scottish areas.'
+    when la.country_name = 'Northern Ireland' then 'police.uk''s Northern Ireland reports carry no small-area codes, so they cannot be counted for a council area: there are no crime figures here.'
+    when la.local_authority_code = 'E09000001' then 'Only about ' || to_varchar(round(p.population, -2), 'FM999,999,999') || ' people live in the City of London, but far more work in or visit it, so crimes per 1,000 residents would mislead. The counts are shown; the rates and comparisons are not.'
+    when lf.local_authority_code is null then 'police.uk has no data from the police force for ' || coalesce(pn.name, 'this area') || ' over these months, so there are no crime figures.'
+    when coalesce(rc.months_present, 0) < 12 then 'police.uk is missing data from the police force for ' || coalesce(pn.name, 'this area') || ': ' || coalesce(rc.months_present, 0) || ' of the last 12 months are complete, so there is no 12-month rate.'
+    when coalesce(ra.months_present, 0) < 12 then 'police.uk is missing anti-social behaviour reports for this area from the police force for ' || coalesce(pn.name, 'this area') || ': ' || coalesce(ra.months_present, 0) || ' of the last 12 months are complete, so there is no 12-month anti-social behaviour rate. The crime figures are complete.'
+    when p.population is null then 'No population estimate for this area, so there is no rate per 1,000.'
+  end::varchar as police_data_note,
   f.households::number(38,0) as households,
   f.fuel_poor_households::number(38,0) as fuel_poor_households,
   round(f.fuel_poor_percent, 1)::number(5,1) as fuel_poor_percent,
@@ -212,6 +258,9 @@ from la
 left join pop p on p.area_code = la.local_authority_code
 left join imd i on i.local_authority_code = la.local_authority_code
 left join groups g on g.local_authority_code = la.local_authority_code
+left join la_force lf on lf.local_authority_code = la.local_authority_code and lf.n = 1
+left join la_pfa lp on lp.local_authority_code = la.local_authority_code
+left join pfa_name pn on pn.code = lp.pfa_code
 left join rates rc on rc.local_authority_code = la.local_authority_code and rc.kind = 'crime'
 left join rates ra on ra.local_authority_code = la.local_authority_code and ra.kind = 'anti-social behaviour'
 left join compare cc on cc.local_authority_code = la.local_authority_code and cc.kind = 'crime'

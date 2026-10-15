@@ -531,10 +531,11 @@ models:
 
   - name: local_authority_population
     description: >-
-      Mid-year population estimates for England and its local authority
-      districts and unitaries, all ages, every year in the latest Nomis file
-      (NM_31_1, England). Authorities as of April 2023; a code no longer used
-      is matched to todays by name.
+      Mid-year population estimates for England and Wales and their local
+      authority districts and unitaries, all ages, every year (Nomis NM_31_1,
+      fetched as an England file and a Wales file; each area and year from
+      the newest file that has it). Authorities as of April 2023; a code no
+      longer used is matched to today's by name.
     config:
       meta:
         source: nomis-nm-31-1
@@ -551,7 +552,7 @@ models:
           - not_null
       - name: area_code
         data_type: varchar
-        description: 'The area (todays local authority code, or E92000001 England).'
+        description: 'The area (today''s local authority code, or E92000001 England, W92000004 Wales).'
         data_tests:
           - not_null
       - name: area_code_published
@@ -559,7 +560,7 @@ models:
         description: 'The code as Nomis gives it (April 2023 authorities).'
       - name: area_name
         data_type: varchar
-        description: 'The areas name as Nomis gives it.'
+        description: 'The area''s name as Nomis gives it.'
       - name: geography
         data_type: varchar
         description: 'local_authority or country.'

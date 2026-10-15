@@ -1,12 +1,16 @@
--- Mid-year population estimates for England and its local authorities
--- (districts and unitaries), all ages, every year in the latest Nomis file
--- (NM_31_1). Its authorities are as of April 2023: a code no longer in use
--- is matched to today's by name, and the code as published is kept.
+-- Mid-year population estimates for England and Wales and their local
+-- authorities (districts and unitaries), all ages, every year (Nomis
+-- NM_31_1, fetched in two files: England, and Wales). Each area and year
+-- comes from the newest file that has it (a later fetch holds only the
+-- newest years, revised). Its authorities are as of April 2023: a code no
+-- longer in use is matched to today's by name, and the code as published
+-- is kept.
 with p as (
-  select * from {{ source('shared_raw', 'nomis_population_la') }}
-  where SOURCEFILEID = {{ latest_file('nomis-nm-31-1', 'NOMIS_POPULATION_LA') }}
-    and SEX_NAME = 'Total' and AGE_NAME = 'All ages' and MEASURES_NAME = 'Value'
-    and (GEOGRAPHY_TYPE like 'local authorities: district%' or GEOGRAPHY_TYPE = 'countries')
+  select r.* from {{ source('shared_raw', 'nomis_population_la') }} r
+  join {{ source('shared_raw', 'source_file') }} f on f.SOURCEFILEID = r.SOURCEFILEID and f.SOURCE = 'nomis-nm-31-1'
+  where r.SEX_NAME = 'Total' and r.AGE_NAME = 'All ages' and r.MEASURES_NAME = 'Value'
+    and (r.GEOGRAPHY_TYPE like 'local authorities: district%' or r.GEOGRAPHY_TYPE = 'countries')
+  qualify row_number() over (partition by r.GEOGRAPHY_CODE, r.DATE_NAME order by f.LOADEDAT desc, f.SOURCEFILEID) = 1
 ),
 la as (select local_authority_code, name from {{ ref('local_authority') }})
 select

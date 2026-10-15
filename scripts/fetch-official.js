@@ -75,6 +75,10 @@ export const NOMIS_SETS = [
   { id: 'NM_31_1', dir: 'population', base: 'population_la_nm_31_1', from: '',
     query: `${AREAS}&sex=5,6,7&measures=20100`,
     select: 'date_name,geography_code,geography_name,geography_type,sex_name,age_name,measures_name,obs_value,obs_status_name' },
+  // The same for Wales and its 22 authorities (its own file: AREAS is England).
+  { id: 'NM_31_1', dir: 'population', base: 'population_la_wales_nm_31_1', from: '',
+    query: 'geography=2092957700,2092957700TYPE424&sex=5,6,7&measures=20100',
+    select: 'date_name,geography_code,geography_name,geography_type,sex_name,age_name,measures_name,obs_value,obs_status_name' },
   { id: 'NM_2077_1', dir: 'census-2021', base: 'census_ts060_industry_nm_2077_1', from: '',
     query: `${AREAS}&measures=20100,20301`,
     select: 'date_name,geography_code,geography_name,geography_type,c2021_ind_88_name,measures_name,obs_value,obs_status_name' },
