@@ -109,7 +109,10 @@ const OFSTED_FE = path.join(RAREBIT_DATA, 'ofsted/Management_information_further
 const ofstedFe = (sheet, table) => ({
   home: 'OPTIONS_DB', source: 'ofsted-fe', publisher: 'Ofsted', licence: OGL, format: 'OPTIONS_DB.RAW.CSV_UTF8',
   title: 'Further education and skills inspections and outcomes: management information',
-  page: 'https://www.gov.uk/government/statistical-data-sets/inspections-and-outcomes-in-further-education-and-skills-management-information',
+  // Ofsted now has one page per inspection year (the single page above
+  // answers 404 since October 2026); this is the year the file belongs to.
+  // The next year's file will be on that year's page.
+  page: 'https://www.gov.uk/government/statistical-data-sets/further-education-and-skills-inspections-and-outcomes-management-information-from-november-2025-to-august-2026',
   file: OFSTED_FE, member: sheet, kind: 'converted', table: `OPTIONS_DB.RAW.${table}`, make: odsToCsv(OFSTED_FE, sheet, 'Provider URN'),
 })
 
