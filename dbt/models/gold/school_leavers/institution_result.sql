@@ -64,7 +64,8 @@ select
   case when m.measure in ('grade', 'best3') then i.grades_type when m.measure = 'retained' then i.retention_type end::varchar as compared_with_type,
   'performance-16-18'::varchar as source,
   m.source_file_id::varchar as source_file_id,
-  to_date(sf.ORIGINALMODIFIEDAT) as downloaded_on
+  to_date(sf.ORIGINALMODIFIEDAT) as downloaded_on,
+  sf.PUBLISHEDON as published_on
 from shown m
 join inst i on i.urn = m.urn
 {{ source_file_join('sf', 'm.source_file_id') }}

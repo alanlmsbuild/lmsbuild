@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { publishedOn } from './published.js'
 import { connect, execute, destroy } from '../../server/db.js'
 import { sha256File, csvRecords, writeLines } from './files.js'
 
@@ -45,6 +46,8 @@ export class Loader {
     this.connection = connection
     this.log = log
     this.tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rarebit-load-'))
+    // Publication dates looked up in this run, by page and file name.
+    this.publishedCache = new Map()
   }
 
   static async open(log = console.log) {
@@ -205,14 +208,18 @@ export class Loader {
     }
   }
 
+  // PUBLISHEDON: the date the file's page or API states (scripts/load/published.js),
+  // empty where it states none; never guessed. Test data has no publisher.
   async insertSourceFile(home, spec, f) {
+    const published = home === 'CAPTURE_DB' ? { date: null, from: null }
+      : await publishedOn(spec.page, { fileName: f.name, downloadedAt: f.modified, cache: this.publishedCache, log: this.log })
     await this.q(`insert into ${HOMES[home]}.SOURCE_FILE (SOURCEFILEID, SOURCE, TITLE, PUBLISHER, PAGEURL, LICENCE, ORIGINALNAME, ORIGINALSHA256,
         ORIGINALBYTES, ORIGINALMODIFIEDAT, ORIGINALSTAGED, MEMBER, COPYKIND, REMOVEDCOLUMNS, STAGEDPATH, STAGEDSHA256, STAGEDBYTES, TARGETTABLE,
-        ROWSREAD, ROWSLOADED, JOBRUNID)
-      select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::timestamp_ltz, ?, ?, ?, parse_json(?), ?, ?, ?, ?, ?, ?, ?`,
+        ROWSREAD, ROWSLOADED, JOBRUNID, PUBLISHEDON, PUBLISHEDONFROM)
+      select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::timestamp_ltz, ?, ?, ?, parse_json(?), ?, ?, ?, ?, ?, ?, ?, ?::date, ?`,
     [f.sourceFileId, spec.source, spec.title ?? null, spec.publisher ?? null, spec.page ?? null, spec.licence, f.name, f.original.sha256,
       f.original.bytes, f.modified.toISOString(), f.stageOriginal, f.member ?? null, f.kind, JSON.stringify(f.removed ?? null), f.stagedPath,
-      f.staged.sha256, f.staged.bytes, spec.table, f.rowsRead, f.rowsLoaded, this.jobRunId])
+      f.staged.sha256, f.staged.bytes, spec.table, f.rowsRead, f.rowsLoaded, this.jobRunId, published.date, published.from])
   }
 
   // ------------------------------------------------------------ whole files

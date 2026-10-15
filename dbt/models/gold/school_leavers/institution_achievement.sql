@@ -30,7 +30,8 @@ select
   t.providers::number(38,0) as typical_providers,
   ('achievement-' || case a.kind when 'education' then 'et' else 'app' end)::varchar as source,
   a.source_file_id::varchar as source_file_id,
-  to_date(sf.ORIGINALMODIFIEDAT) as downloaded_on
+  to_date(sf.ORIGINALMODIFIEDAT) as downloaded_on,
+  sf.PUBLISHEDON as published_on
 from inst i
 join rates a on a.ukprn = i.ukprn
 {{ source_file_join('sf', 'a.source_file_id') }}

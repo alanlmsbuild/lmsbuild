@@ -213,6 +213,9 @@ models:
         description: 'When we downloaded that file (not when it was published).'
         data_tests:
           - not_null
+      - name: published_on
+        data_type: date
+        description: 'When the publisher says the file (or its release) was published, as its page or API states it (SOURCE_FILE.PUBLISHEDON, with where it was read in PUBLISHEDONFROM). Empty where the source states none: never guessed.'
 
   - name: institution_achievement
     description: >-
@@ -309,6 +312,9 @@ models:
         description: 'When we downloaded that file (not when it was published).'
         data_tests:
           - not_null
+      - name: published_on
+        data_type: date
+        description: 'When the publisher says the file (or its release) was published, as its page or API states it (SOURCE_FILE.PUBLISHEDON, with where it was read in PUBLISHEDONFROM). Empty where the source states none: never guessed.'
 
   - name: national_comparison
     description: >-
@@ -371,3 +377,6 @@ models:
       - name: downloaded_on
         data_type: date
         description: 'When we downloaded the attainment file (not when it was published).'
+      - name: published_on
+        data_type: date
+        description: 'When the publisher says the attainment file (or its release) was published, as its page or API states it. Empty where it states none.'
