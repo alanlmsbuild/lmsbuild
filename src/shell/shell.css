@@ -30,25 +30,26 @@
 .shell-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   text-decoration: none;
 }
 
-/* The Rarebit mark on a small cream tile, so its toast brown shows on
-   every area's colour. */
+/* The Rarebit mark on a cream tile, so its toast brown shows on every
+   area's colour. The logo (tile, mark and wordmark) is 1.5 times its first
+   size (15 October 2026). */
 .shell-mark {
   display: grid;
   place-items: center;
   flex: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
   background: var(--rb-header-tab);
 }
 
 .shell-wordmark {
   font-family: var(--rb-font-heading);
-  font-size: 20px;
+  font-size: 30px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }

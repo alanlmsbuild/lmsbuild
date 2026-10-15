@@ -203,7 +203,7 @@ function ShellHeader({ area, pathname, me, onTabSlot }) {
     <header className="shell-header">
       <a href={me ? homeFor(me) : '/'} className="shell-brand" aria-label="Rarebit home">
         <span className="shell-mark" aria-hidden="true">
-          <RarebitMark size={26} />
+          <RarebitMark size={39} />
         </span>
         <span className="shell-wordmark">rarebit</span>
       </a>
