@@ -13,7 +13,7 @@ select
   'ees-national-attainment, ees-national-retention'::varchar as source,
   n.attainment_source_file_id::varchar as attainment_source_file_id,
   n.retention_source_file_id::varchar as retention_source_file_id,
-  to_date(sf.ORIGINALMODIFIEDAT) as retrieved_on
+  to_date(sf.ORIGINALMODIFIEDAT) as downloaded_on
 from {{ ref('national_16_18') }} n
 {{ source_file_join('sf', 'n.attainment_source_file_id') }}
 where n.cohort in {{ school_cohorts() }}

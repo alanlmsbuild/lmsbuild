@@ -16,7 +16,7 @@
   select 1
 {%- endmacro %}
 
-{#- When the source file a figure came from was retrieved (downloaded):
+{#- When the source file a figure came from was downloaded (DOWNLOADED_ON; not when it was published):
     join SOURCE_FILE as alias on the figure's source_file_id, then select
     to_date(alias.ORIGINALMODIFIEDAT). (A correlated subquery isn't
     supported here.) -#}

@@ -208,9 +208,9 @@ models:
         description: 'The file it is from (SOURCE_FILE row).'
         data_tests:
           - not_null
-      - name: retrieved_on
+      - name: downloaded_on
         data_type: date
-        description: 'When that file was downloaded.'
+        description: 'When we downloaded that file (not when it was published).'
         data_tests:
           - not_null
 
@@ -304,9 +304,9 @@ models:
         description: 'The file it is from (SOURCE_FILE row).'
         data_tests:
           - not_null
-      - name: retrieved_on
+      - name: downloaded_on
         data_type: date
-        description: 'When that file was downloaded.'
+        description: 'When we downloaded that file (not when it was published).'
         data_tests:
           - not_null
 
@@ -368,6 +368,6 @@ models:
       - name: retention_source_file_id
         data_type: varchar
         description: 'The retention file (SOURCE_FILE row).'
-      - name: retrieved_on
+      - name: downloaded_on
         data_type: date
-        description: 'When the attainment file was downloaded.'
+        description: 'When we downloaded the attainment file (not when it was published).'

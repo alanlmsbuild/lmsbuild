@@ -11,6 +11,9 @@
 // repo. Prints, for each field, how many institutions match and up to three
 // examples of each difference. The website is reported on its own: gold's
 // is cleaned and link-checked (decision 26), the site's is as GIAS gives it.
+// Expected differences (15 October 2026): gold also has the 2021/22
+// apprenticeship year, from an older publication the site never loaded
+// (kept, Alan's decision); about 2 websites differ after the link check.
 
 import fs from 'node:fs'
 import path from 'node:path'
