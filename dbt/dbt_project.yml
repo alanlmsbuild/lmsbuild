@@ -47,6 +47,9 @@ models:
       school_leavers:
         +database: OPTIONS_DB
         +schema: SILVER
+      providers:
+        +database: SHARED_DB
+        +schema: SILVER
     # Gold: the same tags, plus each table granted to the readers its model
     # names (meta.readers; macros/gold.sql).
     gold:
@@ -58,5 +61,8 @@ models:
         +database: OPTIONS_DB
         +schema: GOLD
       jobs:
+        +database: SHARED_DB
+        +schema: GOLD
+      providers:
         +database: SHARED_DB
         +schema: GOLD

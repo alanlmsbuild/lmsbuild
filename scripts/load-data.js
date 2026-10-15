@@ -53,6 +53,8 @@
 //   37 Graduate Outcomes (HESA, via DfE)                -> OPTIONS_DB.RAW
 //   38 listed buildings (Historic England), Wikidata places -> SHARED_DB.RAW
 //   39 Ofgem price caps, fuel poverty, electricity regions -> SHARED_DB.RAW
+// Batch 7 (sql/load_08_achievement_national.sql):
+//   40 achievement rates, national and by provider (2025/26 releases) -> OPTIONS_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -264,6 +266,23 @@ export const STEPS = {
   ...officialSteps(RAREBIT_DATA),
   ...officialSteps2(RAREBIT_DATA),
   ...officialSteps3(RAREBIT_DATA),
+
+  // ---------------------------------------------------------------- batch 7
+  // Achievement rates for provider_benchmark, provider and national from the
+  // same 2025/26 releases (sql/load_08_achievement_national.sql).
+  40: { job: 'load-achievement-national', files: () => {
+    const dir = path.join(RAREBIT_DATA, 'achievement-rates')
+    const ees = (file, title, page, table, source) => ({ home: 'OPTIONS_DB', source, publisher: DFE, licence: OGL, format: 'OPTIONS_DB.RAW.CSV_UTF8', kind: 'as-downloaded',
+      title, page, file: path.join(dir, file), table })
+    return [
+      ees('na04_app_narts_provider_type_202526_14.csv', 'Apprenticeship national achievement rates by provider type, subject area, level and age (Apprenticeships 2025/26)',
+        'https://explore-education-statistics.service.gov.uk/data-catalogue/data-set/37cc153c-bf81-4376-98eb-c03092fc8e8f', 'OPTIONS_DB.RAW.ACHIEVEMENT_APP_NATIONAL', 'achievement-app-national'),
+      ees('nf03_et_narts_headline_total_202526_14.csv', 'Education and training national achievement rates by provider type, provision type, age and subject area (Further education and skills 2025/26)',
+        'https://explore-education-statistics.service.gov.uk/data-catalogue/data-set/46840ef9-903f-4dc0-9a3e-996df4263a30', 'OPTIONS_DB.RAW.ACHIEVEMENT_ET_NATIONAL', 'achievement-et-national'),
+      ees('nf11_et_narts_provider_summary_with_gcse_202526_14.csv', 'Education and training achievement rates by provider, provision type, age and subject area (Further education and skills 2025/26)',
+        'https://explore-education-statistics.service.gov.uk/data-catalogue/data-set/7fe87724-0cec-478b-adcc-6968ba451bc7', 'OPTIONS_DB.RAW.ACHIEVEMENT_ET_PROVIDER', 'achievement-et-provider'),
+    ]
+  } },
 }
 
 export async function runStep(loader, n) {

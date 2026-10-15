@@ -1353,3 +1353,89 @@ models:
       - name: source_file_id
         data_type: varchar
         description: 'The provider list files SOURCE_FILE row.'
+
+  - name: achievement_measure
+    description: >-
+      Achievement rates by provider (UKPRN) and nationally by provider type,
+      from the same DfE releases (academic year 2025/26: 2022/23 to 2024/25),
+      all subject areas together, for every breakdown the files give:
+      apprenticeships by level and age, education and training by provision
+      type and age. As published (text: a number, or DfE's mark).
+    config:
+      meta:
+        source: achievement-app,achievement-app-national,achievement-et-provider,achievement-et-national
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: measure_key
+        data_type: varchar
+        description: 'Its key: level (provider or national), UKPRN or provider type, kind, year, provision type, level and age, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: geographic_level
+        data_type: varchar
+        description: 'provider or national.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['provider', 'national']
+      - name: ukprn
+        data_type: varchar
+        description: 'The provider (provider rows only).'
+      - name: provider_name
+        data_type: varchar
+        description: 'Its name as DfE gives it (provider rows only).'
+      - name: provider_type
+        data_type: varchar
+        description: 'The provider type as published (Total for all types, national rows).'
+        data_tests:
+          - not_null
+      - name: kind
+        data_type: varchar
+        description: 'apprenticeships or education (education and training).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['apprenticeships', 'education']
+      - name: time_period
+        data_type: varchar
+        description: 'The year as the file gives it (e.g. 202425).'
+        data_tests:
+          - not_null
+      - name: academic_year
+        data_type: varchar
+        description: 'The academic year (e.g. 2024/25).'
+      - name: provision_type
+        data_type: varchar
+        description: 'Apprenticeships, or the education and training provision type as published (Total; Education and Training exc TL / CL; Community Learning; Tailored Learning).'
+        data_tests:
+          - not_null
+      - name: level
+        data_type: varchar
+        description: 'The apprenticeship level as published (Total, Intermediate Level, Advanced Level, Higher Level); Total for education and training.'
+        data_tests:
+          - not_null
+      - name: age
+        data_type: varchar
+        description: 'all, 16-18, 19+, 19-23 or 24+ (apprenticeships); all, under 19 or 19+ (education and training).'
+        data_tests:
+          - not_null
+      - name: rate_published
+        data_type: varchar
+        description: 'Achievement rate (a percentage), as published (text: a number, or DfE''s mark, such as x).'
+      - name: leavers_published
+        data_type: varchar
+        description: 'Leavers the rate is based on, as published.'
+      - name: achievers_published
+        data_type: varchar
+        description: 'Achievers, as published.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The file''s SOURCE_FILE row (OPTIONS_DB.RAW).'
+        data_tests:
+          - not_null

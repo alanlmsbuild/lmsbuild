@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: apar_provider
+    description: >-
+      The apprenticeship provider and assessment register (APAR), one row per
+      UKPRN from the latest download: its route, status as published, and
+      whether it can deliver apprenticeships and units.
+    config:
+      meta:
+        source: apar
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: ukprn
+        data_type: varchar
+        description: 'The provider''s UKPRN.'
+        data_tests:
+          - unique
+          - not_null
+      - name: provider_name
+        data_type: varchar
+        description: 'Its name on the register.'
+      - name: register_route
+        data_type: varchar
+        description: 'The route it is registered on, as published (Main provider, Employer provider, Supporting provider).'
+      - name: status
+        data_type: varchar
+        description: 'Its status as published (such as Not Currently Starting New Apprentices); empty when the register shows none.'
+      - name: on_register_from
+        data_type: date
+        description: 'When it joined the register (StartDate).'
+      - name: application_determined_on
+        data_type: date
+        description: 'When its application was decided, as published.'
+      - name: can_deliver_apprenticeships
+        data_type: boolean
+        description: 'Whether it can deliver apprenticeships.'
+      - name: can_deliver_apprenticeship_units
+        data_type: boolean
+        description: 'Whether it can deliver apprenticeship units.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The download''s SOURCE_FILE row (SHARED_DB.RAW).'
+        data_tests:
+          - not_null

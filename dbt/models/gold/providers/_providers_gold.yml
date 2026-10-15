@@ -1,0 +1,199 @@
+version: 2
+
+# Provider gold (SHARED_DB.GOLD; the gold plan, 14 October 2026).
+
+models:
+  - name: provider_benchmark
+    description: >-
+      A provider's achievement rates beside DfE's national rate for the same
+      provider type, year, kind, provision type, level and age, from the same
+      release; one row per provider (UKPRN), year and measure, with its latest
+      Ofsted further education and skills inspection and its APAR entry. The
+      honesty rules apply (under 10 leavers hidden, 10 to 29 a small group,
+      DfE's missing figures unavailable, never zero). Compared in words only
+      when shown and not a small group: above or below at more than 5
+      percentage points, Rarebit's own rule, not DfE's. Never ranked.
+    config:
+      meta:
+        source: achievement-app,achievement-app-national,achievement-et-provider,achievement-et-national,ofsted-fe,apar
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_WARREN']
+    columns:
+      - name: benchmark_key
+        data_type: varchar
+        description: 'Its key: provider, UKPRN, kind, year, provision type, level and age, joined with |.'
+        data_tests:
+          - unique
+          - not_null
+      - name: ukprn
+        data_type: varchar
+        description: 'The provider.'
+        data_tests:
+          - not_null
+      - name: provider_name
+        data_type: varchar
+        description: 'Its name as DfE gives it.'
+      - name: provider_type
+        data_type: varchar
+        description: 'Its provider type as DfE publishes it for that year; the national rate is for this type.'
+        data_tests:
+          - not_null
+      - name: kind
+        data_type: varchar
+        description: 'apprenticeships or education (education and training).'
+        data_tests:
+          - not_null
+      - name: academic_year
+        data_type: varchar
+        description: 'The academic year (e.g. 2024/25).'
+        data_tests:
+          - not_null
+      - name: provision_type
+        data_type: varchar
+        description: 'Apprenticeships, or the education and training provision type as published.'
+      - name: level
+        data_type: varchar
+        description: 'The apprenticeship level as published (Total for all levels, and for education and training).'
+      - name: age
+        data_type: varchar
+        description: 'all, 16-18, 19+, 19-23 or 24+ (apprenticeships); all, under 19 or 19+ (education and training).'
+      - name: measure
+        data_type: varchar
+        description: 'The measure in plain words, e.g. Apprenticeships, advanced level, aged 16-18.'
+      - name: status
+        data_type: varchar
+        description: 'The honesty rules verdict on the providers rate (macros/figure.sql): shown, or why it is hidden (fewer-than-10, withheld, too-few, unavailable); empty when DfE publishes nothing here.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['shown', 'fewer-than-10', 'withheld', 'too-few', 'unavailable']
+      - name: value_text
+        data_type: varchar
+        description: 'Always empty (the rate is a number).'
+      - name: value_number
+        data_type: float
+        description: 'The providers achievement rate (a percentage), when shown.'
+      - name: base
+        data_type: number(38,0)
+        description: 'The leavers it is based on, when shown.'
+      - name: small_group
+        data_type: boolean
+        description: 'True when shown but based on 10 to 29 leavers: a small group, treat with care (not compared).'
+      - name: hidden_reason
+        data_type: varchar
+        description: 'Why it is hidden, when it is: fewer-than-10, withheld (by DfE), too-few or unavailable.'
+      - name: national_rate
+        data_type: float
+        description: 'DfEs national achievement rate for the same provider type, year, kind, provision type, level and age, when published.'
+      - name: national_leavers
+        data_type: number(38,0)
+        description: 'The leavers that national rate is based on.'
+      - name: national_status
+        data_type: varchar
+        description: 'shown; unavailable, withheld or too-few (DfEs mark); or none (no national row for this type and breakdown that year).'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['shown', 'none', 'unavailable', 'withheld', 'too-few']
+      - name: difference_points
+        data_type: number(6,1)
+        description: 'The providers rate minus the national rate, in percentage points, only when compared.'
+      - name: compared_with_national
+        data_type: varchar
+        description: 'above or below (more than 5 percentage points from the national rate, Rarebits own rule, not DfEs), about the same, or empty when not compared (COMPARISON_NOTE says why). Never a ranking.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['above', 'below', 'about the same']
+      - name: comparison_note
+        data_type: varchar
+        description: 'Why the row is not compared, in plain words; empty when it is.'
+      - name: ofsted_provider_urn
+        data_type: varchar
+        description: 'The providers URN in Ofsteds further education and skills list, if it is there.'
+      - name: ofsted_framework
+        data_type: varchar
+        description: 'Which inspection the Ofsted columns are from: renewed (the renewed framework, this year) or previous (its latest before that).'
+      - name: ofsted_inspected
+        data_type: date
+        description: 'When that inspection started.'
+      - name: ofsted_overall_effectiveness
+        data_type: varchar
+        description: 'Overall effectiveness (1 to 4) as published, for a previous-framework inspection; the renewed framework gives none.'
+      - name: ofsted_overall_effectiveness_words
+        data_type: varchar
+        description: 'That grade in Ofsteds words: Outstanding, Good, Requires improvement or Inadequate.'
+      - name: ofsted_apprenticeships_achievement
+        data_type: varchar
+        description: 'Renewed framework: apprenticeships, achievement, as published.'
+      - name: ofsted_young_people_achievement
+        data_type: varchar
+        description: 'Renewed framework: education programmes for young people, achievement, as published.'
+      - name: ofsted_leadership_and_governance
+        data_type: varchar
+        description: 'Renewed framework: leadership and governance, as published.'
+      - name: ofsted_url
+        data_type: varchar
+        description: 'Its page on the Ofsted website.'
+      - name: ofsted_source_file_id
+        data_type: varchar
+        description: 'The Ofsted file (OPTIONS_DB.RAW.SOURCE_FILE).'
+      - name: ofsted_downloaded_on
+        data_type: date
+        description: 'When we downloaded it.'
+      - name: ofsted_published_on
+        data_type: date
+        description: 'When Ofsted published it, as its page states.'
+      - name: apar_on_register
+        data_type: boolean
+        description: 'Whether its UKPRN is on the apprenticeship provider and assessment register (APAR) in our latest download.'
+        data_tests:
+          - not_null
+      - name: apar_register_route
+        data_type: varchar
+        description: 'Its APAR route as published (Main provider, Employer provider, Supporting provider).'
+      - name: apar_status
+        data_type: varchar
+        description: 'Its APAR status as published (such as Not Currently Starting New Apprentices); empty when the register shows none.'
+      - name: apar_can_deliver_apprenticeships
+        data_type: boolean
+        description: 'Whether APAR says it can deliver apprenticeships.'
+      - name: apar_on_register_from
+        data_type: date
+        description: 'When it joined the register.'
+      - name: apar_source_file_id
+        data_type: varchar
+        description: 'The APAR download (SHARED_DB.RAW.SOURCE_FILE).'
+      - name: apar_downloaded_on
+        data_type: date
+        description: 'When we downloaded it (the register states no publication date).'
+      - name: source
+        data_type: varchar
+        description: 'The provider rate''s source: achievement-app or achievement-et-provider.'
+        data_tests:
+          - not_null
+      - name: source_file_id
+        data_type: varchar
+        description: 'The provider achievement file (OPTIONS_DB.RAW.SOURCE_FILE).'
+        data_tests:
+          - not_null
+      - name: downloaded_on
+        data_type: date
+        description: 'When we downloaded it.'
+      - name: published_on
+        data_type: date
+        description: 'When DfE published it, as its page states.'
+      - name: national_source_file_id
+        data_type: varchar
+        description: 'The national achievement file, when there is a national row.'
+      - name: national_published_on
+        data_type: date
+        description: 'When DfE published it, as its page states.'
+      - name: as_of
+        data_type: timestamp_ltz
+        description: 'When this table was made (golds build).'
+        data_tests:
+          - not_null

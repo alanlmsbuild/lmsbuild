@@ -101,6 +101,15 @@ sources:
       - name: achievement_app
         identifier: ACHIEVEMENT_APP_PROVIDER
         description: Apprenticeship achievement rates by provider (UKPRN), year, age, level and standard; two publications whose years overlap.
+      - name: achievement_app_national
+        identifier: ACHIEVEMENT_APP_NATIONAL
+        description: Apprenticeship national achievement rates by provider type, subject area, level and age (2025/26 release).
+      - name: achievement_et_national
+        identifier: ACHIEVEMENT_ET_NATIONAL
+        description: Education and training national achievement rates by provider type, provision type, regulated or not, age and subject area (2025/26 release).
+      - name: achievement_et_provider
+        identifier: ACHIEVEMENT_ET_PROVIDER
+        description: Education and training achievement rates by provider (UKPRN), provision type, regulated or not, age and subject area (2025/26 release, with GCSEs).
       - name: du_kiscourse
         identifier: DISCOVERUNI_KISCOURSE
         description: Discover Uni courses, one row per publishing UKPRN, course ID and mode.
