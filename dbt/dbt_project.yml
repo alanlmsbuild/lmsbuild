@@ -57,3 +57,6 @@ models:
       school_leavers:
         +database: OPTIONS_DB
         +schema: GOLD
+      jobs:
+        +database: SHARED_DB
+        +schema: GOLD

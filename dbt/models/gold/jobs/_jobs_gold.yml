@@ -1,0 +1,321 @@
+version: 2
+
+# Shared gold for jobs (SHARED_DB.GOLD; the gold plan, 14 October 2026),
+# read by Warren and Burrow, Meadow (the CRM) and the school leavers app
+# (meta.readers, scripts/gold-readers.js). Nothing is ranked.
+
+models:
+
+  - name: vacancy_card
+    description: >-
+      The adverts a product may show, one row per advert open when gold was
+      built: what it is (KIND: Apprenticeship, or Job, never a funded
+      apprenticeship), where, its SOC 2020 occupations and its standard. Built
+      daily; the adverts change every 2 hours, so AS_OF says when this list
+      was made.
+    config:
+      meta:
+        source: faa-vacancies,soc-coding-index,onspd
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. NHS Jobs and Civil Service Jobs adverts come through the same API; their re-use terms are assumed, not confirmed.'
+        refresh: daily
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_WARREN', 'SHARED_DB.GOLD_MEADOW', 'SHARED_DB.GOLD_SITE']
+    columns:
+      - name: vacancy_reference
+        data_type: varchar
+        description: 'The adverts reference.'
+        data_tests:
+          - unique
+          - not_null
+      - name: kind
+        data_type: varchar
+        description: 'Apprenticeship (from the apprenticeship sources) or Job (from a jobs source: never a funded apprenticeship).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Apprenticeship', 'Job']
+      - name: kind_words
+        data_type: varchar
+        description: 'KIND as the product must show it: Apprenticeship, or Job (not a funded apprenticeship).'
+        data_tests:
+          - not_null
+      - name: title
+        data_type: varchar
+        description: 'The adverts title.'
+        data_tests:
+          - not_null
+      - name: employer_name
+        data_type: varchar
+        description: 'The employer.'
+      - name: provider_name
+        data_type: varchar
+        description: 'The training provider.'
+      - name: ukprn
+        data_type: varchar
+        description: 'The training providers UKPRN.'
+      - name: positions
+        data_type: number(38,0)
+        description: 'How many people it is for.'
+      - name: posted_at
+        data_type: timestamp_ltz
+        description: 'When it was posted.'
+      - name: closing_at
+        data_type: timestamp_ltz
+        description: 'When applications close (after AS_OF).'
+        data_tests:
+          - not_null
+      - name: starts_at
+        data_type: timestamp_ltz
+        description: 'When it starts.'
+      - name: wage_type
+        data_type: varchar
+        description: 'The kind of wage, as published.'
+      - name: wage_unit
+        data_type: varchar
+        description: 'What the wage is per.'
+      - name: wage_text
+        data_type: varchar
+        description: 'The wage as the advert words it.'
+      - name: hours_per_week
+        data_type: number(6,2)
+        description: 'Hours a week.'
+      - name: expected_duration
+        data_type: varchar
+        description: 'How long it lasts, as worded.'
+      - name: apprenticeship_level
+        data_type: varchar
+        description: 'Its level, as published.'
+      - name: lars_code
+        data_type: number(38,0)
+        description: 'The apprenticeship standards LARS code.'
+      - name: course_title
+        data_type: varchar
+        description: 'The standards title.'
+      - name: course_level
+        data_type: number(38,0)
+        description: 'The standards level.'
+      - name: route
+        data_type: varchar
+        description: 'The standards route.'
+      - name: is_disability_confident
+        data_type: boolean
+        description: 'True when the employer is Disability Confident.'
+      - name: is_national
+        data_type: boolean
+        description: 'True for an advert across the country.'
+      - name: postcode
+        data_type: varchar
+        description: 'The workplace postcode as the advert gives it.'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Its local authority, from the postcode.'
+        config:
+          meta:
+            source: 'onspd'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+      - name: local_authority_name
+        data_type: varchar
+        description: 'That local authoritys name.'
+      - name: region_name
+        data_type: varchar
+        description: 'Its region (or Wales, Scotland).'
+      - name: lsoa21_code
+        data_type: varchar
+        description: 'Its 2021 LSOA, from the postcode.'
+      - name: latitude
+        data_type: float
+        description: 'Latitude, as the advert gives it.'
+      - name: longitude
+        data_type: float
+        description: 'Longitude, as the advert gives it.'
+      - name: soc_codes
+        data_type: varchar
+        description: 'Its current SOC 2020 unit groups, joined with commas.'
+      - name: soc_titles
+        data_type: varchar
+        description: 'Those occupations with their ONS titles.'
+        config:
+          meta:
+            source: 'soc-coding-index'
+            attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+      - name: soc_method
+        data_type: varchar
+        description: 'How the occupations were coded (title-confirmed, standard, title).'
+      - name: vacancy_url
+        data_type: varchar
+        description: 'Its page on the listing site.'
+      - name: listed_on
+        data_type: varchar
+        description: 'Where it is listed: FAA (Find an apprenticeship), NHS (NHS Jobs) or CSJ (Civil Service Jobs).'
+        data_tests:
+          - not_null
+      - name: source
+        data_type: varchar
+        description: 'The data set it is from.'
+        data_tests:
+          - not_null
+      - name: last_seen_at
+        data_type: timestamp_ltz
+        description: 'When the vacancy import last found it.'
+      - name: as_of
+        data_type: timestamp_ltz
+        description: 'When this list was made (golds build).'
+        data_tests:
+          - not_null
+
+  - name: job_outlook
+    description: >-
+      What the job market looks like for an occupation in an area, one row per
+      SOC 2020 unit group and area (English regions, Wales, Scotland, Northern
+      Ireland, UK): typical full-time pay (ASHE, with its precision; the UK
+      figure where the area has none, labelled), online adverts over the last
+      12 months against the 12 before and whether that is up or down, adverts
+      open now, and the standards that lead to it. Nothing is ranked.
+    config:
+      meta:
+        source: ashe-occupation,ons-online-job-adverts,soc-coding-index
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics (ASHE; online job adverts from Textkernel), licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_WARREN', 'SHARED_DB.GOLD_MEADOW', 'SHARED_DB.GOLD_SITE']
+    columns:
+      - name: outlook_key
+        data_type: varchar
+        description: 'Its key: SOC code and area code.'
+        data_tests:
+          - unique
+          - not_null
+      - name: soc2020
+        data_type: varchar
+        description: 'The SOC 2020 unit group.'
+        data_tests:
+          - not_null
+      - name: soc_title
+        data_type: varchar
+        description: 'Its ONS title.'
+        data_tests:
+          - not_null
+      - name: area_code
+        data_type: varchar
+        description: 'The area: a region (E12...), Wales, Scotland, Northern Ireland, or the UK (K02000001).'
+        data_tests:
+          - not_null
+      - name: area_name
+        data_type: varchar
+        description: 'Its name.'
+        data_tests:
+          - not_null
+      - name: geography
+        data_type: varchar
+        description: 'region, country or uk.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['region', 'country', 'uk']
+      - name: pay_median
+        data_type: number(14,2)
+        description: 'Median gross annual pay for full-time employees in this occupation (ASHE, by place of work), in pounds; empty where ONS publishes none for the area or the UK.'
+      - name: pay_p25
+        data_type: number(14,2)
+        description: 'The 25th percentile of that pay.'
+      - name: pay_p75
+        data_type: number(14,2)
+        description: 'The 75th percentile of that pay.'
+      - name: pay_area
+        data_type: varchar
+        description: 'Where the pay figure is for: this area, or United Kingdom when ONS publishes no figure for the area.'
+      - name: pay_precision
+        data_type: varchar
+        description: 'ONSs band for the medians precision (its coefficient of variation): precise (up to 5%), reasonably precise (5 to 10%), acceptable, use with caution (10 to 20%).'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['precise', 'reasonably precise', 'acceptable, use with caution', 'precision not stated']
+      - name: pay_year
+        data_type: number(38,0)
+        description: 'The ASHE year of the pay figure.'
+      - name: pay_provisional
+        data_type: boolean
+        description: 'True when that years figures are provisional (ONS revises them a year later).'
+      - name: adverts_last_12_months
+        data_type: number(38,0)
+        description: 'New online job adverts for this occupation and area in the last 12 months (ONS, from Textkernel; official statistics in development); empty when ONS left out any of those months.'
+      - name: adverts_previous_12_months
+        data_type: number(38,0)
+        description: 'The same for the 12 months before; empty when any is missing.'
+      - name: adverts_months_not_published
+        data_type: number(38,0)
+        description: 'Months in those 24 that ONS did not publish ([x]).'
+      - name: adverts_compared_months
+        data_type: number(38,0)
+        description: 'How many of the last 12 months could be compared like for like with the same month a year before (both published).'
+      - name: adverts_change_percent
+        data_type: number(8,1)
+        description: 'The change over the compared months (each against the same month a year before), as a percentage; empty with fewer than 6.'
+      - name: adverts_trend
+        data_type: varchar
+        description: 'up or down (a change of more than 5% over the compared months: our rule), about the same, or empty with fewer than 6 compared months. Never a ranking.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['up', 'down', 'about the same']
+      - name: adverts_last_month
+        data_type: date
+        description: 'The last month of the adverts figures.'
+      - name: open_adverts
+        data_type: number(38,0)
+        description: 'Adverts for this occupation open now in the area (live, closing date to come).'
+        config:
+          meta:
+            source: 'faa-vacancies'
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. NHS Jobs and Civil Service Jobs adverts come through the same API; their re-use terms are assumed, not confirmed.'
+        data_tests:
+          - not_null
+      - name: standards_count
+        data_type: number(38,0)
+        description: 'How many apprenticeship standards lead to this occupation.'
+        config:
+          meta:
+            source: 'skills-england'
+            attribution: '© Skills England 2025. This information is licensed under the Open Government Licence https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/'
+        data_tests:
+          - not_null
+      - name: standards
+        data_type: variant
+        description: 'Those standards: reference, LARS code and title.'
+        config:
+          meta:
+            source: 'skills-england'
+            attribution: '© Skills England 2025. This information is licensed under the Open Government Licence https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/'
+      - name: source
+        data_type: varchar
+        description: 'The data sets the row draws on.'
+        data_tests:
+          - not_null
+      - name: pay_source_file_id
+        data_type: varchar
+        description: 'The ASHE file the pay is from.'
+      - name: pay_downloaded_on
+        data_type: date
+        description: 'When we downloaded it.'
+      - name: pay_published_on
+        data_type: date
+        description: 'When ONS published it, as its page states.'
+      - name: adverts_source_file_id
+        data_type: varchar
+        description: 'The online adverts file.'
+      - name: adverts_downloaded_on
+        data_type: date
+        description: 'When we downloaded it.'
+      - name: adverts_published_on
+        data_type: date
+        description: 'When ONS published it, as its page states.'
+      - name: as_of
+        data_type: timestamp_ltz
+        description: 'When this table was made (golds build).'
+        data_tests:
+          - not_null
