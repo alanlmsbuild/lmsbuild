@@ -3,6 +3,30 @@
 Decisions from the Rarebit plan, kept here so they're in the repo. Earlier
 decisions are added as they come up.
 
+## 19. Travel times
+
+Journey times between LSOA population-weighted centroids, starting with South
+Yorkshire (phase A: walk, bus and tram; rail in phase B after its licence is
+reviewed). A typical term-time Tuesday, departures 07:30–08:30, stored as the
+median with 25th and 75th percentiles, capped at 90 minutes, with walking-only
+times alongside. Built from BODS timetables (OGL v3.0), OpenStreetMap (ODbL)
+and ONS centroids (OGL v3.0; contains OS data © Crown copyright and database
+right), computed with r5py and loaded through bronze, silver and gold like our
+other data.
+
+The travel-time tables are a database derived from OpenStreetMap, so they are
+licensed under the ODbL (tagged `odbl`). Rarebit shows results from them as
+Produced Works ("about 25 minutes by bus, weekday morning"), always with
+"© OpenStreetMap contributors". We do not publish or hand over the tables
+themselves. If we ever do, we will offer them under the ODbL with the method
+that made them (`scripts/travel/`). Our other data joined to them for display
+stays separate (a Collective Database) and is not affected.
+
+Phase A settings (agreed 15 October 2026): Tuesday 10 November 2026; the
+Yorkshire feed clipped to the trips that call in South Yorkshire and a 5 km
+buffer; Java heap 4.5 GB; gold `travel_time` read by Warren, Meadow and the
+school leavers site.
+
 ## 21. Governance built into Snowflake
 
 Every object is described, tagged and controlled in Snowflake itself. Tags on
