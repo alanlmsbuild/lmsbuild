@@ -393,6 +393,16 @@
   text-decoration: underline;
 }
 
+/* In place of a sign-in button for a product not built yet: a label, not
+   a link. */
+.landing-product-soon {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(246, 238, 220, 0.18);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .landing-product-signin:focus-visible {
   outline: 3px solid var(--fd-page);
   outline-offset: 3px;

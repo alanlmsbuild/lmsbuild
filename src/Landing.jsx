@@ -6,9 +6,10 @@ import SkillsEnglandFooter from './SkillsEnglandFooter'
 // The Rarebit front door at "/" (decision 29). Recreated from the design
 // reference in docs/design/landing-front-door.html - same sections, wording,
 // colours and fonts - and responsive. Two doors: people exploring their
-// options (the options app, not built here yet: its buttons go to "#"), and
-// the products for providers, colleges and employers. Warren and Burrow sign
-// in on the sign-in page; Meadow's screens aren't built here yet ("#").
+// options (the school leavers app, with ?audience= saying who they are, for
+// the app to use later), and the products for providers, colleges and
+// employers. Warren and Burrow sign in on the sign-in page; Meadow's screens
+// aren't built yet, so it says "Coming soon" rather than linking anywhere.
 // The page has its own cream header, as in the design (the shell leaves
 // out the shared dark one here); its "Sign in" goes to the sign-in page,
 // like the shared header's.
@@ -47,10 +48,13 @@ function FrontDoorHeader() {
   )
 }
 
+// The school leavers app (~/school-leavers-app) as `npm run dev` serves it.
+const OPTIONS_APP = 'http://localhost:4321/'
+
 const AUDIENCES = [
-  { name: 'School leaver', text: 'Work out what you like, then see where it could take you.', tone: 'cheddar' },
-  { name: '18 or over', text: 'Just show me my options: courses, apprenticeships, jobs and support.', tone: 'teal' },
-  { name: 'Parent or carer', text: 'Compare colleges, universities and the places around them.', tone: 'coral' },
+  { name: 'School leaver', audience: 'school-leaver', text: 'Work out what you like, then see where it could take you.', tone: 'cheddar' },
+  { name: '18 or over', audience: 'adult', text: 'Just show me my options: courses, apprenticeships, jobs and support.', tone: 'teal' },
+  { name: 'Parent or carer', audience: 'parent', text: 'Compare colleges, universities and the places around them.', tone: 'coral' },
 ]
 
 function WarrenIcon() {
@@ -114,7 +118,7 @@ const PRODUCTS = [
     text: 'From first enquiry to someone who stays the course, with employers alongside.',
     points: ['People and employer pipelines', 'Matching on interests, skills and travel', 'Hands over to Warren, no questions asked twice'],
     status: 'Designed',
-    signIn: '#',
+    signIn: null,
   },
 ]
 
@@ -155,7 +159,7 @@ function Landing() {
           </div>
           <div className="landing-audiences">
             {AUDIENCES.map((a) => (
-              <a key={a.name} href="#" className={`landing-audience landing-audience-${a.tone}`}>
+              <a key={a.name} href={`${OPTIONS_APP}?audience=${a.audience}`} className={`landing-audience landing-audience-${a.tone}`}>
                 <span className="landing-audience-name">{a.name}</span>
                 <span className="landing-audience-text">{a.text}</span>
               </a>
@@ -189,9 +193,13 @@ function Landing() {
                 </ul>
                 <div className="landing-product-foot">
                   <span className="landing-product-status">{status}</span>
-                  <a href={signIn} className="landing-product-signin">
-                    Sign in to {name}
-                  </a>
+                  {signIn ? (
+                    <a href={signIn} className="landing-product-signin">
+                      Sign in to {name}
+                    </a>
+                  ) : (
+                    <span className="landing-product-soon">Coming soon</span>
+                  )}
                 </div>
               </article>
             ))}
