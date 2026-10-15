@@ -1,7 +1,9 @@
 -- Every 2021 LSOA (data zone in Scotland, super data zone in Northern
 -- Ireland) in the postcode directory's lookups, with its local authority
 -- and MSOA (from its postcodes), its latest population estimate (Nomis,
--- England) and its 2025 deprivation (English Indices of Deprivation).
+-- England), its 2025 deprivation (English Indices of Deprivation) and its
+-- ONS population-weighted centroid (England and Wales; travel times,
+-- decision 19).
 with lsoas as (
   select code, name from {{ ref('area_lookup') }} where area_type = 'lsoa21'
 ),
@@ -48,6 +50,11 @@ deprivation as (
          to_number("Income Deprivation Affecting Children Index (IDACI) Decile (where 1 is most deprived 10% of LSOAs)") as idaci_decile
   from {{ source('shared_raw', 'iod2025_lsoa') }}
   where SOURCEFILEID = {{ latest_file('iod-2025', 'IOD2025_LSOA') }}
+),
+centroid as (
+  select "LSOA21CD" as lsoa21_code, to_double("x") as easting, to_double("y") as northing
+  from {{ source('shared_raw', 'ons_lsoa_pwc') }}
+  where SOURCEFILEID = {{ latest_file('ons-lsoa-pwc', 'ONS_LSOA_PWC') }}
 )
 select
   l.code::varchar as lsoa21_code,
@@ -75,10 +82,15 @@ select
   d.crime_decile::number(38,0) as crime_decile,
   d.housing_decile::number(38,0) as housing_decile,
   d.living_environment_decile::number(38,0) as living_environment_decile,
-  d.idaci_decile::number(38,0) as idaci_decile
+  d.idaci_decile::number(38,0) as idaci_decile,
+  round(c.easting, 1)::number(10,1) as centroid_easting,
+  round(c.northing, 1)::number(10,1) as centroid_northing,
+  round(st_y(st_transform(st_setsrid(st_makegeompoint(c.easting, c.northing), 27700), 4326)), 6)::number(9,6) as centroid_latitude,
+  round(st_x(st_transform(st_setsrid(st_makegeompoint(c.easting, c.northing), 27700), 4326)), 6)::number(9,6) as centroid_longitude
 from lsoas l
 left join from_postcodes p on p.lsoa21_code = l.code
 left join {{ ref('local_authority') }} la on la.local_authority_code = p.local_authority_code
 left join {{ ref('area_lookup') }} m on m.area_type = 'msoa21' and m.code = p.msoa21_code
 left join population pop on pop.lsoa21_code = l.code
 left join deprivation d on d.lsoa21_code = l.code
+left join centroid c on c.lsoa21_code = l.code

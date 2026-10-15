@@ -318,7 +318,8 @@ export const STEPS = {
   // Each run's journey times (scripts/travel/compute.py), one CSV per run.
   42: { job: 'load-travel-times', files: () => newest(path.join(TRAVEL, 'results'), /^travel_time_lsoa_.*\.csv$/).map((file) => ({
     home: 'SHARED_DB', format: 'SHARED_DB.RAW.CSV_UTF8', source: 'rarebit-travel-time', publisher: 'Rarebit (computed with r5py from BODS, OpenStreetMap and ONS data)',
-    licence: 'Open Database Licence (ODbL) v1.0 (derived from OpenStreetMap; © OpenStreetMap contributors); BODS and ONS data under the Open Government Licence v3.0',
+    // Derived from OpenStreetMap; its BODS and ONS inputs (OGL) have their own SOURCE_FILE rows.
+    licence: 'Open Database Licence (ODbL) v1.0; © OpenStreetMap contributors',
     title: 'Journey times between South Yorkshire LSOA population-weighted centroids (decision 19)', kind: 'as-downloaded', page: null,
     file, table: 'SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN' })) },
 }

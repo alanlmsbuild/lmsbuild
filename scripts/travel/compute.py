@@ -9,8 +9,10 @@ A) with r5py, and write them as one CSV for npm run load:data -- 42.
     coach and tram, as the feed has them. No rail (phase B).
   Departure: Tuesday 10 November 2026, any minute from 07:30 to 08:30;
     r5py gives the 25th, 50th and 75th percentile of the journey times over
-    that window. Walking only, separately. Times over 90 minutes are left
-    empty.
+    that window. Walking only, separately. Walking at 4.8 km/h (DfT's
+    journey time statistics figure; r5py's default is 3.6). Any time over
+    90 minutes is left empty, in every column (R5 can report a little over
+    its cap once waiting is counted).
 
 Memory: R5 runs in Java with a 4.5 GB heap (MAX_MEMORY). Stop the dev
 servers first. JAVA_HOME defaults to the portable Temurin 21 in
@@ -37,6 +39,7 @@ DEPARTURE = dt.datetime(2026, 11, 10, 7, 30)
 WINDOW = dt.timedelta(minutes=60)
 MAX_MINUTES = 90
 PERCENTILES = [25, 50, 75]
+WALK_KMH = 4.8
 
 if 'JAVA_HOME' not in os.environ:
     jres = sorted(Path.home().glob('.cache/rarebit-java/jdk-21*'))
@@ -59,7 +62,7 @@ def newest(folder, pattern):
 
 
 def minutes(v):
-    return '' if pd.isna(v) else str(int(v))
+    return '' if pd.isna(v) or v > MAX_MINUTES else str(int(v))
 
 
 def main():
@@ -76,10 +79,10 @@ def main():
 
     transit = r5py.TravelTimeMatrix(network, origins=places, destinations=places, departure=DEPARTURE, departure_time_window=WINDOW,
                                     percentiles=PERCENTILES, transport_modes=[r5py.TransportMode.TRANSIT, r5py.TransportMode.WALK],
-                                    max_time=dt.timedelta(minutes=MAX_MINUTES))
+                                    max_time=dt.timedelta(minutes=MAX_MINUTES), speed_walking=WALK_KMH)
     print(f'transit times done at {time.time() - started:.0f}s', flush=True)
     walk = r5py.TravelTimeMatrix(network, origins=places, destinations=places, departure=DEPARTURE,
-                                 transport_modes=[r5py.TransportMode.WALK], max_time=dt.timedelta(minutes=MAX_MINUTES))
+                                 transport_modes=[r5py.TransportMode.WALK], max_time=dt.timedelta(minutes=MAX_MINUTES), speed_walking=WALK_KMH)
     print(f'walking times done at {time.time() - started:.0f}s', flush=True)
 
     times = transit.merge(walk.rename(columns={'travel_time': 'walk'}), on=['from_id', 'to_id'], how='outer')

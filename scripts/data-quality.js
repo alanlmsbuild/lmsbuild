@@ -49,6 +49,7 @@ const rows = (min, max) => ({ fn: 'ROW_COUNT', on: [], name: 'ROWS_IN_RANGE', ex
 const nulls = (col, max = 0) => ({ fn: 'NULL_COUNT', on: [col], name: `${col}_NULLS`.toUpperCase(), expect: max ? `VALUE <= ${max}` : 'VALUE = 0' })
 const dupes = (col) => ({ fn: 'DUPLICATE_COUNT', on: [col], name: `${col}_UNIQUE`.toUpperCase(), expect: 'VALUE = 0' })
 const fresh = (col, hours) => ({ fn: 'FRESHNESS', on: [col], name: `${col}_FRESH`.toUpperCase(), expect: `VALUE <= ${hours * 3600}` })
+const most = (col, max) => ({ fn: 'MAX', on: [col], name: `${col}_AT_MOST_${max}`.toUpperCase(), expect: `VALUE <= ${max}` })
 const honest = () => ({ fn: SHOWN_BASE_UNDER, on: ['status', 'base'], name: `SHOWN_BASE_UNDER_${HIDE_BELOW}`, expect: 'VALUE = 0' })
 
 export const QUALITY = {
@@ -70,6 +71,8 @@ export const QUALITY = {
   'SHARED_DB.GOLD.AREA_PROFILE': [rows(350, 370), dupes('local_authority_code'), nulls('name')], // 361
   'SHARED_DB.GOLD.POSTCODE_AREA': [rows(2_600_000, 2_900_000), dupes('postcode_compact')], // 2,729,090
   'SHARED_DB.GOLD.PROVIDER_BENCHMARK': [rows(55_000, 85_000), dupes('benchmark_key'), honest()], // 68,061
+  // Travel times (decision 19): every pair of South Yorkshire's 860 LSOAs, nothing over the 90-minute cap.
+  'SHARED_DB.GOLD.TRAVEL_TIME': [rows(700_000, 760_000), dupes('travel_key'), nulls('summary'), most('transit_minutes_p75', 90), most('walk_minutes', 90)], // 739,600
 }
 export const WAIT_MINUTES = 15
 const POLL_SECONDS = 30

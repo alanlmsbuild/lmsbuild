@@ -20,6 +20,36 @@ sources:
       - name: neso_dno_area
         identifier: NESO_DNO_AREA
         description: The 14 GB electricity regions (DNO licence areas), approximate boundaries in British National Grid, one GeoJSON feature per row.
+      - name: ons_lsoa_pwc
+        identifier: ONS_LSOA_PWC
+        description: 'ONS population-weighted centroids of the 2021 LSOAs, England and Wales (V4), x and y in British National Grid (load:data step 41).'
+      - name: naptan_stop
+        identifier: NAPTAN_STOP
+        description: 'NaPTAN: every public transport stop in Great Britain, as published (load:data step 36).'
+      - name: bods_gtfs_feed_info
+        identifier: BODS_GTFS_FEED_INFO
+        description: 'Bus Open Data Service GTFS for Yorkshire: feed_info.txt (the feed version and the dates it covers).'
+      - name: bods_gtfs_routes
+        identifier: BODS_GTFS_ROUTES
+        description: 'Bus Open Data Service GTFS for Yorkshire: routes.txt.'
+      - name: bods_gtfs_trips
+        identifier: BODS_GTFS_TRIPS
+        description: 'Bus Open Data Service GTFS for Yorkshire: trips.txt.'
+      - name: bods_gtfs_stops
+        identifier: BODS_GTFS_STOPS
+        description: 'Bus Open Data Service GTFS for Yorkshire: stops.txt (stop_id is the NaPTAN ATCO code).'
+      - name: bods_gtfs_calendar
+        identifier: BODS_GTFS_CALENDAR
+        description: 'Bus Open Data Service GTFS for Yorkshire: calendar.txt.'
+      - name: bods_gtfs_calendar_dates
+        identifier: BODS_GTFS_CALENDAR_DATES
+        description: 'Bus Open Data Service GTFS for Yorkshire: calendar_dates.txt.'
+      - name: osm_extract
+        identifier: OSM_EXTRACT
+        description: 'OpenStreetMap extracts (Geofabrik), one row per file with its header (ODbL).'
+      - name: travel_time_lsoa_run
+        identifier: TRAVEL_TIME_LSOA_RUN
+        description: 'Journey times between LSOA centroids that Rarebit computes with r5py (scripts/travel/compute.py), one row per origin and destination per run (load:data step 42).'
       - name: nomis_population_lsoa
         identifier: NOMIS_POPULATION_LSOA
         description: Population estimates by 2021 LSOA (England), every year from 2011, in broad age bands (Nomis NM_2014_1, load:data step 33).

@@ -42,14 +42,17 @@ run is recorded as failed and `SILVER` is left as it was; `SILVER_STAGING`
 keeps the failed build to look at. Its `OPS.JOB_RUN` summary has the
 models built and the tests passed, failed and warned (from dbt's
 `run_results.json`), the tables swapped, and on failure which step and
-which tests. After the swap it attaches Snowflake's data metric functions to 17 key
+which tests. After the swap it attaches Snowflake's data metric functions to 18 key
 tables: seven in `SILVER` (postcode, lsoa, local_authority, vacancy,
 vacancy_soc, provider, college_16_18: row counts, duplicates, nulls, and
-the vacancies' freshness) and ten in `GOLD` (the institution, university
-course, vacancy, job outlook, area, postcode and provider benchmark
-tables: row counts, duplicate keys, nulls, and on the four tables of
+the vacancies' freshness) and eleven in `GOLD` (the institution, university
+course, vacancy, job outlook, area, postcode, provider benchmark and travel
+time tables: row counts, duplicate keys, nulls; on the four tables of
 figures our own `SHARED_DB.GOVERNANCE.SHOWN_BASE_UNDER_10`, the rows
-showing a figure based on fewer than 10 people, expected 0). Each has an
+showing a figure based on fewer than 10 people, expected 0; on travel_time
+the longest times, expected at most the 90-minute cap). The travel times
+themselves are computed by hand (`scripts/travel/README.md`, decision 19);
+the job only rebuilds their silver and gold from the latest run. Each has an
 expectation; the list and thresholds are in `scripts/data-quality.js`. It waits for one measurement of each (about 5
 minutes), then sets them to run only when a table changes, so each day's
 tables are measured once, complete and tested. The results show in each

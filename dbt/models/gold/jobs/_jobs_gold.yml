@@ -583,3 +583,118 @@ models:
       - name: longitude
         data_type: float
         description: 'Longitude.'
+
+  - name: travel_time
+    description: >-
+      How long it takes to get from one LSOA to another (decision 19; phase A,
+      South Yorkshire), between population-weighted centroids: by walk, bus,
+      coach or tram on a typical term-time Tuesday morning (the median with
+      the 25th and 75th percentile over the departure window), and walking
+      only; nothing over the cap. SUMMARY says it in words, rounded to 5
+      minutes (Rarebit's own rounding). Derived from OpenStreetMap (ODbL):
+      show results with "© OpenStreetMap contributors"; never hand the table
+      over.
+    config:
+      meta:
+        source: rarebit-travel-time,bods-gtfs,geofabrik-osm,ons-lsoa-pwc
+        licence: odbl
+        attribution: '© OpenStreetMap contributors (ODbL). Contains public sector information licensed under the Open Government Licence v3.0 (Bus Open Data Service; ONS centroids, contains OS data © Crown copyright and database right).'
+        refresh: by-hand
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_WARREN', 'SHARED_DB.GOLD_MEADOW', 'SHARED_DB.GOLD_SITE']
+    columns:
+      - name: travel_key
+        data_type: varchar
+        description: 'Its key: origin and destination LSOA, joined with |.'
+        data_tests: [unique, not_null]
+      - name: origin_lsoa21
+        data_type: varchar
+        description: 'Where the journey starts (a 2021 LSOA; a postcode''s is in postcode_area).'
+        data_tests: [not_null]
+      - name: origin_name
+        data_type: varchar
+        description: 'That LSOA''s name.'
+      - name: origin_local_authority_code
+        data_type: varchar
+        description: 'Its local authority.'
+      - name: origin_local_authority_name
+        data_type: varchar
+        description: 'Its local authority''s name.'
+      - name: destination_lsoa21
+        data_type: varchar
+        description: 'Where it ends (a 2021 LSOA).'
+        data_tests: [not_null]
+      - name: destination_name
+        data_type: varchar
+        description: 'That LSOA''s name.'
+      - name: destination_local_authority_code
+        data_type: varchar
+        description: 'Its local authority.'
+      - name: destination_local_authority_name
+        data_type: varchar
+        description: 'Its local authority''s name.'
+      - name: transit_minutes_p25
+        data_type: number(38,0)
+        description: 'Walk, bus, coach and tram: the 25th percentile over the departure window (leaving at a good time). Empty over the cap.'
+      - name: transit_minutes_median
+        data_type: number(38,0)
+        description: 'The median journey time over the window. Empty over the cap.'
+      - name: transit_minutes_p75
+        data_type: number(38,0)
+        description: 'The 75th percentile (leaving at a bad time). Empty over the cap.'
+      - name: walk_minutes
+        data_type: number(38,0)
+        description: 'Walking only, the whole way. Empty over the cap.'
+      - name: summary
+        data_type: varchar
+        description: 'In words, e.g. about 25 minutes by bus or tram, weekday morning; about 15 minutes on foot when walking is no slower; more than the cap when neither is within it. Rounded to the nearest 5 minutes from 10 up (Rarebit''s own rounding).'
+        data_tests: [not_null]
+      - name: summary_mode
+        data_type: varchar
+        description: 'What SUMMARY describes: transit or walk; empty when neither is within the cap.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['transit', 'walk']
+      - name: notes
+        data_type: varchar
+        description: 'What the times are and what they leave out, in plain words, to show beside them: from where people live to where people live, walking and waiting included; no trains yet; some bus routes missing from the national timetable data.'
+        data_tests: [not_null]
+      - name: departure_date
+        data_type: date
+        description: 'The day the journeys are for (a typical term-time Tuesday).'
+        data_tests: [not_null]
+      - name: departure_window
+        data_type: varchar
+        description: 'The departure times tried, e.g. 07:30 to 08:30.'
+      - name: max_minutes
+        data_type: number(38,0)
+        description: 'The cap.'
+      - name: modes
+        data_type: varchar
+        description: 'The ways of travelling allowed (walk,bus,coach,tram: no rail yet).'
+      - name: gtfs_feed_version
+        data_type: varchar
+        description: 'The Bus Open Data Service feed the timetables came from.'
+      - name: published_on
+        data_type: date
+        description: 'When BODS made that feed (its version''s date).'
+        data_tests: [not_null]
+      - name: osm_data_date
+        data_type: date
+        description: 'The date of the OpenStreetMap data the streets and paths came from.'
+      - name: source
+        data_type: varchar
+        description: 'Where it comes from: rarebit-travel-time (our computation), bods-gtfs, geofabrik-osm, ons-lsoa-pwc.'
+        data_tests: [not_null]
+      - name: source_file_id
+        data_type: varchar
+        description: 'The computed run''s results file (SHARED_DB.RAW.SOURCE_FILE).'
+        data_tests: [not_null]
+      - name: computed_on
+        data_type: date
+        description: 'When the times were computed.'
+      - name: as_of
+        data_type: timestamp_ltz
+        description: 'When this table was made (golds build).'
+        data_tests: [not_null]

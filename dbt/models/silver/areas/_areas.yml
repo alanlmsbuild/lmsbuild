@@ -336,10 +336,11 @@ models:
       Every 2021 lower layer super output area (data zone in Scotland, super
       data zone in Northern Ireland), one row each: its name, local
       authority and MSOA, its latest population estimate and its 2025
-      deprivation (both England only; Wales's own index is not loaded).
+      deprivation (both England only; Wales's own index is not loaded), and
+      its ONS population-weighted centroid (England and Wales).
     config:
       meta:
-        source: onspd-lookups,onspd,nomis-nm-2014-1,iod-2025
+        source: onspd-lookups,onspd,nomis-nm-2014-1,iod-2025,ons-lsoa-pwc
         licence: ogl-3
         attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains public sector information licensed under the Open Government Licence v3.0.'
         refresh: by-hand
@@ -528,6 +529,34 @@ models:
           meta:
             source: iod-2025
             attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: centroid_easting
+        data_type: number(10,1)
+        description: 'Its ONS population-weighted centroid (December 2021, V4): easting, British National Grid metres. England and Wales.'
+        config:
+          meta:
+            source: ons-lsoa-pwc
+            attribution: 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.'
+      - name: centroid_northing
+        data_type: number(10,1)
+        description: 'That centroid''s northing, British National Grid metres.'
+        config:
+          meta:
+            source: ons-lsoa-pwc
+            attribution: 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.'
+      - name: centroid_latitude
+        data_type: number(9,6)
+        description: 'That centroid''s latitude (WGS 84), converted from the grid reference.'
+        config:
+          meta:
+            source: ons-lsoa-pwc
+            attribution: 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.'
+      - name: centroid_longitude
+        data_type: number(9,6)
+        description: 'That centroid''s longitude (WGS 84).'
+        config:
+          meta:
+            source: ons-lsoa-pwc
+            attribution: 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.'
 
   - name: local_authority_population
     description: >-
@@ -680,3 +709,145 @@ models:
       - name: source_file_id
         data_type: varchar
         description: 'The DESNZ workbook (SOURCE_FILE row).'
+
+  - name: gtfs_feed
+    description: >-
+      The bus and tram timetables the travel times use: the latest Bus Open
+      Data Service GTFS feed for Yorkshire, one row (its version, the dates it
+      covers, when BODS made it, and its routes by kind).
+    config:
+      meta:
+        source: bods-gtfs
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0 (Bus Open Data Service).'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: feed_version
+        data_type: varchar
+        description: 'The feed''s version, as feed_info.txt gives it (its date and time, e.g. 20261015_030627).'
+        data_tests: [unique, not_null]
+      - name: publisher
+        data_type: varchar
+        description: 'Who publishes the feed (the Bus Open Data Service).'
+      - name: feed_start_date
+        data_type: date
+        description: 'The first day the feed''s timetables cover.'
+      - name: feed_end_date
+        data_type: date
+        description: 'The last day they cover.'
+      - name: published_on
+        data_type: date
+        description: 'When BODS made the feed: the date its version starts with.'
+        data_tests: [not_null]
+      - name: bus_routes
+        data_type: number(38,0)
+        description: 'Its bus routes (GTFS route type 3).'
+      - name: coach_routes
+        data_type: number(38,0)
+        description: 'Its coach routes (route type 200).'
+      - name: tram_routes
+        data_type: number(38,0)
+        description: 'Its tram routes (route type 0: Sheffield Supertram, with tram-train).'
+      - name: other_route_types
+        data_type: number(38,0)
+        description: 'How many other route types it has (expected 0: rail is not in BODS).'
+      - name: source_file_id
+        data_type: varchar
+        description: 'Its feed_info.txt SOURCE_FILE row (SHARED_DB.RAW).'
+        data_tests: [not_null]
+
+  - name: travel_time_lsoa
+    description: >-
+      Journey times between LSOA population-weighted centroids from the latest
+      run of scripts/travel/compute.py (decision 19; phase A, South Yorkshire):
+      one row per origin and destination. Walk, bus, coach and tram minutes at
+      the 25th, 50th and 75th percentile of departures in the window, and
+      walking only; empty over the cap. Derived from OpenStreetMap (ODbL).
+    config:
+      meta:
+        source: rarebit-travel-time,bods-gtfs,geofabrik-osm,ons-lsoa-pwc
+        licence: odbl
+        attribution: '© OpenStreetMap contributors (ODbL). Contains public sector information licensed under the Open Government Licence v3.0 (Bus Open Data Service; ONS centroids, contains OS data © Crown copyright and database right).'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: travel_key
+        data_type: varchar
+        description: 'Its key: origin and destination LSOA, joined with |.'
+        data_tests: [unique, not_null]
+      - name: origin_lsoa21
+        data_type: varchar
+        description: 'Where the journey starts: a 2021 LSOA, at its population-weighted centroid.'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('lsoa')
+                field: lsoa21_code
+      - name: destination_lsoa21
+        data_type: varchar
+        description: 'Where it ends: a 2021 LSOA, at its population-weighted centroid.'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('lsoa')
+                field: lsoa21_code
+      - name: transit_minutes_p25
+        data_type: number(38,0)
+        description: 'Walk, bus, coach and tram: the 25th percentile of the journey times over the departure window (a lucky departure). Empty over the cap.'
+      - name: transit_minutes_p50
+        data_type: number(38,0)
+        description: 'The median journey time over the window. Empty over the cap.'
+      - name: transit_minutes_p75
+        data_type: number(38,0)
+        description: 'The 75th percentile (an unlucky departure). Empty over the cap.'
+      - name: walk_minutes
+        data_type: number(38,0)
+        description: 'Walking only, the whole way. Empty over the cap.'
+      - name: departure_date
+        data_type: date
+        description: 'The day the journeys are for (a typical term-time Tuesday).'
+        data_tests: [not_null]
+      - name: window_start
+        data_type: varchar
+        description: 'The first departure time tried (HH:MM).'
+      - name: window_minutes
+        data_type: number(38,0)
+        description: 'How long the departure window is: one departure a minute across it.'
+      - name: max_minutes
+        data_type: number(38,0)
+        description: 'The cap: longer journeys are left empty.'
+        data_tests: [not_null]
+      - name: modes
+        data_type: varchar
+        description: 'The ways of travelling allowed, e.g. walk,bus,coach,tram.'
+      - name: gtfs_feed_version
+        data_type: varchar
+        description: 'The BODS feed the timetables came from.'
+      - name: gtfs_source_file_id
+        data_type: varchar
+        description: 'That feed''s SOURCE_FILE row (its feed_info.txt).'
+      - name: osm_source_file_id
+        data_type: varchar
+        description: 'The OpenStreetMap extract''s SOURCE_FILE row.'
+      - name: osm_data_date
+        data_type: date
+        description: 'The date of that extract''s OpenStreetMap data (its replication timestamp).'
+      - name: centroid_source_file_id
+        data_type: varchar
+        description: 'The ONS centroids file''s SOURCE_FILE row.'
+      - name: r5py_version
+        data_type: varchar
+        description: 'The r5py version that computed the times.'
+      - name: run_id
+        data_type: varchar
+        description: 'The run that computed them.'
+      - name: computed_at
+        data_type: timestamp_ltz
+        description: 'When they were computed.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The run''s results file (SOURCE_FILE row).'
+        data_tests: [not_null]
