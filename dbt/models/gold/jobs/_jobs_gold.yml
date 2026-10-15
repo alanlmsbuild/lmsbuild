@@ -258,7 +258,7 @@ models:
         description: 'The change over the compared months (each against the same month a year before), as a percentage; empty with fewer than 6.'
       - name: adverts_trend
         data_type: varchar
-        description: 'up or down (a change of more than 5% over the compared months: our rule), about the same, or empty with fewer than 6 compared months. Never a ranking.'
+        description: 'up or down (a change of more than 5% over the compared months), about the same, or empty with fewer than 6 compared months. The 5% threshold is Rarebit''s own rule, not ONS''s. Never a ranking.'
         data_tests:
           - accepted_values:
               arguments:
@@ -319,3 +319,259 @@ models:
         description: 'When this table was made (golds build).'
         data_tests:
           - not_null
+
+  - name: area_profile
+    description: >-
+      What a local authority is like, one row per authority, described in
+      words against similar areas and England and never ranked: population,
+      deprivation, crime and anti-social behaviour per 1,000 people with how
+      they compare and whether rising or falling (like for like), fuel
+      poverty, and the most-advertised occupations. Crime is England and Wales
+      (police.uk has no Police Scotland data), using only months the area's
+      force sent in full (at least half its usual month); none where no force
+      recorded reports in at least half the area's LSOAs (Greater Manchester
+      Police sends none to police.uk). The 10%, 5% and
+      half thresholds and the similar-areas grouping are Rarebit's own rules,
+      not ONS's or the police's.
+    config:
+      meta:
+        source: onspd,nomis-nm-31-1,iod-2025,police-uk-street,fuel-poverty-sub-regional,ons-online-job-adverts
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: daily
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_MEADOW', 'SHARED_DB.GOLD_SITE']
+    columns:
+      - name: local_authority_code
+        data_type: varchar
+        description: 'The local authority (todays code).'
+        data_tests:
+          - unique
+          - not_null
+      - name: name
+        data_type: varchar
+        description: 'Its name.'
+        data_tests:
+          - not_null
+      - name: region_name
+        data_type: varchar
+        description: 'Its region (England).'
+      - name: country_name
+        data_type: varchar
+        description: 'Its country.'
+      - name: population
+        data_type: number(38,0)
+        description: 'Its latest mid-year population estimate (England only).'
+      - name: population_year
+        data_type: number(38,0)
+        description: 'The year of that estimate.'
+      - name: lsoas
+        data_type: number(38,0)
+        description: 'How many 2021 LSOAs it has (England).'
+      - name: most_deprived_10_percent_share
+        data_type: number(5,1)
+        description: 'The percentage of its LSOAs in England''s most deprived 10% (IMD 2025).'
+      - name: rural_urban_class
+        data_type: varchar
+        description: 'The 2021 rural-urban class most of its postcodes are in (part of the similar-areas grouping).'
+      - name: deprivation_fifth
+        data_type: number(38,0)
+        description: 'Its fifth among English authorities by the average IMD score of its LSOAs (1 the most deprived); part of the similar-areas grouping, Rarebit''s own. Not a ranking to show.'
+      - name: crimes_last_12_months
+        data_type: number(38,0)
+        description: 'Crimes (not anti-social behaviour) in police.uk for the last 12 months, only when all 12 are complete for the area''s force.'
+      - name: crime_rate_per_1000
+        data_type: number(10,1)
+        description: 'Those crimes per 1,000 people (England, where population is known).'
+      - name: crime_months_present
+        data_type: number(38,0)
+        description: 'How many of the last 12 months are complete: the area''s force sent at least half its usual month (Rarebit''s rule).'
+      - name: crime_rate_similar_areas
+        data_type: number(10,1)
+        description: 'The crime rate of similar areas together (same rural-urban class and deprivation fifth: Rarebit''s grouping).'
+      - name: crime_similar_areas
+        data_type: number(38,0)
+        description: 'How many similar areas that rate is from (at least 3 to compare).'
+      - name: crime_vs_similar_areas
+        data_type: varchar
+        description: 'higher or lower than similar areas (more than 10% apart, Rarebit''s rule), about the same, or empty.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['higher', 'lower', 'about the same']
+      - name: crime_rate_england
+        data_type: number(10,1)
+        description: 'England''s crime rate per 1,000, from the English areas with figures (all 12 months complete; not Greater Manchester).'
+      - name: crime_vs_england
+        data_type: varchar
+        description: 'higher, lower or about the same as England (10%, Rarebit''s rule).'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['higher', 'lower', 'about the same']
+      - name: crime_trend_compared_months
+        data_type: number(38,0)
+        description: 'Months of the last 12 compared like for like with the same month a year before (both in police.uk).'
+      - name: crime_change_percent
+        data_type: number(8,1)
+        description: 'The change over those months, as a percentage (at least 6).'
+      - name: crime_trend
+        data_type: varchar
+        description: 'rising or falling (more than 5% over the compared months, Rarebit''s rule), about the same, or empty.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['rising', 'falling', 'about the same']
+      - name: asb_last_12_months
+        data_type: number(38,0)
+        description: 'Anti-social behaviour reports in the last 12 months (all 12 there).'
+      - name: asb_rate_per_1000
+        data_type: number(10,1)
+        description: 'Those per 1,000 people.'
+      - name: asb_rate_england
+        data_type: number(10,1)
+        description: 'England''s anti-social behaviour rate per 1,000, from the English areas with figures.'
+      - name: asb_change_percent
+        data_type: number(8,1)
+        description: 'The change in anti-social behaviour over the compared months.'
+      - name: asb_trend
+        data_type: varchar
+        description: 'rising, falling or about the same, as for crime.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['rising', 'falling', 'about the same']
+      - name: crime_last_month
+        data_type: date
+        description: 'The last month of the police.uk figures.'
+      - name: households
+        data_type: number(38,0)
+        description: 'Households (DESNZ fuel poverty statistics, England).'
+      - name: fuel_poor_households
+        data_type: number(38,0)
+        description: 'Households in fuel poverty.'
+      - name: fuel_poor_percent
+        data_type: number(5,1)
+        description: 'The percentage of households fuel poor (DESNZ: for general trends).'
+      - name: fuel_poor_percent_england
+        data_type: number(5,1)
+        description: 'England''s percentage, beside it.'
+      - name: fuel_poverty_year
+        data_type: number(38,0)
+        description: 'The year the fuel poverty figures are for.'
+      - name: top_advertised_occupations
+        data_type: variant
+        description: 'The five SOC 2020 minor groups with most new online job adverts over the months ONS published in full for the area (at least 6 of the last 12): code, title, adverts. A list of occupations, not of areas.'
+      - name: adverts_months_used
+        data_type: number(38,0)
+        description: 'How many months that list is from.'
+      - name: population_source_file_id
+        data_type: varchar
+        description: 'The population file.'
+      - name: population_published_on
+        data_type: date
+        description: 'When it was published, as stated.'
+      - name: fuel_poverty_source_file_id
+        data_type: varchar
+        description: 'The fuel poverty workbook.'
+      - name: fuel_poverty_published_on
+        data_type: date
+        description: 'When it was published, as stated.'
+      - name: crime_source_file_id
+        data_type: varchar
+        description: 'The police.uk archive.'
+      - name: as_of
+        data_type: timestamp_ltz
+        description: 'When this table was made.'
+        data_tests:
+          - not_null
+
+  - name: postcode_area
+    description: >-
+      Where a postcode is, for Warren and Burrow: one row per postcode in the
+      ONS Postcode Directory, live or terminated, with its areas by name and
+      its LSOAs deprivation decile (England). A postcode is a place, not
+      personal data.
+    config:
+      meta:
+        source: onspd,onspd-lookups,iod-2025
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right 2026. Contains Royal Mail data © Royal Mail copyright and database right 2026.'
+        refresh: daily
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_WARREN']
+    columns:
+      - name: postcode_compact
+        data_type: varchar
+        description: 'The postcode with no spaces, as typed addresses are matched.'
+        data_tests:
+          - unique
+          - not_null
+      - name: postcode
+        data_type: varchar
+        description: 'The postcode written the usual way.'
+        data_tests:
+          - not_null
+      - name: is_live
+        data_type: boolean
+        description: 'True while it is in use.'
+        data_tests:
+          - not_null
+      - name: terminated
+        data_type: date
+        description: 'When it stopped being used.'
+      - name: country_code
+        data_type: varchar
+        description: 'Its country.'
+      - name: country_name
+        data_type: varchar
+        description: 'Its countrys name.'
+      - name: region_code
+        data_type: varchar
+        description: 'Its region (England).'
+      - name: region_name
+        data_type: varchar
+        description: 'Its regions name.'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'Its local authority.'
+      - name: local_authority_name
+        data_type: varchar
+        description: 'Its local authoritys name.'
+      - name: ward_code
+        data_type: varchar
+        description: 'Its ward.'
+      - name: ward_name
+        data_type: varchar
+        description: 'Its wards name.'
+      - name: constituency_code
+        data_type: varchar
+        description: 'Its Westminster constituency.'
+      - name: constituency_name
+        data_type: varchar
+        description: 'Its constituencys name.'
+      - name: lsoa21_code
+        data_type: varchar
+        description: 'Its 2021 LSOA.'
+      - name: lsoa21_name
+        data_type: varchar
+        description: 'Its LSOAs name.'
+      - name: msoa21_code
+        data_type: varchar
+        description: 'Its 2021 MSOA.'
+      - name: imd_decile
+        data_type: number(38,0)
+        description: 'Its LSOAs IMD 2025 decile (England; 1 the most deprived 10%).'
+        config:
+          meta:
+            source: 'iod-2025'
+            attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+      - name: rural_urban_2021
+        data_type: varchar
+        description: 'The 2021 rural-urban class of its output area.'
+      - name: latitude
+        data_type: float
+        description: 'Latitude.'
+      - name: longitude
+        data_type: float
+        description: 'Longitude.'

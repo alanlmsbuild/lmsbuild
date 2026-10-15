@@ -528,3 +528,154 @@ models:
           meta:
             source: iod-2025
             attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+
+  - name: local_authority_population
+    description: >-
+      Mid-year population estimates for England and its local authority
+      districts and unitaries, all ages, every year in the latest Nomis file
+      (NM_31_1, England). Authorities as of April 2023; a code no longer used
+      is matched to todays by name.
+    config:
+      meta:
+        source: nomis-nm-31-1
+        licence: ogl-3
+        attribution: 'Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: weekly
+        sensitivity: public
+    columns:
+      - name: population_key
+        data_type: varchar
+        description: 'Its key: area code and year.'
+        data_tests:
+          - unique
+          - not_null
+      - name: area_code
+        data_type: varchar
+        description: 'The area (todays local authority code, or E92000001 England).'
+        data_tests:
+          - not_null
+      - name: area_code_published
+        data_type: varchar
+        description: 'The code as Nomis gives it (April 2023 authorities).'
+      - name: area_name
+        data_type: varchar
+        description: 'The areas name as Nomis gives it.'
+      - name: geography
+        data_type: varchar
+        description: 'local_authority or country.'
+        data_tests:
+          - not_null
+      - name: year
+        data_type: number(38,0)
+        description: 'The mid-year (June) of the estimate.'
+        data_tests:
+          - not_null
+      - name: population
+        data_type: number(38,0)
+        description: 'The estimated population, all ages.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The Nomis file (SOURCE_FILE row).'
+
+  - name: crime_lsoa_month
+    description: >-
+      police.uk street-level reports counted by 2021 LSOA, month, kind
+      (crime, or anti-social behaviour) and the force that recorded them. Locations are approximate by design,
+      so counts are close, not exact; reports with no LSOA (about 4%) are left
+      out; a force that sent nothing for a month has no rows for it.
+    config:
+      meta:
+        source: police-uk-street
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: crime_key
+        data_type: varchar
+        description: 'Its key: LSOA, month, kind and force.'
+        data_tests:
+          - unique
+          - not_null
+      - name: lsoa21_code
+        data_type: varchar
+        description: 'The 2021 LSOA police.uk places the reports in.'
+        data_tests:
+          - not_null
+      - name: month
+        data_type: date
+        description: 'The month (its first day).'
+        data_tests:
+          - not_null
+      - name: kind
+        data_type: varchar
+        description: 'crime (every crime type) or anti-social behaviour.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['crime', 'anti-social behaviour']
+      - name: force
+        data_type: varchar
+        description: 'The police force that recorded them (police.uk''s "Falls within").'
+        data_tests:
+          - not_null
+      - name: reports
+        data_type: number(38,0)
+        description: 'How many reports.'
+        data_tests:
+          - not_null
+      - name: source_file_id
+        data_type: varchar
+        description: 'The police.uk file (SOURCE_FILE row).'
+
+  - name: fuel_poverty_area
+    description: >-
+      Fuel poverty in England (DESNZ sub-regional statistics, the latest
+      workbook) by area: England, regions, counties and unitaries, districts,
+      and LSOAs. DESNZ: for general trends; LSOA figures with care.
+    config:
+      meta:
+        source: fuel-poverty-sub-regional
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: fuel_poverty_key
+        data_type: varchar
+        description: 'Its key: area code and level.'
+        data_tests:
+          - unique
+          - not_null
+      - name: area_code
+        data_type: varchar
+        description: 'The areas code (May 2026 codes, as DESNZ gives them).'
+        data_tests:
+          - not_null
+      - name: area_name
+        data_type: varchar
+        description: 'The areas name.'
+      - name: area_level
+        data_type: varchar
+        description: 'country, region, county_or_unitary, district or lsoa.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['country', 'region', 'county_or_unitary', 'district', 'lsoa']
+      - name: data_year
+        data_type: number(38,0)
+        description: 'The year the figures are for.'
+      - name: households
+        data_type: number(38,0)
+        description: 'Households.'
+      - name: fuel_poor_households
+        data_type: number(38,0)
+        description: 'Households in fuel poverty (Low Income Low Energy Efficiency).'
+      - name: fuel_poor_percent
+        data_type: number(10,4)
+        description: 'The percentage of households fuel poor, as published.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The DESNZ workbook (SOURCE_FILE row).'

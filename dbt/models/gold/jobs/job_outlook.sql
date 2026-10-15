@@ -12,8 +12,9 @@
 --   Adverts: ONS's new online job adverts (from Textkernel; official
 --     statistics in development). The trend compares like for like: each
 --     of the last 12 months with the same month a year before, where ONS
---     published both; up or down when the change is more than 5% (our
---     rule), about the same otherwise; empty with fewer than 6 such months.
+--     published both; up or down when the change is more than 5%, about
+--     the same otherwise (the 5% is Rarebit's own rule, not ONS's); empty
+--     with fewer than 6 such months.
 --     12-month totals only when no month is missing.
 --   Open now: live adverts whose closing date is still to come, coded to
 --     the occupation (scripts/vacancy-soc.js), in the area.
@@ -107,7 +108,7 @@ select
   case when ad.compared_months >= 6 and ad.compared_previous > 0
        then round((ad.compared_last - ad.compared_previous) / ad.compared_previous * 100, 1) end::number(8,1) as adverts_change_percent,
   case
-    when not (ad.compared_months >= 6 and ad.compared_previous > 0) then null
+    when coalesce(ad.compared_months, 0) < 6 or coalesce(ad.compared_previous, 0) = 0 then null
     when (ad.compared_last - ad.compared_previous) / ad.compared_previous > 0.05 then 'up'
     when (ad.compared_last - ad.compared_previous) / ad.compared_previous < -0.05 then 'down'
     else 'about the same'

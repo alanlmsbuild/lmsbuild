@@ -26,6 +26,9 @@ sources:
       - name: iod2025_lsoa
         identifier: IOD2025_LSOA
         description: The English Indices of Deprivation 2025, one row per 2021 LSOA (England), columns named as in the file.
+      - name: nomis_population_la
+        identifier: NOMIS_POPULATION_LA
+        description: Population estimates by local authority (England), every year from 1981, by sex and age (Nomis NM_31_1, load:data step 33).
       - name: police_street_crime
         identifier: POLICE_STREET_CRIME
         description: police.uk street-level crimes, latest 3-year archive, one row per crime (load:data step 35).
