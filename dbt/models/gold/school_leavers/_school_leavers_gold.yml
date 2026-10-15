@@ -380,3 +380,214 @@ models:
       - name: published_on
         data_type: date
         description: 'When the publisher says the attainment file (or its release) was published, as its page or API states it. Empty where it states none.'
+
+  - name: university_course_card
+    description: >-
+      The university courses the school leavers app can show, one row per
+      course (Discover Uni): what it is, who teaches it, where, and its own
+      page (empty while the link check hides it).
+    config:
+      meta:
+        source: discover-uni,leo-grad-cah3-subject
+        licence: cc-by-4
+        attribution: 'Credit: HESA (www.hesa.ac.uk). Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: honesty rules applied (fewer than 10 hidden, 10 to 29 marked); columns renamed.'
+        refresh: daily
+        sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
+    columns:
+      - name: course_key
+        data_type: varchar
+        description: 'Its key: publishing UKPRN, course ID and mode.'
+        data_tests:
+          - unique
+          - not_null
+      - name: publishing_ukprn
+        data_type: varchar
+        description: 'The provider that publishes it.'
+        data_tests:
+          - not_null
+      - name: teaching_ukprn
+        data_type: varchar
+        description: 'The provider that teaches it.'
+        data_tests:
+          - not_null
+      - name: course_id
+        data_type: varchar
+        description: 'The providers own course ID.'
+      - name: title
+        data_type: varchar
+        description: 'Its title.'
+        data_tests:
+          - not_null
+      - name: title_welsh
+        data_type: varchar
+        description: 'Its title in Welsh, if given.'
+      - name: qualification
+        data_type: varchar
+        description: 'The qualification it leads to, e.g. BA, BSc.'
+      - name: mode
+        data_type: varchar
+        description: 'Full-time, part-time, or either.'
+      - name: years
+        data_type: number(38,0)
+        description: 'How many years it lasts.'
+      - name: honours
+        data_type: boolean
+        description: 'True for an honours degree.'
+      - name: foundation_year
+        data_type: varchar
+        description: 'Foundation year: no, optional or compulsory.'
+      - name: placement_year
+        data_type: varchar
+        description: 'Placement (sandwich) year: no, optional or compulsory.'
+      - name: year_abroad
+        data_type: varchar
+        description: 'Year abroad: no, optional or compulsory.'
+      - name: distance_learning
+        data_type: varchar
+        description: 'Distance learning: no, distance only or optional.'
+      - name: ucas_programme_code
+        data_type: varchar
+        description: 'Its UCAS programme code, if it has one.'
+      - name: provider_name
+        data_type: varchar
+        description: 'The publishing providers name.'
+        data_tests:
+          - not_null
+      - name: provider_postcode
+        data_type: varchar
+        description: 'The postcode in the providers address.'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'The providers local authority (from that postcode).'
+      - name: local_authority_name
+        data_type: varchar
+        description: 'That local authoritys name.'
+      - name: main_subject_code
+        data_type: varchar
+        description: 'Its first subjects CAH code.'
+      - name: main_subject_name
+        data_type: varchar
+        description: 'That subjects name.'
+      - name: subject_count
+        data_type: number(38,0)
+        description: 'How many subjects it has (more than one for a joint course).'
+      - name: website_url
+        data_type: varchar
+        description: 'The courses own page, unless the link check hides it.'
+      - name: website_link_status
+        data_type: varchar
+        description: 'What the link check last found.'
+      - name: source
+        data_type: varchar
+        description: 'Which data set the figures are from.'
+        data_tests:
+          - not_null
+      - name: source_file_id
+        data_type: varchar
+        description: 'The file they are from (SOURCE_FILE row).'
+        data_tests:
+          - not_null
+      - name: downloaded_on
+        data_type: date
+        description: 'When we downloaded that file (not when it was published).'
+        data_tests:
+          - not_null
+      - name: published_on
+        data_type: date
+        description: 'When the publisher says it was published, as its page states it; empty where it states none (HESA states none we can read).'
+
+  - name: university_course_result
+    description: >-
+      University course outcomes as the app may show them, one row per course,
+      measure and subject, with the honesty rules applied: fewer than 10
+      hidden, 10 to 29 a small group, and a figure HESA does not give shown as
+      unavailable, never as zero. Each subjects figures are only ever its own.
+    config:
+      meta:
+        source: discover-uni,leo-grad-cah3-subject
+        licence: cc-by-4
+        attribution: 'Credit: HESA (www.hesa.ac.uk). Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changes: honesty rules applied (fewer than 10 hidden, 10 to 29 marked); columns renamed.'
+        refresh: daily
+        sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
+    columns:
+      - name: outcome_key
+        data_type: varchar
+        description: 'Its key: course, measure and subject.'
+        data_tests:
+          - unique
+          - not_null
+      - name: course_key
+        data_type: varchar
+        description: 'The course (UNIVERSITY_COURSE_CARD).'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('university_course_card')
+                field: course_key
+      - name: measure
+        data_type: varchar
+        description: 'continuation, salary_15_months or earnings_3_years.'
+        data_tests:
+          - not_null
+      - name: subject_code
+        data_type: varchar
+        description: 'The subject (or subject group) the figures are for; empty when for the whole course or not available.'
+      - name: subject_name
+        data_type: varchar
+        description: 'That subjects name, when known.'
+      - name: status
+        data_type: varchar
+        description: 'The honesty rules verdict: shown, or why it is hidden (fewer-than-10, unavailable when HESA gives no figure).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['shown', 'fewer-than-10', 'withheld', 'too-few', 'unavailable']
+      - name: value_text
+        data_type: varchar
+        description: 'Always empty here (the figures are numbers).'
+      - name: value_number
+        data_type: float
+        description: 'The figure when shown: for continuation, the percentage continuing; for salary and earnings, the median in pounds.'
+      - name: base
+        data_type: number(38,0)
+        description: 'The students, respondents or graduates it is based on, when shown.'
+      - name: small_group
+        data_type: boolean
+        description: 'True when shown but based on 10 to 29: a small group.'
+      - name: hidden_reason
+        data_type: varchar
+        description: 'Why it is hidden, when it is.'
+      - name: lower_quartile
+        data_type: float
+        description: 'Salary and earnings, when shown: the lower quartile.'
+      - name: upper_quartile
+        data_type: float
+        description: 'Salary and earnings, when shown: the upper quartile.'
+      - name: hesa_unavailable_reason
+        data_type: varchar
+        description: 'HESAs own code for why figures are or are not available, as published.'
+      - name: aggregation_years
+        data_type: varchar
+        description: 'The years the figures cover.'
+      - name: source
+        data_type: varchar
+        description: 'Which data set the figures are from.'
+        data_tests:
+          - not_null
+      - name: source_file_id
+        data_type: varchar
+        description: 'The file they are from (SOURCE_FILE row).'
+        data_tests:
+          - not_null
+      - name: downloaded_on
+        data_type: date
+        description: 'When we downloaded that file (not when it was published).'
+        data_tests:
+          - not_null
+      - name: published_on
+        data_type: date
+        description: 'When the publisher says it was published, as its page states it; empty where it states none (HESA states none we can read).'

@@ -8,6 +8,8 @@ with figures as (
   select 'institution_result' as model, result_key as key_, status, value_text, value_number, base, small_group, hidden_reason, source, source_file_id, downloaded_on, published_on from {{ ref('institution_result') }}
   union all
   select 'institution_achievement', achievement_key, status, value_text, value_number, base, small_group, hidden_reason, source, source_file_id, downloaded_on, published_on from {{ ref('institution_achievement') }}
+  union all
+  select 'university_course_result', outcome_key, status, value_text, value_number, base, small_group, hidden_reason, source, source_file_id, downloaded_on, published_on from {{ ref('university_course_result') }}
 )
 select model, key_, status, base, small_group, hidden_reason from figures
 where (status = 'shown' and (base is null or base < {{ var('honesty_hide_below') }}))
