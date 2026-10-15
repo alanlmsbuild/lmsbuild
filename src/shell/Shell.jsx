@@ -16,7 +16,7 @@ import {
 } from './navigation'
 import './shell.css'
 
-// Rarebit as one app: the landing page at /, the sign-in page at /sign-in,
+// Rarebit as one app: the front door at /, the sign-in page at /sign-in,
 // Warren at /app and Burrow at /burrow share this shell. Moving between
 // them changes the address without reloading the page. The header stays in
 // place; its colour and area name change with a short fade (none if the
@@ -60,6 +60,10 @@ function Shell() {
   const [pageTitle, setPageTitleState] = useState(null)
   const pathname = path.split('?')[0]
   const area = areaOf(pathname)
+  // The front door (Landing.jsx) has its own cream header; every other
+  // page, and / for someone signed in (on the way to their home), has the
+  // shared one.
+  const frontDoor = pathname === '/' && meStatus !== 'in'
 
   // replace: true swaps the address instead of adding to the history (for
   // redirects, and for filters that shouldn't each need a Back).
@@ -176,7 +180,7 @@ function Shell() {
 
   return (
     <ShellContext.Provider value={shell}>
-      <ShellHeader area={area} pathname={pathname} me={me} onTabSlot={setTabSlot} />
+      {!frontDoor && <ShellHeader area={area} pathname={pathname} me={me} onTabSlot={setTabSlot} />}
       <Suspense fallback={<div className="shell-loading" />}>{page}</Suspense>
       {area !== 'rarebit' && <SkillsEnglandFooter />}
     </ShellContext.Provider>
@@ -186,8 +190,10 @@ function Shell() {
 // The header shared by every page: the Rarebit mark and name, the area's
 // name, the area's tabs (put in the slot by the area), and on the right
 // the switch to the other area (only for people who can use both), the
-// account menu and the development-only test user pill. On the landing
-// page there's no area name, and "Sign in" instead of the account menu.
+// account menu and the development-only test user pill. Outside Warren and
+// Burrow (the sign-in page, a page not found) there's no area name, and
+// "Sign in" instead of the account menu when nobody is signed in. The
+// front door at / has its own header (Landing.jsx).
 function ShellHeader({ area, pathname, me, onTabSlot }) {
   const areas = areasFor(me)
   const other = area === 'warren' ? 'burrow' : area === 'burrow' ? 'warren' : null

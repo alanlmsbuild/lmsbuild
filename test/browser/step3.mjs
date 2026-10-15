@@ -49,11 +49,13 @@ async function go(p, path) {
 {
   const p = await open(null)
   check('signed out: / shows the landing page', (await go(p, '/')) === '/' && (await p.locator('.landing').count()) === 1)
+  check('  with its own header, not the shared one', (await p.locator('.landing-header').count()) === 1 && (await p.locator('.shell-header').count()) === 0)
   let t = await tab(p)
   check('landing tab', t.title === 'Rarebit: learning and e-portfolio systems' && t.icon === '/icons/rarebit.svg', JSON.stringify(t))
-  await p.locator('.shell-signin').click()
+  await p.getByRole('link', { name: 'Sign in', exact: true }).click()
   await settle(p)
   check('Sign in goes to /sign-in', here(p) === '/sign-in')
+  check('  which has the shared header', (await p.locator('.shell-header').count()) === 1 && (await p.locator('.landing-header').count()) === 0)
   check('Who are you? heading', await p.getByRole('heading', { name: 'Who are you?' }).isVisible())
   t = await tab(p)
   check('sign-in tab', t.title === 'Sign in – Rarebit' && t.icon === '/icons/rarebit.svg', JSON.stringify(t))
@@ -83,7 +85,7 @@ async function go(p, path) {
   await p.waitForURL(BASE + '/')
   await settle(p)
   check('sign out lands on the landing page', here(p) === '/' && (await p.locator('.landing').count()) === 1)
-  check('  and the header says Sign in', await p.locator('.shell-signin').isVisible())
+  check('  and the header says Sign in', await p.getByRole('link', { name: 'Sign in', exact: true }).isVisible())
   check('  and Warren now asks to sign in', (await go(p, '/app/learners')) === '/sign-in?next=%2Fapp%2Flearners')
   check('unknown address: not found', (await go(p, '/nowhere')) === '/nowhere' && (await p.getByText('There’s nothing at this address').count() + await p.getByText("There's nothing at this address").count()) > 0)
   // An unsafe next goes home instead.
@@ -122,7 +124,7 @@ const homes = [
 for (const [name, home, title] of homes) {
   const p = await open(null)
   await go(p, '/')
-  await p.locator('.shell-signin').click()
+  await p.getByRole('link', { name: 'Sign in', exact: true }).click()
   await settle(p)
   await p.getByLabel('Find a name').fill(name.split(' ')[0])
   await p.getByRole('button', { name: new RegExp(name) }).click()

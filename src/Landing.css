@@ -63,6 +63,80 @@
   padding: 24px 32px 48px;
 }
 
+/* ----------------------------------------------------------- header */
+
+/* The front door's own header (the shared dark one isn't shown here). */
+.landing-header {
+  box-sizing: border-box;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 22px 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.landing .landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.landing-wordmark {
+  font-family: var(--fd-heading);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.landing-nav {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 15px;
+}
+
+.landing .landing-nav a {
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.landing .landing-nav a:hover {
+  color: #5a4636;
+  text-decoration: underline;
+}
+
+.landing-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.landing .landing-signin {
+  padding: 10px 16px;
+  border: 1.5px solid var(--fd-ink);
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.landing .landing-signin:hover {
+  background: var(--fd-ink);
+  color: var(--fd-page);
+}
+
+.landing-brand:focus-visible,
+.landing-nav a:focus-visible,
+.landing-signin:focus-visible {
+  outline: 3px solid var(--fd-ink);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
 /* ------------------------------------------------------------- hero */
 
 .landing-hero {
@@ -398,8 +472,30 @@
 }
 
 @media (max-width: 640px) {
+  /* Brand and Sign in on the first row; the section links on their own
+     row below, wrapping if they don't fit. */
+  .landing-header {
+    padding: 14px 16px 6px;
+    gap: 8px 12px;
+  }
+
+  .landing-header-right {
+    margin-left: auto;
+  }
+
+  .landing-nav {
+    order: 3;
+    flex-basis: 100%;
+    margin-left: -10px;
+    gap: 0 4px;
+  }
+
+  .landing .landing-nav a {
+    padding: 8px 10px;
+  }
+
   .landing-page {
-    padding: 16px 16px 40px;
+    padding: 8px 16px 40px;
   }
 
   .landing-footer {

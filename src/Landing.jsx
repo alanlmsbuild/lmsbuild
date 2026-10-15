@@ -1,6 +1,6 @@
-import { createPortal } from 'react-dom'
 import './Landing.css'
-import { signInPath, useShell } from './shell/navigation'
+import DevUserSwitcher from './DevUserSwitcher'
+import { signInPath } from './shell/navigation'
 import SkillsEnglandFooter from './SkillsEnglandFooter'
 
 // The Rarebit front door at "/" (decision 29). Recreated from the design
@@ -9,6 +9,43 @@ import SkillsEnglandFooter from './SkillsEnglandFooter'
 // options (the options app, not built here yet: its buttons go to "#"), and
 // the products for providers, colleges and employers. Warren and Burrow sign
 // in on the sign-in page; Meadow's screens aren't built here yet ("#").
+// The page has its own cream header, as in the design (the shell leaves
+// out the shared dark one here); its "Sign in" goes to the sign-in page,
+// like the shared header's.
+
+// The toast icon from the design.
+function ToastIcon() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+      <rect x="3" y="7" width="28" height="20" rx="6" fill="#E9A23B" />
+      <circle cx="12" cy="15" r="2.4" fill="#2A1F17" />
+      <circle cx="21" cy="19" r="2" fill="#2A1F17" />
+      <circle cx="24" cy="13" r="1.6" fill="#2A1F17" />
+    </svg>
+  )
+}
+
+function FrontDoorHeader() {
+  return (
+    <header className="landing-header">
+      <a href="/" className="landing-brand" aria-label="Rarebit home">
+        <ToastIcon />
+        <span className="landing-wordmark">Rarebit</span>
+      </a>
+      <nav aria-label="Main" className="landing-nav">
+        <a href="#explore">Explore options</a>
+        <a href="#products">For providers and employers</a>
+        <a href="#promise">Our promise</a>
+      </nav>
+      <div className="landing-header-right">
+        <a href="/sign-in" className="landing-signin">
+          Sign in
+        </a>
+        <DevUserSwitcher currentUserId={null} />
+      </div>
+    </header>
+  )
+}
 
 const AUDIENCES = [
   { name: 'School leaver', text: 'Work out what you like, then see where it could take you.', tone: 'cheddar' },
@@ -97,26 +134,9 @@ const PROMISES = [
 ]
 
 function Landing() {
-  // The shared header (src/shell) shows the Rarebit mark and "Sign in";
-  // the page's section links go in its tab slot.
-  const { tabSlot } = useShell()
   return (
     <div className="landing">
-      {tabSlot &&
-        createPortal(
-          <nav aria-label="Main">
-            <a href="#explore" className="shell-tab">
-              Explore options
-            </a>
-            <a href="#products" className="shell-tab">
-              For providers and employers
-            </a>
-            <a href="#promise" className="shell-tab">
-              Our promise
-            </a>
-          </nav>,
-          tabSlot,
-        )}
+      <FrontDoorHeader />
 
       <main className="landing-page">
         <section className="landing-hero">
