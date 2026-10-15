@@ -40,6 +40,9 @@ test/.output/
 
 # dbt (the silver layer): its Python venv and what it writes when it runs
 .venv-dbt/
+# Travel times (decision 19): their Python venv (scripts/travel/README.md)
+.venv-travel/
+__pycache__/
 dbt/target/
 dbt/logs/
 dbt/dbt_packages/

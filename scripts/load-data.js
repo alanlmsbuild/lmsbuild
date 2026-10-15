@@ -55,6 +55,10 @@
 //   39 Ofgem price caps, fuel poverty, electricity regions -> SHARED_DB.RAW
 // Batch 7 (sql/load_08_achievement_national.sql):
 //   40 achievement rates, national and by provider (2025/26 releases) -> OPTIONS_DB.RAW
+// Travel times, decision 19 (sql/load_09_travel_sources.sql; the files
+// fetched by scripts/travel/fetch.py into data/travel/, git-ignored):
+//   41 BODS GTFS (Yorkshire), ONS LSOA centroids, OpenStreetMap extract -> SHARED_DB.RAW
+//   42 the journey times computed by scripts/travel/compute.py          -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -120,6 +124,10 @@ const ofstedFe = (sheet, table) => ({
 
 // A file inside a zip, copied out as it is.
 const extract = (zip, member) => async (out) => { await pipeline(await zipEntry(zip, member), fs.createWriteStream(out)) }
+
+const TRAVEL = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'travel')
+const newest = (dir, re) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => re.test(n)).sort().map((n) => path.join(dir, n)) : [])
+const GTFS_MEMBERS = ['agency', 'stops', 'routes', 'trips', 'calendar', 'calendar_dates', 'feed_info']
 
 // GIAS without its personal columns: every other field byte for byte
 // (Windows-1252, read and written as latin1, one byte one character).
@@ -283,6 +291,36 @@ export const STEPS = {
         'https://explore-education-statistics.service.gov.uk/data-catalogue/data-set/7fe87724-0cec-478b-adcc-6968ba451bc7', 'OPTIONS_DB.RAW.ACHIEVEMENT_ET_PROVIDER', 'achievement-et-provider'),
     ]
   } },
+
+  // ---------------------------------------------------------------- travel times
+  // The originals go into the stage beside their rows: the GTFS zip (once,
+  // for all seven of its small files), the .osm.pbf and the centroids CSV.
+  41: { job: 'load-travel-sources', run: async (loader) => {
+    const shared = { home: 'SHARED_DB', format: 'SHARED_DB.RAW.CSV_UTF8' }
+    const zip = path.join(TRAVEL, 'bods', 'itm_yorkshire_gtfs.zip')
+    const results = []
+    for (const m of GTFS_MEMBERS) {
+      results.push(await loader.loadCsv({ ...shared, source: 'bods-gtfs', publisher: 'Department for Transport, Bus Open Data Service (supplemented by TNDS)', licence: OGL,
+        title: `Bus Open Data Service GTFS timetables, Yorkshire: ${m}.txt`, page: 'https://data.bus-data.dft.gov.uk/timetable/download/gtfs-file/yorkshire/',
+        file: zip, member: `${m}.txt`, kind: 'extracted', table: `SHARED_DB.RAW.BODS_GTFS_${m.toUpperCase()}`, make: extract(zip, `${m}.txt`) }))
+    }
+    results.push(await loader.loadCsv({ ...shared, source: 'ons-lsoa-pwc', publisher: 'Office for National Statistics', licence: `${OGL}; contains OS data © Crown copyright and database right`,
+      title: 'Lower layer Super Output Areas (December 2021) EW Population Weighted Centroids (V4)', kind: 'as-downloaded',
+      page: 'https://geoportal.statistics.gov.uk/datasets/32729e42d05e4e23bc7e43a36aa4ae8b_0', file: path.join(TRAVEL, 'ons-pwc', 'lsoa21_pwc_v4.csv'), table: 'SHARED_DB.RAW.ONS_LSOA_PWC' }))
+    results.push(...await loader.loadJsonLines({ home: 'SHARED_DB', source: 'geofabrik-osm', publisher: 'OpenStreetMap contributors, extract by Geofabrik',
+      licence: 'Open Database Licence (ODbL) v1.0; © OpenStreetMap contributors', title: 'OpenStreetMap extract, South Yorkshire',
+      page: 'https://download.geofabrik.de/europe/united-kingdom/england/south-yorkshire.html', table: 'SHARED_DB.RAW.OSM_EXTRACT', format: 'SHARED_DB.RAW.JSON_LINES',
+      originals: newest(path.join(TRAVEL, 'osm'), /^south-yorkshire-\d{4}-\d{2}-\d{2}\.osm\.pbf$/).map((file) => ({ file })),
+      rows: async ({ file }) => [{ name: path.basename(file), header: JSON.parse(fs.readFileSync(`${file}.header.json`, 'utf8')) }],
+      cols: { NAME: '$1:name::string', HEADER: '$1:header' } }))
+    return results
+  }, runLabel: 'BODS GTFS (Yorkshire), ONS LSOA centroids, OpenStreetMap extract' },
+  // Each run's journey times (scripts/travel/compute.py), one CSV per run.
+  42: { job: 'load-travel-times', files: () => newest(path.join(TRAVEL, 'results'), /^travel_time_lsoa_.*\.csv$/).map((file) => ({
+    home: 'SHARED_DB', format: 'SHARED_DB.RAW.CSV_UTF8', source: 'rarebit-travel-time', publisher: 'Rarebit (computed with r5py from BODS, OpenStreetMap and ONS data)',
+    licence: 'Open Database Licence (ODbL) v1.0 (derived from OpenStreetMap; © OpenStreetMap contributors); BODS and ONS data under the Open Government Licence v3.0',
+    title: 'Journey times between South Yorkshire LSOA population-weighted centroids (decision 19)', kind: 'as-downloaded', page: null,
+    file, table: 'SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN' })) },
 }
 
 export async function runStep(loader, n) {

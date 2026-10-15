@@ -1,0 +1,7 @@
+# The travel-time venv (.venv-travel; scripts/travel/README.md). r5py needs
+# Java 21 (the portable Temurin JRE in ~/.cache/rarebit-java, JAVA_HOME).
+r5py==1.1.7
+osmium==4.3.1
+geopandas==1.2.0
+pyproj==3.8.0
+shapely==2.2.0
