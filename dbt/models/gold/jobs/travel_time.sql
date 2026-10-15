@@ -11,8 +11,8 @@
 --   slower, rounded to the nearest 5 minutes from 10 minutes up (Rarebit's
 --   own rounding), always as "about".
 --   NOTES says, in plain words, what the times are and what they leave out
---   (where people live, walking and waiting included; no trains yet; some
---   bus routes missing from the national timetable data).
+--   (where people live, walking and waiting included; no trains yet; a
+--   small operator now and then missing from the national timetable data).
 -- Derived from OpenStreetMap, so under the ODbL: shown as results ("about
 -- 25 minutes by bus, weekday morning") with "© OpenStreetMap contributors",
 -- never handed over as a table (decision 19).
@@ -49,7 +49,7 @@ select
   s.summary_mode::varchar as summary_mode,
   ('Times are from where people live in each area to where people live in the other, including walking to and from stops and waiting, for a weekday morning. '
    || 'Bus and tram only for now; trains are not yet included, so some journeys (for example Sheffield to Barnsley) will be quicker in real life. '
-   || 'Some bus routes are missing from the national timetable data, so some times may be longer than in real life.')::varchar as notes,
+   || 'A small operator may occasionally be missing from the national timetable data, so a few times may be longer than in real life.')::varchar as notes,
   s.departure_date::date as departure_date,
   (s.window_start || ' to ' || to_char(dateadd(minute, s.window_minutes, to_time(s.window_start)), 'HH24:MI'))::varchar as departure_window,
   s.max_minutes::number(38,0) as max_minutes,

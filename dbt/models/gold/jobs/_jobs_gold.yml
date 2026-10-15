@@ -658,7 +658,7 @@ models:
                 values: ['transit', 'walk']
       - name: notes
         data_type: varchar
-        description: 'What the times are and what they leave out, in plain words, to show beside them: from where people live to where people live, walking and waiting included; no trains yet; some bus routes missing from the national timetable data.'
+        description: 'What the times are and what they leave out, in plain words, to show beside them: from where people live to where people live, walking and waiting included; no trains yet; a small operator now and then missing from the national timetable data.'
         data_tests: [not_null]
       - name: departure_date
         data_type: date
