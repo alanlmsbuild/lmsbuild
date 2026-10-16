@@ -112,6 +112,14 @@
 //    check-jobs.js) stay out of the app: nothing in server/ or src/ imports
 //    them, and nothing there writes OPS (insert into, merge into, update).
 //    The app only reads SHARED_DB.OPS.JOB_RUN, for when data was last updated.
+// 21. Meadow (the CRM) and Warren and Burrow keep to their own databases.
+//    In server/, CRM_DB is named in SQL only in meadow.js, only
+//    crmSessions.js opens Meadow's sessions (connect as 'crm'), and only
+//    meadow.js uses them. Meadow's sessions have no session variables, so
+//    each of meadow.js's queries takes the organisation as a bind
+//    (ORGANISATIONID = ?) and has an ORGANISATIONID match for every CRM_DB
+//    table it names; it names no ILR, CAPTURE_DB or LARS table, and this
+//    first step only reads (no insert, merge or update).
 //
 // Usage:
 //   npm run check:scoping
@@ -570,8 +578,52 @@ for (const file of serverFiles) {
   }
 }
 
+// Check 21: Meadow reads CRM_DB on its own sessions, scoped by a bind.
+{
+  for (const f of fs.readdirSync(serverDir, { recursive: true }).filter((x) => x.endsWith('.js'))) {
+    const file = f.split(path.sep).join('/')
+    const text = fs.readFileSync(path.join(serverDir, f), 'utf8')
+    const where = (i) => `server/${file}:${text.slice(0, i).split('\n').length}`
+    for (const m of text.matchAll(/`[^`]*`/g)) {
+      const sql = m[0]
+      if (file !== 'meadow.js') {
+        if (/\bCRM_DB\./i.test(sql)) {
+          console.log(`${where(m.index)}  names CRM_DB: only server/meadow.js reads Meadow's database`)
+          problems++
+        }
+        continue
+      }
+      if (!/\b(select|insert|update|merge)\b/i.test(sql)) continue
+      if (/\b(insert\s+into|merge\s+into|update)\s/i.test(sql)) {
+        console.log(`${where(m.index)}  writes: Meadow's board only reads`)
+        problems++
+      }
+      if (/\b(ILR|CAPTURE_DB|LARS)\.\w+/i.test(sql)) {
+        console.log(`${where(m.index)}  names a Warren and Burrow table: Meadow's sessions read CRM_DB and SHARED_DB only`)
+        problems++
+      }
+      const tables = (sql.match(/\bCRM_DB\.\w+\.\w+/gi) ?? []).length
+      const matches = (sql.match(/\bORGANISATIONID\s*=/gi) ?? []).length
+      if (/\$\{ORG_APP_USER_NAME_BY_BIND\}/.test(sql)) continue // scoped by its own bind (access.js)
+      if (tables > 0 && (!/\bORGANISATIONID\s*=\s*\?/i.test(sql) || matches < tables)) {
+        console.log(`${where(m.index)}  reads CRM_DB without the organisation as a bind and an ORGANISATIONID match for each table (${tables} tables, ${matches} matches)`)
+        problems++
+      }
+    }
+    if (file !== 'crmSessions.js' && /as:\s*['"]crm['"]/.test(text)) {
+      console.log(`server/${file}  opens a Meadow session itself: only server/crmSessions.js does`)
+      problems++
+    }
+    const uses = text.match(/from\s+['"]\.\/crmSessions\.js['"]/)
+    if (uses && file !== 'meadow.js') {
+      console.log(`${where(uses.index)}  uses Meadow's sessions: only server/meadow.js does`)
+      problems++
+    }
+  }
+}
+
 if (problems > 0) {
   console.log(`\n${problems} ${problems === 1 ? 'problem' : 'problems'}. See the rules in server/access.js.`)
   process.exit(1)
 }
-console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, the vacancy import stays out of the app, links to adverts are the organisation\'s own, only the Skills England import writes SKILLS, and the scheduler stays out of the app.')
+console.log('Every query on organisation data is scoped, learner lookups go through the one learner scope, NI number and ethnicity are for managers only, the ILR return is managers only, the QAR spreadsheet has no NI number, ethnicity, prices or payments, prices and payments are managers only, every route says which roles can use it, every insert sets ISTESTDATA (a learner\'s records copy the learner\'s), removed ILR records are left out, no query keeps session state, transactions only go through inTransaction, every session variable is in SESSION_VARIABLES, the programme aim is always the current one, RAW is add-only, nothing shown comes from the shared Companies House tables, and the nightly refresh stays out of the app and keeps to employers\' company columns, employer contacts see only head office\'s or their own sites\' apprentices, the vacancy import stays out of the app, links to adverts are the organisation\'s own, only the Skills England import writes SKILLS, the scheduler stays out of the app, and Meadow reads CRM_DB only on its own sessions, scoped by the organisation.')

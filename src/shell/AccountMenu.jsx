@@ -73,7 +73,7 @@ function AccountMenu({ me }) {
             <strong>{me.DISPLAYNAME}</strong>
             <span>{[me.ORGANISATIONNAME, roles].filter(Boolean).join(' · ')}</span>
           </div>
-          {(areas.warren || areas.burrow) && (
+          {(areas.warren || areas.burrow || areas.meadow) && (
             <ul className="shell-account-links">
               {areas.warren && (
                 <li>
@@ -86,6 +86,13 @@ function AccountMenu({ me }) {
                 <li>
                   <a href="/burrow" onClick={() => setOpen(false)}>
                     Burrow
+                  </a>
+                </li>
+              )}
+              {areas.meadow && (
+                <li>
+                  <a href="/meadow" onClick={() => setOpen(false)}>
+                    Meadow
                   </a>
                 </li>
               )}

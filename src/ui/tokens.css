@@ -7,7 +7,7 @@
    Three groups:
    - Neutrals and type, shared by everything.
    - The area accent, which is the only thing that changes between areas.
-     main.jsx sets data-area on <html>: rarebit (landing), warren or burrow.
+     main.jsx sets data-area on <html>: rarebit (landing), warren, burrow or meadow.
    - Status colours, the same in every area and never an area's accent.
      A status always shows its word as well as its colour. The -text/-bg
      pairs are for chips and status text (all 6.8:1 or more). The -solid
@@ -54,6 +54,14 @@
   --rb-burrow-link: #8e3f1f;
   --rb-burrow-tint: #f6ddd2;
 
+  /* Meadow slate blue (the approved mock-up, 15 October 2026): cream text
+     on #3f5683 is 7.0:1, and it's 7.0:1 as links on the page. */
+  --rb-meadow: #3f5683;
+  --rb-meadow-hover: #2b3d60;
+  --rb-on-meadow: #fffbf2;
+  --rb-meadow-link: #3f5683;
+  --rb-meadow-tint: #e8ecf3;
+
   /* Rarebit (landing): Cheddar with ink text (7.4:1). Cheddar is never
      text; links are crust (4.7:1). */
   --rb-rarebit: #e9a23b;
@@ -68,11 +76,13 @@
      the area's dark colour (7.6:1 green, 7.1:1 #8e3f1f). */
   --rb-header-warren: #2e5a4c;
   --rb-header-burrow: #b4532a;
+  --rb-header-meadow: #2b3d60;
   --rb-header-rarebit: #2a1f17;
   --rb-on-header: #fffbf2;
   --rb-header-tab: #fffbf2;
   --rb-header-tab-warren: #2e5a4c;
   --rb-header-tab-burrow: #8e3f1f;
+  --rb-header-tab-meadow: #2b3d60;
   --rb-header-tab-rarebit: #2a1f17;
 
   /* ------------------------------------------------ status colours */
@@ -123,6 +133,12 @@
     --rb-burrow-link: #f0a07c;
     --rb-burrow-tint: #4a2a1c;
 
+    --rb-meadow: #a9b8d6;
+    --rb-meadow-hover: #c9d3e6;
+    --rb-on-meadow: #1f1812;
+    --rb-meadow-link: #a9b8d6;
+    --rb-meadow-tint: #262d3a;
+
     --rb-rarebit: #e9a23b;
     --rb-rarebit-hover: #f0b65e;
     --rb-on-rarebit: #2a1f17;
@@ -168,6 +184,16 @@
   --area-tint: var(--rb-burrow-tint);
   --area-header: var(--rb-header-burrow);
   --area-header-tab-text: var(--rb-header-tab-burrow);
+}
+
+:root[data-area='meadow'] {
+  --area-accent: var(--rb-meadow);
+  --area-accent-hover: var(--rb-meadow-hover);
+  --area-on-accent: var(--rb-on-meadow);
+  --area-link: var(--rb-meadow-link);
+  --area-tint: var(--rb-meadow-tint);
+  --area-header: var(--rb-header-meadow);
+  --area-header-tab-text: var(--rb-header-tab-meadow);
 }
 
 :root[data-area='rarebit'] {

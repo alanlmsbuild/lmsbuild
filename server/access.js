@@ -28,6 +28,11 @@ export const ORG_OFFICER = `(select * from ILR.OFFICER where ORGANISATIONID = ${
 export const ORG_APP_USER = `(select * from SHARED_DB.ACCESS.APP_USER where ORGANISATIONID = ${ORG})`
 export const ORG_ORGANISATION = `(select * from SHARED_DB.ACCESS.ORGANISATION where ORGANISATIONID = ${ORG})`
 
+// The same people for Meadow's sessions (crmSessions.js), which have no
+// session variables: the organisation is the bind, always the signed-in
+// user's (req.user.ORGANISATIONID). Names only.
+export const ORG_APP_USER_NAME_BY_BIND = `(select USERID, DISPLAYNAME from SHARED_DB.ACCESS.APP_USER where ORGANISATIONID = ?)`
+
 // An employer's Companies House details are this organisation's own copy
 // (COMPANYDETAILS, sql/employers_02_own_copy.sql), never the shared EXT
 // tables, so nothing shown depends on another organisation. The registered

@@ -26,16 +26,18 @@ export function usePageTitle(title) {
 export function areaOf(pathname) {
   if (/^\/app(\/|$)/.test(pathname)) return 'warren'
   if (/^\/burrow(\/|$)/.test(pathname)) return 'burrow'
+  if (/^\/meadow(\/|$)/.test(pathname)) return 'meadow'
   return 'rarebit'
 }
 
-export const AREA_NAMES = { warren: 'Warren', burrow: 'Burrow', rarebit: 'Rarebit' }
+export const AREA_NAMES = { warren: 'Warren', burrow: 'Burrow', meadow: 'Meadow', rarebit: 'Rarebit' }
 
 // The browser tab: the area's mark as its icon, and its name in the title.
-export const AREA_ICONS = { warren: '/icons/warren.svg', burrow: '/icons/burrow.svg', rarebit: '/icons/rarebit.svg' }
+export const AREA_ICONS = { warren: '/icons/warren.svg', burrow: '/icons/burrow.svg', meadow: '/icons/meadow.svg', rarebit: '/icons/rarebit.svg' }
 export const AREA_TITLES = {
   warren: 'Warren by Rarebit',
   burrow: 'Burrow by Rarebit',
+  meadow: 'Meadow by Rarebit',
   rarebit: 'Rarebit: learning and e-portfolio systems',
 }
 
@@ -54,13 +56,16 @@ export function setTabIcon(area) {
 const STAFF_ROLES = ['MANAGER', 'TUTOR', 'ASSESSOR', 'IQA']
 
 // Which areas someone can use, from their roles (added together). Staff use
-// both; learners and employers only Burrow.
+// Warren and Burrow; learners and employers only Burrow. Meadow is for
+// managers only for now (there's no Recruitment role yet), as the server
+// says (allow(MANAGER) in server/meadow.js).
 export function areasFor(me) {
   const roles = me?.roles ?? []
   const staff = roles.some((r) => STAFF_ROLES.includes(r))
   return {
     warren: staff,
     burrow: staff || roles.includes('LEARNER') || roles.includes('EMPLOYER'),
+    meadow: roles.includes('MANAGER'),
   }
 }
 
@@ -97,7 +102,7 @@ export function afterSignIn(next, me) {
   const areas = areasFor(me)
   if (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')) {
     const area = areaOf(next.split('?')[0])
-    if ((area === 'warren' && areas.warren) || (area === 'burrow' && areas.burrow)) return next
+    if (area !== 'rarebit' && areas[area]) return next
   }
   return homeFor(me)
 }

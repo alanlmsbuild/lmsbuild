@@ -1,0 +1,326 @@
+/* Meadow's pipeline board (MeadowApp.jsx), from the approved mock-up:
+   slate blue on a cool grey page, a tinted band per group of stages, white
+   cards. The area colours are in src/ui/tokens.css (data-area="meadow");
+   the rest are Meadow's own, light and dark. */
+
+.meadow {
+  --mw-page: #f3f5f9;
+  --mw-card: #ffffff;
+  --mw-ink: #1c2433;
+  --mw-body: #44516b;
+  --mw-muted: #5b6b88;
+  --mw-rule: #dde3ee;
+  --mw-column: #e8ecf3;
+  --mw-chip: #eef1f8;
+  --mw-chip-text: #2b3d60;
+  --mw-band-know: #e6ecf6;
+  --mw-band-match: #ece9f4;
+  --mw-band-start: #e5efea;
+  --mw-ok: #2f6b4f;
+
+  min-height: calc(100vh - 82px);
+  background: var(--mw-page);
+  color: var(--mw-ink);
+  font-family: var(--rb-font-body);
+}
+
+@media (prefers-color-scheme: dark) {
+  .meadow {
+    --mw-page: #161b24;
+    --mw-card: #222a37;
+    --mw-ink: #eef1f8;
+    --mw-body: #c9d4ea;
+    --mw-muted: #a9b8d6;
+    --mw-rule: #364156;
+    --mw-column: #1c2330;
+    --mw-chip: #2f3b52;
+    --mw-chip-text: #dbe3f3;
+    --mw-band-know: #1f2838;
+    --mw-band-match: #242236;
+    --mw-band-start: #1d2b26;
+    --mw-ok: #8fd1ae;
+  }
+}
+
+.meadow-main {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 28px 32px 40px;
+  box-sizing: border-box;
+}
+
+.meadow-eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+}
+
+.meadow-heading h1 {
+  margin: 6px 0 0;
+  font-family: var(--rb-font-heading);
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--mw-ink);
+}
+
+.meadow-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 10px 0 0;
+  font-size: 15px;
+  color: var(--mw-body);
+}
+
+.meadow-summary strong {
+  color: var(--mw-ink);
+}
+
+.meadow-loading,
+.meadow-error {
+  margin-top: 24px;
+  color: var(--mw-body);
+}
+
+.meadow-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--status-overdue-border);
+  border-radius: 12px;
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-text);
+}
+
+.meadow-error p {
+  margin: 0;
+}
+
+.meadow-error button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--rb-radius-button);
+  background: var(--area-accent);
+  color: var(--area-on-accent);
+  font: 600 14px var(--rb-font-body);
+  cursor: pointer;
+}
+
+/* The board scrolls sideways inside its box at narrow widths. */
+.meadow-board {
+  display: flex;
+  gap: 14px;
+  margin-top: 24px;
+  padding-bottom: 8px;
+  overflow-x: auto;
+}
+
+.meadow-board:focus-visible {
+  outline: 3px solid var(--area-link);
+  outline-offset: 2px;
+}
+
+.meadow-band {
+  flex: var(--band-columns, 1) 0 auto;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.meadow-band-know {
+  background: var(--mw-band-know);
+}
+.meadow-band-match {
+  background: var(--mw-band-match);
+}
+.meadow-band-start {
+  background: var(--mw-band-start);
+}
+
+.meadow-band-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 2px 4px 10px;
+}
+
+.meadow-band-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--mw-body);
+}
+
+.meadow-band-head span {
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+
+.meadow-columns {
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(232px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.meadow-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--mw-column);
+}
+
+.meadow-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px 0;
+}
+
+.meadow-column-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mw-ink);
+}
+
+.meadow-count {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--mw-card);
+  color: var(--mw-body);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.meadow-column-note {
+  margin: -4px 4px 0;
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+
+.meadow-empty {
+  margin: 0;
+  padding: 14px 8px;
+  border: 1px dashed var(--mw-rule);
+  border-radius: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+
+.meadow-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.meadow-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--mw-rule);
+  border-radius: 12px;
+  background: var(--mw-card);
+}
+
+.meadow-card-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.meadow-avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.meadow-card-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.meadow-card-name strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--mw-ink);
+}
+
+.meadow-card-name span {
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+
+.meadow-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.meadow-tags li {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--mw-chip);
+  color: var(--mw-chip-text);
+  font-size: 12px;
+}
+
+.meadow-owner {
+  margin: 0;
+  font-size: 13px;
+  color: var(--mw-body);
+}
+
+.meadow-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+
+.meadow-consent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--mw-ok);
+}
+
+@media (max-width: 640px) {
+  .meadow-main {
+    padding: 20px 16px 32px;
+  }
+  .meadow-heading h1 {
+    font-size: 28px;
+  }
+}

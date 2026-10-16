@@ -8,8 +8,8 @@ import SkillsEnglandFooter from './SkillsEnglandFooter'
 // colours and fonts - and responsive. Two doors: people exploring their
 // options (the school leavers app, with ?audience= saying who they are, for
 // the app to use later), and the products for providers, colleges and
-// employers. Warren and Burrow sign in on the sign-in page; Meadow's screens
-// aren't built yet, so it says "Coming soon" rather than linking anywhere.
+// employers. Warren, Burrow and Meadow sign in on the sign-in page (Meadow
+// is for managers only for now).
 // The page has its own cream header, as in the design (the shell leaves
 // out the shared dark one here); its "Sign in" goes to the sign-in page,
 // like the shared header's.
@@ -117,8 +117,8 @@ const PRODUCTS = [
     Icon: MeadowIcon,
     text: 'From first enquiry to someone who stays the course, with employers alongside.',
     points: ['People and employer pipelines', 'Matching on interests, skills and travel', 'Hands over to Warren, no questions asked twice'],
-    status: 'Designed',
-    signIn: null,
+    status: 'In development',
+    signIn: signInPath('/meadow'),
   },
 ]
 

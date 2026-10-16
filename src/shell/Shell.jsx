@@ -17,7 +17,7 @@ import {
 import './shell.css'
 
 // Rarebit as one app: the front door at /, the sign-in page at /sign-in,
-// Warren at /app and Burrow at /burrow share this shell. Moving between
+// Warren at /app, Burrow at /burrow and Meadow at /meadow share this shell. Moving between
 // them changes the address without reloading the page. The header stays in
 // place; its colour and area name change with a short fade (none if the
 // device asks for reduced motion). Each area puts its own tabs into the
@@ -26,12 +26,13 @@ import './shell.css'
 // The signed-in user is loaded here, and every area reads it through
 // useShell(). The shell also decides who can be where:
 //   /            signed in: their home (homeFor), otherwise the landing page
-//   /app, /burrow signed out: the sign-in page, then back here; an area
+//   /app, /burrow, /meadow signed out: the sign-in page, then back here; an area
 //                the person can't use: their home
 // Redirects replace the address rather than adding to the history, so Back
 // doesn't bounce straight into them again.
 const Warren = lazy(() => import('../App.jsx'))
 const Burrow = lazy(() => import('../burrow/BurrowApp.jsx'))
+const Meadow = lazy(() => import('../meadow/MeadowApp.jsx'))
 const Landing = lazy(() => import('../Landing.jsx'))
 const SignIn = lazy(() => import('./SignIn.jsx'))
 
@@ -175,7 +176,7 @@ function Shell() {
   } else if (meStatus === 'error') {
     page = <ShellError message={meError} onRetry={refreshMe} />
   } else {
-    page = area === 'warren' ? <Warren /> : <Burrow />
+    page = area === 'warren' ? <Warren /> : area === 'meadow' ? <Meadow /> : <Burrow />
   }
 
   return (
