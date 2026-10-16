@@ -6,6 +6,7 @@ import { registerVacancyRoutes } from './vacancies.js'
 import { registerJobStatusRoutes } from './jobStatus.js'
 import { registerMeadowRoutes } from './meadow.js'
 import { registerMeadowPersonRoutes } from './meadowPerson.js'
+import { registerMeadowFunnelRoutes } from './meadowFunnel.js'
 import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
 import express from 'express'
@@ -804,6 +805,7 @@ registerVacancyRoutes(app)
 registerJobStatusRoutes(app)
 registerMeadowRoutes(app)
 registerMeadowPersonRoutes(app)
+registerMeadowFunnelRoutes(app)
 
 const port = process.env.PORT || 3001
 app.listen(port, () => {

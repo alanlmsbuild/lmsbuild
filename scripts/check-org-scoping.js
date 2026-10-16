@@ -114,7 +114,8 @@
 //    The app only reads SHARED_DB.OPS.JOB_RUN, for when data was last updated.
 // 21. Meadow (the CRM) and Warren and Burrow keep to their own databases.
 //    In server/, CRM_DB is named in SQL only in Meadow's files (meadow.js,
-//    the board, and meadowPerson.js, the person record), only
+//    the board, meadowPerson.js, the person record, and meadowFunnel.js,
+//    the drop-off report), only
 //    crmSessions.js opens Meadow's sessions (connect as 'crm'), and only
 //    Meadow's files use them. Meadow's sessions have no session variables,
 //    so each of their queries takes the organisation as a bind
@@ -583,7 +584,7 @@ for (const file of serverFiles) {
 
 // Check 21: Meadow reads CRM_DB on its own sessions, scoped by a bind.
 {
-  const MEADOW_FILES = ['meadow.js', 'meadowPerson.js']
+  const MEADOW_FILES = ['meadow.js', 'meadowPerson.js', 'meadowFunnel.js']
   for (const f of fs.readdirSync(serverDir, { recursive: true }).filter((x) => x.endsWith('.js'))) {
     const file = f.split(path.sep).join('/')
     const text = fs.readFileSync(path.join(serverDir, f), 'utf8')

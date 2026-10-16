@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePageTitle, useShell } from '../shell/navigation'
 import { avatarColour } from './avatar'
+import FunnelReport from './FunnelReport'
 import PersonRecord from './PersonRecord'
 import './meadow.css'
 
@@ -10,10 +11,12 @@ import './meadow.css'
 // (pipeline option C): the stages in three bands, a column per stage with
 // a card per person, and Not proceeding as a count. Read from
 // GET /api/meadow/board (server/meadow.js). A card opens the person's
-// record at /meadow/people/:leadId (PersonRecord.jsx). Moving cards, the
-// employer pipeline, My day and Reports come later.
+// record at /meadow/people/:leadId (PersonRecord.jsx); the Reports tab is
+// the drop-off report at /meadow/reports (FunnelReport.jsx). Moving cards,
+// the employer pipeline and My day come later.
 
 const PERSON_PATH = /^\/meadow\/people\/([^/]+)\/?$/
+const REPORTS_PATH = /^\/meadow\/reports\/?$/
 
 function PersonCard({ card }) {
   const where = [card.district, card.situation].filter(Boolean).join(' · ')
@@ -125,15 +128,28 @@ function ScrollingBoard({ children }) {
   )
 }
 
-// The area's tabs, in the shell header.
-function MeadowTabs({ current }) {
+const TABS = [
+  { key: 'pipeline', href: '/meadow', name: 'Pipeline' },
+  { key: 'reports', href: '/meadow/reports', name: 'Reports' },
+]
+
+// The area's tabs, in the shell header. tab: the one we're in; page: it's
+// that tab's own page (a person's record is in Pipeline, but isn't it).
+function MeadowTabs({ tab, page }) {
   const { tabSlot } = useShell()
   if (!tabSlot) return null
   return createPortal(
     <nav aria-label="Meadow">
-      <a href="/meadow" className="shell-tab is-active" aria-current={current ? 'page' : undefined}>
-        Pipeline
-      </a>
+      {TABS.map((t) => (
+        <a
+          key={t.key}
+          href={t.href}
+          className={t.key === tab ? 'shell-tab is-active' : 'shell-tab'}
+          aria-current={t.key === tab && page ? 'page' : undefined}
+        >
+          {t.name}
+        </a>
+      ))}
     </nav>,
     tabSlot,
   )
@@ -145,14 +161,22 @@ function MeadowApp() {
   if (person) {
     return (
       <div className="meadow">
-        <MeadowTabs current={false} />
+        <MeadowTabs tab="pipeline" page={false} />
         <PersonRecord key={person[1]} leadId={decodeURIComponent(person[1])} />
+      </div>
+    )
+  }
+  if (REPORTS_PATH.test(pathname)) {
+    return (
+      <div className="meadow">
+        <MeadowTabs tab="reports" page />
+        <FunnelReport />
       </div>
     )
   }
   return (
     <div className="meadow">
-      <MeadowTabs current />
+      <MeadowTabs tab="pipeline" page />
       <PipelineBoard />
     </div>
   )

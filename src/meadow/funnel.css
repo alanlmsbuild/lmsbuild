@@ -1,0 +1,264 @@
+/* Meadow's drop-off report (FunnelReport.jsx), from the approved mock-up
+   (pipeline option C): the board's tinted bands, a row per stage with a
+   centred bar as wide as its share of everyone who joined, and the outcome
+   box below. Colours are Meadow's own (meadow.css, light and dark). */
+
+.funnel {
+  --fn-good-bg: #e8f3ec;
+  --fn-good-rule: #a9d1b8;
+  --fn-good-ink: #1f4d37;
+  --fn-stem: #2b3d60;
+}
+
+@media (prefers-color-scheme: dark) {
+  .funnel {
+    --fn-good-bg: #1d2b26;
+    --fn-good-rule: #2f4a3e;
+    --fn-good-ink: #b9e2cb;
+    --fn-stem: #7f96c2;
+  }
+}
+
+.funnel h2,
+.funnel h3,
+.funnel p {
+  margin: 0;
+}
+
+.funnel-summary {
+  align-items: baseline;
+}
+
+.funnel-how {
+  max-width: 780px;
+  margin-top: 8px !important;
+  font-size: 14px;
+  color: var(--mw-muted);
+}
+
+.funnel-none {
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+
+.funnel-bands {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.funnel-band {
+  padding: 14px 22px 16px;
+  border-radius: 16px;
+}
+
+.funnel-band-know {
+  background: var(--mw-band-know);
+}
+
+.funnel-band-match {
+  background: var(--mw-band-match);
+}
+
+.funnel-band-start {
+  background: var(--mw-band-start);
+}
+
+.funnel-band-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.funnel-band-head h2 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--mw-body);
+}
+
+.funnel-band-head span {
+  font-size: 13px;
+  color: var(--mw-muted);
+}
+
+.funnel-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.funnel-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) minmax(220px, 340px);
+  align-items: center;
+  gap: 16px;
+}
+
+.funnel-stage h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mw-ink);
+}
+
+.funnel-stage p {
+  font-size: 13px;
+  color: var(--mw-body);
+}
+
+.funnel-stage strong {
+  font-size: 17px;
+  color: var(--mw-ink);
+}
+
+.funnel-bar-cell {
+  display: flex;
+  justify-content: center;
+}
+
+.funnel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: #1c2433;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.funnel-bar.is-dark {
+  color: #ffffff;
+}
+
+.funnel-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--mw-body);
+}
+
+.funnel-left strong {
+  color: var(--mw-ink);
+}
+
+.funnel-left ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.funnel-left li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border: 1px solid var(--mw-rule);
+  border-radius: 999px;
+  background: var(--mw-card);
+  font-size: 12px;
+  color: var(--mw-body);
+}
+
+.funnel-left li.is-positive {
+  border-color: var(--fn-good-rule);
+  background: var(--fn-good-bg);
+  color: var(--fn-good-ink);
+}
+
+.funnel-reason-count {
+  font-weight: 700;
+}
+
+.funnel-good {
+  font-weight: 600;
+}
+
+.funnel-good::before {
+  content: '· ';
+}
+
+.funnel-still {
+  font-size: 12px;
+  color: var(--mw-muted);
+}
+
+.funnel-outcome-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.funnel-outcome-stem {
+  width: 10px;
+  height: 28px;
+  background: var(--fn-stem);
+}
+
+.funnel-outcome {
+  width: 100%;
+  max-width: 640px;
+  padding: 18px 22px;
+  border: 1px solid var(--mw-rule);
+  border-radius: 16px;
+  background: var(--mw-card);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.funnel-outcome h2 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--mw-body);
+}
+
+.funnel-outcome p {
+  margin-top: 8px !important;
+  font-size: 16px;
+  color: var(--mw-ink);
+}
+
+@media (max-width: 760px) {
+  .funnel-band {
+    padding: 12px 14px 14px;
+  }
+
+  .funnel-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--mw-rule);
+  }
+
+  .funnel-row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .funnel-stage {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .funnel-bar-cell {
+    justify-content: flex-start;
+  }
+}
