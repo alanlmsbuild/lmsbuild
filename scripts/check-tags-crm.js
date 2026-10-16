@@ -1,5 +1,5 @@
 // check:tags --crm: the SENSITIVITY tags on Meadow's personal data in
-// CRM_DB (sql/crm_02_record_view_tags.sql), read back from Snowflake as
+// CRM_DB (sql/crm_02_record_view_tags.sql, crm_03_contact_tags.sql), read back from Snowflake as
 // CRM_APP_USER (CRM_APP_ROLE has USAGE on SHARED_DB.GOVERNANCE, so it sees
 // tag values). For every table in CRM_DB.CRM:
 //   - its SENSITIVITY tags, on the table and on each column, are exactly
@@ -76,6 +76,6 @@ export async function checkCrm() {
     console.log(`\n${problems.length} problem(s) in ${tables} CRM tables.`)
     return 1
   }
-  console.log(`${tables} CRM tables: SENSITIVITY exactly as listed (LEAD minor; its name, email, mobile, date of birth and postcode, email addresses and activity notes personal), every value allowed, and the person record blanks exactly LEAD's personal columns when a lead is anonymised.`)
+  console.log(`${tables} CRM tables: SENSITIVITY exactly as listed (LEAD minor; its name, email, mobile, date of birth and postcode, email addresses, activity notes and employer contacts' name, email and phone personal), every value allowed, and the person record blanks exactly LEAD's personal columns when a lead is anonymised.`)
   return 0
 }

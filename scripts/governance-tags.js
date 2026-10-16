@@ -52,4 +52,6 @@ export const CRM_SENSITIVITY = {
   },
   'CRM_DB.CRM.EMAIL_MESSAGE': { columns: { TOADDRESS: 'personal' } },
   'CRM_DB.CRM.ACTIVITY': { columns: { BODY: 'personal' } },
+  // sql/crm_03_contact_tags.sql
+  'CRM_DB.CRM.CONTACT': { columns: { NAME: 'personal', EMAIL: 'personal', PHONE: 'personal' } },
 }
