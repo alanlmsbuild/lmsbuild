@@ -10,9 +10,14 @@
 //   npm run check:tags                 SILVER
 //   npm run check:tags -- --staging    SILVER_STAGING (the transform job, before it swaps)
 //   npm run check:tags -- --bronze     RAW and the test files instead (scripts/check-tags-bronze.js)
+//   npm run check:tags -- --crm        Meadow's personal data in CRM_DB instead (scripts/check-tags-crm.js)
 import { connect, execute, destroy } from '../server/db.js'
 import { TAG_SCHEMA, TAGS, ALLOWED, SOURCE, API_SOURCES } from './governance-tags.js'
 
+if (process.argv.includes('--crm')) {
+  const { checkCrm } = await import('./check-tags-crm.js')
+  process.exit(await checkCrm())
+}
 if (process.argv.includes('--bronze')) {
   const { checkBronze } = await import('./check-tags-bronze.js')
   process.exit(await checkBronze())

@@ -38,3 +38,18 @@ export const BRONZE_API_TABLES = {
   'SHARED_DB.RAW.SE_OCCUPATION': { source: 'skills-england', licenceText: 'Open Government Licence v3.0', job: 'skills' },
   'SHARED_DB.RAW.CH_COMPANY_PROFILE': { source: 'companies-house', licenceText: 'Open Government Licence v3.0', job: 'companies-refresh' },
 }
+
+// CRM_DB (sql/crm_02_record_view_tags.sql; check:tags --crm): the
+// SENSITIVITY tags on Meadow's personal data. Exactly these: a table or
+// column tagged in Snowflake but not here (or here but not tagged) fails.
+// LEAD's personal columns must also be the ones the person record blanks
+// for an anonymised lead (PERSONAL_LEAD_FIELDS, server/meadowPerson.js).
+export const CRM_SCHEMAS = ['CRM_DB.CRM']
+export const CRM_SENSITIVITY = {
+  'CRM_DB.CRM.LEAD': {
+    table: 'minor',
+    columns: { GIVENNAMES: 'personal', FAMILYNAME: 'personal', EMAIL: 'personal', MOBILE: 'personal', DATEOFBIRTH: 'personal', POSTCODE: 'personal' },
+  },
+  'CRM_DB.CRM.EMAIL_MESSAGE': { columns: { TOADDRESS: 'personal' } },
+  'CRM_DB.CRM.ACTIVITY': { columns: { BODY: 'personal' } },
+}

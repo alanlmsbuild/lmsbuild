@@ -28,7 +28,7 @@ export const BANDS = [
   { key: 'start', name: 'Starting', note: 'Offer to enrolment', stages: ['OFFERED', 'ASSESSMENT', 'ENROLLED'] },
 ]
 
-const STAGES_QUERY = `
+export const STAGES_QUERY = `
   select s.STAGEID, s.NAME, s.SORTORDER, s.CATEGORY, s.SYSTEMKEY
   from CRM_DB.CRM.PIPELINE_STAGE s
   join CRM_DB.CRM.PIPELINE p

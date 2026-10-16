@@ -26,7 +26,8 @@
 --   ILR.LEARNER.ISTESTDATA) are replaced the same way. Files uploaded to
 --   the evidence stage while testing stay in the stage, unlisted.
 --   ILR.RECORD_CHANGE: the test rows are emptied, since the changes they
---   describe are undone.
+--   describe are undone. CRM.RECORD_VIEW (who opened a person record,
+--   sql/crm_02_record_view_tags.sql): the test rows are emptied too.
 -- It never touches a row with ISTESTDATA = FALSE, organisations, officers,
 -- LARS, the flow and job logs (SHARED_DB.OPS), or the shared reference and
 -- Companies House tables.
@@ -150,6 +151,7 @@ BEGIN
   DELETE FROM CRM_DB.CRM.ACTIVITY_LINK WHERE ISTESTDATA = TRUE;
   DELETE FROM CRM_DB.CRM.TASK WHERE ISTESTDATA = TRUE;
   DELETE FROM CRM_DB.CRM.RECORD_CHANGE WHERE ISTESTDATA = TRUE;
+  DELETE FROM CRM_DB.CRM.RECORD_VIEW WHERE ISTESTDATA = TRUE;
   DELETE FROM CAPTURE_DB.ILR.RECORD_CHANGE WHERE ISTESTDATA = TRUE;
 
   INSERT INTO CAPTURE_DB.ILR.LEARNER SELECT * FROM CAPTURE_DB.TEST_BASELINE.LEARNER WHERE ISTESTDATA = TRUE;

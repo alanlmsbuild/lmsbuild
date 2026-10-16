@@ -40,7 +40,11 @@
 //      can delete, own or create anything, can UPDATE an add-only CRM table
 //      or do more than INSERT into BRONZE, holds another role, or is missing
 //      a grant the CRM needs (CRM_REQUIRED below); CRM_APP_USER has any role
-//      but CRM_APP_ROLE. DATA_LOAD_ROLE has nothing in CRM_DB either.
+//      but CRM_APP_ROLE. DATA_LOAD_ROLE has nothing in CRM_DB either. The
+//      view log, CRM.RECORD_VIEW (sql/crm_02_record_view_tags.sql), is
+//      INSERT only: the CRM can't read, change or remove it. The CRM has
+//      USAGE on SHARED_DB.GOVERNANCE (to read tag values, check:tags --crm)
+//      and no APPLY on any tag.
 //  11. TRANSFORM_ROLE (dbt, the silver layer; sql/silver_01_setup.sql and
 //      silver_02_staging.sql), checked as TRANSFORM_USER: it may only read
 //      RAW (both databases) and the vacancy tables in EXT, make and own
@@ -88,6 +92,8 @@ const CRM_USER = process.env.CRM_USERNAME || 'CRM_APP_USER'
 // The CRM's tables by what the app may do to them (sql/crm_01_database.sql).
 const CRM_READ_ONLY = ['PIPELINE', 'PIPELINE_STAGE', 'CLOSE_REASON']
 const CRM_ADD_ONLY = ['LEAD_CONSENT', 'STAGE_CHANGE', 'ACTIVITY_LINK', 'RECORD_CHANGE']
+// Insert only: the CRM adds to these but can't read them back.
+const CRM_INSERT_ONLY = ['RECORD_VIEW']
 const CRM_CHANGEABLE = ['LEAD', 'LEAD_INTEREST', 'CONFIRM_TOKEN', 'LEAD_MATCH', 'EMAIL_MESSAGE', 'EMPLOYER', 'EMPLOYER_SITE', 'CONTACT',
   'PIPELINE_ITEM', 'PLACEMENT', 'ACTIVITY', 'TASK']
 const CRM_SHARED_READS = [
@@ -103,7 +109,9 @@ const CRM_REQUIRED = {
   ...Object.fromEntries(CRM_READ_ONLY.map((t) => [`CRM_DB.CRM.${t}`, ['SELECT']])),
   ...Object.fromEntries(CRM_ADD_ONLY.map((t) => [`CRM_DB.CRM.${t}`, ['SELECT', 'INSERT']])),
   ...Object.fromEntries(CRM_CHANGEABLE.map((t) => [`CRM_DB.CRM.${t}`, ['SELECT', 'INSERT', 'UPDATE']])),
+  ...Object.fromEntries(CRM_INSERT_ONLY.map((t) => [`CRM_DB.CRM.${t}`, ['INSERT']])),
   ...Object.fromEntries(CRM_SHARED_READS.map((t) => [t, ['SELECT']])),
+  'SHARED_DB.GOVERNANCE': ['USAGE'],
 }
 const WRITES = new Set(['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'])
 // ACCESS tables the app may write (none until part 8).
@@ -281,6 +289,8 @@ export function crmGrantProblems(grants, userRoles) {
     if (privilege === 'UPDATE' && CRM_ADD_ONLY.some((t) => name === `CRM_DB.CRM.${t}`)) problems.push(`UPDATE on ${name}: it is add-only`)
     if (['INSERT', 'UPDATE'].includes(privilege) && CRM_READ_ONLY.some((t) => name === `CRM_DB.CRM.${t}`)) problems.push(`${privilege} on ${name}: pipelines, stages and close reasons are read-only for the app`)
     if (g.granted_on === 'TABLE' && name.startsWith('CRM_DB.BRONZE.') && privilege !== 'INSERT') problems.push(`${privilege} on ${name}: the app only adds to BRONZE`)
+    if (privilege !== 'INSERT' && CRM_INSERT_ONLY.some((t) => name === `CRM_DB.CRM.${t}`)) problems.push(`${privilege} on ${name}: the view log is insert only`)
+    if (privilege === 'APPLY') problems.push(`APPLY on ${name}: the CRM reads tags, it never sets them`)
     if (g.granted_on === 'ROLE') problems.push(`${CRM_ROLE} holds ${name}: it should hold no other role`)
   }
   for (const [name, privileges] of Object.entries(CRM_REQUIRED)) {
@@ -544,6 +554,6 @@ if (process.argv[1]?.endsWith('check-grants.js')) {
   for (const p of problems) console.log(`FAIL ${p}`)
   console.log(problems.length
     ? `\n${problems.length} grant problem(s) for ${ROLE}, ${LOAD_ROLE}, ${CRM_ROLE} or ${TRANSFORM_ROLE}.`
-    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS. Each service role is held by its own service user and nothing else (but SYSADMIN holding ILR_APP_ROLE, the named exception). Each gold reader reads only its own GOLD tables, and only TRANSFORM_ROLE builds gold.`)
+    : `${checked} grants checked: ACCESS is read-only for ${ROLE}, it can't delete anything, the add-only tables stay add-only, RAW is insert-only, it owns and can create nothing in SHARED_DB, the Companies House, site, contact, vacancy, Skills England and job-run grants are in place, it can't reach the test snapshot, and it can only read OPTIONS_DB. ${LOAD_ROLE} belongs to ${LOAD_USER} alone, has nothing on ACCESS, ILR or the test snapshot, and can't delete, own or create anything. ${CRM_ROLE} belongs to ${CRM_USER} alone, can't see CAPTURE_DB (nor ${ROLE} CRM_DB), only reads shared data, keeps add-only tables add-only and its view log insert only, sets no tags and has every grant the CRM needs. ${TRANSFORM_ROLE} belongs to ${TRANSFORM_USER} alone, reads only RAW and EXT, writes only SILVER and SILVER_STAGING (and its job log), and has nothing in CAPTURE_DB, CRM_DB or ACCESS. Each service role is held by its own service user and nothing else (but SYSADMIN holding ILR_APP_ROLE, the named exception). Each gold reader reads only its own GOLD tables, and only TRANSFORM_ROLE builds gold.`)
   process.exit(problems.length ? 1 : 0)
 }

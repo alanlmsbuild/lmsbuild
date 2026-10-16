@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePageTitle, useShell } from '../shell/navigation'
+import { avatarColour } from './avatar'
+import PersonRecord from './PersonRecord'
 import './meadow.css'
 
 // Meadow, the recruitment CRM, at /meadow (managers only for now). The
 // first screen is the people pipeline board from the approved mock-up
 // (pipeline option C): the stages in three bands, a column per stage with
 // a card per person, and Not proceeding as a count. Read from
-// GET /api/meadow/board (server/meadow.js). Moving cards, the person
-// record, the employer pipeline, My day and Reports come later.
+// GET /api/meadow/board (server/meadow.js). A card opens the person's
+// record at /meadow/people/:leadId (PersonRecord.jsx). Moving cards, the
+// employer pipeline, My day and Reports come later.
 
-const AVATARS = ['#3f5683', '#5c74a6', '#2b3d60', '#55699a', '#4a6293']
-
-function avatarColour(id) {
-  let n = 0
-  for (const ch of id) n = (n * 31 + ch.charCodeAt(0)) >>> 0
-  return AVATARS[n % AVATARS.length]
-}
+const PERSON_PATH = /^\/meadow\/people\/([^/]+)\/?$/
 
 function PersonCard({ card }) {
   const where = [card.district, card.situation].filter(Boolean).join(' · ')
@@ -27,7 +24,9 @@ function PersonCard({ card }) {
           {card.initials}
         </span>
         <div className="meadow-card-name">
-          <strong>{card.name}</strong>
+          <a className="meadow-card-link" href={`/meadow/people/${encodeURIComponent(card.leadId)}`}>
+            {card.name}
+          </a>
           {where && <span>{where}</span>}
         </div>
       </div>
@@ -126,8 +125,40 @@ function ScrollingBoard({ children }) {
   )
 }
 
-function MeadowApp() {
+// The area's tabs, in the shell header.
+function MeadowTabs({ current }) {
   const { tabSlot } = useShell()
+  if (!tabSlot) return null
+  return createPortal(
+    <nav aria-label="Meadow">
+      <a href="/meadow" className="shell-tab is-active" aria-current={current ? 'page' : undefined}>
+        Pipeline
+      </a>
+    </nav>,
+    tabSlot,
+  )
+}
+
+function MeadowApp() {
+  const { pathname } = useShell()
+  const person = pathname.match(PERSON_PATH)
+  if (person) {
+    return (
+      <div className="meadow">
+        <MeadowTabs current={false} />
+        <PersonRecord key={person[1]} leadId={decodeURIComponent(person[1])} />
+      </div>
+    )
+  }
+  return (
+    <div className="meadow">
+      <MeadowTabs current />
+      <PipelineBoard />
+    </div>
+  )
+}
+
+function PipelineBoard() {
   const [board, setBoard] = useState(null)
   const [error, setError] = useState(null)
   usePageTitle('People pipeline')
@@ -149,69 +180,58 @@ function MeadowApp() {
   }, [load])
 
   return (
-    <div className="meadow">
-      {tabSlot &&
-        createPortal(
-          <nav aria-label="Meadow">
-            <a href="/meadow" className="shell-tab is-active" aria-current="page">
-              Pipeline
-            </a>
-          </nav>,
-          tabSlot,
-        )}
-      <main className="meadow-main">
-        <div className="meadow-heading">
-          <p className="meadow-eyebrow">Recruitment{board?.organisation ? ` · ${board.organisation}` : ''}</p>
-          <h1>People pipeline</h1>
-          {board && (
-            <p className="meadow-summary">
-              <span>
-                <strong>{board.open}</strong> {board.open === 1 ? 'person' : 'people'} in the pipeline
-              </span>
-              <span className="meadow-not-proceeding">
-                <strong>{board.notProceeding}</strong> not proceeding
-              </span>
-              <span>
-                <strong>{board.enrolledInAll}</strong> enrolled in all
-              </span>
-            </p>
-          )}
-        </div>
-
-        {error && (
-          <div className="meadow-error" role="alert">
-            <p>{error}</p>
-            <button type="button" onClick={load}>
-              Try again
-            </button>
-          </div>
-        )}
-        {!board && !error && <p className="meadow-loading">Loading the pipeline…</p>}
-
+    <main className="meadow-main">
+      <div className="meadow-heading">
+        <p className="meadow-eyebrow">Recruitment{board?.organisation ? ` · ${board.organisation}` : ''}</p>
+        <h1>People pipeline</h1>
         {board && (
-          <ScrollingBoard>
-            {board.bands.map((band) => (
-              <section
-                key={band.key}
-                className={`meadow-band meadow-band-${band.key}`}
-                aria-labelledby={`band-${band.key}`}
-                style={{ '--band-columns': band.stages.length }}
-              >
-                <header className="meadow-band-head">
-                  <h2 id={`band-${band.key}`}>{band.name}</h2>
-                  <span>{band.note}</span>
-                </header>
-                <div className="meadow-columns" style={{ '--columns': band.stages.length }}>
-                  {band.stages.map((s) => (
-                    <StageColumn key={s.stageId} stage={s} />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </ScrollingBoard>
+          <p className="meadow-summary">
+            <span>
+              <strong>{board.open}</strong> {board.open === 1 ? 'person' : 'people'} in the pipeline
+            </span>
+            <span className="meadow-not-proceeding">
+              <strong>{board.notProceeding}</strong> not proceeding
+            </span>
+            <span>
+              <strong>{board.enrolledInAll}</strong> enrolled in all
+            </span>
+          </p>
         )}
-      </main>
-    </div>
+      </div>
+
+      {error && (
+        <div className="meadow-error" role="alert">
+          <p>{error}</p>
+          <button type="button" onClick={load}>
+            Try again
+          </button>
+        </div>
+      )}
+      {!board && !error && <p className="meadow-loading">Loading the pipeline…</p>}
+
+      {board && (
+        <ScrollingBoard>
+          {board.bands.map((band) => (
+            <section
+              key={band.key}
+              className={`meadow-band meadow-band-${band.key}`}
+              aria-labelledby={`band-${band.key}`}
+              style={{ '--band-columns': band.stages.length }}
+            >
+              <header className="meadow-band-head">
+                <h2 id={`band-${band.key}`}>{band.name}</h2>
+                <span>{band.note}</span>
+              </header>
+              <div className="meadow-columns" style={{ '--columns': band.stages.length }}>
+                {band.stages.map((s) => (
+                  <StageColumn key={s.stageId} stage={s} />
+                ))}
+              </div>
+            </section>
+          ))}
+        </ScrollingBoard>
+      )}
+    </main>
   )
 }
 
