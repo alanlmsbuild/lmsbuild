@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePageTitle, useShell } from '../shell/navigation'
 import './meadow.css'
@@ -81,6 +81,51 @@ function StageColumn({ stage }) {
   )
 }
 
+// The board scrolls sideways in its box when its columns don't fit. While
+// there's more to the right, a fade and an arrow at the right edge say so
+// (the arrow scrolls the board on).
+function ScrollingBoard({ children }) {
+  const ref = useRef(null)
+  const [more, setMore] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return undefined
+    const update = () => setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => {
+      el.removeEventListener('scroll', update)
+      observer.disconnect()
+    }
+  }, [])
+
+  return (
+    <div className={more ? 'meadow-board-wrap has-more' : 'meadow-board-wrap'}>
+      <div ref={ref} className="meadow-board" role="region" aria-label="Pipeline board" tabIndex={0}>
+        {children}
+      </div>
+      {more && (
+        <>
+          <div className="meadow-board-fade" aria-hidden="true" />
+          <button
+            type="button"
+            className="meadow-board-more"
+            aria-label="Scroll the board right"
+            onClick={() => ref.current?.scrollBy({ left: ref.current.clientWidth * 0.8, behavior: 'smooth' })}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+              <path d="M6.5 3.5L12 9l-5.5 5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
 function MeadowApp() {
   const { tabSlot } = useShell()
   const [board, setBoard] = useState(null)
@@ -144,7 +189,7 @@ function MeadowApp() {
         {!board && !error && <p className="meadow-loading">Loading the pipeline…</p>}
 
         {board && (
-          <div className="meadow-board" role="region" aria-label="Pipeline board" tabIndex={0}>
+          <ScrollingBoard>
             {board.bands.map((band) => (
               <section
                 key={band.key}
@@ -163,7 +208,7 @@ function MeadowApp() {
                 </div>
               </section>
             ))}
-          </div>
+          </ScrollingBoard>
         )}
       </main>
     </div>

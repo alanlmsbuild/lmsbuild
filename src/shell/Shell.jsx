@@ -183,7 +183,7 @@ function Shell() {
     <ShellContext.Provider value={shell}>
       {!frontDoor && <ShellHeader area={area} pathname={pathname} me={me} onTabSlot={setTabSlot} />}
       <Suspense fallback={<div className="shell-loading" />}>{page}</Suspense>
-      {area !== 'rarebit' && <SkillsEnglandFooter />}
+      {area !== 'rarebit' && <SkillsEnglandFooter credit={area !== 'meadow'} />}
     </ShellContext.Provider>
   )
 }

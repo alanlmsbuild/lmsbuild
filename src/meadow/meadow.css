@@ -112,11 +112,52 @@
   cursor: pointer;
 }
 
-/* The board scrolls sideways inside its box at narrow widths. */
+/* The board scrolls sideways inside its box at narrow widths; a fade and
+   an arrow at the right edge show there's more. */
+.meadow-board-wrap {
+  position: relative;
+  margin-top: 24px;
+}
+
+.meadow-board-fade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 8px;
+  width: 72px;
+  background: linear-gradient(to right, transparent, var(--mw-page));
+  pointer-events: none;
+}
+
+.meadow-board-more {
+  position: absolute;
+  top: 40px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--mw-rule);
+  border-radius: 50%;
+  background: var(--mw-card);
+  color: var(--area-link);
+  box-shadow: 0 2px 8px rgba(28, 36, 51, 0.16);
+  cursor: pointer;
+}
+
+.meadow-board-more:hover {
+  background: var(--area-tint);
+}
+
+.meadow-board-more:focus-visible {
+  outline: 3px solid var(--area-link);
+  outline-offset: 2px;
+}
+
 .meadow-board {
   display: flex;
   gap: 14px;
-  margin-top: 24px;
   padding-bottom: 8px;
   overflow-x: auto;
 }

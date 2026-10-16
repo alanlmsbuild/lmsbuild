@@ -1,8 +1,11 @@
 // Meadow's people pipeline board in the browser (server/meadow.js,
 // src/meadow/MeadowApp.jsx).
 //   Grace  USR-T3001  ORG-T003 manager: the board on the test journeys'
-//                     seed (fixed counts), in Meadow slate blue
-//   Max    USR-T0008  ORG-T001 manager: only his organisation's people
+//                     seed (fixed counts), in Meadow slate blue, the
+//                     fade and arrow while it scrolls further, and only
+//                     our copyright in the footer
+//   Max    USR-T0008  ORG-T001 manager: only his organisation's people;
+//                     Warren keeps its Skills England footer
 //   Faye   USR-T3003  ORG-T003 tutor: the API refuses her, /meadow sends her
 //                     home, and her account menu has no Meadow
 //   Nobody signed in: the front door's Meadow "Sign in" goes to the sign-in
@@ -77,9 +80,20 @@ try {
   const enrolledNote = await g.locator('.meadow-column[data-stage="ENROLLED"] .meadow-column-note').innerText()
   check('  Enrolled says it\'s the last 30 days', enrolledNote === 'Last 30 days', enrolledNote)
   check('the page itself doesn\'t scroll sideways at 1440 px', await g.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+  const footer = await g.locator('.app-footer').innerText()
+  check('the footer has "© 2026 Rarebit" and no Skills England credit', footer.trim() === '© 2026 Rarebit' &&
+    (await g.locator('.app-footer img').count()) === 0, footer.replace(/\n/g, ' | '))
+  check('more to the right: a fade and an arrow at the board\'s edge', (await g.locator('.meadow-board-fade').count()) === 1 &&
+    await g.getByRole('button', { name: 'Scroll the board right' }).isVisible())
   await g.screenshot({ path: path.join(OUT, 'meadow-board.png'), fullPage: true })
+  const before = await g.locator('.meadow-board').evaluate((el) => el.scrollLeft)
+  await g.getByRole('button', { name: 'Scroll the board right' }).click()
+  await g.waitForFunction(() => document.querySelector('.meadow-board').scrollLeft > 0, null, { timeout: 5000 }).catch(() => {})
+  check('  the arrow scrolls the board on', (await g.locator('.meadow-board').evaluate((el) => el.scrollLeft)) > before)
   // The board scrolls in its box at this width: the Starting band too.
   await g.locator('.meadow-board').evaluate((el) => { el.scrollLeft = el.scrollWidth })
+  await g.locator('.meadow-board-fade').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {})
+  check('  at the end: no fade or arrow', (await g.locator('.meadow-board-fade, .meadow-board-more').count()) === 0)
   await g.screenshot({ path: path.join(OUT, 'meadow-board-starting.png'), fullPage: true })
   await g.locator('.shell-account-button').click()
   check('Grace\'s account menu links to Meadow', (await g.locator('.shell-account-links a', { hasText: 'Meadow' }).count()) === 1)
@@ -100,6 +114,9 @@ try {
   const mSummary = await m.locator('.meadow-summary').innerText()
   check('Max sees ORG-T001\'s board (9 people, 1 not proceeding)', /\b9 people in the pipeline\b/.test(mSummary) && /\b1 not proceeding\b/.test(mSummary) &&
     (await m.locator('.meadow-card').count()) === 9, mSummary)
+  await m.goto(`${B}/app/my-day`)
+  await m.locator('.app-footer img[alt="Skills England"]').waitFor({ timeout: 60000 })
+  check('Warren keeps the Skills England credit', (await m.locator('.app-footer').innerText()).includes('© Skills England 2025'))
 
   // Faye: not for tutors.
   const f = await pageAs('USR-T3003')
