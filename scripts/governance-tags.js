@@ -19,4 +19,22 @@ export const API_SOURCES = {
   'skills-england': 'SHARED_DB.RAW.SE_STANDARD_VERSION',
   // Rarebit's own weekly check of the website links (decision 26).
   'website-link-check': 'SHARED_DB.EXT.WEBSITE_LINK',
+  // Companies House company profiles (sql/employers_01_companies_house.sql).
+  'companies-house': 'SHARED_DB.RAW.CH_COMPANY_PROFILE',
+}
+
+// Bronze (sql/load_10_ilr_dummy.sql; check:tags --bronze): the schemas the
+// loaders fill. In TEST_BASELINE only the tables loaded through its
+// SOURCE_FILE are bronze (it also keeps the test learner snapshot).
+export const BRONZE_SCHEMAS = ['SHARED_DB.RAW', 'OPTIONS_DB.RAW', 'CAPTURE_DB.TEST_BASELINE']
+// The load records: LAYER, OWNER, REFRESH and SENSITIVITY only.
+export const BRONZE_RECORD_TABLES = BRONZE_SCHEMAS.map((s) => `${s}.SOURCE_FILE`)
+// Bronze tables written by the app's jobs from an API, not through
+// SOURCE_FILE: their SOURCE, licence (as SOURCE_FILE would word it) and the
+// job in server/jobSchedule.js that fills them.
+export const BRONZE_API_TABLES = {
+  'SHARED_DB.RAW.FAA_VACANCY_PAGE': { source: 'faa-vacancies', licenceText: 'Open Government Licence v3.0', job: 'vacancies-new' },
+  'SHARED_DB.RAW.SE_STANDARD_VERSION': { source: 'skills-england', licenceText: 'Open Government Licence v3.0', job: 'skills' },
+  'SHARED_DB.RAW.SE_OCCUPATION': { source: 'skills-england', licenceText: 'Open Government Licence v3.0', job: 'skills' },
+  'SHARED_DB.RAW.CH_COMPANY_PROFILE': { source: 'companies-house', licenceText: 'Open Government Licence v3.0', job: 'companies-refresh' },
 }

@@ -59,6 +59,8 @@
 // fetched by scripts/travel/fetch.py into data/travel/, git-ignored):
 //   41 BODS GTFS (Yorkshire), ONS LSOA centroids, OpenStreetMap extract -> SHARED_DB.RAW
 //   42 the journey times computed by scripts/travel/compute.py          -> SHARED_DB.RAW
+// The ILR dummy data workbook (sql/load_10_ilr_dummy.sql):
+//   43 ilr-dummy-data.xlsx, its three sheets as they are (TEST DATA)    -> CAPTURE_DB.TEST_BASELINE
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -185,6 +187,42 @@ async function fisOriginals() {
     }
   }
   return out
+}
+
+// The ILR dummy data workbook (fictional learners), from its own folder.
+// Its two data sheets have a header row, so load as CSVs with their column
+// names; the Guide sheet is a title, notes and two lists, so one row per
+// sheet row, as the FIS .xlsx reports are.
+const ILR_DUMMY = process.env.ILR_DUMMY_XLSX || path.join(WINDOWS_HOME, 'lms/ilr_data/ilr-dummy-data.xlsx')
+const ILR_DUMMY_SPEC = { home: 'CAPTURE_DB', source: 'test-ilr-dummy', publisher: 'Rarebit (made for testing)',
+  licence: 'Test data (fictional learners); the Guide quotes the ILR 2026 to 2027 guidance (OGL v3.0)', page: null }
+// A merged range's value is only in its top-left cell: the others are empty
+// here (ExcelJS would repeat the value in each).
+const sheetCells = (row) => Array.from({ length: row.cellCount }, (_, i) => {
+  const cell = row.getCell(i + 1)
+  return cell.type === ExcelJS.ValueType.Merge ? '' : cellText(cell)
+})
+async function workbookSheet(file, name) {
+  const book = new ExcelJS.Workbook()
+  await book.xlsx.readFile(file)
+  const sheet = book.getWorksheet(name)
+  if (!sheet) throw new Error(`${path.basename(file)}: no sheet "${name}"`)
+  return sheet
+}
+// A sheet with a header in row 1 as a CSV: every row as wide as the header,
+// each cell's text as shown.
+const sheetToCsv = (file, name) => async (out) => {
+  const sheet = await workbookSheet(file, name)
+  const width = sheet.getRow(1).cellCount
+  async function* lines() {
+    for (let n = 1; n <= sheet.rowCount; n++) {
+      const cells = sheetCells(sheet.getRow(n))
+      if (cells.length > width) throw new Error(`${name}: row ${n} is wider than its header`)
+      if (n > 1 && cells.every((c) => c === '')) continue
+      yield csvLine(Array.from({ length: width }, (_, i) => cells[i] ?? ''))
+    }
+  }
+  await writeLines(out, lines())
 }
 
 const TEST = { home: 'CAPTURE_DB', publisher: 'Funding Information System (FIS) 2026 to 2027, run on Rarebit test learners', licence: 'Test data (fictional learners); FIS output', page: null }
@@ -322,6 +360,23 @@ export const STEPS = {
     licence: 'Open Database Licence (ODbL) v1.0; © OpenStreetMap contributors',
     title: 'Journey times between South Yorkshire LSOA population-weighted centroids (decision 19)', kind: 'as-downloaded', page: null,
     file, table: 'SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN' })) },
+  // ---------------------------------------------------------------- test data
+  43: { job: 'load-ilr-dummy', run: async (loader) => {
+    const results = []
+    for (const [sheet, table] of [['Learner', 'ILR_DUMMY_LEARNER'], ['LearningDelivery', 'ILR_DUMMY_LEARNING_DELIVERY']]) {
+      results.push(await loader.loadCsv({ ...ILR_DUMMY_SPEC, format: 'CAPTURE_DB.TEST_BASELINE.CSV_UTF8', title: `ILR 2026 to 2027 dummy data workbook: ${sheet} sheet`,
+        file: ILR_DUMMY, member: sheet, kind: 'converted', table: `CAPTURE_DB.TEST_BASELINE.${table}`, make: sheetToCsv(ILR_DUMMY, sheet) }))
+    }
+    results.push(...await loader.loadJsonLines({ ...ILR_DUMMY_SPEC, title: 'ILR 2026 to 2027 dummy data workbook: Guide sheet',
+      table: 'CAPTURE_DB.TEST_BASELINE.ILR_DUMMY_GUIDE', format: 'CAPTURE_DB.TEST_BASELINE.JSON_LINES', originals: [{ file: ILR_DUMMY, member: 'Guide' }],
+      rows: async () => {
+        const rows = []
+        ;(await workbookSheet(ILR_DUMMY, 'Guide')).eachRow((r, n) => rows.push({ row: n, cells: sheetCells(r) }))
+        return rows
+      },
+      cols: { ROWNUMBER: '$1:row::number', CELLS: '$1:cells::array' } }))
+    return results
+  }, runLabel: 'ilr-dummy-data.xlsx: Learner, LearningDelivery, Guide (TEST DATA)' },
 }
 
 export async function runStep(loader, n) {

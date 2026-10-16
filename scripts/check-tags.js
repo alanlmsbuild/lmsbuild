@@ -9,8 +9,14 @@
 // scripts/governance-tags.js.
 //   npm run check:tags                 SILVER
 //   npm run check:tags -- --staging    SILVER_STAGING (the transform job, before it swaps)
+//   npm run check:tags -- --bronze     RAW and the test files instead (scripts/check-tags-bronze.js)
 import { connect, execute, destroy } from '../server/db.js'
 import { TAG_SCHEMA, TAGS, ALLOWED, SOURCE, API_SOURCES } from './governance-tags.js'
+
+if (process.argv.includes('--bronze')) {
+  const { checkBronze } = await import('./check-tags-bronze.js')
+  process.exit(await checkBronze())
+}
 
 const STAGING = process.argv.includes('--staging')
 const SCHEMAS = ['SHARED_DB.SILVER', 'OPTIONS_DB.SILVER', 'SHARED_DB.GOLD', 'OPTIONS_DB.GOLD'].map((x) => (STAGING ? `${x}_STAGING` : x))

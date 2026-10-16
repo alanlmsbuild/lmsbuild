@@ -169,7 +169,8 @@ export class Loader {
     }
     const modified = fs.statSync(file).mtime
     const dir = `${source}/${day(modified)}-${original.sha256.slice(0, 12)}`
-    const columns = (await this.columns(table)).filter((c) => c !== 'SOURCEFILEID' && c !== 'FILEROWNUMBER')
+    // (ISTESTDATA: TEST_BASELINE's own flag, filled by its default.)
+    const columns = (await this.columns(table)).filter((c) => !['SOURCEFILEID', 'FILEROWNUMBER', 'ISTESTDATA'].includes(c))
 
     let loadable = kind === 'as-downloaded' && !SAFE_NAME.test(path.basename(file)) ? this.plainCopy(file) : file
     let removed = null
