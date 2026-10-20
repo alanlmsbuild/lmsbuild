@@ -4,16 +4,18 @@
 // rail timetable change. Bus and rail always use the same day.
 //
 // TERMS: South Yorkshire's school terms (half terms are the gaps between
-// them). These are Rarebit's working list, to check against the four
-// councils' published dates (Barnsley, Doncaster, Rotherham, Sheffield);
-// past the last term listed, nextTravelDay refuses rather than guesses.
-// TIMETABLE_CHANGES: the Sundays the national rail timetable changes; a
-// Tuesday within 7 days of one is skipped (the week before and after).
+// them), 2026-27: checked by Alan on 20 October 2026 against Sheffield's,
+// Barnsley's and Rotherham's published dates, which agree; Doncaster's
+// still to check. Past the last term listed, nextTravelDay refuses rather
+// than guesses.
+// TIMETABLE_CHANGES: the Sundays the national rail timetable changes (both
+// confirmed by Network Rail); a Tuesday within 7 days of one is skipped
+// (the week before and after).
 
 export const TERMS = [
   ['2026-11-02', '2026-12-18'], // autumn, after half term
-  ['2027-01-05', '2027-02-12'], // spring 1
-  ['2027-02-22', '2027-03-26'], // spring 2
+  ['2027-01-04', '2027-02-12'], // spring 1
+  ['2027-02-22', '2027-03-25'], // spring 2 (26 March is Good Friday)
   ['2027-04-12', '2027-05-28'], // summer 1
   ['2027-06-07', '2027-07-21'], // summer 2
 ]

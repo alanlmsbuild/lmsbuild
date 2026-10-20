@@ -18,6 +18,11 @@ Then dbt builds silver and gold as usual (npm run silver:build).
 
 ## Set-up (once)
 
+In every checkout that runs the steps. The scheduled `travel-monthly` job
+(`scripts/travel/job.js`) runs from the scheduler's checkout, ~/my-react-app
+on main, so `.venv-travel` and `data/travel/` (git-ignored) must be there
+too (set up 20 October 2026).
+
 - **Java 21**: the portable Temurin JRE in `~/.cache/rarebit-java`,
   downloaded from Adoptium and checked against both the API's SHA-256 and
   the release's `.sha256.txt`. No sudo. `compute.py` finds it (or set
