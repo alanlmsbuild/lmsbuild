@@ -5,7 +5,7 @@ export const TAGS = ['LAYER', 'OWNER', 'SOURCE', 'LICENCE', 'ATTRIBUTION', 'REFR
 export const ALLOWED = {
   layer: ['bronze', 'silver', 'gold'],
   owner: ['rarebit-data'],
-  licence: ['ogl-3', 'cc-by-4', 'cc0', 'odbl', 'mit', 'neso-odl', 'test-data'],
+  licence: ['ogl-3', 'cc-by-4', 'cc0', 'odbl', 'mit', 'neso-odl', 'test-data', 'nr-open'],
   refresh: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'by-hand'],
   sensitivity: ['public', 'internal', 'personal', 'special-category', 'minor'],
 }

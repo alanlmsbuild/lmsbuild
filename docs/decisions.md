@@ -27,6 +27,22 @@ Yorkshire feed clipped to the trips that call in South Yorkshire and a 5 km
 buffer; Java heap 4.5 GB; gold `travel_time` read by Warren, Meadow and the
 school leavers site.
 
+Phase B: rail (licence reviewed and agreed 15 October 2026). Network Rail's
+SCHEDULE full extract and CORPUS are used under the Network Rail
+Infrastructure Limited Data Feeds Licence (LICENCE tag `nr-open`). Network
+Rail's licence page says the feeds are released under the terms of the Open
+Government Licence; we attribute them with Network Rail's line, "Contains
+information of Network Rail Infrastructure Limited licensed under the
+following licence:" and a link to that page. Train fares are not included.
+
+Phase B settings (agreed 20 October 2026): bus, tram and train computed
+together, with bus-only and train-only times alongside; the modes a journey
+used are estimated (within 2 minutes of the train-only or bus-only median),
+and the notes say so. Refreshed monthly: each run uses the next term-time
+Tuesday at least 14 days ahead, skipping school holidays and the week of the
+13 December timetable change, the same date for bus and rail, and stops if
+either feed doesn't cover it. The first run is on Tuesday 10 November 2026.
+
 ## 21. Governance built into Snowflake
 
 Every object is described, tagged and controlled in Snowflake itself. Tags on

@@ -28,6 +28,7 @@ const LICENCE_TAG = [
   [/^CC0/, 'cc0'],
   [/^CC BY 4\.0/, 'cc-by-4'],
   [/^Test data/, 'test-data'],
+  [/^Network Rail Infrastructure Limited Data Feeds Licence/, 'nr-open'],
 ]
 const licenceTag = (text) => {
   const hit = LICENCE_TAG.find(([re]) => re.test(text))
