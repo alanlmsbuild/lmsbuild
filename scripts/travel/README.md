@@ -7,6 +7,7 @@ walking-only times. Run by hand, in this order, from the repo root:
 
     .venv-travel/bin/python scripts/travel/fetch.py       # inputs into data/travel/ (git-ignored)
     .venv-travel/bin/python scripts/travel/clip_gtfs.py   # the feed clipped to South Yorkshire + 5 km
+    .venv-travel/bin/python -I scripts/travel/cif_to_gtfs.py  # phase B: the rail GTFS for the day, and its checks (stations matched, trains against other Tuesdays)
     npm run load:data -- 41                                # the sources into SHARED_DB.RAW, originals in the stage
     node scripts/travel/origins.js                         # the 860 LSOAs and their centroids, and the input IDs
     # Stop the dev servers (3001, 5173) first: R5 takes a 4.5 GB Java heap.
@@ -30,6 +31,8 @@ Then dbt builds silver and gold as usual (npm run silver:build).
 The times are derived from OpenStreetMap, so they are under the ODbL
 (decision 19): show results with "© OpenStreetMap contributors", and don't
 hand the tables over except under the ODbL. Timetables: Bus Open Data Service
-(OGL v3.0). Centroids: ONS (OGL v3.0; contains OS data © Crown copyright and
+(OGL v3.0); Network Rail SCHEDULE and CORPUS (Network Rail Infrastructure
+Limited Data Feeds Licence, `nr-open`; "Contains information of Network Rail
+Infrastructure Limited licensed under the following licence"). Centroids: ONS (OGL v3.0; contains OS data © Crown copyright and
 database right). r5py (GPL-3) and R5 (MIT) are only run here, not
 distributed.

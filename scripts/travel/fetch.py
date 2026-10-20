@@ -11,15 +11,28 @@ load:data -- 41 loads them, originals and all.
                                 (the file's header) beside it
   ons-pwc/lsoa21_pwc_v4.csv     ONS LSOA (December 2021) population-weighted
                                 centroids (V4), England and Wales
+  nr/toc-full-<extract date>.CIF.gz
+                                Network Rail's SCHEDULE full extract (phase
+                                B), named by the date its HD record states;
+                                with <file>.header.json (that record) beside it
+  nr/corpus-<date fetched>.json.gz
+                                Network Rail's CORPUS location codes
+
+The Network Rail files need the login in server/.env (NETWORK_RAIL_USERNAME,
+NETWORK_RAIL_PASSWORD).
 
   .venv-travel/bin/python scripts/travel/fetch.py
 """
 
+import base64
+import datetime as dt
+import gzip
 import hashlib
 import json
 import os
 import shutil
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -32,6 +45,9 @@ GTFS_NAME = 'itm_yorkshire_gtfs.zip'
 GEOFABRIK = 'https://download.geofabrik.de/europe/united-kingdom/england/south-yorkshire-latest.osm.pbf'
 ONS_PWC = 'https://open-geography-portalx-ons.hub.arcgis.com/api/download/v1/items/32729e42d05e4e23bc7e43a36aa4ae8b/csv?layers=0'
 UA = {'User-Agent': 'RarebitDataLoader/1.0'}
+NR_FEEDS = 'https://publicdatafeeds.networkrail.co.uk/ntrod/'
+NR_SCHEDULE = NR_FEEDS + 'CifFileAuthenticate?type=CIF_ALL_FULL_DAILY&day=toc-full.CIF.gz'
+NR_CORPUS = NR_FEEDS + 'SupportingFileAuthenticate?type=CORPUS'
 
 
 def get(url, dest):
@@ -108,7 +124,97 @@ def fetch_pwc():
     print(f'  {dest.name}: fetched ({dest.stat().st_size:,} bytes)')
 
 
+def nr_login():
+    """NETWORK_RAIL_USERNAME and NETWORK_RAIL_PASSWORD from server/.env."""
+    env = {}
+    for line in (REPO / 'server' / '.env').read_text().splitlines():
+        if '=' in line and not line.lstrip().startswith('#'):
+            k, v = line.split('=', 1)
+            env[k.strip()] = v.strip().strip('"').strip("'")
+    if not env.get('NETWORK_RAIL_USERNAME') or not env.get('NETWORK_RAIL_PASSWORD'):
+        sys.exit('NETWORK_RAIL_USERNAME and NETWORK_RAIL_PASSWORD must be set in server/.env')
+    return env['NETWORK_RAIL_USERNAME'], env['NETWORK_RAIL_PASSWORD']
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def get_nr(url, dest):
+    """Network Rail answers with a redirect to a signed download link, which
+    must be fetched without the login (it carries its own)."""
+    user, password = nr_login()
+    auth = base64.b64encode(f'{user}:{password}'.encode()).decode()
+    req = urllib.request.Request(url, headers={**UA, 'Authorization': f'Basic {auth}'})
+    try:
+        with urllib.request.build_opener(NoRedirect).open(req, timeout=120) as res:
+            with open(dest, 'wb') as out:
+                shutil.copyfileobj(res, out)
+            return
+    except urllib.error.HTTPError as e:
+        if e.code not in (301, 302, 303, 307, 308):
+            sys.exit(f'Network Rail refused {url.split("?")[1]}: HTTP {e.code} (check the login and the feed subscription)')
+        location = e.headers['Location']
+    get(location, dest)
+
+
+def cif_header(path):
+    """The extract's HD record, as the file states it (CIF end user
+    specification: fixed-width fields)."""
+    with gzip.open(path, 'rt', encoding='ascii', errors='replace') as f:
+        hd = f.readline().rstrip('\n')
+    if not hd.startswith('HD'):
+        sys.exit('the SCHEDULE extract does not start with an HD record')
+    day = lambda s: dt.datetime.strptime(s, '%d%m%y').date().isoformat()
+    return {
+        'record': hd,
+        'file_mainframe_identity': hd[2:22].strip(),
+        'date_of_extract': day(hd[22:28]),
+        'time_of_extract': f'{hd[28:30]}:{hd[30:32]}',
+        'current_file_reference': hd[32:39].strip(),
+        'last_file_reference': hd[39:46].strip(),
+        'update_indicator': hd[46],
+        'version': hd[47],
+        'user_start_date': day(hd[48:54]),
+        'user_end_date': day(hd[54:60]),
+    }
+
+
+def fetch_rail():
+    folder = DATA / 'nr'
+    folder.mkdir(parents=True, exist_ok=True)
+    tmp = folder / 'toc-full.CIF.gz.part'
+    get_nr(NR_SCHEDULE, tmp)
+    head = cif_header(tmp)
+    if head['update_indicator'] != 'F':
+        tmp.unlink()
+        sys.exit(f"the SCHEDULE extract is not a full extract (update indicator {head['update_indicator']})")
+    dest = folder / f"toc-full-{head['date_of_extract']}.CIF.gz"
+    if dest.exists() and digest(dest, 'sha256') == digest(tmp, 'sha256'):
+        tmp.unlink()
+        print(f'  {dest.name}: already fetched')
+    else:
+        tmp.rename(dest)
+        print(f"  {dest.name}: fetched ({dest.stat().st_size:,} bytes; covers {head['user_start_date']} to {head['user_end_date']})")
+    (folder / f'{dest.name}.header.json').write_text(json.dumps(head, indent=1))
+
+    dest = folder / f'corpus-{dt.date.today().isoformat()}.json.gz'
+    if dest.exists():
+        print(f'  {dest.name}: already fetched')
+        return
+    tmp = folder / 'corpus.json.gz.part'
+    get_nr(NR_CORPUS, tmp)
+    with gzip.open(tmp, 'rt', encoding='utf-8') as f:
+        if 'TIPLOCDATA' not in json.load(f):
+            tmp.unlink()
+            sys.exit('CORPUS is not the JSON expected (no TIPLOCDATA)')
+    tmp.rename(dest)
+    print(f'  {dest.name}: fetched ({dest.stat().st_size:,} bytes)')
+
+
 if __name__ == '__main__':
     fetch_gtfs()
     fetch_osm()
     fetch_pwc()
+    fetch_rail()
