@@ -586,20 +586,21 @@ models:
 
   - name: travel_time
     description: >-
-      How long it takes to get from one LSOA to another (decision 19; phase A,
-      South Yorkshire), between population-weighted centroids: by walk, bus,
-      coach or tram on a typical term-time Tuesday morning (the median with
-      the 25th and 75th percentile over the departure window), and walking
-      only; nothing over the cap. SUMMARY says it in words, rounded to 5
-      minutes (Rarebit's own rounding). Derived from OpenStreetMap (ODbL):
+      How long it takes to get from one LSOA to another (decision 19; South
+      Yorkshire, with trains from phase B), between population-weighted
+      centroids: by walk, bus, coach, tram or train on a typical term-time
+      Tuesday morning (the median with the 25th and 75th percentile over the
+      departure window); bus only, train only and walking only; the modes
+      used (estimated); nothing over the cap. SUMMARY says it in words,
+      naming the modes, rounded to 5 minutes (Rarebit's own rounding). Derived from OpenStreetMap (ODbL):
       show results with "© OpenStreetMap contributors"; never hand the table
       over.
     config:
       meta:
-        source: rarebit-travel-time,bods-gtfs,geofabrik-osm,ons-lsoa-pwc
+        source: rarebit-travel-time,bods-gtfs,network-rail-schedule,geofabrik-osm,ons-lsoa-pwc
         licence: odbl
-        attribution: '© OpenStreetMap contributors (ODbL). Contains public sector information licensed under the Open Government Licence v3.0 (Bus Open Data Service; ONS centroids, contains OS data © Crown copyright and database right).'
-        refresh: by-hand
+        attribution: '© OpenStreetMap contributors (ODbL). Contains public sector information licensed under the Open Government Licence v3.0. Contains information of Network Rail Infrastructure Limited licensed under its Data Feeds Licence.'
+        refresh: monthly
         sensitivity: public
         readers: ['SHARED_DB.GOLD_WARREN', 'SHARED_DB.GOLD_MEADOW', 'SHARED_DB.GOLD_SITE']
     columns:
@@ -635,7 +636,7 @@ models:
         description: 'Its local authority''s name.'
       - name: transit_minutes_p25
         data_type: number(38,0)
-        description: 'Walk, bus, coach and tram: the 25th percentile over the departure window (leaving at a good time). Empty over the cap.'
+        description: 'Walk, bus, coach, tram and train: the 25th percentile over the departure window (leaving at a good time). Empty over the cap.'
       - name: transit_minutes_median
         data_type: number(38,0)
         description: 'The median journey time over the window. Empty over the cap.'
@@ -645,9 +646,34 @@ models:
       - name: walk_minutes
         data_type: number(38,0)
         description: 'Walking only, the whole way. Empty over the cap.'
+      - name: bus_minutes_p25
+        data_type: number(38,0)
+        description: 'Bus, coach and tram only (no train): the 25th percentile. Empty over the cap.'
+      - name: bus_minutes_median
+        data_type: number(38,0)
+        description: 'Bus only (no train): the median.'
+      - name: bus_minutes_p75
+        data_type: number(38,0)
+        description: 'Bus only (no train): the 75th percentile.'
+      - name: rail_minutes_p25
+        data_type: number(38,0)
+        description: 'Train only (walking to and from stations): the 25th percentile. Empty over the cap.'
+      - name: rail_minutes_median
+        data_type: number(38,0)
+        description: 'Train only: the median.'
+      - name: rail_minutes_p75
+        data_type: number(38,0)
+        description: 'Train only: the 75th percentile.'
+      - name: modes_used
+        data_type: varchar
+        description: 'The modes the journey used, estimated from the medians (within 2 minutes of the bus-only or train-only time): walk, bus (bus, coach or tram), train, or train and bus. Empty over the cap.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['walk', 'bus', 'train', 'train and bus']
       - name: summary
         data_type: varchar
-        description: 'In words, e.g. about 25 minutes by bus or tram, weekday morning; about 15 minutes on foot when walking is no slower; more than the cap when neither is within it. Rounded to the nearest 5 minutes from 10 up (Rarebit''s own rounding).'
+        description: 'In words, naming the modes, e.g. about 25 minutes by train and bus, weekday morning (or by train, or by bus or tram); about 15 minutes on foot when walking is no slower or modes_used says walk; more than the cap when nothing is within it. Rounded to the nearest 5 minutes from 10 up (Rarebit''s own rounding).'
         data_tests: [not_null]
       - name: summary_mode
         data_type: varchar
@@ -658,7 +684,7 @@ models:
                 values: ['transit', 'walk']
       - name: notes
         data_type: varchar
-        description: 'What the times are and what they leave out, in plain words, to show beside them: from where people live to where people live, walking and waiting included; no trains yet; a small operator now and then missing from the national timetable data.'
+        description: 'What the times are and what they leave out, in plain words, to show beside them: from where people live to where people live, walking and waiting included; buses, trams and trains, timetable as at the Network Rail extract''s date; train fares not included; modes are estimated; a small operator now and then missing from the national timetable data.'
         data_tests: [not_null]
       - name: departure_date
         data_type: date
@@ -672,7 +698,7 @@ models:
         description: 'The cap.'
       - name: modes
         data_type: varchar
-        description: 'The ways of travelling allowed (walk,bus,coach,tram: no rail yet).'
+        description: 'The ways of travelling allowed (walk,bus,coach,tram,rail).'
       - name: gtfs_feed_version
         data_type: varchar
         description: 'The Bus Open Data Service feed the timetables came from.'
@@ -680,12 +706,20 @@ models:
         data_type: date
         description: 'When BODS made that feed (its version''s date).'
         data_tests: [not_null]
+      - name: rail_feed_version
+        data_type: varchar
+        description: 'The rail timetable the train times came from (the Network Rail SCHEDULE extract''s date and time).'
+        data_tests: [not_null]
+      - name: rail_timetable_as_at
+        data_type: date
+        description: 'The date the rail timetable is as at (the extract''s date).'
+        data_tests: [not_null]
       - name: osm_data_date
         data_type: date
         description: 'The date of the OpenStreetMap data the streets and paths came from.'
       - name: source
         data_type: varchar
-        description: 'Where it comes from: rarebit-travel-time (our computation), bods-gtfs, geofabrik-osm, ons-lsoa-pwc.'
+        description: 'Where it comes from: rarebit-travel-time (our computation), bods-gtfs, network-rail-schedule, geofabrik-osm, ons-lsoa-pwc.'
         data_tests: [not_null]
       - name: source_file_id
         data_type: varchar

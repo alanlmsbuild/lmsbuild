@@ -50,6 +50,21 @@ sources:
       - name: travel_time_lsoa_run
         identifier: TRAVEL_TIME_LSOA_RUN
         description: 'Journey times between LSOA centroids that Rarebit computes with r5py (scripts/travel/compute.py), one row per origin and destination per run (load:data step 42).'
+      - name: nr_schedule_extract
+        identifier: NR_SCHEDULE_EXTRACT
+        description: 'Network Rail SCHEDULE full extracts (CIF), one row per file with its HD header record (load:data step 44).'
+      - name: nr_gtfs_feed_info
+        identifier: NR_GTFS_FEED_INFO
+        description: 'The rail GTFS Rarebit builds from the Network Rail SCHEDULE extract (scripts/travel/cif_to_gtfs.py): feed_info.txt (feed_version is the extract''s date and time; the feed covers one day).'
+      - name: nr_gtfs_trips
+        identifier: NR_GTFS_TRIPS
+        description: 'The rail GTFS: trips.txt, one row per passenger train calling at two or more stations in the area that day.'
+      - name: nr_gtfs_stops
+        identifier: NR_GTFS_STOPS
+        description: 'The rail GTFS: stops.txt, one row per station with trains that day (TIPLOC, CRS, the NaPTAN stop matched).'
+      - name: nr_gtfs_agency
+        identifier: NR_GTFS_AGENCY
+        description: 'The rail GTFS: agency.txt, one row per train operator (ATOC code).'
       - name: nomis_population_lsoa
         identifier: NOMIS_POPULATION_LSOA
         description: Population estimates by 2021 LSOA (England), every year from 2011, in broad age bands (Nomis NM_2014_1, load:data step 33).

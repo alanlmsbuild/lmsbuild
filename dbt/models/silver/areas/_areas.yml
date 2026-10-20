@@ -757,19 +757,61 @@ models:
         description: 'Its feed_info.txt SOURCE_FILE row (SHARED_DB.RAW).'
         data_tests: [not_null]
 
+  - name: rail_feed
+    description: >-
+      The rail timetable the travel times use (decision 19, phase B): the
+      latest rail GTFS built from Network Rail's SCHEDULE extract
+      (scripts/travel/cif_to_gtfs.py), one row: its version, the date the
+      timetable is as at, the one day it covers, and its trains, stations
+      and operators.
+    config:
+      meta:
+        source: network-rail-schedule
+        licence: nr-open
+        attribution: 'Contains information of Network Rail Infrastructure Limited licensed under the Network Rail Infrastructure Limited Data Feeds Licence.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: feed_version
+        data_type: varchar
+        description: 'The feed''s version: the SCHEDULE extract''s date and time (e.g. 20261016_1953).'
+        data_tests: [unique, not_null]
+      - name: timetable_as_at
+        data_type: date
+        description: 'The date of the SCHEDULE extract: the timetable as Network Rail had it then (a weekly full extract).'
+        data_tests: [not_null]
+      - name: timetable_date
+        data_type: date
+        description: 'The one day the feed covers: the travel times'' departure date.'
+        data_tests: [not_null]
+      - name: trains
+        data_type: number(38,0)
+        description: 'Passenger trains that day calling at two or more stations in the area.'
+      - name: stations
+        data_type: number(38,0)
+        description: 'Stations with trains that day (each matched to NaPTAN).'
+      - name: operators
+        data_type: number(38,0)
+        description: 'Train operators running them.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'Its feed_info.txt SOURCE_FILE row (SHARED_DB.RAW).'
+        data_tests: [not_null]
+
   - name: travel_time_lsoa
     description: >-
       Journey times between LSOA population-weighted centroids from the latest
-      run of scripts/travel/compute.py (decision 19; phase A, South Yorkshire):
-      one row per origin and destination. Walk, bus, coach and tram minutes at
-      the 25th, 50th and 75th percentile of departures in the window, and
-      walking only; empty over the cap. Derived from OpenStreetMap (ODbL).
+      run of scripts/travel/compute.py (decision 19; South Yorkshire): one row
+      per origin and destination. Walk, bus, coach, tram and train minutes at
+      the 25th, 50th and 75th percentile of departures in the window; bus
+      only, train only and walking only; the modes used (estimated); empty
+      over the cap. Derived from OpenStreetMap (ODbL).
     config:
       meta:
-        source: rarebit-travel-time,bods-gtfs,geofabrik-osm,ons-lsoa-pwc
+        source: rarebit-travel-time,bods-gtfs,network-rail-schedule,geofabrik-osm,ons-lsoa-pwc
         licence: odbl
-        attribution: '© OpenStreetMap contributors (ODbL). Contains public sector information licensed under the Open Government Licence v3.0 (Bus Open Data Service; ONS centroids, contains OS data © Crown copyright and database right).'
-        refresh: by-hand
+        attribution: '© OpenStreetMap contributors (ODbL). Contains public sector information licensed under the Open Government Licence v3.0. Contains information of Network Rail Infrastructure Limited licensed under its Data Feeds Licence.'
+        refresh: monthly
         sensitivity: public
     columns:
       - name: travel_key
@@ -796,7 +838,7 @@ models:
                 field: lsoa21_code
       - name: transit_minutes_p25
         data_type: number(38,0)
-        description: 'Walk, bus, coach and tram: the 25th percentile of the journey times over the departure window (a lucky departure). Empty over the cap.'
+        description: 'Walk, bus, coach, tram and train (phase A runs: no train): the 25th percentile of the journey times over the departure window (a lucky departure). Empty over the cap.'
       - name: transit_minutes_p50
         data_type: number(38,0)
         description: 'The median journey time over the window. Empty over the cap.'
@@ -806,6 +848,31 @@ models:
       - name: walk_minutes
         data_type: number(38,0)
         description: 'Walking only, the whole way. Empty over the cap.'
+      - name: bus_minutes_p25
+        data_type: number(38,0)
+        description: 'Walk, bus, coach and tram only (no train): the 25th percentile. Empty over the cap, and for phase A runs.'
+      - name: bus_minutes_p50
+        data_type: number(38,0)
+        description: 'Bus only (no train): the median.'
+      - name: bus_minutes_p75
+        data_type: number(38,0)
+        description: 'Bus only (no train): the 75th percentile.'
+      - name: rail_minutes_p25
+        data_type: number(38,0)
+        description: 'Walk and train only: the 25th percentile. Empty over the cap, and for phase A runs.'
+      - name: rail_minutes_p50
+        data_type: number(38,0)
+        description: 'Train only: the median.'
+      - name: rail_minutes_p75
+        data_type: number(38,0)
+        description: 'Train only: the 75th percentile.'
+      - name: modes_used
+        data_type: varchar
+        description: 'The modes the journey used, estimated from the medians (within 2 minutes): walk, bus (bus, coach or tram), train, or train and bus. Empty over the cap.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['walk', 'bus', 'train', 'train and bus']
       - name: departure_date
         data_type: date
         description: 'The day the journeys are for (a typical term-time Tuesday).'
@@ -822,11 +889,17 @@ models:
         data_tests: [not_null]
       - name: modes
         data_type: varchar
-        description: 'The ways of travelling allowed, e.g. walk,bus,coach,tram.'
+        description: 'The ways of travelling allowed, e.g. walk,bus,coach,tram,rail.'
       - name: gtfs_feed_version
         data_type: varchar
         description: 'The BODS feed the timetables came from.'
       - name: gtfs_source_file_id
+        data_type: varchar
+        description: 'That feed''s SOURCE_FILE row (its feed_info.txt).'
+      - name: rail_feed_version
+        data_type: varchar
+        description: 'The rail GTFS the train times came from (the Network Rail extract''s date and time); empty for phase A runs.'
+      - name: rail_source_file_id
         data_type: varchar
         description: 'That feed''s SOURCE_FILE row (its feed_info.txt).'
       - name: osm_source_file_id

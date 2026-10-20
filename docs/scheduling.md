@@ -16,6 +16,7 @@ hand, is recorded in `OPS.JOB_RUN`:
 | `official-ons` (ONS: online job adverts, VACS02) | 7 days | 8 days |
 | `official-ofqual` (Ofqual register of qualifications) | 7 days | 8 days |
 | `official-monthly` (police.uk, provider register, NaPTAN, listed buildings, Wikidata places) | 30 days | 32 days |
+| `travel-monthly` (travel times: Network Rail timetable, OpenStreetMap, rail GTFS, the four r5py runs; refuses to start with under 5.5 GB free, so it waits for the dev servers to be stopped) | 30 days | 32 days |
 | `transform-silver` (the silver layer: dbt build, tests, swap in) | 24 hours | 26 hours |
 | `website-links` (a seventh of the website links, so each weekly) | 24 hours | 26 hours |
 

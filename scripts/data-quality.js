@@ -72,7 +72,8 @@ export const QUALITY = {
   'SHARED_DB.GOLD.POSTCODE_AREA': [rows(2_600_000, 2_900_000), dupes('postcode_compact')], // 2,729,090
   'SHARED_DB.GOLD.PROVIDER_BENCHMARK': [rows(55_000, 85_000), dupes('benchmark_key'), honest()], // 68,061
   // Travel times (decision 19): every pair of South Yorkshire's 860 LSOAs, nothing over the 90-minute cap.
-  'SHARED_DB.GOLD.TRAVEL_TIME': [rows(700_000, 760_000), dupes('travel_key'), nulls('summary'), most('transit_minutes_p75', 90), most('walk_minutes', 90)], // 739,600
+  'SHARED_DB.GOLD.TRAVEL_TIME': [rows(700_000, 760_000), dupes('travel_key'), nulls('summary'), most('transit_minutes_p75', 90), most('walk_minutes', 90),
+    most('bus_minutes_p75', 90), most('rail_minutes_p75', 90), nulls('notes')], // 739,600
 }
 export const WAIT_MINUTES = 15
 const POLL_SECONDS = 30

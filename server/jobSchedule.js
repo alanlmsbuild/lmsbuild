@@ -99,6 +99,19 @@ export const JOB_SCHEDULE = {
     lockHours: 3,
     timeoutMinutes: 240,
   },
+  // Travel times (decision 19, phase B): the next term-time Tuesday's bus,
+  // tram and train journey times between South Yorkshire's LSOAs
+  // (scripts/travel/job.js). Refuses to start without the memory the
+  // compute needs (dev servers up), and is tried again an hour later.
+  'travel-monthly': {
+    label: 'Travel times: bus, tram and train (South Yorkshire)',
+    short: 'Travel times',
+    every: 30 * 24 * HOUR,
+    overdueAfter: 32 * 24 * HOUR,
+    lockGroup: 'travel',
+    lockHours: 4,
+    timeoutMinutes: 120,
+  },
   'official-ofqual': {
     label: 'Official data: Ofqual register of qualifications',
     short: 'Ofqual',
@@ -134,7 +147,7 @@ export const JOB_SCHEDULE = {
 }
 
 // The order a tick runs due jobs in, one at a time.
-export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-monthly', 'transform-silver', 'website-links']
+export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-monthly', 'travel-monthly', 'transform-silver', 'website-links']
 
 // A failed or refused job isn't tried again sooner than this.
 export const RETRY_AFTER = HOUR
