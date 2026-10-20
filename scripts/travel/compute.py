@@ -133,8 +133,14 @@ def main():
     day, rail_version = the_day(bods, rail)
     departure = dt.datetime.combine(day, WINDOW_START)
     inputs = json.loads((DATA / 'origins' / 'inputs.json').read_text())
-    if not ARGS.only and not inputs.get('rail_source_file_id'):
-        sys.exit('inputs.json has no rail_source_file_id: load the rail sources (load:data step 44), then run origins.js')
+    if not ARGS.only:
+        if not inputs.get('rail_source_file_id'):
+            sys.exit('inputs.json has no rail_source_file_id: load the rail sources (load:data step 44), then run origins.js')
+        loaded = {'OpenStreetMap extract': (inputs.get('osm_name'), osm.name), 'rail feed': (inputs.get('rail_name'), rail.name),
+                  'rail feed version': (inputs.get('rail_feed_version'), rail_version)}
+        for what, (was, now) in loaded.items():
+            if was != now:
+                sys.exit(f'the {what} loaded ({was}) is not the one here ({now}): run load:data steps 41 and 44, then origins.js')
     lsoas = pd.read_csv(DATA / 'origins' / 'south_yorkshire_lsoas.csv')
     if ARGS.only:
         only = ARGS.only.split(',')

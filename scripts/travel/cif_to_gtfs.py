@@ -222,7 +222,8 @@ def write_csv(z, name, header, rows):
     w = csv.writer(buf, lineterminator='\n')
     w.writerow(header)
     w.writerows(rows)
-    z.writestr(name, buf.getvalue())
+    # A fixed date in the zip, so the same timetable makes the same file (load:data skips it).
+    z.writestr(zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0)), buf.getvalue(), compress_type=zipfile.ZIP_DEFLATED)
     return len(rows)
 
 

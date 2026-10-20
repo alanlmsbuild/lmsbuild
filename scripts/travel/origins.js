@@ -1,5 +1,5 @@
 // origins.js - the places scripts/travel/compute.py routes between
-// (decision 19, phase A): every 2021 LSOA in South Yorkshire's four
+// (decision 19, phases A and B): every 2021 LSOA in South Yorkshire's four
 // authorities (SHARED_DB.SILVER.LSOA), at its ONS population-weighted
 // centroid (SHARED_DB.RAW.ONS_LSOA_PWC, the latest file; British National
 // Grid metres), and the SOURCE_FILE rows of the inputs the run uses, so each
@@ -31,11 +31,18 @@ try {
   // feed_info.txt row stands for the feed.
   const feed = `(select SOURCEFILEID from SHARED_DB.RAW.SOURCE_FILE where SOURCE = 'bods-gtfs' and MEMBER = 'feed_info.txt'
     qualify row_number() over (order by LOADEDAT desc, SOURCEFILEID) = 1)`
+  // The same for the rail GTFS (phase B).
+  const rail = `(select SOURCEFILEID from SHARED_DB.RAW.SOURCE_FILE where SOURCE = 'network-rail-schedule' and MEMBER = 'feed_info.txt'
+    and TARGETTABLE = 'SHARED_DB.RAW.NR_GTFS_FEED_INFO' qualify row_number() over (order by LOADEDAT desc, SOURCEFILEID) = 1)`
   const [inputs] = await execute(c, `select ${feed} as gtfs, ${latest('geofabrik-osm')} as osm, ${latest('ons-lsoa-pwc')} as centroids,
-    (select "feed_version" from SHARED_DB.RAW.BODS_GTFS_FEED_INFO where SOURCEFILEID = ${feed}) as feed_version`)
+    (select "feed_version" from SHARED_DB.RAW.BODS_GTFS_FEED_INFO where SOURCEFILEID = ${feed}) as feed_version,
+    (select ORIGINALNAME from SHARED_DB.RAW.SOURCE_FILE where SOURCEFILEID = ${latest('geofabrik-osm')}) as osm_name,
+    ${rail} as rail, (select ORIGINALNAME from SHARED_DB.RAW.SOURCE_FILE where SOURCEFILEID = ${rail}) as rail_name,
+    (select "feed_version" from SHARED_DB.RAW.NR_GTFS_FEED_INFO where SOURCEFILEID = ${rail}) as rail_feed_version`)
   fs.mkdirSync(OUT, { recursive: true })
   fs.writeFileSync(path.join(OUT, 'south_yorkshire_lsoas.csv'), ['lsoa21_code,local_authority_code,x,y', ...rows.map((r) => `${r.LSOA21_CODE},${r.LOCAL_AUTHORITY_CODE},${r.X},${r.Y}`)].join('\n') + '\n')
-  fs.writeFileSync(path.join(OUT, 'inputs.json'), JSON.stringify({ gtfs_source_file_id: inputs.GTFS, osm_source_file_id: inputs.OSM, centroid_source_file_id: inputs.CENTROIDS, gtfs_feed_version: inputs.FEED_VERSION }, null, 1) + '\n')
+  fs.writeFileSync(path.join(OUT, 'inputs.json'), JSON.stringify({ gtfs_source_file_id: inputs.GTFS, osm_source_file_id: inputs.OSM, centroid_source_file_id: inputs.CENTROIDS, gtfs_feed_version: inputs.FEED_VERSION,
+    osm_name: inputs.OSM_NAME, rail_source_file_id: inputs.RAIL, rail_name: inputs.RAIL_NAME, rail_feed_version: inputs.RAIL_FEED_VERSION }, null, 1) + '\n')
   const byLa = rows.reduce((m, r) => ({ ...m, [SOUTH_YORKSHIRE[r.LOCAL_AUTHORITY_CODE]]: (m[SOUTH_YORKSHIRE[r.LOCAL_AUTHORITY_CODE]] ?? 0) + 1 }), {})
   console.log(`${rows.length} South Yorkshire LSOAs with centroids (${Object.entries(byLa).map(([k, v]) => `${k} ${v}`).join(', ')}); inputs: ${JSON.stringify(inputs)}`)
 } finally {

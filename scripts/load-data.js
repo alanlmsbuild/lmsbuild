@@ -61,6 +61,7 @@
 //   42 the journey times computed by scripts/travel/compute.py          -> SHARED_DB.RAW
 // The ILR dummy data workbook (sql/load_10_ilr_dummy.sql):
 //   43 ilr-dummy-data.xlsx, its three sheets as they are (TEST DATA)    -> CAPTURE_DB.TEST_BASELINE
+//   44 Network Rail SCHEDULE extract and CORPUS, the rail GTFS for the day -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -71,6 +72,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import zlib from 'node:zlib'
 import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 import ExcelJS from 'exceljs'
@@ -130,6 +132,10 @@ const extract = (zip, member) => async (out) => { await pipeline(await zipEntry(
 const TRAVEL = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'travel')
 const newest = (dir, re) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => re.test(n)).sort().map((n) => path.join(dir, n)) : [])
 const GTFS_MEMBERS = ['agency', 'stops', 'routes', 'trips', 'calendar', 'calendar_dates', 'feed_info']
+const RAIL_GTFS_MEMBERS = ['agency', 'stops', 'routes', 'trips', 'stop_times', 'calendar_dates', 'feed_info']
+const NETWORK_RAIL = 'Network Rail Infrastructure Limited'
+const NR_LICENCE = 'Network Rail Infrastructure Limited Data Feeds Licence'
+const NR_PAGE = 'https://publicdatafeeds.networkrail.co.uk/'
 
 // GIAS without its personal columns: every other field byte for byte
 // (Windows-1252, read and written as latin1, one byte one character).
@@ -360,6 +366,33 @@ export const STEPS = {
     licence: 'Open Database Licence (ODbL) v1.0; © OpenStreetMap contributors',
     title: 'Journey times between South Yorkshire LSOA population-weighted centroids (decision 19)', kind: 'as-downloaded', page: null,
     file, table: 'SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN' })) },
+  // Rail (decision 19 phase B): the SCHEDULE extract (its header row; the
+  // file itself in the stage), CORPUS, and the newest rail GTFS that
+  // scripts/travel/cif_to_gtfs.py built from them (its zip in the stage once,
+  // for all seven of its files).
+  44: { job: 'load-rail-sources', run: async (loader) => {
+    const shared = { home: 'SHARED_DB', format: 'SHARED_DB.RAW.CSV_UTF8' }
+    const nr = path.join(TRAVEL, 'nr')
+    const results = []
+    results.push(...await loader.loadJsonLines({ home: 'SHARED_DB', source: 'network-rail-schedule', publisher: NETWORK_RAIL, licence: NR_LICENCE,
+      title: 'Network Rail SCHEDULE full extract (CIF)', page: NR_PAGE, table: 'SHARED_DB.RAW.NR_SCHEDULE_EXTRACT', format: 'SHARED_DB.RAW.JSON_LINES',
+      originals: newest(nr, /^toc-full-\d{4}-\d{2}-\d{2}\.CIF\.gz$/).slice(-1).map((file) => ({ file })),
+      rows: async ({ file }) => [{ name: path.basename(file), header: JSON.parse(fs.readFileSync(`${file}.header.json`, 'utf8')) }],
+      cols: { NAME: '$1:name::string', HEADER: '$1:header' } }))
+    results.push(...await loader.loadJsonLines({ home: 'SHARED_DB', source: 'network-rail-corpus', publisher: NETWORK_RAIL, licence: NR_LICENCE,
+      title: 'Network Rail CORPUS location codes', page: NR_PAGE, table: 'SHARED_DB.RAW.NR_CORPUS', format: 'SHARED_DB.RAW.JSON_LINES',
+      originals: newest(nr, /^corpus-\d{4}-\d{2}-\d{2}\.json\.gz$/).slice(-1).map((file) => ({ file })),
+      rows: async ({ file }) => JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf8')).TIPLOCDATA.map((r, i) => ({ n: i + 1, ...r })),
+      cols: { FILEROWNUMBER: '$1:n::number', ...Object.fromEntries(['NLC', 'STANOX', 'TIPLOC', '3ALPHA', 'UIC', 'NLCDESC', 'NLCDESC16'].map((k) => [`"${k}"`, `$1:"${k}"::string`])) } }))
+    for (const zip of newest(path.join(nr, 'gtfs'), /^rail_south_yorkshire_\d{4}-\d{2}-\d{2}\.zip$/).slice(-1)) {
+      for (const m of RAIL_GTFS_MEMBERS) {
+        results.push(await loader.loadCsv({ ...shared, source: 'network-rail-schedule', publisher: `${NETWORK_RAIL}; GTFS built by Rarebit`,
+          licence: NR_LICENCE, title: `Rail GTFS for South Yorkshire, built from the Network Rail SCHEDULE extract by scripts/travel/cif_to_gtfs.py (station positions from NaPTAN): ${m}.txt`, page: NR_PAGE,
+          file: zip, member: `${m}.txt`, kind: 'extracted', table: `SHARED_DB.RAW.NR_GTFS_${m.toUpperCase()}`, make: extract(zip, `${m}.txt`) }))
+      }
+    }
+    return results
+  }, runLabel: 'Network Rail SCHEDULE extract, CORPUS, rail GTFS' },
   // ---------------------------------------------------------------- test data
   43: { job: 'load-ilr-dummy', run: async (loader) => {
     const results = []
