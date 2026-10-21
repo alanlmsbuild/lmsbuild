@@ -31,6 +31,7 @@ const LICENCE_TAG = [
   [/^Network Rail Infrastructure Limited Data Feeds Licence/, 'nr-open'],
   [/^Open Parliament Licence/, 'opl-3'],
   [/^Facts published by the (college|operator)/, 'public-facts'],
+  [/^National Rail Enquiries (information feeds )?Terms/, 'nre-feeds-v3'],
 ]
 const licenceTag = (text) => {
   const hit = LICENCE_TAG.find(([re]) => re.test(text))
