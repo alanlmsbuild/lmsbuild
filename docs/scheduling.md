@@ -120,6 +120,15 @@ file is loaded again (the load skips what hasn't changed):
   note) and **S70 2YW** (the postcode GIAS holds for Barnsley College; also
   ended, 233 m from a campus). If the college corrects its page to a live
   postcode, update the file; if GIAS corrects its own record, nothing to do.
+- **Supertram's fares** (fares phase C): each January, when fares change,
+  check each ticket in `scripts/fares/supertram-fares.csv` on Travel South
+  Yorkshire's Supertram pages (its site stops scripts with a captcha, so use a
+  browser), update the price and `date_checked`, then
+  `node scripts/fares/check-supertram.js --ready`, `npm run load:data -- 49`.
+  Also look at the bus fares' product map (`dbt/seeds/bus_fare_product_map.csv`)
+  and `bus_fare_unmapped` after each BODS refresh (fares data is refreshed
+  quarterly: `node scripts/fares/fetch_bus_fares.py --fetch`, then
+  `npm run load:data -- 48`).
 - **Term dates** for the travel-times day (`scripts/travel/travelDay.js`):
   each summer, add the next year's terms and the timetable change dates.
 

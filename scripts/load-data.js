@@ -66,6 +66,7 @@
 //   46 House of Commons Library MSOA names, 2021 (reach map) -> SHARED_DB.RAW
 //   47 The four colleges' own campuses (reach map) -> SHARED_DB.RAW
 //   48 BODS bus fares for South Yorkshire's operators (NeTEx) -> SHARED_DB.RAW
+//   49 Supertram's own fares, by hand -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -462,6 +463,18 @@ export const STEPS = {
     }
     return results
   }, runLabel: 'BODS bus fares for South Yorkshire (NeTEx)' },
+  // Supertram's own fares (decision 19 phase C, sql/load_16), written down by
+  // hand from Travel South Yorkshire's pages: scripts/fares/supertram-fares.csv.
+  // Refuses a file with any fare that has no date checked.
+  49: { job: 'load-supertram-fares', run: async (loader) => {
+    const file = path.join(REPO_ROOT, 'scripts', 'fares', 'supertram-fares.csv')
+    const lines = fs.readFileSync(file, 'utf8').trim().split('\n').slice(1)
+    const unchecked = lines.filter((l) => !/,\d{4}-\d{2}-\d{2},/.test(l)).length
+    if (unchecked) throw new Error(`${unchecked} Supertram fare(s) have no date checked: check each on its page and fill in date_checked (node scripts/fares/check-supertram.js --ready)`)
+    return [await loader.loadCsv({ home: 'SHARED_DB', format: 'SHARED_DB.RAW.CSV_UTF8', source: 'supertram-fares', publisher: 'Travel South Yorkshire (Supertram)',
+      licence: 'Facts published by the operator on its own website', title: 'Supertram tickets and fares, written down by hand from Travel South Yorkshire\'s pages', page: 'https://www.travelsouthyorkshire.com/en-GB/supertram/tickets-fares',
+      kind: 'as-downloaded', file, table: 'SHARED_DB.RAW.SUPERTRAM_FARE' })]
+  }, runLabel: 'Supertram fares (by hand)' },
   // ---------------------------------------------------------------- test data
   43: { job: 'load-ilr-dummy', run: async (loader) => {
     const results = []
