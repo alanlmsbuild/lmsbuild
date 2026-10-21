@@ -23,8 +23,9 @@ FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
 WHERE "name" LIKE 'SHARED_DB.REF%'
 ORDER BY "name";
 
--- 2. The table is readable as the role. Expected: one row with a row count
---    in the millions (the ONS Postcode Directory, 2,729,090 at the last import).
-USE ROLE TRANSFORM_ROLE;
-USE WAREHOUSE TRANSFORM_WH;
+-- 2. The table itself. Expected: one row with a row count in the millions
+--    (the ONS Postcode Directory, 2,729,090 at the last import). That the
+--    role can read it is not tested here (ACCOUNTADMIN does not hold
+--    TRANSFORM_ROLE, so USE ROLE TRANSFORM_ROLE fails); npm run
+--    check:postcodes tests it as TRANSFORM_USER, and says so if it can't.
 SELECT COUNT(*) AS POSTCODES FROM SHARED_DB.REF.POSTCODE;

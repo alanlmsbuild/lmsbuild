@@ -73,6 +73,12 @@ try {
       if (Number(n.N)) {
         const rows = await execute(c, `with ${WITH} select ${show} from joined where ${test} order by K limit ${EXAMPLES}`)
         for (const r of rows) console.log('  ' + Object.entries(r).map(([k, v]) => `${k}=${v ?? '-'}`).join('  '))
+        // Which pairs of codes make up a local authority difference.
+        if (label === 'different local authority code') {
+          const pairs = await execute(c, `with ${WITH} select RLA, SLA, count(*) as N from joined where ${test} group by 1, 2 order by 3 desc limit 8`)
+          console.log('  by pair of codes (REF, silver, postcodes):')
+          for (const r of pairs) console.log(`    ${r.RLA ?? '-'}  ${r.SLA ?? '-'}  ${r.N}`)
+        }
       }
     }
     console.log('\nNothing was changed. Which list the apps should use is still to decide.')
