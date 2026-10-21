@@ -924,3 +924,107 @@ models:
         data_type: varchar
         description: 'The run''s results file (SOURCE_FILE row).'
         data_tests: [not_null]
+
+  - name: bus_fare_product
+    description: >-
+      Every fare product in the latest BODS bus fares files for South
+      Yorkshire's operators (decision 19, phase C), one row per product in each
+      NeTEx file: its name as the operator published it, its type, who it is
+      priced for (the user profile as published) and, where the file prices it
+      in a fare table, the lowest and highest price and how many different
+      prices. A flat young person's pass has one price; a zone-to-zone fare
+      triangle keeps its prices elsewhere in the file and has none here.
+    config:
+      meta:
+        source: bods-fares
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: dataset_id
+        data_type: varchar
+        description: 'BODS''s id for the fares dataset the file is in.'
+        data_tests: [not_null]
+      - name: operator_name
+        data_type: varchar
+        description: 'The operator as BODS names it.'
+        data_tests: [not_null]
+      - name: nocs
+        data_type: varchar
+        description: 'The operator''s national operator codes, comma separated, as BODS lists them.'
+      - name: file_name
+        data_type: varchar
+        description: 'The NeTEx XML file''s name within the dataset.'
+        data_tests: [not_null]
+      - name: product_id
+        data_type: varchar
+        description: 'The fare product''s id within the file.'
+        data_tests: [not_null]
+      - name: product_name
+        data_type: varchar
+        description: 'The fare product''s name exactly as the operator published it.'
+        data_tests: [not_null]
+      - name: product_type
+        data_type: varchar
+        description: 'Its type as NeTEx gives it: single, day_return, period or day.'
+      - name: user_ref
+        data_type: varchar
+        description: 'Who the file prices it for, as published (a user profile reference such as Pass:UserProfile:child).'
+      - name: price_min
+        data_type: number(10,2)
+        description: 'The lowest price the file gives for it, in pounds; empty where the file keeps its prices elsewhere (fare triangles).'
+      - name: price_max
+        data_type: number(10,2)
+        description: 'The highest price the file gives for it, in pounds.'
+      - name: price_points
+        data_type: number(38,0)
+        description: 'How many different prices the file gives for it: 0 for a fare triangle, 1 for a flat fare.'
+        data_tests: [not_null]
+      - name: as_at
+        data_type: date
+        description: 'When BODS says the dataset was last modified: the fares are as at this date.'
+        data_tests: [not_null]
+      - name: source_file_id
+        data_type: varchar
+        description: 'The SOURCE_FILE row of the dataset''s load (SHARED_DB.RAW).'
+        data_tests: [not_null]
+
+  - name: bus_fare_unmapped
+    description: >-
+      The bus fare products the product map (seed bus_fare_product_map) does not
+      classify, with how many files each is in and its prices where the file
+      gives them. Nothing here is guessed into a category: a person adds a row
+      to the map or leaves the product out. Zone-to-zone fare triangles are in
+      it too, with no flat price.
+    config:
+      meta:
+        source: bods-fares
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: operator_name
+        data_type: varchar
+        description: 'The operator as BODS names it.'
+        data_tests: [not_null]
+      - name: product_name
+        data_type: varchar
+        description: 'The fare product''s name exactly as the operator published it.'
+        data_tests: [not_null]
+      - name: product_type
+        data_type: varchar
+        description: 'Its type as NeTEx gives it: single, day_return, period or day.'
+      - name: user_ref
+        data_type: varchar
+        description: 'Who the file prices it for, as published.'
+      - name: files
+        data_type: number(38,0)
+        description: 'How many files it appears in.'
+      - name: price_min
+        data_type: number(10,2)
+        description: 'The lowest price any file gives for it, in pounds; empty for a fare triangle.'
+      - name: price_max
+        data_type: number(10,2)
+        description: 'The highest price any file gives for it, in pounds.'

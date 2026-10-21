@@ -68,10 +68,10 @@ export function countResults(runResults, manifest) {
   return counts
 }
 
-// The models dbt built, as { database, name }: what to swap into SILVER.
+// The models and seeds dbt built, as { database, name }: what to swap into SILVER.
 function builtModels(runResults, manifest) {
   return (runResults.results ?? [])
-    .filter((r) => r.status === 'success' && manifest.nodes?.[r.unique_id]?.resource_type === 'model')
+    .filter((r) => r.status === 'success' && ['model', 'seed'].includes(manifest.nodes?.[r.unique_id]?.resource_type))
     .map((r) => manifest.nodes[r.unique_id])
     // Built in <schema>_STAGING; swapped into <schema> (SILVER or GOLD).
     .map((n) => ({ database: String(n.database).toUpperCase(), schema: String(n.schema).toUpperCase().replace(/_STAGING$/, ''), name: String(n.alias ?? n.name).toUpperCase() }))

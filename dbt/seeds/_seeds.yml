@@ -1,0 +1,40 @@
+version: 2
+
+seeds:
+  - name: bus_fare_product_map
+    description: >-
+      How bus operators' fare product names, as published in BODS fares files,
+      are classified (Rarebit's own hand-checked list; scripts/fares/build_product_map.py
+      drafts it, a person checks it): the category (single, return, day, week or
+      28-day), who it is for (child, 16-18, 18-21, student, adult, or
+      young-person: the operator's own "YP" or "young person" where no age is
+      given) and the pass it belongs to (Zoom, Zoom Beyond, YP, Megarider ...).
+      A product that cannot be classified confidently is not in it: it is in
+      bus_fare_unmapped, never guessed.
+    config:
+      meta:
+        source: bods-fares
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: quarterly
+        sensitivity: public
+      column_types:
+        operator: varchar
+        product_name: varchar
+        category: varchar
+        who: varchar
+        pass_name: varchar
+        note: varchar
+    columns:
+      - name: operator
+        description: 'The operator as BODS names it (the fares dataset''s operatorName).'
+      - name: product_name
+        description: 'The fare product''s name exactly as the operator published it.'
+      - name: category
+        description: 'single, return, day, week or 28-day.'
+      - name: who
+        description: 'child, 16-18, 18-21, student, adult or young-person.'
+      - name: pass_name
+        description: 'The pass or scheme it belongs to (Zoom, Zoom Beyond, YP, Megarider, Tram ...), blank for an ordinary ticket.'
+      - name: note
+        description: 'Anything a person checking the row wants to say.'

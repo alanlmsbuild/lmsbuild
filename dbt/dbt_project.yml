@@ -7,6 +7,7 @@ profile: rarebit
 config-version: 2
 
 model-paths: [models]
+seed-paths: [seeds]
 macro-paths: [macros]
 test-paths: [tests]
 
@@ -66,3 +67,19 @@ models:
       providers:
         +database: SHARED_DB
         +schema: GOLD
+
+# Seeds (hand-checked lists the models join to): in SILVER, with the same
+# tags as a model (from the seed's .yml meta).
+seeds:
+  rarebit:
+    +database: SHARED_DB
+    +schema: SILVER
+    +persist_docs:
+      relation: true
+      columns: true
+    +meta:
+      layer: silver
+      owner: rarebit-data
+    +post-hook:
+      - "{{ apply_table_tags() }}"
+      - "{{ apply_column_tags() }}"

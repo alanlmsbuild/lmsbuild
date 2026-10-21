@@ -1,0 +1,218 @@
+operator,product_name,product_type,user_ref,files,price_min,price_max
+A Lyles & Son,MetroWkendr SELL Pass,single,Pass:UserProfile:adult,2,8.5,8.5
+A Lyles & Son,MyDay U19 SELL Pass,period,Pass:UserProfile:child,1,3.2,3.2
+Andrews Coaches,B_line_U22_SGL,single,,1,1.5,1.5
+Andrews Coaches,Child_Wayfarer_Bus_Train,period,,1,8.5,8.5
+Andrews Coaches,CityBus_Day,period,,1,6.6,6.6
+Andrews Coaches,CityWide_Day,period,,1,7.2,7.2
+Andrews Coaches,GetAbout_Day,period,,1,3.5,3.5
+Andrews Coaches,GetAbout_Plus_Day,period,,1,5.4,5.4
+Andrews Coaches,HM_Forces_Single,single,,1,1,1
+Andrews Coaches,Paper_CityWide_Day,period,,1,7.2,7.2
+Andrews Coaches,Paper_EXCHANGE_TRAM_7_DAY,period,,1,18.5,18.5
+Andrews Coaches,Paper_EXCHANGE_TRAM_DAY,period,,1,5.3,5.3
+Andrews Coaches,Paper_Forces_Single,period,,1,1,1
+Andrews Coaches,Paper_GetAbout_7_Day,period,,1,13.4,13.4
+Andrews Coaches,Paper_GetAbout_Day,period,,1,3.5,3.5
+Andrews Coaches,Paper_GetAbout_Plus_7_Day,period,,1,19.7,19.7
+Andrews Coaches,Paper_GetAbout_Plus_Day,period,,1,5.4,5.4
+Andrews Coaches,Paper_Longer_Distance_Single,single,,1,3,3
+Andrews Coaches,Paper_SY_Connect_Plus_Day,period,,1,12.2,12.2
+Andrews Coaches,Paper_Short_Distance_Single,single,,1,2.5,2.5
+Andrews Coaches,Paper_South_Yorkshire_Connect_Day,period,,1,9.8,9.8
+Andrews Coaches,Paper_Tram_Only_Day,period,,1,5.7,5.7
+Andrews Coaches,Paper_Zoom_Beyond,period,,1,2.1,2.1
+Andrews Coaches,SYBus_Day,period,,1,7,7
+Andrews Coaches,SY_Connect_Day,period,,1,9.8,9.8
+Andrews Coaches,SY_Connect_Plus_Day,period,,1,12.2,12.2
+Andrews Coaches,Sheffield_CityWide,period,,1,6.7,6.7
+Andrews Coaches,Short_Distance_Return,day_return,,1,4.2,4.2
+Andrews Coaches,Wayfarer_Bus_1_Day_Concession,period,,1,6,6
+Andrews Coaches,Wayfarer_Bus_Trn_Con_1_Day,period,,1,8,8
+Arriva UK Bus,DUO DON DAY Pass,period,Pass:UserProfile:anyone,1,9,9
+Arriva UK Bus,DUO SELBY DAY Pass,period,Pass:UserProfile:anyone,1,9.4,9.4
+Arriva UK Bus,DUO YDO DAY Pass,period,Pass:UserProfile:anyone,1,6.6,6.6
+Arriva UK Bus,DUO YKS DAY Pass,period,Pass:UserProfile:anyone,2,13.5,14
+Arriva UK Bus,DUO YUZ DAY Pass,period,Pass:UserProfile:anyone,1,9.4,9.4
+Arriva UK Bus,FM COY DAY Pass,period,Pass:UserProfile:anyone,1,9.6,9.6
+Arriva UK Bus,FM DON DAY Pass,period,Pass:UserProfile:anyone,1,10,10
+Arriva UK Bus,FM SELBY DAY Pass,period,Pass:UserProfile:anyone,1,10.5,10.5
+Arriva UK Bus,FM YDO DAY Pass,period,Pass:UserProfile:anyone,1,8,8
+Arriva UK Bus,FM YKS DAY Pass,period,Pass:UserProfile:anyone,2,15,17
+David Goodfellow Travel,DFTU16,single,Pass:UserProfile:child,10,,
+David Goodfellow Travel,P&R Return Pass,day_return,Pass:UserProfile:anyone,1,2,2
+E Stott & Sons Ltd,3rd Party Pass Pass,single,Pass:UserProfile:anyone,1,1,1
+E Stott & Sons Ltd,HLMV (pay) Pass,period,Pass:UserProfile:anyone,1,3,3
+E Stott & Sons Ltd,MCard WY  MyWeek Pass,period,Pass:UserProfile:anyone,1,13,13
+E Stott & Sons Ltd,WY DaySave Adult Pass,period,Pass:UserProfile:anyone,1,6,6
+E Stott & Sons Ltd,Wy Day Weekender Pass,single,Pass:UserProfile:anyone,2,8.5,8.5
+First Bus,AirportGroup Sgl Pass,single,Pass:UserProfile:anyone,1,9,9
+First Bus,Bus Group 1 day Pass,period,Pass:UserProfile:anyone,1,18,18
+First Bus,Bus Ranger Chd1d Pass,period,Pass:UserProfile:child,1,8.5,8.5
+First Bus,Bus Ranger Grp1d Pass,period,Pass:UserProfile:anyone,1,34,34
+First Bus,Bus Ranger Sen1d Pass,period,Pass:UserProfile:senior,1,11.3,11.3
+First Bus,Bus b-line 1 day Pass,period,Pass:UserProfile:youngPerson,1,7,7
+First Bus,Don Mnth Scratch Pass,single,Pass:UserProfile:adult,1,75,75
+First Bus,First Extra Pass,single,Pass:UserProfile:adult,1,1,1
+First Bus,FirstDay Don Pass,period,Pass:UserProfile:adult,1,6,6
+First Bus,FirstDay Roth Pass,period,Pass:UserProfile:adult,1,6,6
+First Bus,FirstDay SYorks Pass,period,Pass:UserProfile:adult,1,6.7,6.7
+First Bus,FirstDay SYorks. Pass,period,Pass:UserProfile:adult,1,6.7,6.7
+First Bus,FirstDay Sheff Pass,period,Pass:UserProfile:adult,1,6,6
+First Bus,P&R Fam Ret Pass,period,Pass:UserProfile:anyone,1,4,4
+First Bus,Sheffield Centro Pass,single,Pass:UserProfile:adult,1,0.5,0.5
+First Bus,Smartcard Charge Pass,single,Pass:UserProfile:anyone,1,1,1
+First Bus,Tram Fam 1 day Pass,period,Pass:UserProfile:anyone,1,11.6,11.6
+First Bus,YP Sgle x 10 Pass,single,Pass:UserProfile:child,1,10,10
+First Bus,YWLP Family Rtn Pass,day_return,Pass:UserProfile:anyone,1,13,13
+Globe Holidays Ltd,GetAboutDay+ Pass,period,Pass:UserProfile:child,1,5.4,5.4
+Globe Holidays Ltd,GetAboutWeek Pass,period,Pass:UserProfile:child,2,10.9,10.9
+Globe Holidays Ltd,GetAboutWeek+ Pass,period,Pass:UserProfile:child,2,16,16
+Globe Holidays Ltd,Globe Family Day Pass,period,Pass:UserProfile:anyone,1,12,12
+Globe Holidays Ltd,MyDay U19 SELL Pass,period,Pass:UserProfile:child,1,3.2,3.2
+Globe Holidays Ltd,OAP Before 9:30 Pass,single,Pass:UserProfile:senior,1,1.3,1.3
+Globe Holidays Ltd,SYConnect7D Pass,period,Pass:UserProfile:anyone,2,30,30
+Globe Holidays Ltd,WY Wkend Fri SEL Pass,period,Pass:UserProfile:adult,2,8.5,8.5
+Globe Holidays Ltd,WY Wkend Sat SEL Pass,period,Pass:UserProfile:adult,1,8.5,8.5
+Hornsby Travel Ltd,Doggy Pass,single,Pass:UserProfile:animal,1,0.5,0.5
+Hornsby Travel Ltd,Kirton Town Pass,single,Pass:UserProfile:adult,1,1,1
+Hornsby Travel Ltd,Yng Person SGL,single,Pass:UserProfile:youngPerson,38,,
+Hornsby Travel Ltd,Yng Persons Day Pass,period,Pass:UserProfile:youngPerson,1,4,4
+Hornsby Travel Ltd,Yng Persons RTN,day_return,Pass:UserProfile:youngPerson,20,,
+Hornsby Travel Ltd,Yng Persons Week Pass,period,Pass:UserProfile:youngPerson,1,16,16
+Lee Woad T/A Sweynes,Academic Year Bus Pass,period,,1,740,740
+Lee Woad T/A Sweynes,Day Return,single,,1,4,4
+Lee Woad T/A Sweynes,SW1 Child Weekly (3 Days),period,,1,12,12
+Lee Woad T/A Sweynes,SW1 Child Weekly (4 Days),period,,1,16,16
+Lee Woad T/A Sweynes,SW1 Child Weekly (5 Days),period,,1,20,20
+Lee Woad T/A Sweynes,SW2 Child Weekly (3 Days),period,,1,12,12
+Lee Woad T/A Sweynes,SW2 Child Weekly (4 Days),period,,1,16,16
+Lee Woad T/A Sweynes,SW2 Child Weekly (5 Days),period,,1,20,20
+Lee Woad T/A Sweynes,Short Week Ticket,period,,1,16,16
+Lee Woad T/A Sweynes,Single Ticket,single,,1,2,2
+Lee Woad T/A Sweynes,Term Pass,period,,1,76,76
+Lee Woad T/A Sweynes,Weekly Ticket,period,,1,20,20
+Peter Hodgson,Adult,single,,1,2,2
+Peter Hodgson,single,single,,1,1,1
+Ross Travel,Ross  ADT Pass,period,Pass:UserProfile:adult,2,5,5
+Ross Travel,Ross  Chd Pass,period,Pass:UserProfile:child,2,3,3
+SMT Bus and Coach Ltd,28Day_Sheffield_Citywide,period,,1,75.4,75.4
+SMT Bus and Coach Ltd,Adult,single,,1,3,3
+SMT Bus and Coach Ltd,Adult_With_Wheelchair,single,,1,3,3
+SMT Bus and Coach Ltd,BConnect_1-Day,period,,1,6.2,6.2
+SMT Bus and Coach Ltd,Carer_for_Disabled_Pre_0930_MF,single,,1,3,3
+SMT Bus and Coach Ltd,CityBus_1-Day,period,,1,5.6,5.6
+SMT Bus and Coach Ltd,City_Bus_7-Day,period,,1,21.2,21.2
+SMT Bus and Coach Ltd,Disabled_Carer_Pre_0930_MF_with_Wheelchair,single,,1,3,3
+SMT Bus and Coach Ltd,Disabled_Pass_Pre_0930_MF_with_Wheelchair,single,,1,3,3
+SMT Bus and Coach Ltd,DonConnect_1-Day,period,,1,6.2,6.2
+SMT Bus and Coach Ltd,New_Smartcard,single,,1,1,1
+SMT Bus and Coach Ltd,Paper_CityWide_Day,period,,1,7.2,7.2
+SMT Bus and Coach Ltd,Paper_EXCHANGE_TRAM_7_DAY,period,,1,18.5,18.5
+SMT Bus and Coach Ltd,Paper_EXCHANGE_TRAM_DAY,period,,1,5.3,5.3
+SMT Bus and Coach Ltd,Paper_Forces_Single,period,,2,1,1
+SMT Bus and Coach Ltd,Paper_GetAbout_7_Day,period,,1,13.4,13.4
+SMT Bus and Coach Ltd,Paper_GetAbout_Day,period,,1,3.5,3.5
+SMT Bus and Coach Ltd,Paper_GetAbout_Plus_7_Day,period,,1,19.7,19.7
+SMT Bus and Coach Ltd,Paper_GetAbout_Plus_Day,period,,1,5.4,5.4
+SMT Bus and Coach Ltd,Paper_Longer_Distance_Single,single,,2,3,3
+SMT Bus and Coach Ltd,Paper_SY_Connect_Plus_Day,period,,1,12.2,12.2
+SMT Bus and Coach Ltd,Paper_Short_Distance_Single,period,,2,2.5,2.5
+SMT Bus and Coach Ltd,Paper_South_Yorkshire_Connect_Day,period,,1,9.8,9.8
+SMT Bus and Coach Ltd,Paper_Tram_Only_Day,period,,1,5.7,5.7
+SMT Bus and Coach Ltd,Paper_Zoom_Beyond,period,,2,2.1,2.1
+SMT Bus and Coach Ltd,SYBus_Day,period,,1,7,7
+SMT Bus and Coach Ltd,Senior_Pass_Pre_0930_MF,single,,1,3,3
+SMT Bus and Coach Ltd,Senior_Pass_Pre_0930_MF_with_Wheelchair,single,,1,3,3
+SMT Bus and Coach Ltd,Sheffield_Citywide,period,,1,21.8,21.8
+SMT Bus and Coach Ltd,Tram_Only_Adult_Weekend_Ticket,single,,1,1,1
+SMT Bus and Coach Ltd,Tram_Sheffield_Citywide_Smart,period,,1,21.8,21.8
+Sheffield Community Transport,Cycle Pass,single,Pass:UserProfile:anyone,1,0.2,0.2
+Sheffield Community Transport,Dog Pass,single,Pass:UserProfile:anyone,1,0.25,0.25
+Sheffield Community Transport,SYBus 1 Day Fare Pass,single,Pass:UserProfile:anyone,1,6.5,6.5
+Sheffield Community Transport,SYBus 7 Day Fare Pass,single,Pass:UserProfile:anyone,1,24.4,24.4
+Sheffield Community Transport,Sen Citizen Fare Pass,single,Pass:UserProfile:anyone,1,1,1
+Sheffield Community Transport,Smart Card Pass,single,Pass:UserProfile:anyone,1,1,1
+Stagecoach,Child Silver Megarider Xtra,period,Tariff@C__7_Silver_Child@Child_Silver_Xtra@UP@child,2,46,46
+Stagecoach,EveningRider,day,Tariff@Evening_Rider@UP@adult,2,4.2,4.2
+Stagecoach,Gold DayRider,day,Tariff@1d_Gold_Child@UP@child,8,6.9,11.6
+Stagecoach,Gold Group DayRider,day,,2,23.5,23.5
+Stagecoach,Gold MegaRider Xtra,period,Tariff@S_7_Gold_Mansfd_Emp@28_Gold_Xtra@UP@adult,2,140,140
+Stagecoach,Peak Sightseer Family Day,day,,2,38,38
+Stagecoach,Peak Sightseer Group Day,day,,2,60,60
+Stagecoach,Sheffield Student Bus Only MegaRider Xtra,period,Tariff@S_Sfd_Student@Xtra_Shfd_STUD_Bus@UP@student,2,56,56
+Stagecoach,Silver 28 Day MegaRider,period,Tariff@C__7_Silver_Child@28_Child_Silver_Web@UP@child,4,46,90
+Stagecoach,Silver 7 Day MegaRider,period,Tariff@C__7_Silver_Child@7_Child_Silver@UP@child,6,12.5,23.5
+Stagecoach,Silver DayRider,day,Tariff@1d_Silver_Adult@UP@adult,4,4,6.5
+Stagecoach,Silver Group DayRider,day,,2,21,21
+Stagecoach,Silver MegaRider Xtra,period,Tariff@S_7_Silver_Adult@Silver_Xtra@UP@adult,4,46,90
+Stagecoach,Single,single,Tariff@Adult_Single@UP@adult,854,1.2,3
+Station Coaches,MetroWkendr SELL Pass,period,Pass:UserProfile:adult,2,8.5,8.5
+Station Coaches,Other Op Adult Pass,single,Pass:UserProfile:adult,1,2,2
+Station Coaches,Senior<0930 Pass,single,Pass:UserProfile:senior,1,1,1
+Station Coaches,StationDay Ad Pass,period,Pass:UserProfile:adult,2,4,5
+Station Coaches,StationDay Ch Pass,period,Pass:UserProfile:child,1,1.75,1.75
+Stevenson's Travel,POUND Single Pass,single,Pass:UserProfile:anyone,1,1,1
+Stevenson's Travel,£1.50 Single Pass,single,Pass:UserProfile:anyone,1,1.5,1.5
+Sweyne Coaches,Weekly Pass,period,Pass:UserProfile:anyone,1,5,5
+Sweyne Coaches,£1 Single,single,Pass:UserProfile:anyone,2,,
+Sweyne Coaches,£1 Single Pass,single,Pass:UserProfile:anyone,1,1,1
+TLC Travel Ltd,676 Monthly Pass,period,Pass:UserProfile:anyone,1,42,42
+TLC Travel Ltd,A D 9.30 Pass,period,Pass:UserProfile:anyone,1,4.5,4.5
+TLC Travel Ltd,A Day OP Pass,period,Pass:UserProfile:anyone,4,4,4
+TLC Travel Ltd,A Day P Pass,period,Pass:UserProfile:anyone,2,4.4,4.4
+TLC Travel Ltd,Bfd Mkt  Shuttle Pass,single,Pass:UserProfile:anyone,1,0.5,0.5
+TLC Travel Ltd,C D 9.30 Pass,period,Pass:UserProfile:anyone,1,2.25,2.25
+TLC Travel Ltd,C Day OP Pass,period,Pass:UserProfile:anyone,4,1.75,2
+TLC Travel Ltd,C Day P Pass,period,Pass:UserProfile:anyone,2,2.2,2.25
+TLC Travel Ltd,C_HUD_Day 16-25 Pass,period,Pass:UserProfile:anyone,1,3.2,3.2
+TLC Travel Ltd,C_Heb_Day Pass,period,Pass:UserProfile:anyone,1,1.45,1.45
+TLC Travel Ltd,C_Heb_Week Pass,period,Pass:UserProfile:anyone,1,6,6
+TLC Travel Ltd,C_Tod_Day Pass,period,Pass:UserProfile:anyone,1,1.45,1.45
+TLC Travel Ltd,C_Tod_Week Pass,period,Pass:UserProfile:anyone,1,6,6
+TLC Travel Ltd,ConnectUse Pass,single,Pass:UserProfile:anyone,1,3,3
+TLC Travel Ltd,ENC B4 09:30 Pass,single,Pass:UserProfile:anyone,1,0.5,0.5
+TLC Travel Ltd,FLXBus Flat Fare Pass,single,Pass:UserProfile:anyone,1,2.4,2.4
+TLC Travel Ltd,HB Connect Pass,single,Pass:UserProfile:anyone,1,3,3
+TLC Travel Ltd,Heb_Day Pass,period,Pass:UserProfile:anyone,1,2.9,2.9
+TLC Travel Ltd,Heb_Week Pass,period,Pass:UserProfile:anyone,1,12,12
+TLC Travel Ltd,OtherOp Pass,single,Pass:UserProfile:anyone,1,1.1,1.1
+TLC Travel Ltd,SBFO ChildSingle,single,Pass:UserProfile:child,66,,
+TLC Travel Ltd,TLC HEB MONTHLY Pass,period,Pass:UserProfile:anyone,1,36,36
+TLC Travel Ltd,TLC Shipley AD Pass,period,Pass:UserProfile:anyone,1,15.5,15.5
+TLC Travel Ltd,TLC Shipley CD Pass,period,Pass:UserProfile:anyone,1,7.75,7.75
+TLC Travel Ltd,TLC TOD MONTHLY Pass,period,Pass:UserProfile:anyone,1,36,36
+TLC Travel Ltd,Tod_Day Pass,period,Pass:UserProfile:anyone,1,2.9,2.9
+TLC Travel Ltd,Tod_Week Pass,period,Pass:UserProfile:anyone,1,12,12
+TM Travel Ltd,CONC OFFER Pass,single,Pass:UserProfile:senior,2,1.3,1.3
+TM Travel Ltd,DCC BL Rtn,day_return,Pass:UserProfile:youngPerson,12,,
+TM Travel Ltd,DCC BL Sgl,single,Pass:UserProfile:youngPerson,40,,
+TM Travel Ltd,Dog Pass,single,Pass:UserProfile:anyone,2,0.8,0.8
+TM Travel Ltd,GetAbout SY Dy Pass,period,Pass:UserProfile:anyone,2,3.5,3.5
+TM Travel Ltd,GetAbout SY Week Pass,period,Pass:UserProfile:anyone,2,13.4,13.4
+TM Travel Ltd,GetAboutSY + Day Pass,period,Pass:UserProfile:anyone,2,5.4,5.4
+TM Travel Ltd,Group Daysaver + Pass,period,Pass:UserProfile:anyone,2,19,19
+TM Travel Ltd,Mango Return Pass,single,Pass:UserProfile:anyone,2,2,2
+TM Travel Ltd,Peak Plus Ex Ad Pass,period,Pass:UserProfile:anyone,2,12.5,12.5
+TM Travel Ltd,Peak Plus Ex Ch Pass,period,Pass:UserProfile:anyone,2,8,8
+TM Travel Ltd,Peak Plus Ex Fam Pass,period,Pass:UserProfile:anyone,2,23,23
+TM Travel Ltd,SMARTCARD SALE Pass,single,Pass:UserProfile:anyone,2,1,1
+TM Travel Ltd,SY Carer Pass,single,Pass:UserProfile:anyone,2,3.5,3.5
+TM Travel Ltd,SY Connect + Day Pass,period,Pass:UserProfile:anyone,2,12.2,12.2
+TM Travel Ltd,SY MegaTravel Pass,single,Pass:UserProfile:child,2,1,1
+TM Travel Ltd,SY-Connect Day Pass,period,Pass:UserProfile:anyone,2,9.8,9.8
+TM Travel Ltd,SYBus Day Pass,period,Pass:UserProfile:anyone,2,7,7
+TM Travel Ltd,SY_Connect + Day Pass,period,Pass:UserProfile:anyone,2,12.2,12.2
+TM Travel Ltd,Shef CityBus Day Pass,period,Pass:UserProfile:anyone,2,6.6,6.6
+TM Travel Ltd,Shef CityWide Da Pass,period,Pass:UserProfile:anyone,2,7.2,7.2
+TM Travel Ltd,Stu Sheff Daysvr Pass,period,Pass:UserProfile:student,2,4.2,4.2
+TM Travel Ltd,Student Daysvr + Pass,period,Pass:UserProfile:student,2,6.3,6.3
+TM Travel Ltd,Wayf Bus Ad Pass,period,Pass:UserProfile:adult,2,9,9
+TM Travel Ltd,Wayf Bus Ch+Blin Pass,period,Pass:UserProfile:child,2,7,7
+TM Travel Ltd,Wayf Bus Grp Pass,period,Pass:UserProfile:anyone,2,18,18
+TM Travel Ltd,Wayf Bus+Trn Ad Pass,period,Pass:UserProfile:adult,2,17,17
+TM Travel Ltd,Wayf Bus+Trn Ch Pass,period,Pass:UserProfile:child,2,8.5,8.5
+TM Travel Ltd,Wayf Bus+Trn Cnc Pass,period,Pass:UserProfile:senior,2,11.3,11.3
+TM Travel Ltd,Wayf Bus+Trn Grp Pass,period,Pass:UserProfile:anyone,2,34,34
+Thornes Independent Ltd,£2 Cap,single,Pass:UserProfile:adult,5,,
+Thornes Independent Ltd,£2 Ref,single,Pass:UserProfile:adult,5,,

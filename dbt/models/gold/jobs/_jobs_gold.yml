@@ -732,3 +732,71 @@ models:
         data_type: timestamp_ltz
         description: 'When this table was made (golds build).'
         data_tests: [not_null]
+
+  - name: bus_fare
+    description: >-
+      Typical bus fares for young people from the operators' own fares data on
+      the Bus Open Data Service (decision 19, phase C): one row per operator,
+      kind of ticket, who it is for and pass or scheme. Flat fares only (up to
+      six prices); zone-to-zone fare triangles and any product the product map
+      doesn't classify are left out. A typical price for that ticket, never the
+      price of a particular journey. Every row says "as at <date>, check with
+      the operator". Tram fares are not in the Bus Open Data Service.
+    config:
+      meta:
+        source: bods-fares
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: quarterly
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_WARREN', 'SHARED_DB.GOLD_MEADOW', 'SHARED_DB.GOLD_SITE']
+    columns:
+      - name: fare_key
+        data_type: varchar
+        description: 'Its key: operator, category, who and pass, joined with |.'
+        data_tests: [unique, not_null]
+      - name: operator_name
+        data_type: varchar
+        description: 'The operator as BODS names it.'
+        data_tests: [not_null]
+      - name: nocs
+        data_type: varchar
+        description: 'The operator''s national operator codes, comma separated.'
+      - name: category
+        data_type: varchar
+        description: 'single, return, day, week or 28-day.'
+        data_tests: [not_null, {accepted_values: {arguments: {values: ['single', 'return', 'day', 'week', '28-day']}}}]
+      - name: who
+        data_type: varchar
+        description: 'Who the fare is for: child, 16-18, 18-21, student, young-person (the operator''s own young person fare, no age given) or adult (for comparison).'
+        data_tests: [not_null, {accepted_values: {arguments: {values: ['child', '16-18', '18-21', 'student', 'young-person', 'adult']}}}]
+      - name: pass_name
+        data_type: varchar
+        description: 'The pass or scheme it belongs to (Zoom, Zoom Beyond, YP, Megarider, Tram ...); empty for an ordinary ticket.'
+      - name: price_min
+        data_type: number(10,2)
+        description: 'The lowest price of this kind of ticket from this operator, in pounds.'
+        data_tests: [not_null]
+      - name: price_max
+        data_type: number(10,2)
+        description: 'The highest price of this kind of ticket from this operator, in pounds.'
+        data_tests: [not_null]
+      - name: price_text
+        data_type: varchar
+        description: 'The price in words: "£1.00", or "£1.00 to £1.20" where the operator''s products differ.'
+        data_tests: [not_null]
+      - name: products
+        data_type: varchar
+        description: 'The operator''s own names for the products it is made from, separated by semicolons.'
+      - name: as_at
+        data_type: date
+        description: 'When BODS says the operator''s fares data was last modified.'
+        data_tests: [not_null]
+      - name: caveat
+        data_type: varchar
+        description: 'Says "As at <date>: check with the operator." Show it with the fare.'
+        data_tests: [not_null]
+      - name: tram_note
+        data_type: varchar
+        description: 'Says tram fares are not in this data: "Tram fares: see Supertram." Show it beside any tram.'
+        data_tests: [not_null]

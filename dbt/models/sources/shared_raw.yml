@@ -50,6 +50,12 @@ sources:
       - name: travel_time_lsoa_run
         identifier: TRAVEL_TIME_LSOA_RUN
         description: 'Journey times between LSOA centroids that Rarebit computes with r5py (scripts/travel/compute.py), one row per origin and destination per run (load:data step 42).'
+      - name: bods_fares_dataset
+        identifier: BODS_FARES_DATASET
+        description: 'The bus fares datasets BODS lists for South Yorkshire''s operators, one row per dataset with its listing record (load:data step 48).'
+      - name: bods_fares_netex
+        identifier: BODS_FARES_NETEX
+        description: 'Each operator''s bus fares as NeTEx XML (UK bus fares profile), one row per file, parsed to VARIANT (load:data step 48).'
       - name: nr_schedule_extract
         identifier: NR_SCHEDULE_EXTRACT
         description: 'Network Rail SCHEDULE full extracts (CIF), one row per file with its HD header record (load:data step 44).'
