@@ -5,9 +5,11 @@
 //
 // TERMS: South Yorkshire's school terms (half terms are the gaps between
 // them), 2026-27: checked by Alan on 20 October 2026 against Sheffield's,
-// Barnsley's and Rotherham's published dates, which agree; Doncaster's
-// still to check. Past the last term listed, nextTravelDay refuses rather
-// than guesses.
+// Barnsley's and Rotherham's published dates, and on 21 October against
+// Doncaster's (doncaster.gov.uk, school holidays and term dates); all four
+// agree. These are the community schools' dates: academies and church
+// schools may differ. Past the last term listed, nextTravelDay refuses
+// rather than guesses.
 // TIMETABLE_CHANGES: the Sundays the national rail timetable changes (both
 // confirmed by Network Rail); a Tuesday within 7 days of one is skipped
 // (the week before and after).
