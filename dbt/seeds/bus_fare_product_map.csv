@@ -2,6 +2,7 @@ operator,product_name,category,who,pass_name,note
 A Lyles & Son,Ad DaySaver SELL Pass,day,adult,Daysaver,
 A Lyles & Son,Adult Sgl,single,adult,,
 A Lyles & Son,Adult Sgl Pass,single,adult,,
+A Lyles & Son,MyDay U19 SELL Pass,day,young-person,MyDay,"Mapped by Alan, 21 October 2026: a day ticket for under 19s"
 A Lyles & Son,Shad Ad Sgl,single,adult,,
 Andrews Coaches,AD_Andrews_Svr_4_Weekly,28-day,adult,,
 Andrews Coaches,AD_Andrews_Svr_Weekly,week,adult,,
@@ -85,6 +86,7 @@ First Bus,Adult Single,single,adult,,
 First Bus,Airport Open Rtn Pass,return,adult,,
 First Bus,Bus Adult 1 day Pass,day,adult,,
 First Bus,Bus Ranger Ad 1d Pass,day,adult,,
+First Bus,Bus Ranger Chd1d Pass,day,child,Bus Ranger,"Mapped by Alan, 21 October 2026: a child day ticket"
 First Bus,CityBus 1D Pass,day,adult,,
 First Bus,CityWide 1D Pass,day,adult,,
 First Bus,Don Week Scratch Pass,week,adult,,
@@ -130,6 +132,7 @@ Globe Holidays Ltd,GetAboutDay Pass,day,child,GetAbout,
 Globe Holidays Ltd,Globe Child Day Pass,day,child,,
 Globe Holidays Ltd,Globe Day Pass,day,adult,,
 Globe Holidays Ltd,Globe WEEK Pass,week,adult,,
+Globe Holidays Ltd,MyDay U19 SELL Pass,day,young-person,MyDay,"Mapped by Alan, 21 October 2026: a day ticket for under 19s"
 Globe Holidays Ltd,R Connect Day Pass,day,adult,,
 Globe Holidays Ltd,R Connect WEEK Pass,week,adult,,
 Globe Holidays Ltd,SYBus 1 Day Pass,day,adult,,

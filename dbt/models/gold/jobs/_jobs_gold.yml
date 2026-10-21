@@ -739,8 +739,9 @@ models:
       the Bus Open Data Service (decision 19, phase C): one row per operator,
       kind of ticket, who it is for and pass or scheme. Flat fares only (up to
       six prices); zone-to-zone fare triangles and any product the product map
-      doesn't classify are left out. A typical price for that ticket, never the
-      price of a particular journey. Every row says "as at <date>, check with
+      doesn't classify are left out, and so is any fare whose "as at" date is
+      over 12 months old (it stays in silver). A typical price for that ticket,
+      never the price of a particular journey. Every row says "as at <date>, check with
       the operator". Tram fares are not in the Bus Open Data Service.
     config:
       meta:
@@ -770,6 +771,10 @@ models:
         data_type: varchar
         description: 'Who the fare is for: child, 16-18, 18-21, student, young-person (the operator''s own young person fare, no age given) or adult (for comparison).'
         data_tests: [not_null, {accepted_values: {arguments: {values: ['child', '16-18', '18-21', 'student', 'young-person', 'adult']}}}]
+      - name: who_label
+        data_type: varchar
+        description: 'WHO in words for showing: Child, 16 to 18, 18 to 21 (Zoom Beyond is for 18 to 21, until the day before the 22nd birthday), Student, Young person (the operator''s own young person fare, no age given) or Adult.'
+        data_tests: [not_null]
       - name: pass_name
         data_type: varchar
         description: 'The pass or scheme it belongs to (Zoom, Zoom Beyond, YP, Megarider, Tram ...); empty for an ordinary ticket.'
@@ -783,14 +788,14 @@ models:
         data_tests: [not_null]
       - name: price_text
         data_type: varchar
-        description: 'The price in words: "£1.00", or "£1.00 to £1.20" where the operator''s products differ.'
+        description: 'The price in words: "£1.00", or "£1.90 to £4.00 depending on ticket" where the operator''s products of this kind differ (the product names are in PRODUCTS).'
         data_tests: [not_null]
       - name: products
         data_type: varchar
         description: 'The operator''s own names for the products it is made from, separated by semicolons.'
       - name: as_at
         data_type: date
-        description: 'When BODS says the operator''s fares data was last modified.'
+        description: 'When BODS says the operator''s fares data was last modified. Never more than 12 months ago: older fares stay in silver and are not in gold.'
         data_tests: [not_null]
       - name: caveat
         data_type: varchar
