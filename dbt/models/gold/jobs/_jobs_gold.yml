@@ -850,9 +850,13 @@ models:
         data_type: varchar
         description: 'WHO in words for showing: Child, 18 to 21, Student or Adult.'
         data_tests: [not_null]
-      - name: price
+      - name: price_min
         data_type: number(10,2)
-        description: 'The price in pounds.'
+        description: 'The price in pounds (the same as PRICE_MAX: a ticket has one price; both columns keep the shape of bus_fare).'
+        data_tests: [not_null]
+      - name: price_max
+        data_type: number(10,2)
+        description: 'The price in pounds (the same as PRICE_MIN).'
         data_tests: [not_null]
       - name: price_text
         data_type: varchar

@@ -5,4 +5,4 @@ where price_min is null or price_max is null or price_text is null
    or (price_max = 0 and price_text <> 'Free') or price_text like '%£0.00%'
 union all
 select 'tram_fare', fare_key from {{ ref('tram_fare') }}
-where price is null or price <= 0 or price_text is null or price_text like '£0.00%'
+where price_min is null or price_max is null or price_min <= 0 or price_text is null or price_text like '£0.00%'
