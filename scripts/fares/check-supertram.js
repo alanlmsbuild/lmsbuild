@@ -39,16 +39,16 @@ try {
   const bods = await execute(c, `select p.product_name, m.who, m.category, min(p.price_min) as LO, max(p.price_max) as HI
     from SHARED_DB.SILVER.BUS_FARE_PRODUCT p join SHARED_DB.SILVER.BUS_FARE_PRODUCT_MAP m on m.operator = p.operator_name and m.product_name = p.product_name
     where m.pass_name = 'Tram' and p.operator_name = 'First Bus' and p.price_points = 1 group by 1, 2, 3`)
-  console.log('Cross-check with the tram tickets in First South Yorkshire\'s BODS data (same who and kind):')
+  console.log('Cross-check with the tram tickets in First South Yorkshire\'s BODS data (a BODS ticket agrees when a fare of the same who and kind has its price):')
   let differ = 0
-  for (const f of fares) {
-    const match = bods.filter((b) => b.WHO === f.who && b.CATEGORY === f.category)
-    if (!match.length) { console.log(`     --  ${f.ticket} £${f.price}: no tram ticket of this kind in BODS`); continue }
-    const same = match.some((b) => Number(b.LO) === Number(f.price))
+  for (const b of bods) {
+    const mine = fares.filter((f) => f.who === b.WHO && f.category === b.CATEGORY)
+    if (!mine.length) { console.log(`     --  BODS ${b.PRODUCT_NAME} £${Number(b.LO).toFixed(2)}: no ${b.WHO} ${b.CATEGORY} fare on Supertram's page`); continue }
+    const same = mine.some((f) => Number(f.price) === Number(b.LO))
     if (!same) differ++
-    console.log(`     ${same ? 'ok ' : 'DIFF'} ${f.ticket} £${f.price} vs BODS ${match.map((b) => `${b.PRODUCT_NAME} £${b.LO}`).join(', ')}`)
+    console.log(`     ${same ? 'ok ' : 'DIFF'} BODS ${b.PRODUCT_NAME} £${Number(b.LO).toFixed(2)} vs the page's ${mine.map((f) => `${f.ticket} £${f.price}`).join(', ')}`)
   }
-  say(differ === 0, `no price differs from a matching BODS tram ticket (${differ} differ)`)
+  say(differ === 0, `no BODS tram ticket has a price the page does not give for the same who and kind (${differ} differ)`)
 } finally {
   await destroy(c)
 }

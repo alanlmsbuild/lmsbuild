@@ -1,12 +1,17 @@
 ticket,who,category,price,source_url,date_checked,note
-Tram Day Child,child,day,3.00,https://www.travelsouthyorkshire.com/en-gb/ticketdetails/d43a1055-e24c-4901-94f1-db6388e8c901,,"Search-engine extract of the page: ""£3.00, children 5 to 18 with Zoom Under 16 or Zoom 16-18"". Not yet read on the page. BODS (First South Yorkshire, 4 Sep 2026): Tram Ch 1 day £3.00."
-Tram 7 Day Child,child,week,9.50,https://www.travelsouthyorkshire.com/en-gb/ticketdetails/411a980d-4468-45bd-9a20-b8fb7a92ee2f,,"Search-engine extract: £9.50 on the tram, £8.90 in advance. Not yet read on the page. BODS: Tram Ch 7 day £9.50."
-Tram 28 Day Child,child,28-day,29.50,https://www.travelsouthyorkshire.com/en-gb/ticketdetails/dc64199e-48c1-4d95-b393-d1a614972858,,Search-engine extract: £29.50 in advance. Not yet read on the page. Not in the BODS data.
-Tram Single Child,child,single,1.00,https://travelsouthyorkshire.com/en-GB/supertram/tickets-fares,,"Search-engine extract of the Supertram page: £1 single, only with a Zoom Under 16 or Zoom 16-18 pass. Not yet read on the page. BODS: Tram Ch Single £1.00."
-Tram Return Child,child,return,2.00,https://travelsouthyorkshire.com/en-GB/supertram/tickets-fares,,Search-engine extract: £2 return. Not yet read on the page. BODS: Tram Ch Return £2.00.
-Zoom Beyond Tram Single,18-21,single,2.10,https://travelsouthyorkshire.com/en-GB/supertram/tickets-fares,,Search-engine extract: Zoom Beyond 18-21 single £2.10. Not yet read on the page. BODS: Zoom Beyond Single £2.10 (First South Yorkshire).
-Zoom Beyond Tram Return,18-21,return,4.10,https://travelsouthyorkshire.com/en-GB/supertram/tickets-fares,,Search-engine extract: Zoom Beyond 18-21 return £4.10. Not yet read on the page. BODS: Zoom Beyond Rtn £4.10.
-Tram Single Adult,adult,single,2.50,https://travelsouthyorkshire.com/en-GB/supertram/tickets-fares,,"NOT FROM THE PAGE: only from BODS (First South Yorkshire, 4 Sep 2026: Tram Ad Single £2.50). Fares were frozen for 2026 (South Yorkshire leaders, 2025)."
-Tram Return Adult,adult,return,4.20,https://travelsouthyorkshire.com/en-GB/supertram/tickets-fares,,NOT FROM THE PAGE: only from BODS (Tram Ad Return £4.20).
-Tram Day Adult,adult,day,5.70,https://travelsouthyorkshire.com/en-GB/supertram/tickets-fares,,NOT FROM THE PAGE: only from BODS (Tram Ad 1 day £5.70).
-Tram 7 Day Adult,adult,week,20.00,https://travelsouthyorkshire.com/en-GB/supertram/tickets-fares,,NOT FROM THE PAGE: only from BODS (Tram Ad 7 day £20.00).
+Tram Single Adult (short journey),adult,single,2.50,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,
+Tram Single Adult (longer journey),adult,single,3.00,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,
+Tram Day Adult,adult,day,5.70,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,
+Tram Day Adult (in advance),adult,day,5.30,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,
+Tram 7 Day Adult,adult,week,20.00,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,
+Tram 7 Day Adult (in advance),adult,week,18.50,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,
+Zoom Beyond Tram Single,18-21,single,2.10,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,"Zoom Beyond, 18 to 21."
+Zoom Beyond Tram Return,18-21,return,4.10,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,"Zoom Beyond, 18 to 21."
+Tram Single Child,child,single,1.00,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,For Zoom under 16 and Zoom 16-18 pass holders. 16 to 18s pay the child fares: there is no separate 16-18 tram fare.
+Tram Return Child,child,return,2.00,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,For Zoom under 16 and Zoom 16-18 pass holders. 16 to 18s pay the child fares: there is no separate 16-18 tram fare.
+Tram Day Child,child,day,3.00,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,For Zoom under 16 and Zoom 16-18 pass holders. 16 to 18s pay the child fares: there is no separate 16-18 tram fare.
+Tram 7 Day Child,child,week,9.50,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,For Zoom under 16 and Zoom 16-18 pass holders. 16 to 18s pay the child fares: there is no separate 16-18 tram fare.
+Tram 7 Day Child (in advance),child,week,8.90,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,For Zoom under 16 and Zoom 16-18 pass holders. 16 to 18s pay the child fares: there is no separate 16-18 tram fare.
+Tram 28 Day Child (in advance),child,28-day,29.50,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,For Zoom under 16 and Zoom 16-18 pass holders. 16 to 18s pay the child fares: there is no separate 16-18 tram fare.
+Tram 7 Day Student,student,week,16.00,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,Needs student ID.
+Tram 28 Day Student (in advance),student,28-day,47.30,https://www.travelsouthyorkshire.com/en-gb/supertram/tickets-fares,2026-10-21,Needs student ID.

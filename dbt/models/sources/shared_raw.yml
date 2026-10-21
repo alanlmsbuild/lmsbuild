@@ -56,6 +56,9 @@ sources:
       - name: bods_fares_netex
         identifier: BODS_FARES_NETEX
         description: 'Each operator''s bus fares as NeTEx XML (UK bus fares profile), one row per file, parsed to VARIANT (load:data step 48).'
+      - name: supertram_fare
+        identifier: SUPERTRAM_FARE
+        description: 'Supertram''s tickets and fares written down by hand from Travel South Yorkshire''s Supertram page, with the page and the date checked (load:data step 49).'
       - name: nr_schedule_extract
         identifier: NR_SCHEDULE_EXTRACT
         description: 'Network Rail SCHEDULE full extracts (CIF), one row per file with its HD header record (load:data step 44).'

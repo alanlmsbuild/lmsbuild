@@ -803,5 +803,72 @@ models:
         data_tests: [not_null]
       - name: tram_note
         data_type: varchar
-        description: 'Says tram fares are not in this data: "Tram fares: see Supertram." Show it beside any tram.'
+        description: 'Says tram fares are not in this table: "Tram fares are shown separately: see Supertram." (gold tram_fare has Supertram''s own fares). Show it beside any tram.'
+        data_tests: [not_null]
+
+  - name: tram_fare
+    description: >-
+      Supertram's fares (decision 19, phase C), from Supertram's own published
+      fares on Travel South Yorkshire's Supertram tickets and fares page,
+      checked by hand: one row per ticket. 16 to 18s pay the child fares (there
+      is no separate 16-18 tram fare). Every row says "as at <date>: check with
+      Supertram". A fare checked over 12 months ago is left out.
+    config:
+      meta:
+        source: supertram-fares
+        licence: public-facts
+        attribution: 'Fares are from Travel South Yorkshire''s Supertram pages (the page and the date checked are given on each row).'
+        refresh: yearly
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_WARREN', 'SHARED_DB.GOLD_MEADOW', 'SHARED_DB.GOLD_SITE']
+    columns:
+      - name: fare_key
+        data_type: varchar
+        description: 'Its key: ticket and who, joined with |.'
+        data_tests: [unique, not_null]
+      - name: operator_name
+        data_type: varchar
+        description: 'Always Supertram.'
+        data_tests: [not_null]
+      - name: ticket
+        data_type: varchar
+        description: 'The ticket''s name as the page gives it.'
+        data_tests: [not_null]
+      - name: category
+        data_type: varchar
+        description: 'single, return, day, week or 28-day.'
+        data_tests: [not_null, {accepted_values: {arguments: {values: ['single', 'return', 'day', 'week', '28-day']}}}]
+      - name: who
+        data_type: varchar
+        description: 'child, 18-21, student or adult. 16 to 18s pay the child fares.'
+        data_tests: [not_null, {accepted_values: {arguments: {values: ['child', '16-18', '18-21', 'student', 'adult']}}}]
+      - name: who_label
+        data_type: varchar
+        description: 'WHO in words for showing: Child, 18 to 21, Student or Adult.'
+        data_tests: [not_null]
+      - name: price
+        data_type: number(10,2)
+        description: 'The price in pounds.'
+        data_tests: [not_null]
+      - name: price_text
+        data_type: varchar
+        description: 'The price in words: "£5.70".'
+        data_tests: [not_null]
+      - name: bought
+        data_type: varchar
+        description: '"in advance" where the page gives that as the way to get this price; empty otherwise.'
+      - name: note
+        data_type: varchar
+        description: 'What the page says about who can buy it (Zoom pass holders and that 16 to 18s pay the child fares; student ID ...).'
+      - name: source_url
+        data_type: varchar
+        description: 'The page the fare is on.'
+        data_tests: [not_null]
+      - name: as_at
+        data_type: date
+        description: 'The date a person checked the fare on that page. Never more than 12 months ago.'
+        data_tests: [not_null]
+      - name: caveat
+        data_type: varchar
+        description: 'Says "As at <date>: check with Supertram." Show it with the fare.'
         data_tests: [not_null]

@@ -12,14 +12,16 @@
 -- 21 October 2026): the public view only shows fares an operator has
 -- confirmed within the year. Where one operator's products of a kind differ
 -- the price reads "£1.90 to £4.00 depending on ticket", with the operator's
--- own product names beside it. Tram fares are not in the Bus Open Data
--- Service: TRAM_NOTE says so.
+-- own product names beside it. Tram tickets that bus operators' datasets
+-- carry (pass "Tram") are left out: Supertram's own fares are in tram_fare,
+-- and TRAM_NOTE says so.
 with priced as (
   select p.operator_name, p.nocs, m.category, m.who, m.pass_name, p.product_name, p.price_min, p.price_max, p.as_at, p.source_file_id
   from {{ ref('bus_fare_product') }} p
   join {{ ref('bus_fare_product_map') }} m on m.operator = p.operator_name and m.product_name = p.product_name
   where p.price_points between 1 and 6 and p.price_min > 0
     and p.as_at >= dateadd(month, -12, current_date())
+    and coalesce(m.pass_name, '') <> 'Tram'
 ),
 grouped as (
   select operator_name, any_value(nocs) as nocs, category, who, coalesce(nullif(pass_name, ''), '') as pass_name,
@@ -45,5 +47,5 @@ select
   products::varchar as products,
   as_at::date as as_at,
   ('As at ' || to_varchar(as_at, 'DD FMMonth YYYY') || ': check with the operator.')::varchar as caveat,
-  'Tram fares: see Supertram.'::varchar as tram_note
+  'Tram fares are shown separately: see Supertram.'::varchar as tram_note
 from grouped

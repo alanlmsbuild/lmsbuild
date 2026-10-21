@@ -1028,3 +1028,49 @@ models:
       - name: price_max
         data_type: number(10,2)
         description: 'The highest price any file gives for it, in pounds.'
+
+  - name: supertram_fare
+    description: >-
+      Supertram's own fares (decision 19, phase C), written down by hand from
+      Travel South Yorkshire's Supertram tickets and fares page: one row per
+      ticket in the latest load, with the page it is on and the date a person
+      checked it there. Supertram is not in the Bus Open Data Service.
+    config:
+      meta:
+        source: supertram-fares
+        licence: public-facts
+        attribution: 'Fares are from Travel South Yorkshire''s Supertram pages (the page and the date checked are given on each row).'
+        refresh: yearly
+        sensitivity: public
+    columns:
+      - name: ticket
+        data_type: varchar
+        description: 'The ticket''s name as the page gives it, with "(in advance)" or "(short journey)" where it says so.'
+        data_tests: [unique, not_null]
+      - name: who
+        data_type: varchar
+        description: 'child, 18-21, student or adult.'
+        data_tests: [not_null, {accepted_values: {arguments: {values: ['child', '16-18', '18-21', 'student', 'adult']}}}]
+      - name: category
+        data_type: varchar
+        description: 'single, return, day, week or 28-day.'
+        data_tests: [not_null, {accepted_values: {arguments: {values: ['single', 'return', 'day', 'week', '28-day']}}}]
+      - name: price
+        data_type: number(10,2)
+        description: 'The price in pounds, as the page gives it.'
+        data_tests: [not_null]
+      - name: note
+        data_type: varchar
+        description: 'What the page says about who can buy it (Zoom pass holders, student ID ...); empty if nothing.'
+      - name: source_url
+        data_type: varchar
+        description: 'The page the fare is on.'
+        data_tests: [not_null]
+      - name: date_checked
+        data_type: date
+        description: 'The date a person checked the fare on that page.'
+        data_tests: [not_null]
+      - name: source_file_id
+        data_type: varchar
+        description: 'The SOURCE_FILE row of the load (SHARED_DB.RAW).'
+        data_tests: [not_null]
