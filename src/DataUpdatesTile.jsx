@@ -9,6 +9,7 @@ import { ukWhenText } from './ukTime'
 
 const RESULT_TEXT = {
   failed: 'Failed',
+  partial: 'Partly done: some steps failed',
   refused: 'Skipped: another run was going',
   running: 'Running now',
   "didn't finish": "Didn't finish",

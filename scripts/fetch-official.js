@@ -320,33 +320,60 @@ async function fetchWikidata({ root = RAREBIT_DATA, log }) {
 }
 export const MONTHLY_FETCHES = [fetchPolice, fetchApar, fetchNaptan, fetchListed, fetchWikidata]
 
-// Fetch one kind ('nomis' or 'api'), then load its steps as DATA_LOAD_USER.
-// Returns the scheduler's result (scripts/job-run.js recordRun); a throw is
-// recorded as failed.
-export async function runJob({ kind, load = true, log = console.log }) {
+// Fetch one kind ('nomis', 'api', ...), then load its steps as DATA_LOAD_USER.
+// Returns the scheduler's result (scripts/job-run.js recordRun).
+// Each fetch and each load step is independent: one failing doesn't stop the
+// others. All fine: succeeded. Some failed: partial (not a success, so the
+// job is tried again in an hour; steps already loaded are skipped by their
+// checksum), with which failed in the summary and the error. Every load step
+// failed: failed. `deps` is for tests: fetchOne, runStep, openLoader.
+const setName = (set, i) => (typeof set === 'string' ? set : Array.isArray(set) ? set.join(' ') : set?.id ?? set?.dir ?? set?.name ?? `set ${i + 1}`)
+
+export async function runJob({ kind, load = true, log = console.log, deps = {} }) {
   const fetched = []
+  const failed = []
   const sets = { nomis: NOMIS_SETS, api: EES_SETS, statxplore: SX_SETS, ons: ONS_SETS, ofqual: ['Qualifications', 'Organisations'], monthly: MONTHLY_FETCHES }[kind]
-  const fetchOne = { nomis: (s) => fetchNomis(s, { log }), api: (s) => fetchEes(s, { log }), statxplore: (s) => fetchStatXplore(s, { root: RAREBIT_DATA, log }),
+  const fetchOne = deps.fetchOne ?? { nomis: (s) => fetchNomis(s, { log }), api: (s) => fetchEes(s, { log }), statxplore: (s) => fetchStatXplore(s, { root: RAREBIT_DATA, log }),
     ons: (s) => fetchOns(s, { log }), ofqual: (s) => fetchOfqual(s, { log }), monthly: (f) => f({ log }) }[kind]
-  for (const set of sets) {
-    const f = await fetchOne(set)
-    if (f) fetched.push(path.basename(f))
+  let attempts = 0
+  for (const [i, set] of sets.entries()) {
+    attempts++
+    try {
+      const f = await fetchOne(set)
+      if (f) fetched.push(path.basename(f))
+    } catch (err) {
+      failed.push({ stage: 'fetch', name: setName(set, i), error: err.message })
+      log(`fetch ${setName(set, i)} failed: ${err.message}`)
+    }
   }
   const loaded = []
   if (load) {
-    const { runStep } = await import('./load-data.js')
-    const { Loader } = await import('./load/loader.js')
-    const loader = await Loader.open(log)
+    const { runStep: realRunStep, STEPS } = await import('./load-data.js')
+    const runStep = deps.runStep ?? realRunStep
+    const loader = deps.openLoader ? await deps.openLoader(log) : await (await import('./load/loader.js')).Loader.open(log)
     try {
       for (const n of LOAD_STEPS[kind]) {
-        const r = await runStep(loader, n)
-        loaded.push(...r.results.filter((x) => !x.skipped).map((x) => ({ table: x.table, rows: x.rowsLoaded })))
+        attempts++
+        try {
+          const r = await runStep(loader, n)
+          loaded.push(...r.results.filter((x) => !x.skipped).map((x) => ({ table: x.table, rows: x.rowsLoaded })))
+        } catch (err) {
+          failed.push({ stage: 'load', step: n, name: STEPS?.[n]?.job ?? `step ${n}`, error: err.message })
+          log(`load step ${n} (${STEPS?.[n]?.job ?? '?'}) failed: ${err.message}`)
+        }
       }
     } finally {
       await loader.close()
     }
   }
-  return { outcome: 'succeeded', summary: { fetched, loaded } }
+  const summary = { fetched, loaded, ...(failed.length ? { failed, attempted: attempts } : {}) }
+  if (!failed.length) return { outcome: 'succeeded', summary }
+  const error = `${failed.length} of ${attempts} failed: ${failed.map((f) => `${f.name}: ${f.error}`).join('; ')}`.slice(0, 900)
+  // Failed when nothing the job is for got done: every load step failed (or,
+  // with --no-load, every fetch).
+  const main = failed.filter((f) => f.stage === (load ? 'load' : 'fetch')).length
+  const mainTotal = load ? LOAD_STEPS[kind].length : sets.length
+  return { outcome: main === mainTotal ? 'failed' : 'partial', error, summary }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -357,4 +384,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const result = await runJob({ kind, load: !process.argv.includes('--no-load') })
   console.log(JSON.stringify(result))
+  process.exitCode = result.outcome === 'succeeded' ? 0 : 1
 }

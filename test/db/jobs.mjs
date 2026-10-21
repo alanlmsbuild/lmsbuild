@@ -18,7 +18,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { connect, execute, destroy } from '../../server/db.js'
 import { JOB_ORDER, JOB_SCHEDULE } from '../../server/jobSchedule.js'
-import { isDue, JobTimeout, readState, recordRun, writeState } from '../../scripts/job-run.js'
+import { isDue, JobTimeout, noteRun, readState, recordRun, writeState } from '../../scripts/job-run.js'
 import { clearOldLogs, takeLock, tick } from '../../scripts/jobs.js'
 import { siteFolder } from '../../scripts/reach/job.js'
 
@@ -57,6 +57,18 @@ console.log('Part 1: what is due when')
   failed.jobs['companies-refresh'] = { ...failed.jobs['companies-refresh'], lastAttemptAt: iso(T0 - 30 * 60_000), lastOutcome: 'failed' }
   check('failed 30 minutes ago: not tried again yet', !isDue('companies-refresh', failed, T0))
   check('  an hour after: tried again', isDue('companies-refresh', failed, T0 + 31 * 60_000))
+
+  // A partial run (some steps loaded, some failed) is not a success: the job is
+  // tried again no sooner than an hour, and its last success doesn't move.
+  const partial = { jobs: { ...allDone(T0 - 8 * 24 * H).jobs } }
+  partial.jobs['official-api'] = { ...partial.jobs['official-api'], lastAttemptAt: iso(T0 - 30 * 60_000), lastOutcome: 'partial' }
+  check('official-api partial 30 minutes ago: not tried again yet', !isDue('official-api', partial, T0))
+  check('  an hour after: tried again', isDue('official-api', partial, T0 + 31 * 60_000))
+  const pf = stateFile('partial')
+  writeState(allDone(T0), pf)
+  noteRun('official-api', { startedAt: iso(T0 + 8 * H), outcome: 'partial', finishedAt: iso(T0 + 8 * H) }, pf)
+  const noted = readState(pf).jobs['official-api']
+  check('  noteRun keeps the last success and records the attempt as partial', noted.lastOutcome === 'partial' && noted.lastSuccessAt === iso(T0), JSON.stringify(noted))
 
   // reach-export follows travel-monthly, then transform-silver.
   const D = 24 * H
