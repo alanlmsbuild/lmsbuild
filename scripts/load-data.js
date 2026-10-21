@@ -62,6 +62,7 @@
 // The ILR dummy data workbook (sql/load_10_ilr_dummy.sql):
 //   43 ilr-dummy-data.xlsx, its three sheets as they are (TEST DATA)    -> CAPTURE_DB.TEST_BASELINE
 //   44 Network Rail SCHEDULE extract and CORPUS, the rail GTFS for the day -> SHARED_DB.RAW
+//   45 ONS LSOA (December 2021) boundaries, BGC V5, England and Wales (reach map) -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -130,6 +131,7 @@ const ofstedFe = (sheet, table) => ({
 const extract = (zip, member) => async (out) => { await pipeline(await zipEntry(zip, member), fs.createWriteStream(out)) }
 
 const TRAVEL = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'travel')
+const REACH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'reach')
 const newest = (dir, re) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => re.test(n)).sort().map((n) => path.join(dir, n)) : [])
 const GTFS_MEMBERS = ['agency', 'stops', 'routes', 'trips', 'calendar', 'calendar_dates', 'feed_info']
 const RAIL_GTFS_MEMBERS = ['agency', 'stops', 'routes', 'trips', 'stop_times', 'calendar_dates', 'feed_info']
@@ -393,6 +395,17 @@ export const STEPS = {
     }
     return results
   }, runLabel: 'Network Rail SCHEDULE extract, CORPUS, rail GTFS' },
+  // The reach map's shading (sql/load_12): the ONS LSOA (December 2021)
+  // boundaries, BGC V5, England and Wales, from scripts/reach/fetch-boundaries.js.
+  45: { job: 'load-lsoa-boundaries', run: async (loader) => loader.loadJsonLines({ home: 'SHARED_DB', source: 'ons-lsoa-boundaries', publisher: 'Office for National Statistics',
+    licence: `${OGL}; contains OS data © Crown copyright and database right`,
+    title: 'Lower layer Super Output Areas (December 2021) Boundaries EW BGC (V5), GeoJSON',
+    page: 'https://open-geography-portalx-ons.hub.arcgis.com/datasets/ons::lower-layer-super-output-areas-december-2021-boundaries-ew-bgc-v5-2',
+    table: 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', format: 'SHARED_DB.RAW.JSON_LINES',
+    originals: [{ file: path.join(REACH, 'lsoa21_bgc_v5.geojson') }],
+    rows: async ({ file }) => JSON.parse(fs.readFileSync(file, 'utf8')).features.map((f, i) => ({ n: i + 1, properties: f.properties, geometry: f.geometry })),
+    cols: { FEATURENUMBER: '$1:n::number', PROPERTIES: '$1:properties', GEOMETRY: '$1:geometry' } }),
+    runLabel: 'ONS LSOA boundaries (reach map)' },
   // ---------------------------------------------------------------- test data
   43: { job: 'load-ilr-dummy', run: async (loader) => {
     const results = []
