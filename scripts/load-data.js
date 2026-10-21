@@ -67,6 +67,7 @@
 //   47 The four colleges' own campuses (reach map) -> SHARED_DB.RAW
 //   48 BODS bus fares for South Yorkshire's operators (NeTEx) -> SHARED_DB.RAW
 //   49 Supertram's own fares, by hand -> SHARED_DB.RAW
+//   50 National Rail Data Portal fares feed, every line as published -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -475,6 +476,40 @@ export const STEPS = {
       licence: 'Facts published by the operator on its own website', title: 'Supertram tickets and fares, written down by hand from Travel South Yorkshire\'s pages', page: 'https://www.travelsouthyorkshire.com/en-GB/supertram/tickets-fares',
       kind: 'as-downloaded', file, table: 'SHARED_DB.RAW.SUPERTRAM_FARE' })]
   }, runLabel: 'Supertram fares (by hand)' },
+  // Train fares (decision 19 phase C, sql/load_18): the National Rail Data
+  // Portal's fares feed (scripts/fares/fetch_rdg_fares.py), every line of
+  // every file in its zip as published (RDG_FARES_LINE), the content not
+  // amended (NRE Terms & Conditions v3.0, docs/licences/nre-terms-v3.0.md).
+  // One SOURCE_FILE row per file in the zip. Local only: nothing from it is
+  // shown until the Rail Delivery Group has confirmed the attribution.
+  50: { job: 'load-rdg-fares', run: async (loader) => {
+    const results = []
+    const [zip] = newest(path.join(REPO_ROOT, 'data', 'fares', 'rdg'), /^RJFAF\d+\.ZIP$/).slice(-1)
+    if (!zip) throw new Error('No RJFAFnnn.ZIP in data/fares/rdg: run scripts/fares/fetch_rdg_fares.py')
+    const feed = path.basename(zip, '.ZIP')
+    for (const member of (await zipNames(zip)).filter((n) => !n.endsWith('/')).sort()) {
+      const type = path.extname(member).slice(1).toUpperCase()
+      // Each line as it is, as one quoted field beside its file type.
+      const linesToCsv = async (out) => {
+        async function* rows() {
+          yield csvLine(['file_type', 'line'])
+          let rest = ''
+          for await (const chunk of await zipEntry(zip, member)) {
+            const text = rest + chunk.toString('latin1')
+            const parts = text.split('\n')
+            rest = parts.pop()
+            for (const l of parts) yield csvLine([type, l.replace(/\r$/, '')])
+          }
+          if (rest) yield csvLine([type, rest.replace(/\r$/, '')])
+        }
+        await writeLines(out, rows())
+      }
+      results.push(await loader.loadCsv({ home: 'SHARED_DB', format: 'SHARED_DB.RAW.CSV_UTF8', source: 'rdg-fares', publisher: 'National Rail Enquiries (Rail Delivery Group)',
+        licence: 'National Rail Enquiries Terms and Conditions v3.0', title: `National Rail Data Portal fares feed ${feed}: ${member} (every line as published)`, page: 'https://opendata.nationalrail.co.uk/',
+        file: zip, member, kind: 'extracted', encoding: 'latin1', table: 'SHARED_DB.RAW.RDG_FARES_LINE', make: linesToCsv }))
+    }
+    return results
+  }, runLabel: 'National Rail Data Portal fares feed (every line as published)' },
   // ---------------------------------------------------------------- test data
   43: { job: 'load-ilr-dummy', run: async (loader) => {
     const results = []

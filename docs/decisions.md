@@ -96,6 +96,42 @@ LICENCE tag `public-facts`: addresses are facts and each row names its page),
 checked against Discover Uni's campuses (all within 500 m) and re-checked every
 year (`docs/scheduling.md`). Campuses with no address found stay off the map.
 
+Train fares, phase C (terms received 21 October 2026): the National Rail
+Enquiries (NRE) information feeds' Terms & Conditions version 3.0, accepted
+by Alan on 16 October 2026, are saved word for word in
+`docs/licences/nre-terms-v3.0.md`. Rarebit's reading: use is worldwide and
+royalty-free below "High Volume Usage" (defined in the Usage Charging
+Document, not yet seen); the Information may be copied, published and used
+commercially, including combined with other data in our own product; its
+format may be adapted but its content must not be amended (fares are shown as
+the feed publishes them; discounts only through the feed's own discount
+tables); NRE must be acknowledged as the source as the Developer Guidelines
+direct (not yet seen); "Time-Bound Data" is shown as the feed directs; nothing
+may suggest NRE's endorsement or official status; personal data, third-party
+rights and NRE's trademarks and logos are not licensed (use the logo only as
+the guidelines allow); the licence is personal to Alan and can't be assigned,
+so Rarebit registers its own account when it is incorporated; NRE gives no
+support, may change the format, and will give at least 90 days' notice
+before withdrawing the Information permanently; a later version of the terms
+only applies if we opt in. The Developer Guidelines are the portal's brand
+guidelines (saved in `docs/licences/nre-brand-guidelines-2026-09/`, read
+21 October 2026): NRE is acknowledged "where possible, by providing a link to
+the NRE website for more information and by displaying the 'Powered by
+National Rail Enquiries' logo"; where the feed is combined with other feeds
+and isn't the primary information, the branding may go on an attribution
+page; the only wording given for text is "Powered by National Rail
+Enquiries" (dot matrix screens). Rarebit credits in words with a link and no
+logo (the logo is NRE's trademark, which the licence doesn't cover), and asks
+NationalRailDatafeeds@raildeliverygroup.com to confirm words alone are
+acceptable (the guidelines allow alternatives and exemptions on request)
+before any train fare is shown publicly. RDG's fares data page (21 October 2026) says the fares data, "released three times each year", is available from the National Rail Data Portal "for use in proof of concept or development work"; whether a live public app is covered is unanswered (Alan has asked RDG), so the fares stay local only: loaded to bronze (`RDG_FARES_LINE`, load:data step 50, 24 files and 9.8 million lines of feed 924) and nothing built on them or shown. The specification, RSPS5045 ("Fares and associated data feed interface specification", version P-02-03 of 3 June 2025, rspaccreditation.org), is to be saved in `docs/licences/rsps5045/` and read before silver. No Usage Charging Document is
+published; our use (a few fares downloads a year, served from our own files)
+is far below any high volume. The LICENCE tag value is `nre-feeds-v3`
+(`sql/load_17_nre_licence_tag.sql`), separate from `nr-open` (Network Rail's
+own feeds, a different licensor). The plan for the fares themselves is in
+`docs/ideas.md` until the Developer Guidelines and the Usage Charging Document
+are saved.
+
 ## 21. Governance built into Snowflake
 
 Every object is described, tagged and controlled in Snowflake itself. Tags on

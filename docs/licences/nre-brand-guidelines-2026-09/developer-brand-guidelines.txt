@@ -1,0 +1,311 @@
+
+
+===== PAGE 1 =====
+BRAND GUIDELINES
+DEVELOPER BRAND GUIDELINES
+
+===== PAGE 2 =====
+BRAND GUIDELINES
+Licence condition
+
+You must acknowledge National Rail as the
+
+source of Information in accordance with
+
+this document, including Developer brand
+
+Guidelines
+
+This document summaries the conditions under which the
+
+licensee (“You”) are required to attribute National Rail
+
+Enquiries (“NRE”) where using the data You have opted to
+
+received.
+
+2 LICENCE CONDITION
+
+===== PAGE 3 =====
+BRAND GUIDELINES
+Attribution
+
+The user of NRE feeds (You) must acknowledge NRE as the
+
+source of information, where possible, by providing a link to
+
+the NRE website for more information and by displaying the
+
+“Powered by National Rail Enquiries” logo in accordance with
+
+the Brand Guidelines and the following conditions:
+
+• Where an NRE feed is displayed as the predominant or
+
+standalone information in Your product or service, NRE
+
+attribution should be shown directly alongside, above or
+
+underneath the Information derived from the feed;
+
+• Where an NRE feed is combined with other data feeds
+
+and/or is not the primary information being displayed, NRE
+
+branding may be shown on an attribution page;
+
+• Where NRE feeds are displayed on a dot matrix screen, the
+
+words “Powered by National Rail Enquiries” should be used
+
+as static or scrolling text.
+
+If you are in any doubt about your proposed attribution, you can
+
+contact us for clarity by e-mailing:
+
+NationalRailDatafeeds@raildeliverygroup.com
+
+In some circumstances it may not be possible to display the
+
+NRE branding in accordance with these recommendations
+
+or, in Your view, it would have a detrimental impact on the
+
+end-user experience of the applicable product. In such
+
+instances You should contact us to discuss alternatives and/
+
+or to be granted an exemption. We will always endeavour to
+
+take a reasonable approach when considering alternatives.
+
+3 ATTRIBUTION
+
+===== PAGE 4 =====
+BRAND GUIDELINES
+Our brand is a tangible asset that helps people
+
+to instantly recognise who we are.
+
+The following National Rail developer
+
+guidelines have been put together to
+
+ensure that anyone using our data is using
+
+the National Rail brand correctly. This gives
+
+recognition as well as providing trust and
+
+credibility.
+
+The following pages provide guideance on
+
+how the branding should be used.
+
+The logo must be sized appropriately to the
+
+screen displaying information and must be
+
+legible to viewers.
+
+4 INTRODUCTION
+
+===== PAGE 5 =====
+BRAND GUIDELINES
+Our wordmark
+
+Our wordmark is the single most
+
+recognisable element of our brand.
+
+The only change has been to modernise
+
+the brand colour to a warmer dark blue.
+
+This will help it to stand out across all
+
+communications – especially in digital
+
+media.
+
+Our wordmark can be used both positively
+
+(in our brand blue) and negatively (white
+
+out of a colour or image) just make sure it is
+
+always legible.
+
+5 WORDMARK
+
+===== PAGE 6 =====
+BRAND GUIDELINES
+Use correct colour
+
+The National Rail logo should only be used in
+
+blue, black or white.
+
+Logo proportion
+
+The logo should not be warped from the
+
+original shape and proportions.
+
+Opacity
+
+The logo opacity should always be 100%
+
+6 INCORRECT USAGE
+
+===== PAGE 7 =====
+BRAND GUIDELINES
+Powered by
+
+Powered by
+
+“Powered by”
+
+The “Powered By” logo can be used
+
+in conjunction with affiliate corporate
+
+branding. The same logo usage
+
+guidelines apply.
+
+7 POWERED BY
+
+===== PAGE 8 =====
+BRAND GUIDELINES
+C 100
+
+M 100
+
+Y 0
+
+K 0
+
+C 35
+
+M 24
+
+Y 9
+
+K 0
+
+C 60
+
+M 0
+
+Y 100
+
+K 0
+
+C 50
+
+M 100
+
+Y 0
+
+K 0
+
+C 0
+
+M 0
+
+Y 0
+
+K 0
+
+R 49
+
+G 39
+
+B 131
+
+# 312783
+
+R 178
+
+G 186
+
+B 211
+
+# b 2b a d 3
+
+R 118
+
+G 184
+
+B 42
+
+# 76b 82a
+
+R 149
+
+G 27
+
+B 129
+
+# 951b 81
+
+R 255
+
+G 255
+
+B 255
+
+# ffffff
+
+C 0
+
+M 27
+
+Y 78
+
+K 0
+
+R 252
+
+G 194
+
+B 72
+
+# fcc248
+
+Colour palette
+
+Our new colour palette consists of two
+
+primary blues and four accent colours.
+
+Having a range of brighter, more modern
+
+colours allows for more visually interesting
+
+communications.
+
+Using these correctly will give our brand a
+
+freshness and ownability.
+
+The main bulk of all communications
+
+should use our primary colours. Accents
+
+should be used sparingly.
+
+8 COLOUR PALETTE
+
+===== PAGE 9 =====
+BRAND GUIDELINES
+Any questions?
+
+If you have any queries, please contact:
+
+NationalRailDatafeeds@raildeliverygroup.com
+
+9 ANY QUESTIONS
