@@ -47,7 +47,8 @@
 //      and no APPLY on any tag.
 //  11. TRANSFORM_ROLE (dbt, the silver layer; sql/silver_01_setup.sql and
 //      silver_02_staging.sql), checked as TRANSFORM_USER: it may only read
-//      RAW (both databases) and the vacancy tables in EXT, make and own
+//      RAW (both databases), the vacancy tables in EXT and REF.POSTCODE
+//      (for check:postcodes), make and own
 //      tables and views in SILVER and SILVER_STAGING, apply the governance
 //      tags, attach data metric functions (EXECUTE DATA METRIC FUNCTION on
 //      the account, sql/silver_03_dmf.sql), log its runs in OPS.JOB_RUN and
@@ -313,7 +314,10 @@ const SILVER_SCHEMAS = ['SHARED_DB.SILVER', 'SHARED_DB.SILVER_STAGING', 'OPTIONS
 // What dbt builds and owns: silver and gold, each with its staging schema.
 const BUILT_SCHEMAS = [...SILVER_SCHEMAS, ...GOLD_SCHEMAS, ...GOLD_STAGING_SCHEMAS]
 const TRANSFORM_READ_SCHEMAS = ['SHARED_DB.RAW', 'OPTIONS_DB.RAW', 'SHARED_DB.EXT']
-const TRANSFORM_USAGE_SCHEMAS = [...TRANSFORM_READ_SCHEMAS, ...BUILT_SCHEMAS, 'SHARED_DB.GOVERNANCE', 'SHARED_DB.OPS']
+// The one table outside RAW and EXT it may read: the apps' postcode list, so
+// check:postcodes can compare it with silver's (sql/postcode_check_01_grant.sql).
+const TRANSFORM_READ_TABLES = ['SHARED_DB.REF.POSTCODE']
+const TRANSFORM_USAGE_SCHEMAS = [...TRANSFORM_READ_SCHEMAS, ...BUILT_SCHEMAS, 'SHARED_DB.GOVERNANCE', 'SHARED_DB.OPS', 'SHARED_DB.REF']
 const TAG_NAMES = ['LAYER', 'SOURCE', 'LICENCE', 'ATTRIBUTION', 'OWNER', 'REFRESH', 'SENSITIVITY']
 export const TRANSFORM_REQUIRED = {
   'SHARED_DB.OPS.JOB_RUN': ['SELECT', 'INSERT', 'UPDATE'],
@@ -344,7 +348,7 @@ export function transformGrantProblems(grants, userRoles, holders) {
     else if (on === 'SCHEMA') ok = (privilege === 'USAGE' && TRANSFORM_USAGE_SCHEMAS.includes(name)) || (['CREATE TABLE', 'CREATE VIEW'].includes(privilege) && BUILT_SCHEMAS.includes(name)) ||
       (privilege === 'CREATE DATA METRIC FUNCTION' && name === 'SHARED_DB.GOVERNANCE')
     else if (on === 'TABLE' || on === 'VIEW') {
-      ok = (privilege === 'SELECT' && inSchema(name, TRANSFORM_READ_SCHEMAS)) ||
+      ok = (privilege === 'SELECT' && (inSchema(name, TRANSFORM_READ_SCHEMAS) || TRANSFORM_READ_TABLES.includes(name))) ||
         (privilege === 'OWNERSHIP' && inSchema(name, BUILT_SCHEMAS)) ||
         (name === 'SHARED_DB.OPS.JOB_RUN' && ['SELECT', 'INSERT', 'UPDATE'].includes(privilege))
     } else if (on === 'DYNAMIC_TABLE' || on === 'MATERIALIZED_VIEW') {
