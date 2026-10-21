@@ -1,8 +1,10 @@
 # Scheduling the background jobs
 
-Ten jobs keep outside data up to date, an eleventh builds the silver
-layer from it, and a twelfth checks the website links in it. Each runs when it's due, and every run, scheduled or by
-hand, is recorded in `OPS.JOB_RUN`:
+Thirteen jobs: eleven keep outside data up to date, a twelfth builds the
+silver layer from it, and a thirteenth checks the website links in it. Each
+runs when it's due, and every run, scheduled or by hand, is recorded in
+`OPS.JOB_RUN`. They are listed in the order a tick runs them
+(`JOB_ORDER` in `server/jobSchedule.js`):
 
 | Job | Runs when the last success is older than | Overdue after |
 |---|---|---|
@@ -163,7 +165,8 @@ file is loaded again (the load skips what hasn't changed):
 ## Seeing that a tick has finished
 
 The first tick after setting up runs every job that's overdue (up to all
-four, about 30 minutes). To follow it:
+thirteen; the travel times alone take about an hour, so allow well over
+an hour in all). To follow it:
 
 - **WSL terminal** (Ubuntu): watch the jobs log. Each job writes a line as
   it starts and another as it ends, with the job's own lines in between
@@ -175,7 +178,7 @@ four, about 30 minutes). To follow it:
   For example `2026-10-07T15:03:13+01:00 vacancies-full (schedule): started`
   and later `2026-10-07T15:09:30+01:00 vacancies-full (schedule):
   succeeded`. The tick has finished once every job that started has ended
-  (`official-ofqual` is last). Press Ctrl+C to stop watching.
+  (`website-links` is last). Press Ctrl+C to stop watching.
 - **WSL terminal**: `ls ~/my-react-app/logs/jobs/tick.lock`. The lock file
   exists only while a tick is running. "No such file" means it has finished.
 - **Task Scheduler**: Rarebit jobs shows Status **Running** during the tick
