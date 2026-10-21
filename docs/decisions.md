@@ -43,6 +43,33 @@ Tuesday at least 14 days ahead, skipping school holidays and the week of the
 13 December timetable change, the same date for bus and rail, and stops if
 either feed doesn't cover it. The first run is on Tuesday 10 November 2026.
 
+Reach map (agreed 22 October 2026; Options app build brief, milestone 1): a
+local-only page that shades South Yorkshire's LSOAs by travel time from a
+chosen area or postcode, with colleges, sixth forms and universities as dots.
+The times are exported once from gold to static files, one per origin LSOA
+(860 files of 860 destinations), so there is no Snowflake call per click.
+Two questions are open and must be settled before it goes on a public site:
+
+1. ODbL. The per-origin files are the travel-time table in another form, and
+   that table is a database derived from OpenStreetMap, which we have said we
+   do not publish or hand over (above). Shipping them to every visitor's
+   browser would publish it. Either we offer the files under the ODbL with the
+   method that made them (`scripts/travel/`), or the public site gets only
+   what is shaded for the chosen area (a Produced Work). Local only is fine.
+2. Map tiles. OpenStreetMap's own tile servers are not for a live site. For
+   launch, self-host free tiles built from our Geofabrik extract (no paid map
+   services). Local development uses OpenStreetMap's tiles with attribution.
+
+The shading uses the ONS LSOA (December 2021) boundaries, BGC V5, loaded to
+SHARED_DB.RAW.ONS_LSOA_BOUNDARY (`sql/load_12_lsoa_boundaries.sql`): the same
+2021 LSOAs as the times, and all 860 travel LSOAs have one. The data.gov.uk
+record says "No Licence Provided"; ONS boundaries are normally Open
+Government Licence v3.0 with OS data, so the ONS portal page is to be
+confirmed before launch. Dots: GIAS (41 open South Yorkshire colleges and
+establishments with a sixth form, all with eastings and northings) and
+Discover Uni's LOCATION table (latitude and longitude for each campus,
+including Sheffield and Sheffield Hallam).
+
 ## 21. Governance built into Snowflake
 
 Every object is described, tagged and controlled in Snowflake itself. Tags on

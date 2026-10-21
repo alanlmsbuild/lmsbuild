@@ -49,6 +49,7 @@ const ATTRIBUTION = {
   onspd: ONSPD,
   'onspd-lookups': ONSPD,
   'ons-lsoa-pwc': 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.',
+  'ons-lsoa-boundaries': 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.',
   'neso-dno-areas': 'Supported by National Energy SO Open Data',
   'nesta-skills-taxonomy': 'Nesta, skills taxonomy v2 (github.com/nestauk/skills-taxonomy-v2), MIT licence.',
   'geofabrik-osm': OSM,
