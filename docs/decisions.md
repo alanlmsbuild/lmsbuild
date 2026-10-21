@@ -86,6 +86,16 @@ the right one" when the median is empty). Times are always a range, with
 "weekday morning, timetable as at <date>", "train fares not included" and
 "modes are estimated".
 
+College campuses (21 October 2026): GIAS holds one record for each of the four
+South Yorkshire colleges, so each was one dot at its head office (Sheffield
+027B showed no college at 45 minutes because the single dot for The Sheffield
+College, at City Campus, was 46 minutes away). Rarebit holds each college's
+own published campuses in `SHARED_DB.RAW.COLLEGE_CAMPUS` (26 campuses from the
+colleges' own pages, `scripts/reach/college-campuses.csv`, `sql/load_14`,
+LICENCE tag `public-facts`: addresses are facts and each row names its page),
+checked against Discover Uni's campuses (all within 500 m) and re-checked every
+year (`docs/scheduling.md`). Campuses with no address found stay off the map.
+
 ## 21. Governance built into Snowflake
 
 Every object is described, tagged and controlled in Snowflake itself. Tags on

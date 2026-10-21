@@ -64,6 +64,7 @@
 //   44 Network Rail SCHEDULE extract and CORPUS, the rail GTFS for the day -> SHARED_DB.RAW
 //   45 ONS LSOA (December 2021) boundaries, BGC V5, England and Wales (reach map) -> SHARED_DB.RAW
 //   46 House of Commons Library MSOA names, 2021 (reach map) -> SHARED_DB.RAW
+//   47 The four colleges' own campuses (reach map) -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -132,6 +133,7 @@ const ofstedFe = (sheet, table) => ({
 const extract = (zip, member) => async (out) => { await pipeline(await zipEntry(zip, member), fs.createWriteStream(out)) }
 
 const TRAVEL = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'travel')
+const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const REACH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'reach')
 const newest = (dir, re) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => re.test(n)).sort().map((n) => path.join(dir, n)) : [])
 const GTFS_MEMBERS = ['agency', 'stops', 'routes', 'trips', 'calendar', 'calendar_dates', 'feed_info']
@@ -415,6 +417,14 @@ export const STEPS = {
       licence: 'Open Parliament Licence v3.0', title: `MSOA Names (2021 MSOAs, England and Wales), version ${path.basename(file).match(/(\d+\.\d+)/)[1]}`,
       page: 'https://houseofcommonslibrary.github.io/msoanames/', kind: 'as-downloaded', file, table: 'SHARED_DB.RAW.HOCL_MSOA_NAME' })]
   }, runLabel: 'House of Commons Library MSOA names (reach map)' },
+  // The reach map's college campuses (sql/load_14): each of the four colleges'
+  // campuses as it publishes them, from scripts/reach/college-campuses.csv
+  // (in git, written by hand from the pages; re-checked yearly).
+  47: { job: 'load-college-campuses', run: async (loader) => [await loader.loadCsv({ home: 'SHARED_DB', format: 'SHARED_DB.RAW.CSV_UTF8', source: 'college-campuses',
+    publisher: 'Barnsley College, DN Colleges Group, RNN Group, The Sheffield College', licence: 'Facts published by the college on its own website',
+    title: 'Campuses of South Yorkshire\'s four colleges, from their own websites, checked 21 October 2026', page: null, kind: 'as-downloaded',
+    file: path.join(REPO_ROOT, 'scripts', 'reach', 'college-campuses.csv'), table: 'SHARED_DB.RAW.COLLEGE_CAMPUS' })],
+    runLabel: 'College campuses (reach map)' },
   // ---------------------------------------------------------------- test data
   43: { job: 'load-ilr-dummy', run: async (loader) => {
     const results = []

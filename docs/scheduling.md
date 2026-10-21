@@ -99,6 +99,24 @@ log on and on unlocking. It runs hidden (`wscript.exe` with
 and on battery as well as mains power. It runs the code in
 `~/my-react-app`, whatever branch is checked out there.
 
+## Checked by hand every year
+
+Some data has no feed to fetch, so a person re-checks it once a year and the
+file is loaded again (the load skips what hasn't changed):
+
+- **The four colleges' campuses** (reach map): each year, from October, open
+  each college's own campus pages (the addresses are in
+  `scripts/reach/college-campuses.csv`, every row has its page), update the
+  file for campuses opened, closed or moved, change `date_checked`, then
+  `npm run load:data -- 47`, `node scripts/reach/check-campuses.js`, and
+  `node scripts/reach/export.js`. Barnsley College, DN Colleges Group, RNN
+  Group and The Sheffield College. Last checked 21 October 2026; next by
+  October 2027. A campus whose page prints no address stays in the file with
+  an empty postcode and a note, and the reach page says "Some campuses aren't
+  shown yet". The table's REFRESH tag is `yearly` (`sql/load_14`).
+- **Term dates** for the travel-times day (`scripts/travel/travelDay.js`):
+  each summer, add the next year's terms and the timetable change dates.
+
 ## Setting it up
 
 1. **PowerShell** (Start menu → type `PowerShell` → Windows PowerShell; not

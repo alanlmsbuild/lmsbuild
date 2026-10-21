@@ -36,7 +36,7 @@ const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const OUT = path.join(REPO, 'data', 'reach', 'export')
 const MODES = ['walk', 'bus', 'train', 'train and bus']
 const GOLD = 'SHARED_DB.GOLD.TRAVEL_TIME'
-const ATTRIBUTION_TABLES = ['SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN', 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', 'SHARED_DB.RAW.ONSPD', 'OPTIONS_DB.RAW.GIAS_ESTABLISHMENT', 'OPTIONS_DB.RAW.DISCOVERUNI_LOCATION', 'SHARED_DB.RAW.HOCL_MSOA_NAME']
+const ATTRIBUTION_TABLES = ['SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN', 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', 'SHARED_DB.RAW.ONSPD', 'OPTIONS_DB.RAW.GIAS_ESTABLISHMENT', 'OPTIONS_DB.RAW.DISCOVERUNI_LOCATION', 'SHARED_DB.RAW.HOCL_MSOA_NAME', 'SHARED_DB.RAW.COLLEGE_CAMPUS']
 
 const write = (name, data) => {
   const file = path.join(OUT, name)
@@ -160,6 +160,30 @@ try {
     const kind = g.TYPE === 'Further education' && !String(g.FE_TYPE).startsWith('Sixth Form College') ? 'college' : 'sixth-form'
     places.push({ kind, name: g.NAME, urn: g.URN, type: g.TYPE, town: g.TOWN, postcode: g.POSTCODE, lat: round(g.LAT, 5), lon: round(g.LON, 5), lsoa })
   }
+  // Colleges: GIAS has one record each (a dot at its head office). Each
+  // college's own published campuses (sql/load_14) replace it, one dot per
+  // postcode (sites sharing a postcode share a dot); a campus with no address,
+  // or none the postcode directory places, stays off and is counted.
+  const campusRows = await q(`select "college" as COLLEGE, "college_urn" as URN, "campus" as CAMPUS, "postcode" as POSTCODE, "date_checked" as CHECKED
+    from SHARED_DB.RAW.COLLEGE_CAMPUS where SOURCEFILEID = (select SOURCEFILEID from SHARED_DB.RAW.COLLEGE_CAMPUS qualify row_number() over (order by SOURCEFILEID desc) = 1)`)
+  const where = new Map((await q(`select replace(POSTCODE, ' ', '') as P, LATITUDE as LAT, LONGITUDE as LON from SHARED_DB.SILVER.POSTCODE
+    where replace(POSTCODE, ' ', '') in (select replace("postcode", ' ', '') from SHARED_DB.RAW.COLLEGE_CAMPUS)`)).map((r) => [r.P, r]))
+  const campusDots = new Map()
+  const campusStats = { total: campusRows.length, placed: 0, missing: 0, outside: 0, checked: [...new Set(campusRows.map((r) => r.CHECKED))].sort().at(-1) }
+  for (const r of campusRows) {
+    const pt = r.POSTCODE ? where.get(r.POSTCODE.replace(/\s+/g, '').toUpperCase()) : null
+    if (!pt) { campusStats.missing++; continue }
+    const lsoa = lsoaAt(Number(pt.LON), Number(pt.LAT))
+    if (lsoa === null) { campusStats.outside++; continue }
+    campusStats.placed++
+    const key = `${r.URN}|${r.POSTCODE}`
+    if (!campusDots.has(key)) campusDots.set(key, { urn: r.URN, postcode: r.POSTCODE, lat: round(Number(pt.LAT), 5), lon: round(Number(pt.LON), 5), lsoa, campuses: [] })
+    campusDots.get(key).campuses.push(r.CAMPUS)
+  }
+  const withCampuses = new Set([...campusDots.values()].map((d) => d.urn))
+  for (let i = places.length - 1; i >= 0; i--) if (places[i].kind === 'college' && withCampuses.has(places[i].urn)) places.splice(i, 1)
+  const collegeName = new Map(campusRows.map((r) => [r.URN, r.COLLEGE]))
+  for (const d of campusDots.values()) places.push({ kind: 'college', name: collegeName.get(d.urn), campus: d.campuses.join(', '), urn: d.urn, type: 'Further education', postcode: d.postcode, lat: d.lat, lon: d.lon, lsoa: d.lsoa })
   const dots = { college: places.filter((p) => p.kind === 'college').length, 'sixth-form': places.filter((p) => p.kind === 'sixth-form').length }
   const uni = await q(`select l.UKPRN, l.LOCID, l.LOCNAME, i.LEGAL_NAME as PROVIDER, to_double(l.LATITUDE) as LAT, to_double(l.LONGITUDE) as LON
     from OPTIONS_DB.RAW.DISCOVERUNI_LOCATION l
@@ -186,12 +210,12 @@ try {
   sizes.meta = write('meta.json', {
     day: run.DAY, window: run.DEPARTURE_WINDOW, max_minutes: Number(run.MAX_MINUTES), modes: run.MODES, timetable_as_at: run.TIMETABLE_AS_AT,
     gtfs_feed_version: run.GTFS_FEED_VERSION, rail_feed_version: run.RAIL_FEED_VERSION, osm_data_date: run.OSM_DATA_DATE, computed_on: run.COMPUTED_ON,
-    notes: run.NOTES, modes_used: MODES, attributions: [...attributions], exported_from: GOLD, lsoas,
+    notes: run.NOTES, campuses: campusStats, modes_used: MODES, attributions: [...attributions], exported_from: GOLD, lsoas,
   })
 
   const kb = (n) => `${(n / 1024).toFixed(0)} KB`
   console.log(`origins: ${origins.size} files, ${(sizes.origins / 1e6).toFixed(1)} MB in all (${kb(sizes.origins / origins.size)} each)`)
-  console.log(`boundaries.json ${kb(sizes.boundaries)}; postcodes.json ${kb(sizes.postcodes)} (${pcRows.length.toLocaleString()} postcodes in ${Object.keys(postcodes).length} districts); places.json ${kb(sizes.places)} (${places.length} dots: ${JSON.stringify(dots)}; ${outside} GIAS and ${uniOutside} university locations outside the area left out); meta.json ${kb(sizes.meta)}`)
+  console.log(`boundaries.json ${kb(sizes.boundaries)}; postcodes.json ${kb(sizes.postcodes)} (${pcRows.length.toLocaleString()} postcodes in ${Object.keys(postcodes).length} districts); places.json ${kb(sizes.places)} (${places.length} dots: ${JSON.stringify(dots)}; campuses ${JSON.stringify(campusStats)}; ${outside} GIAS and ${uniOutside} university locations outside the area left out); meta.json ${kb(sizes.meta)}`)
 } finally {
   await destroy(c)
 }

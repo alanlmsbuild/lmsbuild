@@ -30,6 +30,7 @@ const LICENCE_TAG = [
   [/^Test data/, 'test-data'],
   [/^Network Rail Infrastructure Limited Data Feeds Licence/, 'nr-open'],
   [/^Open Parliament Licence/, 'opl-3'],
+  [/^Facts published by the college/, 'public-facts'],
 ]
 const licenceTag = (text) => {
   const hit = LICENCE_TAG.find(([re]) => re.test(text))
@@ -50,6 +51,7 @@ const ATTRIBUTION = {
   onspd: ONSPD,
   'onspd-lookups': ONSPD,
   'ons-lsoa-pwc': 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.',
+  'college-campuses': 'Campus addresses are from each college\'s own website (the page is given on each row).',
   'hocl-msoa-names': 'Contains Parliamentary information licensed under the Open Parliament Licence v3.0. MSOA Names © House of Commons Library.',
   'ons-lsoa-boundaries': 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.',
   'neso-dno-areas': 'Supported by National Energy SO Open Data',
