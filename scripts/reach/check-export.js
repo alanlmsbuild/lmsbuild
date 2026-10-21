@@ -22,6 +22,8 @@ const meta = read('meta.json')
 const N = meta.lsoas.length
 const files = fs.readdirSync(path.join(OUT, 'origins')).filter((f) => f.endsWith('.json'))
 check(N === 860, `meta lists ${N} LSOAs`)
+check(meta.lsoas.every((l) => typeof l.m === 'string' && l.m.length > 0), 'every LSOA has an everyday name (the House of Commons Library\'s MSOA name)')
+check(meta.attributions.some((a) => a.includes('House of Commons Library')), 'the Library\'s attribution is in meta')
 check(files.length === 860 && new Set(files).size === 860, `${files.length} origin files`)
 const KEYS = ['a25', 'a50', 'a75', 'b25', 'b50', 'b75', 'w', 'u']
 const origins = new Map()

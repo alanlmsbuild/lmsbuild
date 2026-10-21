@@ -5,7 +5,8 @@
 //
 //   meta.json          the run: the day, window, timetable date, feed versions,
 //                      notes, attribution lines, and the 860 LSOAs in index
-//                      order (code, name, local authority)
+//                      order (code, ONS name, local authority, and m: the House
+//                      of Commons Library's everyday name, e.g. Crookes)
 //   origins/<LSOA>.json one per origin: for each destination (by index in
 //                      meta.json's lsoas) the all-modes 25th, 50th and 75th
 //                      percentile minutes (a25, a50, a75), bus-and-tram-only
@@ -35,7 +36,7 @@ const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const OUT = path.join(REPO, 'data', 'reach', 'export')
 const MODES = ['walk', 'bus', 'train', 'train and bus']
 const GOLD = 'SHARED_DB.GOLD.TRAVEL_TIME'
-const ATTRIBUTION_TABLES = ['SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN', 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', 'SHARED_DB.RAW.ONSPD', 'OPTIONS_DB.RAW.GIAS_ESTABLISHMENT', 'OPTIONS_DB.RAW.DISCOVERUNI_LOCATION']
+const ATTRIBUTION_TABLES = ['SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN', 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', 'SHARED_DB.RAW.ONSPD', 'OPTIONS_DB.RAW.GIAS_ESTABLISHMENT', 'OPTIONS_DB.RAW.DISCOVERUNI_LOCATION', 'SHARED_DB.RAW.HOCL_MSOA_NAME']
 
 const write = (name, data) => {
   const file = path.join(OUT, name)
@@ -79,7 +80,15 @@ try {
 
   // ---- the LSOAs, in index order
   const lsoaRows = await q(`select distinct ORIGIN_LSOA21 as CODE, ORIGIN_NAME as NAME, ORIGIN_LOCAL_AUTHORITY_NAME as LA from ${GOLD} order by 1`)
-  const lsoas = lsoaRows.map((r) => ({ c: r.CODE, n: r.NAME, la: r.LA }))
+  // Each LSOA's everyday name: the House of Commons Library's name for its MSOA (sql/load_13).
+  const nameRows = await q(`select l.LSOA21_CODE as CODE, n."msoa21hclnm" as M from SHARED_DB.SILVER.LSOA l
+    join SHARED_DB.RAW.HOCL_MSOA_NAME n on n."msoa21cd" = l.MSOA21_CODE
+      and n.SOURCEFILEID = (select SOURCEFILEID from SHARED_DB.RAW.HOCL_MSOA_NAME qualify row_number() over (order by SOURCEFILEID desc) = 1)
+    where l.LSOA21_CODE in (select distinct ORIGIN_LSOA21 from ${GOLD})`)
+  const everyday = new Map(nameRows.map((r) => [r.CODE, r.M]))
+  const lsoas = lsoaRows.map((r) => ({ c: r.CODE, n: r.NAME, la: r.LA, m: everyday.get(r.CODE) }))
+  const unnamed = lsoas.filter((l) => !l.m)
+  if (unnamed.length) throw new Error(`${unnamed.length} LSOAs have no MSOA name: ${unnamed.slice(0, 5).map((l) => l.c).join(', ')}`)
   const index = new Map(lsoas.map((l, i) => [l.c, i]))
   console.log(`${lsoas.length} LSOAs on ${run.DAY}`)
 
