@@ -65,6 +65,7 @@
 //   45 ONS LSOA (December 2021) boundaries, BGC V5, England and Wales (reach map) -> SHARED_DB.RAW
 //   46 House of Commons Library MSOA names, 2021 (reach map) -> SHARED_DB.RAW
 //   47 The four colleges' own campuses (reach map) -> SHARED_DB.RAW
+//   48 BODS bus fares for South Yorkshire's operators (NeTEx) -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -425,6 +426,42 @@ export const STEPS = {
     title: 'Campuses of South Yorkshire\'s four colleges, from their own websites, checked 21 October 2026', page: null, kind: 'as-downloaded',
     file: path.join(REPO_ROOT, 'scripts', 'reach', 'college-campuses.csv'), table: 'SHARED_DB.RAW.COLLEGE_CAMPUS' })],
     runLabel: 'College campuses (reach map)' },
+  // Bus fares (decision 19 phase C, sql/load_15): the Bus Open Data Service's
+  // fares datasets for South Yorkshire's operators, from
+  // scripts/fares/fetch_bus_fares.py: the listing (one row per dataset) and
+  // each dataset's NeTEx XML files (one row per file, parsed to VARIANT).
+  // FARES_DATASETS=1234,5678 loads only those datasets' files (for a test).
+  48: { job: 'load-bus-fares', run: async (loader) => {
+    const FARES = path.join(REPO_ROOT, 'data', 'fares', 'bods')
+    const only = process.env.FARES_DATASETS ? new Set(process.env.FARES_DATASETS.split(',')) : null
+    const bods = { home: 'SHARED_DB', source: 'bods-fares', publisher: 'Bus Open Data Service, Department for Transport', licence: OGL, page: 'https://data.bus-data.dft.gov.uk/fares/', format: 'SHARED_DB.RAW.JSON_LINES' }
+    const results = []
+    const [listing] = newest(FARES, /^listing-\d{4}-\d{2}-\d{2}\.json$/).slice(-1)
+    results.push(...await loader.loadJsonLines({ ...bods, title: 'Bus fares datasets listed by BODS for South Yorkshire\'s operators', table: 'SHARED_DB.RAW.BODS_FARES_DATASET',
+      originals: [{ file: listing }],
+      rows: async ({ file }) => JSON.parse(fs.readFileSync(file, 'utf8')).map((r) => ({ id: String(r.id), name: r.name, operator: r.operatorName, nocs: r.noc.join(','), status: r.status, modified: r.modified, url: r.url, record: r })),
+      cols: { DATASET_ID: '$1:id::string', NAME: '$1:name::string', OPERATOR_NAME: '$1:operator::string', NOCS: '$1:nocs::string', STATUS: '$1:status::string', MODIFIED: '$1:modified::string', URL: '$1:url::string', RECORD: '$1:record' } }))
+    for (const zip of newest(FARES, /^\d+_.*\.zip$/)) {
+      const id = path.basename(zip).split('_')[0]
+      if (only && !only.has(id)) continue
+      results.push(...await loader.loadJsonLines({ ...bods, title: `Bus fares dataset ${id} (NeTEx XML files): ${path.basename(zip)}`, table: 'SHARED_DB.RAW.BODS_FARES_NETEX',
+        originals: [{ file: zip }],
+        rows: async ({ file }) => {
+          const names = await zipNames(file)
+          const rows = []
+          for (const name of names.filter((n) => n.toLowerCase().endsWith('.xml'))) {
+            const chunks = []
+            for await (const chunk of await zipEntry(file, name)) chunks.push(chunk)
+            const xml = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '')
+            if (xml.length > 15e6) throw new Error(`${name}: ${xml.length} characters is too big for one row: split it (BODS_FARES_NETEX.PART)`)
+            rows.push({ dataset_id: id, file_name: name, part: 1, parts: 1, xml })
+          }
+          return rows
+        },
+        cols: { DATASET_ID: '$1:dataset_id::string', FILE_NAME: '$1:file_name::string', PART: '$1:part::number', PARTS: '$1:parts::number', XML: 'parse_xml($1:xml::string)' } }))
+    }
+    return results
+  }, runLabel: 'BODS bus fares for South Yorkshire (NeTEx)' },
   // ---------------------------------------------------------------- test data
   43: { job: 'load-ilr-dummy', run: async (loader) => {
     const results = []
