@@ -70,6 +70,22 @@ establishments with a sixth form, all with eastings and northings) and
 Discover Uni's LOCATION table (latitude and longitude for each campus,
 including Sheffield and Sheffield Hallam).
 
+The reach page (session 2, 22 October 2026, local only; school-leavers-app,
+src/pages/reach.astro, branch reach-map): the map is Leaflet 1.9.4 with
+OpenStreetMap tiles, the one thing the page asks another site for (a tile's
+address holds only its place on the map, and the browser test proves nothing
+else leaves the page, and that a postcode never does). The knowledge bank's
+privacy page says nothing is loaded from other websites, so this page cannot
+go public until the tiles are self-hosted and that page is updated (a third
+launch question beside the two above). Dots: special schools are left out;
+independent schools are marked "Independent, charges fees". A place is
+"within" a time by its median; one whose median is longer or empty but whose
+25th percentile fits is listed as "possible if you catch the right
+departure" ("Over 90 minutes for most departures; about N min if you catch
+the right one" when the median is empty). Times are always a range, with
+"weekday morning, timetable as at <date>", "train fares not included" and
+"modes are estimated".
+
 ## 21. Governance built into Snowflake
 
 Every object is described, tagged and controlled in Snowflake itself. Tags on
