@@ -55,14 +55,14 @@ const CREATE_FARE_METRICS = [
   returns number
   comment = 'Fares rows with no price, or a zero price not labelled Free (a free fare reads Free in price_text; no price text starts at 0.00). Expected 0. Attached to gold bus_fare and tram_fare by scripts/data-quality.js.'
   as 'select count_if(ARG_MIN is null or ARG_MAX is null or ARG_TEXT is null or (ARG_MAX = 0 and ARG_TEXT <> ''Free'') or (ARG_MIN = 0 and ARG_MAX > 0 and ARG_TEXT not like ''Free to%'') or ARG_TEXT like ''%£0.00%'') from ARG_T'`,
-  `create data metric function if not exists ${FARES_OVER_12_MONTHS}(ARG_T table(ARG_AS_AT date))
+  `create data metric function if not exists ${FARES_OVER_12_MONTHS}(ARG_T table(ARG_AS_AT date, ARG_BUILT_ON date))
   returns number
-  comment = 'Fares rows whose as-at date is over 12 months old: those stay in silver and are not in gold. Expected 0. Attached to gold bus_fare and tram_fare by scripts/data-quality.js.'
-  as 'select count_if(ARG_AS_AT is null or ARG_AS_AT < dateadd(month, -12, current_date())) from ARG_T'`,
+  comment = 'Fares rows whose as-at date is over 12 months before the day gold was built (built_on; a metric cannot use the current date): those stay in silver and are not in gold. Expected 0. Attached to gold bus_fare and tram_fare by scripts/data-quality.js.'
+  as 'select count_if(ARG_AS_AT is null or ARG_BUILT_ON is null or ARG_AS_AT < dateadd(month, -12, ARG_BUILT_ON)) from ARG_T'`,
 ]
 const fares = () => [
   { fn: FARE_PRICE_PROBLEMS, on: ['price_min', 'price_max', 'price_text'], name: 'FARE_PRICE_PROBLEMS', expect: 'VALUE = 0' },
-  { fn: FARES_OVER_12_MONTHS, on: ['as_at'], name: 'FARES_OVER_12_MONTHS', expect: 'VALUE = 0' },
+  { fn: FARES_OVER_12_MONTHS, on: ['as_at', 'built_on'], name: 'FARES_OVER_12_MONTHS', expect: 'VALUE = 0' },
 ]
 
 // The metrics, with thresholds from the tables on 14 October 2026 (in

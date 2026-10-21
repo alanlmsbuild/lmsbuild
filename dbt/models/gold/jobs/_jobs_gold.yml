@@ -805,6 +805,10 @@ models:
         data_type: varchar
         description: 'Says tram fares are not in this table: "Tram fares are shown separately: see Supertram." (gold tram_fare has Supertram''s own fares). Show it beside any tram.'
         data_tests: [not_null]
+      - name: built_on
+        data_type: date
+        description: 'The day this table was built: no fare in it is as at more than 12 months before this day (the data metric FARES_OVER_12_MONTHS checks it).'
+        data_tests: [not_null]
 
   - name: tram_fare
     description: >-
@@ -871,4 +875,8 @@ models:
       - name: caveat
         data_type: varchar
         description: 'Says "As at <date>: check with Supertram." Show it with the fare.'
+        data_tests: [not_null]
+      - name: built_on
+        data_type: date
+        description: 'The day this table was built: no fare in it is as at more than 12 months before this day (the data metric FARES_OVER_12_MONTHS checks it).'
         data_tests: [not_null]

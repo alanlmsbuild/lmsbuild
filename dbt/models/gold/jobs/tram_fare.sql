@@ -19,6 +19,7 @@ select
   note::varchar as note,
   source_url::varchar as source_url,
   date_checked::date as as_at,
-  ('As at ' || to_varchar(date_checked, 'DD FMMonth YYYY') || ': check with Supertram.')::varchar as caveat
+  ('As at ' || to_varchar(date_checked, 'DD FMMonth YYYY') || ': check with Supertram.')::varchar as caveat,
+  current_date()::date as built_on
 from {{ ref('supertram_fare') }}
 where date_checked >= dateadd(month, -12, current_date())

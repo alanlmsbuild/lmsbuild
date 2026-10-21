@@ -53,5 +53,6 @@ select
   products::varchar as products,
   as_at::date as as_at,
   ('As at ' || to_varchar(as_at, 'DD FMMonth YYYY') || ': check with the operator.')::varchar as caveat,
-  'Tram fares are shown separately: see Supertram.'::varchar as tram_note
+  'Tram fares are shown separately: see Supertram.'::varchar as tram_note,
+  current_date()::date as built_on
 from grouped
