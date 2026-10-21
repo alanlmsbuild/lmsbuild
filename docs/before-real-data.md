@@ -228,7 +228,8 @@ Alan's laptop starts it, so the jobs only run while the laptop is on.
 ## CRM (leads and candidates)
 
 - **How long a lead is kept: decided** (2026-10-21, Alan): 12 months
-  without activity, matching the 12-month consent in decision 36. The
+  without activity, matching the 12-month consent in
+  [decision 36](decisions.md). The
   anonymising procedure, its job and its checks are to be built (see
   docs/ideas.md); it will run as a new `RETENTION_ROLE`, owned by the
   procedures and held only by a new service user. The note below is the
