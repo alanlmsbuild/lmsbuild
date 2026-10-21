@@ -26,7 +26,7 @@ export const STATUS_QUERY = `
 `
 
 // Each job's status, in JOB_ORDER, from STATUS_QUERY's rows. lastResult is
-// succeeded, failed, refused, running, didn't finish (open past its lock
+// succeeded, failed, partial (some steps failed, some did not), refused, running, didn't finish (open past its lock
 // window) or never run. Overdue: no success within the job's limit.
 // A full vacancy run also counts as a success for new adverts.
 const iso = (value) => (value == null ? null : new Date(value).toISOString())

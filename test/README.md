@@ -17,6 +17,7 @@ puts it back.
     node test/db/skills-import.mjs      # the Skills England import (one live request each)
     node test/db/jobs.mjs               # the scheduler and job records, fake jobs
     node test/db/meadow-board.mjs       # Meadow's pipeline board, as CRM_APP_USER (reads only)
+    node test/official-partial.mjs      # official-* jobs: a failing step doesn't stop the others (no Snowflake)
     node test/uk-time.mjs               # UK time either side of the clocks changing
     test/stop-test-servers.py           # stops only those two servers
 

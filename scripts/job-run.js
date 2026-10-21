@@ -139,7 +139,7 @@ const FINISH = `
 export class JobTimeout extends Error {}
 
 // Runs one job and records it. run(connection, jobRunId) does the work and returns
-// { outcome: 'succeeded' | 'failed' | 'refused', ref, error, summary }; a
+// { outcome: 'succeeded' | 'partial' | 'failed' | 'refused', ref, error, summary }; a
 // throw is recorded as failed. Returns that result with the JOBRUNID.
 // timeoutMinutes (scheduled runs): a run still going is recorded as failed
 // and JobTimeout thrown, so the caller can stop the process.

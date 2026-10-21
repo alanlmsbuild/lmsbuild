@@ -25,7 +25,13 @@ runs when it's due, and every run, scheduled or by hand, is recorded in
 | `website-links` (a seventh of the website links, so each weekly) | 24 hours | 26 hours |
 
 The `official-*` jobs (`scripts/fetch-official.js`) fetch only what's new
-into the data folder, then load it as `DATA_LOAD_USER` (`npm run load:data`
+into the data folder, then load it as `DATA_LOAD_USER`. Each fetch and each
+load step is independent: one failing doesn't stop the others. If some fail
+the run is recorded as **partial** (not a success, so it is tried again no
+sooner than an hour later; steps already loaded are skipped), with the failed
+fetches and steps, and why, in its `OPS.JOB_RUN` summary and error; if every
+load step fails it is **failed**. Managers' Data updates tile shows "Partly
+done: some steps failed". The loads (`npm run load:data`
 steps 14, 15 and 26 for Nomis; 17 to 19 for the DfE API; 24 for
 Stat-Xplore, which needs `STATXPLORE_API_KEY` in `server/.env`; 25 and 29
 for ONS; 27 for Ofqual; 34 to 36 and 38 for the monthly ones, police.uk
