@@ -43,7 +43,7 @@ Tuesday at least 14 days ahead, skipping school holidays and the week of the
 13 December timetable change, the same date for bus and rail, and stops if
 either feed doesn't cover it. The first run is on Tuesday 10 November 2026.
 
-Reach map (agreed 22 October 2026; Options app build brief, milestone 1): a
+Reach map (agreed 21 October 2026; Options app build brief, milestone 1): a
 local-only page that shades South Yorkshire's LSOAs by travel time from a
 chosen area or postcode, with colleges, sixth forms and universities as dots.
 The times are exported once from gold to static files, one per origin LSOA
@@ -70,7 +70,7 @@ establishments with a sixth form, all with eastings and northings) and
 Discover Uni's LOCATION table (latitude and longitude for each campus,
 including Sheffield and Sheffield Hallam).
 
-The reach page (session 2, 22 October 2026, local only; school-leavers-app,
+The reach page (session 2, 21 October 2026, local only; school-leavers-app,
 src/pages/reach.astro, branch reach-map): the map is Leaflet 1.9.4 with
 OpenStreetMap tiles, the one thing the page asks another site for (a tile's
 address holds only its place on the map, and the browser test proves nothing

@@ -3,7 +3,7 @@
 -- boundaries for England and Wales, generalised to 20 m and clipped to the
 -- coast (BGC, V5), in SHARED_DB.RAW. The same 2021 LSOAs as GOLD.TRAVEL_TIME
 -- (its centroids are the ONS December 2021 population-weighted centroids,
--- V4), checked on 22 October 2026: all 860 South Yorkshire LSOAs the times
+-- V4), checked on 21 October 2026: all 860 South Yorkshire LSOAs the times
 -- cover have a boundary (scripts/reach/fetch-boundaries.js). Loaded by
 -- npm run load:data (a new step, written after this file has run), as
 -- DATA_LOAD_USER, logged in OPS.JOB_RUN.

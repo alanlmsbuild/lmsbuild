@@ -2,7 +2,7 @@
 -- the 7,264 2021 MSOAs of England and Wales ("Crookes" for Sheffield 026),
 -- version 2.3 (13 February 2026), in SHARED_DB.RAW. The reach map shows an
 -- LSOA by its MSOA's name, with the ONS code in small text; the 860 South
--- Yorkshire travel LSOAs fall in 171 MSOAs, every one named (checked on 22
+-- Yorkshire travel LSOAs fall in 171 MSOAs, every one named (checked on 21
 -- October 2026, scripts/reach/fetch-msoa-names.js). Loaded by npm run
 -- load:data -- 46, as DATA_LOAD_USER, logged in OPS.JOB_RUN.
 --
