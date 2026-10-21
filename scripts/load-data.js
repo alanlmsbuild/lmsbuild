@@ -63,6 +63,7 @@
 //   43 ilr-dummy-data.xlsx, its three sheets as they are (TEST DATA)    -> CAPTURE_DB.TEST_BASELINE
 //   44 Network Rail SCHEDULE extract and CORPUS, the rail GTFS for the day -> SHARED_DB.RAW
 //   45 ONS LSOA (December 2021) boundaries, BGC V5, England and Wales (reach map) -> SHARED_DB.RAW
+//   46 House of Commons Library MSOA names, 2021 (reach map) -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -406,6 +407,14 @@ export const STEPS = {
     rows: async ({ file }) => JSON.parse(fs.readFileSync(file, 'utf8')).features.map((f, i) => ({ n: i + 1, properties: f.properties, geometry: f.geometry })),
     cols: { FEATURENUMBER: '$1:n::number', PROPERTIES: '$1:properties', GEOMETRY: '$1:geometry' } }),
     runLabel: 'ONS LSOA boundaries (reach map)' },
+  // The reach map's friendly area names: the House of Commons Library's MSOA
+  // names (sql/load_13), from scripts/reach/fetch-msoa-names.js.
+  46: { job: 'load-msoa-names', run: async (loader) => {
+    const [file] = newest(REACH, /^msoa-names-\d+\.\d+\.csv$/).slice(-1)
+    return [await loader.loadCsv({ home: 'SHARED_DB', format: 'SHARED_DB.RAW.CSV_UTF8', source: 'hocl-msoa-names', publisher: 'House of Commons Library',
+      licence: 'Open Parliament Licence v3.0', title: `MSOA Names (2021 MSOAs, England and Wales), version ${path.basename(file).match(/(\d+\.\d+)/)[1]}`,
+      page: 'https://houseofcommonslibrary.github.io/msoanames/', kind: 'as-downloaded', file, table: 'SHARED_DB.RAW.HOCL_MSOA_NAME' })]
+  }, runLabel: 'House of Commons Library MSOA names (reach map)' },
   // ---------------------------------------------------------------- test data
   43: { job: 'load-ilr-dummy', run: async (loader) => {
     const results = []

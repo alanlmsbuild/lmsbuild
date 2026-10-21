@@ -46,7 +46,7 @@ CREATE TAG IF NOT EXISTS SHARED_DB.GOVERNANCE.LAYER
 CREATE TAG IF NOT EXISTS SHARED_DB.GOVERNANCE.SOURCE
   COMMENT = 'Which data set it comes from, as SOURCE_FILE.SOURCE names it (e.g. onspd, gias, nomis-nm-2014-1); several joined with commas. Checked by a dbt test, not a fixed list.';
 CREATE TAG IF NOT EXISTS SHARED_DB.GOVERNANCE.LICENCE
-  ALLOWED_VALUES 'ogl-3', 'cc-by-4', 'cc0', 'odbl', 'mit', 'neso-odl', 'test-data', 'nr-open'
+  ALLOWED_VALUES 'ogl-3', 'cc-by-4', 'cc0', 'odbl', 'mit', 'neso-odl', 'test-data', 'nr-open', 'opl-3'
   COMMENT = 'The licence it is used under: Open Government Licence v3.0, CC BY 4.0, CC0, ODbL, MIT, NESO Open Data Licence, or test data made by Rarebit.';
 CREATE TAG IF NOT EXISTS SHARED_DB.GOVERNANCE.ATTRIBUTION
   COMMENT = 'What must be credited wherever it is shown, in plain words (e.g. Contains ONS data; Royal Mail and OS copyright). Empty when the licence asks for none.';
