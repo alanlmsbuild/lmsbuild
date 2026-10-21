@@ -8,7 +8,8 @@
 // bindings with it (tested 14 October 2026). So after the swap the SILVER
 // and GOLD tables have none, and the previous versions, now in the
 // _STAGING schemas, carry yesterday's. The job:
-//   0. makes the custom metric if it isn't there (SHOWN_BASE_UNDER_10, below)
+//   0. makes the custom metrics if they aren't there (SHOWN_BASE_UNDER_10 and the two fares
+//      ones, below)
 //   1. removes the bindings from the _STAGING tables
 //   2. attaches every metric below to its table, each with its
 //      expectation, on a 5-minute schedule
@@ -40,6 +41,29 @@ const CREATE_SHOWN_BASE_UNDER = `create data metric function if not exists ${SHO
   returns number
   comment = 'Rows that show a figure (status shown) based on fewer than ${HIDE_BELOW} people: the honesty rules (dbt macros/figure.sql) say none. Attached to the gold figure tables by scripts/data-quality.js.'
   as 'select count_if(ARG_STATUS = ''shown'' and ARG_BASE < ${HIDE_BELOW}) from ARG_T'`
+
+// Two more custom metrics, on the fares tables (gold bus_fare and tram_fare, decision 19
+// phase C, 21 October 2026):
+//   FARE_PRICE_PROBLEMS  rows whose price is empty or £0.00: a free fare must read "Free"
+//                        (price_text), never a zero price; a range may not start at "£0.00"
+//   FARES_OVER_12_MONTHS rows whose "as at" date is over 12 months old: fares that old stay
+//                        in silver and are not shown (gold's public view)
+export const FARE_PRICE_PROBLEMS = 'SHARED_DB.GOVERNANCE.FARE_PRICE_PROBLEMS'
+export const FARES_OVER_12_MONTHS = 'SHARED_DB.GOVERNANCE.FARES_OVER_12_MONTHS'
+const CREATE_FARE_METRICS = [
+  `create data metric function if not exists ${FARE_PRICE_PROBLEMS}(ARG_T table(ARG_MIN number, ARG_MAX number, ARG_TEXT varchar))
+  returns number
+  comment = 'Fares rows with no price, or a zero price not labelled Free (a free fare reads Free in price_text; no price text starts at 0.00). Expected 0. Attached to gold bus_fare and tram_fare by scripts/data-quality.js.'
+  as 'select count_if(ARG_MIN is null or ARG_MAX is null or ARG_TEXT is null or (ARG_MAX = 0 and ARG_TEXT <> ''Free'') or (ARG_MIN = 0 and ARG_MAX > 0 and ARG_TEXT not like ''Free to%'') or ARG_TEXT like ''%£0.00%'') from ARG_T'`,
+  `create data metric function if not exists ${FARES_OVER_12_MONTHS}(ARG_T table(ARG_AS_AT date))
+  returns number
+  comment = 'Fares rows whose as-at date is over 12 months old: those stay in silver and are not in gold. Expected 0. Attached to gold bus_fare and tram_fare by scripts/data-quality.js.'
+  as 'select count_if(ARG_AS_AT is null or ARG_AS_AT < dateadd(month, -12, current_date())) from ARG_T'`,
+]
+const fares = () => [
+  { fn: FARE_PRICE_PROBLEMS, on: ['price_min', 'price_max', 'price_text'], name: 'FARE_PRICE_PROBLEMS', expect: 'VALUE = 0' },
+  { fn: FARES_OVER_12_MONTHS, on: ['as_at'], name: 'FARES_OVER_12_MONTHS', expect: 'VALUE = 0' },
+]
 
 // The metrics, with thresholds from the tables on 14 October 2026 (in
 // brackets) and room for normal change. FRESHNESS needs a timestamp column,
@@ -74,6 +98,9 @@ export const QUALITY = {
   // Travel times (decision 19): every pair of South Yorkshire's 860 LSOAs, nothing over the 90-minute cap.
   'SHARED_DB.GOLD.TRAVEL_TIME': [rows(700_000, 760_000), dupes('travel_key'), nulls('summary'), most('transit_minutes_p75', 90), most('walk_minutes', 90),
     most('bus_minutes_p75', 90), most('rail_minutes_p75', 90), nulls('notes')], // 739,600
+  // Fares (decision 19 phase C): no price empty or zero (free reads "Free"), nothing shown over 12 months old.
+  'SHARED_DB.GOLD.BUS_FARE': [rows(40, 300), dupes('fare_key'), nulls('price_text'), nulls('caveat'), ...fares()], // 90 (21 October 2026)
+  'SHARED_DB.GOLD.TRAM_FARE': [rows(10, 40), dupes('fare_key'), nulls('price_text'), nulls('caveat'), ...fares()], // 16
 }
 export const WAIT_MINUTES = 15
 const POLL_SECONDS = 30
@@ -101,8 +128,9 @@ async function tableExists(c, table) {
 // Steps 1 to 5. Returns the summary for OPS.JOB_RUN: metrics measured,
 // expectations met and missed (each missed one with its value).
 export async function measure(c, { log = console.log, waitMinutes = WAIT_MINUTES } = {}) {
-  // 0. The custom metric.
+  // 0. The custom metrics.
   await execute(c, CREATE_SHOWN_BASE_UNDER)
+  for (const create of CREATE_FARE_METRICS) await execute(c, create)
   // 1. Yesterday's bindings, carried into the _STAGING schemas by the swap.
   let removed = 0
   for (const table of Object.keys(QUALITY).map(staged)) {
