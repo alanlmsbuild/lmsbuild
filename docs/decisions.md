@@ -113,7 +113,20 @@ the guidelines allow); the licence is personal to Alan and can't be assigned,
 so Rarebit registers its own account when it is incorporated; NRE gives no
 support, may change the format, and will give at least 90 days' notice
 before withdrawing the Information permanently; a later version of the terms
-only applies if we opt in. The LICENCE tag value is `nre-feeds-v3`
+only applies if we opt in. The Developer Guidelines are the portal's brand
+guidelines (saved in `docs/licences/nre-brand-guidelines-2026-09/`, read
+21 October 2026): NRE is acknowledged "where possible, by providing a link to
+the NRE website for more information and by displaying the 'Powered by
+National Rail Enquiries' logo"; where the feed is combined with other feeds
+and isn't the primary information, the branding may go on an attribution
+page; the only wording given for text is "Powered by National Rail
+Enquiries" (dot matrix screens). Rarebit credits in words with a link and no
+logo (the logo is NRE's trademark, which the licence doesn't cover), and asks
+NationalRailDatafeeds@raildeliverygroup.com to confirm words alone are
+acceptable (the guidelines allow alternatives and exemptions on request)
+before any train fare is shown publicly. No Usage Charging Document is
+published; our use (a few fares downloads a year, served from our own files)
+is far below any high volume. The LICENCE tag value is `nre-feeds-v3`
 (`sql/load_17_nre_licence_tag.sql`), separate from `nr-open` (Network Rail's
 own feeds, a different licensor). The plan for the fares themselves is in
 `docs/ideas.md` until the Developer Guidelines and the Usage Charging Document
