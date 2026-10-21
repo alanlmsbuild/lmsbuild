@@ -114,6 +114,12 @@ file is loaded again (the load skips what hasn't changed):
   October 2027. A campus whose page prints no address stays in the file with
   an empty postcode and a note, and the reach page says "Some campuses aren't
   shown yet". The table's REFRESH tag is `yearly` (`sql/load_14`).
+  Two terminated Barnsley postcodes to look at each time: **S70 2AN** (the
+  college's own Church Street page still prints it; the ONS directory has
+  ended it but still places it, and `check-campuses.js` accepts it with a
+  note) and **S70 2YW** (the postcode GIAS holds for Barnsley College; also
+  ended, 233 m from a campus). If the college corrects its page to a live
+  postcode, update the file; if GIAS corrects its own record, nothing to do.
 - **Term dates** for the travel-times day (`scripts/travel/travelDay.js`):
   each summer, add the next year's terms and the timetable change dates.
 
