@@ -52,6 +52,8 @@ export const JOB_RUNNERS = {
   'travel-monthly': async (connection, log) => (await import('./travel/job.js')).runJob({ log }),
   // The silver layer: dbt as TRANSFORM_USER with its own connection.
   'transform-silver': async (connection, log) => (await import('./transform-silver.js')).runJob({ log }),
+  // The reach map's files: export, check, copy to the site (scripts/reach/job.js), after a travel-monthly run has reached gold.
+  'reach-export': async (connection, log) => (await import('./reach/job.js')).runJob({ log }),
   // The weekly link check, a seventh a day (decision 26): reads silver as
   // TRANSFORM_USER, writes EXT.WEBSITE_LINK as DATA_LOAD_USER.
   'website-links': async (connection, log, jobRunId) => (await import('./check-website-links.js')).runJob({ log, jobRunId }),

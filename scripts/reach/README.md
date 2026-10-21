@@ -18,7 +18,10 @@ in another form (decision 19, ODbL question).
    (every number, 5.9 million of them), that all 860 boundaries are loaded,
    and that postcodes and places point at real LSOAs.
 
-Re-run 3 and 4 after each monthly travel-times refresh.
+Steps 3 and 4 (and the copy into the school leavers site, `npm run reach:data`
+there) are done automatically after each monthly travel-times refresh by the
+`reach-export` job (`scripts/reach/job.js`, docs/scheduling.md). Run them by
+hand only to refresh sooner, or after the college campuses change.
 
 Dots: GIAS open colleges and establishments with a sixth form (special
 schools left out) whose position is inside one of the 860 LSOAs, and Discover

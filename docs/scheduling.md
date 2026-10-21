@@ -1,7 +1,8 @@
 # Scheduling the background jobs
 
-Thirteen jobs: eleven keep outside data up to date, a twelfth builds the
-silver layer from it, and a thirteenth checks the website links in it. Each
+Fourteen jobs: eleven keep outside data up to date, a twelfth builds the
+silver layer from it, a thirteenth exports the reach map's files from gold,
+and a fourteenth checks the website links in it. Each
 runs when it's due, and every run, scheduled or by hand, is recorded in
 `OPS.JOB_RUN`. They are listed in the order a tick runs them
 (`JOB_ORDER` in `server/jobSchedule.js`):
@@ -20,6 +21,7 @@ runs when it's due, and every run, scheduled or by hand, is recorded in
 | `official-monthly` (police.uk, provider register, NaPTAN, listed buildings, Wikidata places) | 30 days | 32 days |
 | `travel-monthly` (travel times: Network Rail timetable, OpenStreetMap, rail GTFS, the four r5py runs; refuses to start with under 5.5 GB free, so it waits for the dev servers to be stopped) | 30 days | 32 days |
 | `transform-silver` (the silver layer: dbt build, tests, swap in) | 24 hours | 26 hours |
+| `reach-export` (the reach map's files: export from gold, check, copy to the school leavers site; not on a clock: runs after a new `travel-monthly` run has been built into gold) | at least 24 hours, and only after a new travel run | 34 days |
 | `website-links` (a seventh of the website links, so each weekly) | 24 hours | 26 hours |
 
 The `official-*` jobs (`scripts/fetch-official.js`) fetch only what's new
@@ -68,6 +70,21 @@ venv in the checkout (`.venv-dbt`, made as `dbt/requirements.txt` says;
 not committed, so a new checkout needs it made). By hand:
 `npm run transform:silver` (recorded, as manual) or `npm run silver:build`
 (the same, not recorded).
+
+`reach-export` (`scripts/reach/job.js`, gap 3 of docs/data-journey.md)
+follows `travel-monthly`: it is due only when a travel run has finished since
+the last export and `transform-silver` has then succeeded (so gold has the new
+times), at least 24 hours after the last export, and never the first time
+before both have run. It is in the `official` lock group, so it never reads
+gold while a silver swap is running. It runs `scripts/reach/export.js`, then
+`check-export.js` (any failed check fails the job, and nothing is copied), then
+`npm run reach:data` in the school leavers site (`~/school-leavers-app`, or
+`SCHOOL_LEAVERS_APP_DIR`) given this checkout's `data/reach/export`. If that
+folder isn't there the copy is skipped: the run still succeeds, but the skip
+is logged and recorded in its `OPS.JOB_RUN` summary (`copied: false`,
+`skipped: why`). A run takes about 15 seconds. By hand: `node scripts/reach/job.js`
+(`--record` to record it as a manual run). Don't run `reach:data` yourself
+after a failed export: the export folder may be half written.
 
 `website-links` (`scripts/check-website-links.js`, decision 26) runs after
 the silver build, in its own `links` lock group. Each day it checks the
@@ -165,7 +182,7 @@ file is loaded again (the load skips what hasn't changed):
 ## Seeing that a tick has finished
 
 The first tick after setting up runs every job that's overdue (up to all
-thirteen; the travel times alone take about an hour, so allow well over
+fourteen; the travel times alone take about an hour, so allow well over
 an hour in all). To follow it:
 
 - **WSL terminal** (Ubuntu): watch the jobs log. Each job writes a line as
