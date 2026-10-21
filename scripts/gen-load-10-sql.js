@@ -52,6 +52,7 @@ const ATTRIBUTION = {
   'onspd-lookups': ONSPD,
   'ons-lsoa-pwc': 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.',
   'college-campuses': 'Campus addresses are from each college\'s own website (the page is given on each row).',
+  'bods-fares': 'Contains public sector information licensed under the Open Government Licence v3.0.',
   'hocl-msoa-names': 'Contains Parliamentary information licensed under the Open Parliament Licence v3.0. MSOA Names © House of Commons Library.',
   'ons-lsoa-boundaries': 'Source: Office for National Statistics licensed under the Open Government Licence v3.0. Contains OS data © Crown copyright and database right.',
   'neso-dno-areas': 'Supported by National Energy SO Open Data',
