@@ -70,6 +70,27 @@ try {
   await destroy(c)
 }
 
+// The fares panel's data: exactly gold's rows, none with a zero or empty price, none over 12 months old.
+const fares = read('fares.json')
+{
+  const c2 = await connect({ as: 'transform', timeoutMs: 60000 })
+  try {
+    const [b] = await execute(c2, `select count(*) as N, sum(price_min) as S from SHARED_DB.GOLD.BUS_FARE`)
+    const [t] = await execute(c2, `select count(*) as N, sum(price_min) as S from SHARED_DB.GOLD.TRAM_FARE`)
+    const sum = (rows) => Math.round(rows.reduce((a, r) => a + r.min, 0) * 100) / 100
+    check(fares.bus.length === Number(b.N) && sum(fares.bus) === Number(b.S), `fares.json: ${fares.bus.length} bus fares, as gold has them (sum of lowest prices ${sum(fares.bus)})`)
+    check(fares.tram.length === Number(t.N) && sum(fares.tram) === Number(t.S), `fares.json: ${fares.tram.length} tram fares, as gold has them`)
+  } finally {
+    await destroy(c2)
+  }
+}
+const allFares = [...fares.bus, ...fares.tram]
+const cutoff = new Date(`${fares.built_on}T00:00:00Z`)
+cutoff.setUTCMonth(cutoff.getUTCMonth() - 12)
+check(allFares.every((f) => f.min !== null && f.max !== null && f.text && (f.max > 0 || f.text === 'Free') && !/£0\.00/.test(f.text)), 'fares.json: no empty or zero price (a free fare reads Free)')
+check(allFares.every((f) => f.as_at && new Date(`${f.as_at}T00:00:00Z`) >= cutoff && /^As at .+: check with /.test(f.caveat)), 'fares.json: every fare has an "as at" date within 12 months and says to check with the operator')
+check(fares.bus.every((f) => ['child', '16-18', '18-21', 'student', 'young-person', 'adult'].includes(f.who)) && fares.tram.every((f) => ['child', '16-18', '18-21', 'student', 'adult'].includes(f.who)), 'fares.json: every fare is for someone the panel knows')
+
 const shapes = read('boundaries.json').features
 check(shapes.length === 860 && shapes.every((f, i) => f.properties.c === meta.lsoas[i].c && f.id === i && ['Polygon', 'MultiPolygon'].includes(f.geometry.type)),
   `boundaries.json: ${shapes.length} polygons in meta's order`)

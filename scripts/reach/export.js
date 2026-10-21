@@ -18,6 +18,8 @@
 //   postcodes.json     live postcode -> LSOA index for the 860, by district
 //                      then the rest of the postcode, for a lookup that stays
 //                      on the device
+//   fares.json         typical bus and tram fares (gold bus_fare and tram_fare), the
+//                      fares panel's data: not tied to any area or journey
 //   places.json        dots: colleges and sixth forms (GIAS; special schools left
 //                      out) and universities
 //                      (Discover Uni) inside the 860 LSOAs, each with its LSOA
@@ -36,7 +38,7 @@ const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const OUT = path.join(REPO, 'data', 'reach', 'export')
 const MODES = ['walk', 'bus', 'train', 'train and bus']
 const GOLD = 'SHARED_DB.GOLD.TRAVEL_TIME'
-const ATTRIBUTION_TABLES = ['SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN', 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', 'SHARED_DB.RAW.ONSPD', 'OPTIONS_DB.RAW.GIAS_ESTABLISHMENT', 'OPTIONS_DB.RAW.DISCOVERUNI_LOCATION', 'SHARED_DB.RAW.HOCL_MSOA_NAME', 'SHARED_DB.RAW.COLLEGE_CAMPUS']
+const ATTRIBUTION_TABLES = ['SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN', 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', 'SHARED_DB.RAW.ONSPD', 'OPTIONS_DB.RAW.GIAS_ESTABLISHMENT', 'OPTIONS_DB.RAW.DISCOVERUNI_LOCATION', 'SHARED_DB.RAW.HOCL_MSOA_NAME', 'SHARED_DB.RAW.COLLEGE_CAMPUS', 'SHARED_DB.RAW.BODS_FARES_DATASET', 'SHARED_DB.RAW.SUPERTRAM_FARE']
 
 const write = (name, data) => {
   const file = path.join(OUT, name)
@@ -200,6 +202,20 @@ try {
   places.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name) || String(a.campus ?? '').localeCompare(String(b.campus ?? '')))
   sizes.places = write('places.json', places)
 
+  // ---- fares (decision 19 phase C): gold bus_fare and tram_fare, as they are
+  const busFares = await q(`select fare_key, operator_name, nocs, category, who, who_label, pass_name, price_min, price_max, price_text, products, to_varchar(as_at) as as_at, caveat, tram_note, to_varchar(built_on) as built_on
+    from SHARED_DB.GOLD.BUS_FARE order by operator_name, who, category, pass_name`)
+  const tramFares = await q(`select fare_key, ticket, category, who, who_label, price_min, price_max, price_text, bought, note, source_url, to_varchar(as_at) as as_at, caveat from SHARED_DB.GOLD.TRAM_FARE order by who, category, price_min`)
+  const num = (v) => (v === null ? null : Number(v))
+  sizes.fares = write('fares.json', {
+    built_on: busFares[0]?.BUILT_ON ?? null,
+    tram_note: busFares[0]?.TRAM_NOTE ?? null,
+    bus: busFares.map((r) => ({ key: r.FARE_KEY, operator: r.OPERATOR_NAME, category: r.CATEGORY, who: r.WHO, who_label: r.WHO_LABEL, pass: r.PASS_NAME, min: num(r.PRICE_MIN), max: num(r.PRICE_MAX),
+      text: r.PRICE_TEXT, products: r.PRODUCTS, as_at: r.AS_AT, caveat: r.CAVEAT })),
+    tram: tramFares.map((r) => ({ key: r.FARE_KEY, ticket: r.TICKET, category: r.CATEGORY, who: r.WHO, who_label: r.WHO_LABEL, min: num(r.PRICE_MIN), max: num(r.PRICE_MAX),
+      text: r.PRICE_TEXT, bought: r.BOUGHT, note: r.NOTE, source_url: r.SOURCE_URL, as_at: r.AS_AT, caveat: r.CAVEAT })),
+  })
+
   // ---- meta
   const attributions = new Set(['© OpenStreetMap contributors'])
   for (const t of ATTRIBUTION_TABLES) {
@@ -214,6 +230,7 @@ try {
   })
 
   const kb = (n) => `${(n / 1024).toFixed(0)} KB`
+  console.log(`fares.json ${kb(sizes.fares)} (${busFares.length} bus and ${tramFares.length} tram fares)`)
   console.log(`origins: ${origins.size} files, ${(sizes.origins / 1e6).toFixed(1)} MB in all (${kb(sizes.origins / origins.size)} each)`)
   console.log(`boundaries.json ${kb(sizes.boundaries)}; postcodes.json ${kb(sizes.postcodes)} (${pcRows.length.toLocaleString()} postcodes in ${Object.keys(postcodes).length} districts); places.json ${kb(sizes.places)} (${places.length} dots: ${JSON.stringify(dots)}; campuses ${JSON.stringify(campusStats)}; ${outside} GIAS and ${uniOutside} university locations outside the area left out); meta.json ${kb(sizes.meta)}`)
 } finally {
