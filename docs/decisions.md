@@ -124,7 +124,7 @@ Enquiries" (dot matrix screens). Rarebit credits in words with a link and no
 logo (the logo is NRE's trademark, which the licence doesn't cover), and asks
 NationalRailDatafeeds@raildeliverygroup.com to confirm words alone are
 acceptable (the guidelines allow alternatives and exemptions on request)
-before any train fare is shown publicly. No Usage Charging Document is
+before any train fare is shown publicly. RDG's fares data page (21 October 2026) says the fares data, "released three times each year", is available from the National Rail Data Portal "for use in proof of concept or development work"; whether a live public app is covered is unanswered (Alan has asked RDG), so the fares stay local only: loaded to bronze (`RDG_FARES_LINE`, load:data step 50, 24 files and 9.8 million lines of feed 924) and nothing built on them or shown. The specification, RSPS5045 ("Fares and associated data feed interface specification", version P-02-03 of 3 June 2025, rspaccreditation.org), is to be saved in `docs/licences/rsps5045/` and read before silver. No Usage Charging Document is
 published; our use (a few fares downloads a year, served from our own files)
 is far below any high volume. The LICENCE tag value is `nre-feeds-v3`
 (`sql/load_17_nre_licence_tag.sql`), separate from `nr-open` (Network Rail's

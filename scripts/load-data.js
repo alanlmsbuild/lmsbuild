@@ -492,6 +492,7 @@ export const STEPS = {
       // Each line as it is, as one quoted field beside its file type.
       const linesToCsv = async (out) => {
         async function* rows() {
+          yield csvLine(['file_type', 'line'])
           let rest = ''
           for await (const chunk of await zipEntry(zip, member)) {
             const text = rest + chunk.toString('latin1')
