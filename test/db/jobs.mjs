@@ -20,6 +20,7 @@ import { connect, execute, destroy } from '../../server/db.js'
 import { JOB_ORDER, JOB_SCHEDULE } from '../../server/jobSchedule.js'
 import { isDue, JobTimeout, readState, recordRun, writeState } from '../../scripts/job-run.js'
 import { clearOldLogs, takeLock, tick } from '../../scripts/jobs.js'
+import { siteFolder } from '../../scripts/reach/job.js'
 
 let failures = 0
 const check = (label, ok, detail = '') => {
@@ -56,6 +57,25 @@ console.log('Part 1: what is due when')
   failed.jobs['companies-refresh'] = { ...failed.jobs['companies-refresh'], lastAttemptAt: iso(T0 - 30 * 60_000), lastOutcome: 'failed' }
   check('failed 30 minutes ago: not tried again yet', !isDue('companies-refresh', failed, T0))
   check('  an hour after: tried again', isDue('companies-refresh', failed, T0 + 31 * 60_000))
+
+  // reach-export follows travel-monthly, then transform-silver.
+  const D = 24 * H
+  const run = (start, hours = 1) => ({ lastSuccessAt: iso(start), lastSuccessFinishedAt: iso(start + hours * H), lastAttemptAt: iso(start), lastOutcome: 'succeeded' })
+  const reach = (travel, silver, own) => ({ jobs: { ...allDone(T0 - 60 * D).jobs, 'travel-monthly': travel, 'transform-silver': silver, 'reach-export': own } })
+  const T1 = T0 + 40 * D
+  check('reach export: nothing new since its last run, not due', !isDue('reach-export', reach(run(T0), run(T0 + 2 * H), run(T0 + 3 * H)), T1))
+  check('  travel times run, silver not yet built from them: not due', !isDue('reach-export', reach(run(T1), run(T1 - 20 * H), run(T0 + 3 * H)), T1 + 3 * H))
+  check('  silver built after the travel run finished: due', isDue('reach-export', reach(run(T1), run(T1 + 2 * H), run(T0 + 3 * H)), T1 + 3 * H))
+  check('  silver built while travel was still running (started before it finished): not due', !isDue('reach-export', reach(run(T1, 2), run(T1 + H), run(T0 + 3 * H)), T1 + 4 * H))
+  check('  never exported, travel and silver done: due', isDue('reach-export', reach(run(T1), run(T1 + 2 * H), undefined), T1 + 3 * H))
+  check('  exported again after that: not due until the next travel run', !isDue('reach-export', reach(run(T1), run(T1 + 2 * H), run(T1 + 3 * H)), T1 + 3 * D))
+  const old = (t) => ({ lastSuccessAt: iso(t), lastAttemptAt: iso(t), lastOutcome: 'succeeded' })
+  check('  an old state file with no finish times falls back to start times', isDue('reach-export', reach(old(T1), old(T1 + 2 * H), old(T0)), T1 + 3 * H))
+  const failedExport = reach(run(T1), run(T1 + 2 * H), run(T0))
+  failedExport.jobs['reach-export'] = { ...failedExport.jobs['reach-export'], lastAttemptAt: iso(T1 + 3 * H), lastOutcome: 'failed' }
+  check('  a failed export is tried again no sooner than an hour', !isDue('reach-export', failedExport, T1 + 3 * H + 30 * 60_000) && isDue('reach-export', failedExport, T1 + 4.1 * H))
+  const missing = siteFolder('/nonexistent/school-leavers-app')
+  check('  the site folder missing is a skip with a reason', !missing.ok && /isn't here/.test(missing.why), missing.why)
 
   const f = stateFile('roundtrip')
   writeState(allDone(T0), f)

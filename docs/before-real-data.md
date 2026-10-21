@@ -157,6 +157,11 @@ it. Add to this list rather than keeping these elsewhere.
   Apprenticeship Service account or a developer hub account. Decide which,
   with separate keys for development, testing and real use (the limit of
   150 requests in five minutes is per key; the import keeps under 115).
+- **Two years, then cleared: how it is measured** (2026-10-21, Alan): an
+  advert is cleared when its closing date is more than 2 years ago, or, if
+  it has no closing date, when `GONEAT` is more than 2 years ago. It will
+  run as a logged procedure under the same new `RETENTION_ROLE` as the lead
+  anonymising (see docs/ideas.md). The note below is the original question.
 - **Two years, then cleared** (2026-10-06, Alan). Closed adverts are kept 2
   years in EXT.VACANCY and RAW.FAA_VACANCY_PAGE, then cleared. That needs an
   admin job with DELETE (the app's role has none), alongside the Companies
@@ -222,6 +227,13 @@ Alan's laptop starts it, so the jobs only run while the laptop is on.
 
 ## CRM (leads and candidates)
 
+- **How long a lead is kept: decided** (2026-10-21, Alan): 12 months
+  without activity, matching the 12-month consent in
+  [decision 36](decisions.md). The
+  anonymising procedure, its job and its checks are to be built (see
+  docs/ideas.md); it will run as a new `RETENTION_ROLE`, owned by the
+  procedures and held only by a new service user. The note below is the
+  original question.
 - **How long a lead is kept** (2026-10-07, Alan). A real lead with no
   activity for a set period (no form, email, activity, task or stage move)
   is anonymised by a logged retention procedure run by the scheduler

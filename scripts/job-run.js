@@ -45,14 +45,14 @@ export function writeState(state, file = STATE_FILE) {
   fs.renameSync(tmp, file)
 }
 
-export function noteRun(job, { startedAt, outcome }, file = STATE_FILE) {
+export function noteRun(job, { startedAt, outcome, finishedAt }, file = STATE_FILE) {
   const state = readState(file)
   const prev = state.jobs[job] ?? {}
   state.jobs[job] = {
     ...prev,
     lastAttemptAt: startedAt,
     lastOutcome: outcome,
-    ...(outcome === 'succeeded' ? { lastSuccessAt: startedAt } : {}),
+    ...(outcome === 'succeeded' ? { lastSuccessAt: startedAt, ...(finishedAt ? { lastSuccessFinishedAt: finishedAt } : {}) } : {}),
   }
   writeState(state, file)
 }
@@ -69,6 +69,16 @@ export function lastSuccess(job, state) {
   return by ? Math.max(own, ms(state.jobs[by]?.lastSuccessAt)) : own
 }
 
+// A job with followsRun (server/jobSchedule.js) is due only when `after` has
+// succeeded (finished) since this job last succeeded, and `then` started and
+// succeeded after `after` finished. A finish time missing from an old state
+// file falls back to the start.
+export function followedRunIsNew(job, state) {
+  const { after, then } = JOB_SCHEDULE[job].followsRun
+  const afterDone = ms(state.jobs[after]?.lastSuccessFinishedAt ?? state.jobs[after]?.lastSuccessAt)
+  return afterDone > ms(state.jobs[job]?.lastSuccessAt) && ms(state.jobs[then]?.lastSuccessAt) > afterDone
+}
+
 // Whether a job is due at `now` (ms). Due when its last success started
 // longer ago than its interval, except straight after a failed or refused
 // attempt (tried again no sooner than RETRY_AFTER). A job covered by
@@ -76,6 +86,7 @@ export function lastSuccess(job, state) {
 export function isDue(job, state, now) {
   const s = JOB_SCHEDULE[job]
   if (now - lastSuccess(job, state) < s.every) return false
+  if (s.followsRun && !followedRunIsNew(job, state)) return false
   const last = state.jobs[job]
   if (last?.lastOutcome && last.lastOutcome !== 'succeeded' && now - ms(last.lastAttemptAt) < RETRY_AFTER) return false
   if (s.coveredBy && isDue(s.coveredBy, state, now)) return false
@@ -87,6 +98,7 @@ export function isDue(job, state, now) {
 export const SEED_QUERY = `
   select JOB,
     to_varchar(max(iff(OUTCOME = 'succeeded', STARTEDAT, null)), 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as LAST_SUCCESS,
+    to_varchar(max(iff(OUTCOME = 'succeeded', FINISHEDAT, null)), 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as LAST_SUCCESS_FINISHED,
     to_varchar(max(STARTEDAT), 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM') as LAST_ATTEMPT,
     max_by(OUTCOME, STARTEDAT) as LAST_OUTCOME
   from SHARED_DB.OPS.JOB_RUN
@@ -99,6 +111,7 @@ export function seedState(state, rows) {
       lastAttemptAt: r.LAST_ATTEMPT ? new Date(r.LAST_ATTEMPT).toISOString() : undefined,
       lastOutcome: r.LAST_OUTCOME ?? undefined,
       ...(r.LAST_SUCCESS ? { lastSuccessAt: new Date(r.LAST_SUCCESS).toISOString() } : {}),
+      ...(r.LAST_SUCCESS_FINISHED ? { lastSuccessFinishedAt: new Date(r.LAST_SUCCESS_FINISHED).toISOString() } : {}),
     }
   }
   return state
@@ -162,7 +175,7 @@ export async function recordRun({ connection, job, triggeredBy, run, log = conso
   }
   const error = result.error ? String(result.error).slice(0, 1000) : null
   await execute(connection, FINISH, [result.outcome, result.ref ?? null, error, JSON.stringify(result.summary ?? null), jobRunId])
-  noteRun(job, { startedAt, outcome: result.outcome }, stateFile)
+  noteRun(job, { startedAt, outcome: result.outcome, finishedAt: now().toISOString() }, stateFile)
   log(`${job} (${triggeredBy}): ${result.outcome}${error ? `: ${error}` : ''}`)
   if (timedOut) throw new JobTimeout(error)
   return { jobRunId, ...result }

@@ -11,6 +11,11 @@
 //                 finish: the laptop slept or was shut down)
 //   timeoutMinutes  a scheduled run still going after this is stopped
 //   coveredBy     a success of this job also counts for this one
+//   followsRun    { after, then }: due only when `after` has succeeded since
+//                 this job last did and `then` has started and succeeded after
+//                 that run finished (reach-export: a new travel-monthly, then
+//                 the silver build that puts its times in gold). `every` is
+//                 then only the least gap between two runs.
 const HOUR = 60 * 60 * 1000
 
 export const JOB_SCHEDULE = {
@@ -132,6 +137,21 @@ export const JOB_SCHEDULE = {
     lockHours: 2,
     timeoutMinutes: 45,
   },
+  // The reach map's static files (scripts/reach/job.js): exported from gold
+  // after each travel-monthly run has been built into silver and gold, checked
+  // against gold, and copied to the school leavers site if it is here. In the
+  // official lock group, so it never reads gold while a silver swap is running.
+  // Overdue after travel-monthly's 32 days and two more.
+  'reach-export': {
+    label: 'Reach map: export, check and copy to the site',
+    short: 'Reach map',
+    every: 24 * HOUR,
+    overdueAfter: 34 * 24 * HOUR,
+    lockGroup: 'official',
+    lockHours: 2,
+    timeoutMinutes: 20,
+    followsRun: { after: 'travel-monthly', then: 'transform-silver' },
+  },
   // Decision 26 (scripts/check-website-links.js): a seventh of the website
   // links in silver each day, so each is checked weekly. Its own lock group:
   // it only reads silver and writes its own tables.
@@ -147,7 +167,7 @@ export const JOB_SCHEDULE = {
 }
 
 // The order a tick runs due jobs in, one at a time.
-export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-monthly', 'travel-monthly', 'transform-silver', 'website-links']
+export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-monthly', 'travel-monthly', 'transform-silver', 'reach-export', 'website-links']
 
 // A failed or refused job isn't tried again sooner than this.
 export const RETRY_AFTER = HOUR

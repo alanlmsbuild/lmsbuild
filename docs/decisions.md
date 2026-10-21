@@ -154,6 +154,17 @@ Added 14 October 2026:
 - The tags are real Snowflake tags in SHARED_DB.GOVERNANCE (the account is
   Enterprise), made by `sql/silver_01_setup.sql`.
 
+## 36. Consent from the options app to Meadow
+
+From the Rarebit plan (kept outside the repo), dated 16 October 2026.
+
+F0 options app → Meadow consent: consent lasts 12 months with a renewal
+reminder; 16-17-year-olds share for themselves with a nudge to tell a parent
+or carer; under-16s can't share; providers are asked to reply within 5
+working days, and each provider's usual reply time is shown to families;
+withdrawing closes the Meadow record and deletes the details, keeping only
+the consent events as proof.
+
 ## Recorded 14 October 2026: SYSADMIN holds ILR_APP_ROLE
 
 ILR_APP_ROLE (the app's role) is held by ILR_APP_USER and also by the role
