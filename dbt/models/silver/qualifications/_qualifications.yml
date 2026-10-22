@@ -41,7 +41,12 @@ models:
                 values: ['GCSE', 'A level', 'AS level', 'T Level', 'Extended Project', 'Functional Skills', 'BTEC', 'Other vocational', 'Other']
       - name: on_cards
         data_type: boolean
-        description: 'Whether the options app shows a card for it (the seven card families).'
+        description: 'Whether the options app shows a card for it: one of the seven card families and, where the register lists the same qualification twice (duplicate_in_register), the one row kept: TQT filled in, then the most recently updated.'
+        data_tests:
+          - not_null
+      - name: duplicate_in_register
+        data_type: boolean
+        description: 'True on both rows when the register lists the same card-family qualification twice (same title, board and level); only one of them has on_cards.'
         data_tests:
           - not_null
       - name: card_name
