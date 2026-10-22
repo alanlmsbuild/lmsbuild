@@ -276,3 +276,8 @@ Alan's laptop starts it, so the jobs only run while the laptop is on.
   work, the kind of work and its risks, as the rules for employing young
   people require), and the screens need a filter that leaves out jobs that
   haven't passed it.
+
+## Ofqual register
+
+- **The organisations file's contact details: dropped** (2026-10-22, Alan decided). `contactEmail`, `phoneNumber` and the six `address…` fields of each awarding organisation are left out of the file the fetch saves and of the load (the OGL doesn't cover personal data; Rarebit doesn't need them). Data loaded before the change is removed by `sql/ofqual_01_remove_contact_details.sql` (the table, four stage files and two `SOURCE_FILE` rows), run by Alan. Which fields, and why: `docs/licences/ofqual-register-2026-10/README.md`.
+

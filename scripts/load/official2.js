@@ -24,6 +24,7 @@ import { SaxesParser } from 'saxes'
 import { csvLine, csvRecords, writeLines, zipEntry, zipNames } from './files.js'
 import { NOMIS_SETS } from '../fetch-official.js'
 import { SX_SETS, sxFetched } from './statxplore.js'
+import { OFQUAL_PERSONAL_FIELDS, withoutPersonalFields } from './ofqual.js'
 
 const OGL = 'Open Government Licence v3.0'
 const OGL_ONS = 'Open Government Licence v3.0 (credit the Office for National Statistics)'
@@ -227,8 +228,12 @@ export function officialSteps2(R) {
         ...await loader.loadJsonLines({ ...base, title: 'Ofqual register: qualifications (API, all pages)', table: 'SHARED_DB.RAW.OFQUAL_QUALIFICATION',
           originals: files(dir, /^ofqual_qualifications_.*\.jsonl$/).map((file) => ({ file })), rows: lines,
           cols: { LINENUMBER: '$1:n::number', QUALIFICATIONNUMBER: '$1:item:qualificationNumber::string', ITEM: '$1:item' } }),
+        // Contact details are out of the file already (fetch-official.js) and are taken out again here, so a file saved before that change never reaches
+        // Snowflake with them, and its original stays out of the stage (as GIAS).
         ...await loader.loadJsonLines({ ...base, title: 'Ofqual register: awarding organisations (API, all pages)', table: 'SHARED_DB.RAW.OFQUAL_ORGANISATION',
-          originals: files(dir, /^ofqual_organisations_.*\.jsonl$/).map((file) => ({ file })), rows: lines,
+          kind: 'columns-removed', removed: OFQUAL_PERSONAL_FIELDS, stageOriginal: false,
+          originals: files(dir, /^ofqual_organisations_.*\.jsonl$/).map((file) => ({ file })),
+          rows: async ({ file }) => (await lines({ file })).map((r) => ({ ...r, item: withoutPersonalFields(r.item) })),
           cols: { LINENUMBER: '$1:n::number', RECOGNITIONNUMBER: '$1:item:recognitionNumber::string', ITEM: '$1:item' } }),
       ]
     } },

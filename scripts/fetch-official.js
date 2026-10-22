@@ -29,6 +29,7 @@ import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { SX_SETS, fetchStatXplore } from './load/statxplore.js'
+import { withoutPersonalFields } from './load/ofqual.js'
 
 const RAREBIT_DATA = process.env.RAREBIT_DATA || '/mnt/c/Users/alanb/rarebit-data'
 const NOMIS = 'https://www.nomisweb.co.uk/api/v01/dataset/'
@@ -134,29 +135,79 @@ export async function fetchOns(set, { root = RAREBIT_DATA, log = console.log } =
 }
 
 // The Ofqual register (API, no key), every page, as JSON lines; a new
-// dated file only if it differs from the last one fetched.
-export async function fetchOfqual(what, { root = RAREBIT_DATA, log = console.log } = {}) {
+// dated file only if it differs from the last one fetched. 10,000 is the
+// most the API accepts a page (it answers 400 above that; checked 22 October
+// 2026), so the register is 6 calls, not about 270.
+//
+// Checked before anything is written (a failed check throws, and the
+// scheduler records the run as failed):
+//   - the records fetched equal the API's own count (a page that came back
+//     short or empty, or a register that changed mid-fetch, is an error:
+//     it used to end the fetch quietly with whatever it had)
+//   - every record has a distinct key (the QAN or the recognition number)
+//   - the fields are the same as in the last file (any added or removed)
+//   - the register hasn't shrunk by more than OFQUAL_SHRINK_LIMIT
+// A real change that trips the last two is accepted by running once with
+// OFQUAL_ACCEPT_CHANGES=1.
+//
+// Organisation records are saved without their contact details (email, phone,
+// postal address: scripts/load/ofqual.js), and the last file is read the same
+// way, so one saved before that change still compares fine.
+export const OFQUAL_PAGE_LIMIT = 10000
+export const OFQUAL_SHRINK_LIMIT = 0.05
+const OFQUAL_KEYS = { Qualifications: 'qualificationNumber', Organisations: 'recognitionNumber' }
+
+// What is wrong with a fetched set of records, as a list of sentences:
+// `records` against `count`, and against `previous` (the last file's records,
+// or null). Pure, for the tests.
+export function ofqualProblems(what, records, count, previous, { acceptChanges = false } = {}) {
+  const key = OFQUAL_KEYS[what]
+  const problems = []
+  if (records.length !== count) problems.push(`fetched ${records.length} records but the API says ${count}`)
+  const present = records.map((r) => r[key]).filter((k) => k !== undefined && k !== null && k !== '')
+  const repeated = present.length - new Set(present).size
+  const missing = records.length - present.length
+  if (repeated || missing) problems.push(`${repeated} repeated and ${missing} missing ${key}`)
+  if (previous && !acceptChanges) {
+    const fields = (rs) => new Set(rs.flatMap((r) => Object.keys(r)))
+    const was = fields(previous)
+    const now = fields(records)
+    const added = [...now].filter((k) => !was.has(k))
+    const removed = [...was].filter((k) => !now.has(k))
+    if (added.length || removed.length) problems.push(`the fields changed (added: ${added.join(', ') || 'none'}; removed: ${removed.join(', ') || 'none'})`)
+    if (previous.length && records.length < previous.length * (1 - OFQUAL_SHRINK_LIMIT)) problems.push(`the register shrank from ${previous.length} to ${records.length} records (more than ${OFQUAL_SHRINK_LIMIT * 100}%)`)
+  }
+  return problems
+}
+
+export async function fetchOfqual(what, { root = RAREBIT_DATA, log = console.log, getJson = async (url) => (await get(url)).json(), acceptChanges = process.env.OFQUAL_ACCEPT_CHANGES === '1' } = {}) {
   const dir = path.join(root, 'ofqual')
   fs.mkdirSync(dir, { recursive: true })
   const out = path.join(dir, `ofqual_${what.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.jsonl`)
-  const lines = []
-  for (let page = 1, count = Infinity; lines.length < count; page++) {
+  const records = []
+  let count = Infinity
+  for (let page = 1; records.length < count; page++) {
     let d
     for (let t = 1; !d; t++) {
-      try { d = await (await get(`https://register-api.ofqual.gov.uk/api/${what}?page=${page}&limit=200`)).json() } catch (e) { if (t >= 6) throw e; await new Promise((r) => setTimeout(r, 2000 * t)) }
+      try { d = await getJson(`https://register-api.ofqual.gov.uk/api/${what}?page=${page}&limit=${OFQUAL_PAGE_LIMIT}`) } catch (e) { if (t >= 6) throw e; await new Promise((r) => setTimeout(r, 2000 * t)) }
     }
+    if (page > 1 && d.count !== count) throw new Error(`Ofqual ${what}: the register changed while it was being fetched (${count} records, then ${d.count}); will try again`)
     count = d.count
     if (!d.results.length) break
-    lines.push(...d.results.map((x) => JSON.stringify(x)))
+    records.push(...d.results)
   }
-  const text = lines.join('\n') + '\n'
+  if (what === 'Organisations') records.forEach((r, i) => { records[i] = withoutPersonalFields(r) })
   const previous = fs.readdirSync(dir).filter((n) => n.startsWith(`ofqual_${what.toLowerCase()}_`) && n.endsWith('.jsonl')).sort().at(-1)
-  if (previous && fs.readFileSync(path.join(dir, previous), 'utf8') === text) {
+  const previousText = previous ? fs.readFileSync(path.join(dir, previous), 'utf8') : null
+  const problems = ofqualProblems(what, records, count, previousText ? previousText.split('\n').filter(Boolean).map((l) => (what === 'Organisations' ? withoutPersonalFields(JSON.parse(l)) : JSON.parse(l))) : null, { acceptChanges })
+  if (problems.length) throw new Error(`Ofqual ${what}: not saved: ${problems.join('; ')}.${problems.some((p) => /^the (fields changed|register shrank)/.test(p)) ? ' (A real change: run once with OFQUAL_ACCEPT_CHANGES=1.)' : ''}`)
+  const text = records.map((x) => JSON.stringify(x)).join('\n') + '\n'
+  if (previousText === text) {
     log(`  Ofqual ${what}: no change since ${previous}`)
     return null
   }
   fs.writeFileSync(out, text)
-  log(`  Ofqual ${what}: ${lines.length} records, ${path.basename(out)}`)
+  log(`  Ofqual ${what}: ${records.length} records, ${path.basename(out)}`)
   return out
 }
 

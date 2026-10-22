@@ -154,6 +154,29 @@ Added 14 October 2026:
 - The tags are real Snowflake tags in SHARED_DB.GOVERNANCE (the account is
   Enterprise), made by `sql/silver_01_setup.sql`.
 
+Added 22 October 2026: clearing data out of Snowflake.
+
+When a clean-up has to remove data we shouldn't hold (a column of personal
+data, a file), the table's old version must be gone too, not just the live
+rows:
+
+- Set the table's `DATA_RETENTION_TIME_IN_DAYS` to 0 **before** the update or
+  delete, and **keep it at 0** until a read of the old version
+  (`AT(OFFSET => -N)`, N reaching back before the change) returns an error.
+  Putting it back straight after the statement doesn't work: on 22 October
+  2026 the old version of `OFQUAL_ORGANISATION` was still reachable (748 rows)
+  when retention was restored immediately. Only then `UNSET` the parameter, as
+  its own later step, never as part of a Run All.
+- A permanent table still has Fail-safe for 7 days after that: Snowflake's own
+  copy, which we can't query or restore. So "gone from Snowflake" is about 7
+  days after Time Travel ends. Stage files have neither, and `REMOVE` is
+  immediate.
+- Remove the files in the load stage that hold the data (`LIST` the stage; the
+  loader uploads originals and copies), clean the local copies, and keep the
+  `SOURCE_FILE` rows true (`COPYKIND`, `REMOVEDCOLUMNS`, `ORIGINALSTAGED`, and
+  `ORIGINALSHA256` of the cleaned file so the load doesn't repeat).
+- The worked example is `sql/ofqual_01_remove_contact_details.sql`.
+
 ## 36. Consent from the options app to Meadow
 
 From the Rarebit plan (kept outside the repo), dated 16 October 2026.

@@ -39,7 +39,13 @@ taking only the months after its previous archive). Population joins
 the Nomis job (step 33). The postcode directory, Ofgem's price caps,
 the fuel poverty tables and Graduate Outcomes are fetched by hand: their
 addresses change with each release. The load adds its own `load-*` row to
-`OPS.JOB_RUN`. By hand: `npm run fetch:official -- nomis` (or `api`,
+`OPS.JOB_RUN`. The Ofqual register is fetched 10,000 records a page (the API's
+most; 6 calls for the whole register) and checked before it is saved: the
+records fetched must equal the API's own count, every QAN (or recognition
+number) must be distinct, the fields must be the same as in the last file, and
+the register must not have shrunk by over 5%. Organisation records are saved without their contact details (email, phone, postal address: `scripts/load/ofqual.js`), and the load drops them again. A failed check fails the run and
+saves nothing; a real change to the fields or size is accepted by running once
+with `OFQUAL_ACCEPT_CHANGES=1 npm run fetch:official -- ofqual`. By hand: `npm run fetch:official -- nomis` (or `api`,
 `statxplore`, `ons`, `ofqual`).
 
 `transform-silver` (`scripts/transform-silver.js`) runs last in a tick
