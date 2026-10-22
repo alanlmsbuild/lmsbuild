@@ -22,15 +22,23 @@
 --      other row did.
 --
 -- Time Travel: the table keeps its old versions for DATA_RETENTION_TIME_IN_DAYS
--- (1 day here). Step 1 sets it to 0 while the update runs, so the old copy
--- isn't kept for that day, and step 3 puts it back to the default. What
--- remains is Fail-safe, which every permanent table has for 7 days after Time
--- Travel: Snowflake's own recovery copy, which we can't query or restore. So
--- the old values are gone from everything we can reach at once, and from
--- Snowflake altogether about 7 days later. Stage files have neither.
+-- (1 day here). Step 1 sets it to 0 before the update. That is NOT enough on
+-- its own: the update's old version stays reachable for a short while after
+-- the statement (22 October 2026: check 6 returned all 748 rows when the
+-- retention was put back straight away). So retention STAYS at 0 until check 6
+-- shows the old version is gone, and only then does step 7 put it back (a
+-- separate, later step: it is commented out so Run All can't run it).
+-- What remains after that is Fail-safe, which every permanent table has for 7
+-- days after Time Travel: Snowflake's own recovery copy, which we can't query
+-- or restore. So the old values are gone from everything we can reach once
+-- check 6 errors, and from Snowflake altogether about 7 days later. Stage
+-- files have neither.
 --
 -- Paste the whole file into a Snowflake worksheet and Run All, as
 -- ACCOUNTADMIN. Safe to run twice. The checks at the end show the result.
+-- Then run check 6 again every few minutes, on its own, until it errors, and
+-- only then step 7 (at the end). Convention for any clean-up that removes
+-- data: docs/decisions.md, decision 21.
 
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE capture_wh;
@@ -52,8 +60,8 @@ SET ITEM = OBJECT_DELETE(ITEM, 'contactEmail', 'phoneNumber', 'addressLine1', 'a
 WHERE ITEM:contactEmail IS NOT NULL OR ITEM:phoneNumber IS NOT NULL OR ITEM:addressLine1 IS NOT NULL OR ITEM:addressLine2 IS NOT NULL
    OR ITEM:addressCity IS NOT NULL OR ITEM:addressCounty IS NOT NULL OR ITEM:addressCountry IS NOT NULL OR ITEM:addressPostCode IS NOT NULL;
 
--- Step 3: back to the default retention (1 day, from the account).
-ALTER TABLE SHARED_DB.RAW.OFQUAL_ORGANISATION UNSET DATA_RETENTION_TIME_IN_DAYS;
+-- Step 3 is step 7 (the end of this file): retention is put back only once the
+-- old version is confirmed gone.
 
 -- Step 4: the four stage files.
 REMOVE @SHARED_DB.RAW.DOWNLOADS/ofqual-register/2026-10-13-022ceb65fc2d/ofqual_organisations_2026-10-13.jsonl;
@@ -121,11 +129,27 @@ SELECT (SELECT COUNT(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE SOURCE = 'ofqual-re
        (SELECT COUNT(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE NOT (SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION')) = $other_rows_before AS OTHER_ROW_COUNT_SAME,
        (SELECT HASH_AGG(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE NOT (SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION')) = $other_rows_fingerprint_before AS OTHER_ROWS_UNCHANGED;
 
--- 5. The table's Time Travel is back to the default. Expected: retention_time 1.
+-- 5. The table's Time Travel. Expected: retention_time 0 until step 7 is run,
+--    then 1.
 SHOW TABLES LIKE 'OFQUAL_ORGANISATION' IN SCHEMA SHARED_DB.RAW;
 SELECT "name", "retention_time", "rows" FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
 -- 6. The old copy can't be reached. Expected: an error (time travel data is not
---    available for table OFQUAL_ORGANISATION). If it returns rows, the old
---    version is still there, and its contact details with it.
-SELECT COUNT(*) FROM SHARED_DB.RAW.OFQUAL_ORGANISATION AT(OFFSET => -300);
+--    available for table OFQUAL_ORGANISATION). If it returns rows (22 October
+--    2026: 748, straight after the update), the old version is still there, and
+--    its contact details with it: leave retention at 0, wait, and run this
+--    again on its own. Use an offset that reaches back before the update (the
+--    minutes since step 2, with some to spare: -900 is 15 minutes), and run it
+--    on its own, not as part of Run All.
+SELECT COUNT(*) FROM SHARED_DB.RAW.OFQUAL_ORGANISATION AT(OFFSET => -900);
+
+-- ---------------------------------------------------------------------------
+-- Step 7: put the retention back. Run ONLY when check 6 errors, and on its own
+-- (the line below is commented out so Run All can't run it; remove the two
+-- dashes to run it). Retention 0 until then keeps the old version from being
+-- held for the table's default day.
+-- ---------------------------------------------------------------------------
+
+-- ALTER TABLE SHARED_DB.RAW.OFQUAL_ORGANISATION UNSET DATA_RETENTION_TIME_IN_DAYS;
+
+-- Then check 5 again. Expected: retention_time 1.
