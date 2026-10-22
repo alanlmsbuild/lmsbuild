@@ -13,7 +13,13 @@
 --      read. The qualifications files there have none and are left alone.
 --   3. The two SOURCE_FILE rows, so they say the original is not in the stage
 --      and which columns were left out. (STAGEDPATH still names the copy that
---      was removed; it is a record of where it was.)
+--      was removed; it is a record of where it was.) Their ORIGINALSHA256 and
+--      ORIGINALBYTES become those of the cleaned files now in the data folder
+--      (scripts/strip-ofqual-contacts.js), because load step 27 skips a file
+--      whose checksum is already in SOURCE_FILE: without this it would load the
+--      two cleaned files again, as 748 more rows. Only these two rows change
+--      (each UPDATE names its SOURCEFILEID), and a check at the end proves no
+--      other row did.
 --
 -- Time Travel: the table keeps its old versions for DATA_RETENTION_TIME_IN_DAYS
 -- (1 day here). Step 1 sets it to 0 while the update runs, so the old copy
@@ -28,6 +34,14 @@
 
 USE ROLE ACCOUNTADMIN;
 USE WAREHOUSE capture_wh;
+
+-- Before: how many SOURCE_FILE rows there are for the organisations, and a
+-- fingerprint of every other row, kept in session variables for the checks.
+SET ofqual_org_rows_before = (SELECT COUNT(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION');
+SET other_rows_before = (SELECT COUNT(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE NOT (SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION'));
+SET other_rows_fingerprint_before = (SELECT HASH_AGG(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE NOT (SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION'));
+-- Expected: 2 rows for the organisations (435 others at 22 October 2026).
+SELECT $ofqual_org_rows_before AS ORGANISATION_ROWS_BEFORE, $other_rows_before AS OTHER_ROWS_BEFORE;
 
 -- Step 1: no Time Travel for the table while it is updated.
 ALTER TABLE SHARED_DB.RAW.OFQUAL_ORGANISATION SET DATA_RETENTION_TIME_IN_DAYS = 0;
@@ -54,6 +68,15 @@ SET ORIGINALSTAGED = FALSE,
     REMOVEDCOLUMNS = PARSE_JSON('["contactEmail","phoneNumber","addressLine1","addressLine2","addressCity","addressCounty","addressCountry","addressPostCode"]')
 WHERE SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION';
 
+-- Step 6: the checksum and size of each cleaned file (sha256sum and the file's
+-- size on 22 October 2026), so load step 27 sees them as already loaded.
+UPDATE SHARED_DB.RAW.SOURCE_FILE
+SET ORIGINALSHA256 = '5bd177ef28da4fb2f262f4ca59ed8c4ca49a2640b92e3c0b10bd03e04bb44f58', ORIGINALBYTES = 242788
+WHERE SOURCEFILEID = '8454bc02-c1d8-4bbd-a76e-ab1aa18b520b';
+UPDATE SHARED_DB.RAW.SOURCE_FILE
+SET ORIGINALSHA256 = '8ca3b798573ecbbe4bedf7d2b6d625f9f775c2058051f4f51fb0c1db83a83c44', ORIGINALBYTES = 242788
+WHERE SOURCEFILEID = '10ef0e88-7754-485b-98fe-e5956570ea23';
+
 -- ---------------------------------------------------------------------------
 -- Checks
 -- ---------------------------------------------------------------------------
@@ -79,10 +102,24 @@ GROUP BY f.KEY ORDER BY f.KEY;
 LIST @SHARED_DB.RAW.DOWNLOADS/ofqual-register/;
 
 -- 4. SOURCE_FILE. Expected: 2 rows, ORIGINALSTAGED false, COPYKIND columns-removed,
---    REMOVEDCOLUMNS the 8 names.
-SELECT SOURCEFILEID, ORIGINALNAME, ORIGINALSTAGED, COPYKIND, REMOVEDCOLUMNS
+--    REMOVEDCOLUMNS the 8 names, and the new checksums: 13 October
+--    5bd177ef…44f58 and 21 October 8ca3b798…83c44, both 242788 bytes.
+SELECT SOURCEFILEID, ORIGINALNAME, ORIGINALSTAGED, COPYKIND, REMOVEDCOLUMNS, ORIGINALSHA256, ORIGINALBYTES
 FROM SHARED_DB.RAW.SOURCE_FILE
 WHERE SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION' ORDER BY LOADEDAT;
+
+-- 4b. The checksums are exactly the two expected, and nothing else changed.
+--     Expected: one row, every column TRUE: the organisations still have the
+--     same number of SOURCE_FILE rows as before (2); both checksums are in;
+--     the other rows are the same number as before (435) and, by their
+--     fingerprint, unchanged.
+SELECT (SELECT COUNT(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION') = $ofqual_org_rows_before AS ORGANISATION_ROW_COUNT_SAME,
+       (SELECT COUNT(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE SOURCEFILEID = '8454bc02-c1d8-4bbd-a76e-ab1aa18b520b'
+          AND ORIGINALSHA256 = '5bd177ef28da4fb2f262f4ca59ed8c4ca49a2640b92e3c0b10bd03e04bb44f58' AND ORIGINALBYTES = 242788) = 1 AS CHECKSUM_13_OCT_IN,
+       (SELECT COUNT(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE SOURCEFILEID = '10ef0e88-7754-485b-98fe-e5956570ea23'
+          AND ORIGINALSHA256 = '8ca3b798573ecbbe4bedf7d2b6d625f9f775c2058051f4f51fb0c1db83a83c44' AND ORIGINALBYTES = 242788) = 1 AS CHECKSUM_21_OCT_IN,
+       (SELECT COUNT(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE NOT (SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION')) = $other_rows_before AS OTHER_ROW_COUNT_SAME,
+       (SELECT HASH_AGG(*) FROM SHARED_DB.RAW.SOURCE_FILE WHERE NOT (SOURCE = 'ofqual-register' AND TARGETTABLE = 'SHARED_DB.RAW.OFQUAL_ORGANISATION')) = $other_rows_fingerprint_before AS OTHER_ROWS_UNCHANGED;
 
 -- 5. The table's Time Travel is back to the default. Expected: retention_time 1.
 SHOW TABLES LIKE 'OFQUAL_ORGANISATION' IN SCHEMA SHARED_DB.RAW;
