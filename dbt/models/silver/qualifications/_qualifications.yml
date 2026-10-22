@@ -46,9 +46,12 @@ models:
           - not_null
       - name: card_name
         data_type: varchar
-        description: 'The name on the card, e.g. "GCSE English Literature (AQA)" or "BTEC National Extended Diploma in Horticulture (Pearson)"; the register title for the other families.'
+        description: 'The name on the card, e.g. "GCSE English Literature (AQA)" or "BTEC National Extended Diploma in Horticulture (Pearson)", with the specification added where two cards would share a name ("GCSE Biology A (OCR)") and framework tags such as (QCF) left off; the register title for the other families.'
         data_tests:
           - not_null
+      - name: specification_variant
+        data_type: varchar
+        description: 'Which specification of the subject it is: a trailing letter (A, B), a version (2.0), a short bracketed name (Short Course, Salters) or, for a BTEC, its level. Shown in card_name only where two cards would otherwise share a name.'
       - name: register_type
         data_type: varchar
         description: 'The qualification type as the register gives it (GCSE (9 to 1), Vocationally-Related Qualification ...).'

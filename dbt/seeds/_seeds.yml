@@ -44,8 +44,9 @@ seeds:
       Filled by hand and checked by a person, never generated: the subject
       text read from a qualification's title (qualification_card.subject_raw,
       e.g. "Combined Science: Trilogy") and the school subject it belongs
-      under on the cards (e.g. Science). Empty to start: until a row is here
-      the text read from the title is used.
+      under on the cards (e.g. Science). Until a row is here the text read
+      from the title is used. One row so far: the BTEC Adult Social Care
+      Certificate.
     config:
       meta:
         source: ofqual-register
@@ -68,8 +69,11 @@ seeds:
   - name: qualification_board_names
     description: >-
       Filled by hand: how an awarding organisation is named on a card, by the
-      acronym the register uses (e.g. "Cambridge OCR" shown as "OCR"). Empty
-      to start: the register's acronym is used.
+      acronym the register uses (e.g. "Cambridge OCR" shown as "OCR"), for
+      one card family or, with the family blank, for all of them (Pearson is
+      "Pearson Edexcel" on GCSE, AS and A level cards, "Pearson" on BTEC).
+      A board with no row here shows the register's acronym. Rows marked
+      Proposed in the note are Rarebit's suggestion, still to be checked.
     config:
       meta:
         source: ofqual-register
@@ -79,11 +83,14 @@ seeds:
         sensitivity: public
       column_types:
         board_acronym: varchar
+        card_family: varchar
         display_name: varchar
         note: varchar
     columns:
       - name: board_acronym
         description: 'The acronym as the register gives it.'
+      - name: card_family
+        description: 'The card family this name is for (GCSE, AS level, A level ...); blank for every family without a row of its own.'
       - name: display_name
         description: 'The name shown on a card.'
       - name: note

@@ -58,13 +58,14 @@ fam as (
 ),
 read as (
   select *,
-    -- The text after "in" (BTECs also "for"); with no "in", a GCSE's text after "GCSE (9-1)" and Functional Skills' "English" or "Mathematics" at the end.
+    -- The text after "in" (BTECs also "for"); with no "in", a BTEC's text after its level, a GCSE's text after "GCSE (9-1)" and Functional Skills' "English" or "Mathematics" at the end.
     case
       when card_family = 'Extended Project' then 'Extended Project'
       when card_family = 'Functional Skills' and title ilike '%Digital Functional Skills%' then 'Digital'
       else coalesce(
         regexp_substr(title, iff(card_family = 'BTEC', ' (in|for) (.+)$', ' (in) (.+)$'), 1, 1, 'e', 2),
         case card_family
+          when 'BTEC' then regexp_substr(title, 'BTEC\\s+(Level\\s*[0-9](\\s*/\\s*Level\\s*[0-9])?\\s+)?(.+)$', 1, 1, 'e', 3)
           when 'GCSE' then regexp_substr(title, 'GCSE \\(9-1\\) (.+)$', 1, 1, 'e')
           when 'Functional Skills' then regexp_substr(title, 'Functional Skills (English|Mathematics|Maths)$', 1, 1, 'ie')
         end)
@@ -80,40 +81,73 @@ cleaned as (
       ' Specification [A-Z0-9]+$| [A-D]$| [0-9]+\\.[0-9]+$', '')), '^maths$', 'Mathematics', 1, 1, 'i') as t
     from read
   )
+),
+-- The specification: a trailing letter ("Biology B", "Specification A"), a
+-- version ("English Language 2.0") or, with none, a short bracketed name
+-- ("(Short Course)", "(Salters)"). A BTEC's is its level, since the same
+-- award can be offered at two levels.
+-- Bracketed levels, frameworks and long lists of options are not one.
+variant as (
+  select *, coalesce(
+    regexp_substr(regexp_replace(subject_text, ' \\(.*\\)$', ''), ' (Specification )?([A-D])$', 1, 1, 'e', 2),
+    regexp_substr(subject_text, ' ([0-9]+\\.[0-9]+)$', 1, 1, 'e'),
+    iff(card_family = 'BTEC', level, null),
+    case when card_family in ('GCSE', 'A level', 'AS level')
+          and subject_text not rlike '.*\\((Level|RQF|QCF|NQF|Entry|delivered).*'
+          and regexp_substr(subject_text, ' \\(([^()/]{1,30})\\)$', 1, 1, 'e') is not null
+         then regexp_substr(subject_text, ' \\(([^()/]{1,30})\\)$', 1, 1, 'e') end) as specification_variant
+  from cleaned
+),
+-- stem + suffix is the name without the specification.
+named as (
+  select v.*, coalesce(m.subject, v.subject_raw) as subject_final, m.subject is not null as mapped,
+    -- A person-checked board name for the family, else for any family, else the register's acronym.
+    coalesce(bf.display_name, ba.display_name, v.board_acronym) as board_display
+  from variant v
+  left join {{ ref('qualification_subject_map') }} m on lower(m.subject_raw) = lower(v.subject_raw)
+  left join {{ ref('qualification_board_names') }} bf on lower(bf.board_acronym) = lower(v.board_acronym) and bf.card_family = v.card_family
+  left join {{ ref('qualification_board_names') }} ba on lower(ba.board_acronym) = lower(v.board_acronym) and ba.card_family is null
+),
+stems as (
+  select *,
+    -- "GCSE English Literature (AQA)"; BTEC and T Level keep the size words
+    -- ("BTEC National Extended Diploma in Horticulture (Pearson)"); Functional
+    -- Skills and projects say their level, so two sizes never look the same.
+    -- Framework tags such as (QCF) are left off.
+    trim(regexp_replace(regexp_replace(case card_family
+      when 'GCSE' then 'GCSE ' || subject_final
+      when 'A level' then 'A level ' || subject_final
+      when 'AS level' then 'AS level ' || subject_final
+      when 'T Level' then 'T Level Technical Qualification in ' || subject_final
+      when 'BTEC' then regexp_replace(title, '^.*?BTEC\\s+(Level\\s*[0-9](\\s*/\\s*Level\\s*[0-9])?\\s+)?', 'BTEC ')
+      when 'Extended Project' then regexp_replace(title, '^.*?Level\\s*[0-9]\\s+', '')
+      when 'Functional Skills' then iff(subject_raw = 'Digital', 'Digital Functional Skills ', 'Functional Skills ' || subject_final || ' ') || level
+      else title
+    end, ' \\((QCF|RQF|NQF|EQF|SCQF)\\)', ''), '\\s+', ' ')) as stem,
+    iff(card_family in ('Other', 'Other vocational'), '', ' (' || board_display || ')') as suffix
+  from named
 )
 select
-  c.qan,
-  c.title,
-  c.card_family,
-  c.card_family in ('GCSE', 'A level', 'AS level', 'T Level', 'Extended Project', 'Functional Skills', 'BTEC') as on_cards,
-  -- "GCSE English Literature (AQA)"; BTEC and T Level keep the size words
-  -- ("BTEC National Extended Diploma in Horticulture (Pearson)"); Functional
-  -- Skills and projects say their level, so two sizes never look the same.
-  case c.card_family
-    when 'GCSE' then 'GCSE ' || coalesce(m.subject, c.subject_raw)
-    when 'A level' then 'A level ' || coalesce(m.subject, c.subject_raw)
-    when 'AS level' then 'AS level ' || coalesce(m.subject, c.subject_raw)
-    when 'T Level' then 'T Level Technical Qualification in ' || coalesce(m.subject, c.subject_raw)
-    when 'BTEC' then regexp_replace(c.title, '^.*?BTEC\\s+(Level\\s*[0-9](\\s*/\\s*Level\\s*[0-9])?\\s+)?', 'BTEC ')
-    when 'Extended Project' then regexp_replace(c.title, '^.*?Level\\s*[0-9]\\s+', '')
-    when 'Functional Skills' then iff(c.subject_raw = 'Digital', 'Digital Functional Skills ', 'Functional Skills ' || coalesce(m.subject, c.subject_raw) || ' ') || c.level
-    else c.title
-  end || iff(c.card_family in ('Other', 'Other vocational'), '', ' (' || coalesce(b.display_name, c.board_acronym) || ')') as card_name,
-  c.register_type,
-  c.level,
-  c.glh,
-  c.tqt,
-  c.assessment_methods,
-  c.board_name,
-  c.board_acronym,
-  c.board_recognition_number,
-  c.specification_url,
-  c.operational_end_date,
-  c.last_updated_date,
-  c.subject_raw,
-  coalesce(m.subject, c.subject_raw) as subject,
-  case when m.subject is not null then 'map' when c.subject_raw is not null then 'rule' end as subject_source,
-  c.source_file_id
-from cleaned c
-left join {{ ref('qualification_subject_map') }} m on lower(m.subject_raw) = lower(c.subject_raw)
-left join {{ ref('qualification_board_names') }} b on lower(b.board_acronym) = lower(c.board_acronym)
+  qan,
+  title,
+  card_family,
+  card_family in ('GCSE', 'A level', 'AS level', 'T Level', 'Extended Project', 'Functional Skills', 'BTEC') as on_cards,
+  -- The specification is added only where two cards would share a name.
+  stem || iff(specification_variant is not null and count(*) over (partition by lower(stem || suffix)) > 1, ' ' || specification_variant, '') || suffix as card_name,
+  specification_variant,
+  register_type,
+  level,
+  glh,
+  tqt,
+  assessment_methods,
+  board_name,
+  board_acronym,
+  board_recognition_number,
+  specification_url,
+  operational_end_date,
+  last_updated_date,
+  subject_raw,
+  subject_final as subject,
+  case when mapped then 'map' when subject_raw is not null then 'rule' end as subject_source,
+  source_file_id
+from stems
