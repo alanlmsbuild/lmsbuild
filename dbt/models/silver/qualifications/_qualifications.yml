@@ -1,0 +1,112 @@
+version: 2
+
+models:
+  - name: qualification_card
+    description: >-
+      Regulated qualifications offered in England and open to new learners
+      (Ofqual register status "Available to learners"), one row per QAN from
+      the latest record of each. card_family says what kind of card it is;
+      on_cards is true for GCSE, A level, AS level, T Level, Extended
+      Project, Functional Skills and BTEC at Levels 1 to 3. Other vocational
+      qualifications stay here but are not on the cards. The subject is read
+      from the title (the register's sector subject area is not a school
+      subject) and turned into a school subject by the hand-filled
+      qualification_subject_map.
+    config:
+      meta:
+        source: ofqual-register
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0.'
+        refresh: weekly
+        sensitivity: public
+    columns:
+      - name: qan
+        data_type: varchar
+        description: 'The qualification number (QAN), e.g. 603/1234/5.'
+        data_tests:
+          - unique
+          - not_null
+      - name: title
+        data_type: varchar
+        description: 'The title as the register gives it, white space tidied.'
+        data_tests:
+          - not_null
+      - name: card_family
+        data_type: varchar
+        description: 'GCSE, A level, AS level, T Level, Extended Project, Functional Skills, BTEC (the card families), Other vocational (levels 1 to 3, not on the cards) or Other (any other type or level).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['GCSE', 'A level', 'AS level', 'T Level', 'Extended Project', 'Functional Skills', 'BTEC', 'Other vocational', 'Other']
+      - name: on_cards
+        data_type: boolean
+        description: 'Whether the options app shows a card for it (the seven card families).'
+        data_tests:
+          - not_null
+      - name: card_name
+        data_type: varchar
+        description: 'The name on the card, e.g. "GCSE English Literature (AQA)" or "BTEC National Extended Diploma in Horticulture (Pearson)"; the register title for the other families.'
+        data_tests:
+          - not_null
+      - name: register_type
+        data_type: varchar
+        description: 'The qualification type as the register gives it (GCSE (9 to 1), Vocationally-Related Qualification ...).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Vocationally-Related Qualification', 'QCF', 'Occupational Qualification', 'National Vocational Qualification', 'End-Point Assessment', 'Other Life Skills Qualification', 'Other General Qualification', 'Other Vocational Qualification', 'GCSE (A* to G)', 'Performing Arts Graded Examination', 'Apprenticeship Assessment Qualification', 'English For Speakers of Other Languages', 'GCE A Level', 'GCE AS Level', 'Higher Level', 'Entry Level', 'Key Skills', 'Functional Skills', 'Principal Learning', 'GCSE (9 to 1)', 'Technical Occupation Qualification', 'Functional Skills (QCF)', 'Basic Skills', 'General National Vocational Qualification', 'Vocational Certificate Of Education', 'Other', 'Free Standing Mathematics Qualification', 'Alternative Academic Qualification', 'Project', 'Essential Skills (Northern Ireland)', 'Technical Qualification', 'Essential Digital Skills', 'Advanced Extension Award', 'Digital Functional Skills Qualification', 'VCE Advanced Subsidiary Level', 'Not Applicable']
+      - name: level
+        data_type: varchar
+        description: 'The level as the register gives it (Level 1, Level 1/Level 2, Level 2, Level 3 ...).'
+        data_tests:
+          - not_null
+      - name: glh
+        data_type: number(8,0)
+        description: 'Guided learning hours; empty when the register gives none (it uses 0).'
+      - name: tqt
+        data_type: number(8,0)
+        description: 'Total qualification time in hours; empty when the register gives none (it uses 0).'
+      - name: assessment_methods
+        data_type: variant
+        description: 'The assessment methods as a list, as the register gives them (e.g. Written Examination).'
+      - name: board_name
+        data_type: varchar
+        description: 'The awarding organisation''s name.'
+      - name: board_acronym
+        data_type: varchar
+        description: 'Its acronym as the register gives it (Cambridge OCR, Pearson ...).'
+        data_tests:
+          - not_null
+      - name: board_recognition_number
+        data_type: varchar
+        description: 'Its recognition number (RN....).'
+      - name: specification_url
+        data_type: varchar
+        description: 'The link to the specification, as published (it may be a board''s subject page).'
+      - name: operational_end_date
+        data_type: date
+        description: 'When the qualification stops being offered, if the register gives a date.'
+      - name: last_updated_date
+        data_type: date
+        description: 'When the register last updated the record.'
+      - name: subject_raw
+        data_type: varchar
+        description: 'The subject text read from the title.'
+      - name: subject
+        data_type: varchar
+        description: 'The school subject: qualification_subject_map''s, else subject_raw.'
+        data_tests:
+          - not_null:
+              config:
+                where: 'on_cards'
+                severity: warn
+      - name: subject_source
+        data_type: varchar
+        description: 'map (from qualification_subject_map), rule (read from the title) or empty (could not be placed).'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The load''s SOURCE_FILE row (SHARED_DB.RAW).'
+        data_tests:
+          - not_null

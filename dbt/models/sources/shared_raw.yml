@@ -11,6 +11,9 @@ sources:
       - name: source_file
         identifier: SOURCE_FILE
         description: One row per file loaded into SHARED_DB.RAW, with its source, licence and counts.
+      - name: ofqual_qualification
+        identifier: OFQUAL_QUALIFICATION
+        description: 'The Ofqual register of regulated qualifications, one JSON record per row (load:data step 27). Add-only: each load adds every qualification again.'
       - name: onspd
         identifier: ONSPD
         description: The ONS Postcode Directory in full, one row per postcode ever used (load:data step 32). Columns named as in the file, in lower case.
