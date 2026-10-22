@@ -192,6 +192,23 @@ working days, and each provider's usual reply time is shown to families;
 withdrawing closes the Meadow record and deletes the details, keeping only
 the consent events as proof.
 
+Decisions 37 to 56 are recorded in the Rarebit plan on claude.ai.
+
+## 57. An Honest Guide to the World
+
+An Honest Guide to the World (22 October 2026). The gap year work grows into a
+Lonely Planet-style guide to every country, under the honesty rule.
+Government advice always comes first and Rarebit never suggests ignoring it;
+the guide shows exactly where and what the advice covers, other governments'
+advice beside it (once licences are checked), how advice has changed over
+time, and what each country offers regardless. Rarebit's own words from open
+sources; no paid placements.
+
+First step: the UK Foreign Office's travel advice, loaded daily into bronze
+(`SHARED_DB.RAW.FCDO_TRAVEL_ADVICE`, `scripts/load/travel-advice.js`, load step
+51, the `official-travel-advice` job). What is kept and dropped, and what the
+licence allows: `docs/licences/fcdo-travel-advice-2026-10/README.md`.
+
 ## Recorded 14 October 2026: SYSADMIN holds ILR_APP_ROLE
 
 ILR_APP_ROLE (the app's role) is held by ILR_APP_USER and also by the role

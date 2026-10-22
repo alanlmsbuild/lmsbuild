@@ -1,8 +1,8 @@
 # Scheduling the background jobs
 
-Fourteen jobs: eleven keep outside data up to date, a twelfth builds the
-silver layer from it, a thirteenth exports the reach map's files from gold,
-and a fourteenth checks the website links in it. Each
+Fifteen jobs: twelve keep outside data up to date, a thirteenth builds the
+silver layer from it, a fourteenth exports the reach map's files from gold,
+and a fifteenth checks the website links in it. Each
 runs when it's due, and every run, scheduled or by hand, is recorded in
 `OPS.JOB_RUN`. They are listed in the order a tick runs them
 (`JOB_ORDER` in `server/jobSchedule.js`):
@@ -18,6 +18,7 @@ runs when it's due, and every run, scheduled or by hand, is recorded in
 | `official-statxplore` (DWP: Universal Credit, Work and Health Programme) | 7 days | 8 days |
 | `official-ons` (ONS: online job adverts, VACS02) | 7 days | 8 days |
 | `official-ofqual` (Ofqual register of qualifications) | 7 days | 8 days |
+| `official-travel-advice` (Foreign Office travel advice: the index, then only the countries that changed; one request when nothing has) | 24 hours | 30 hours |
 | `official-monthly` (police.uk, provider register, NaPTAN, listed buildings, Wikidata places) | 30 days | 32 days |
 | `travel-monthly` (travel times: Network Rail timetable, OpenStreetMap, rail GTFS, the four r5py runs; refuses to start with under 5.5 GB free, so it waits for the dev servers to be stopped) | 30 days | 32 days |
 | `transform-silver` (the silver layer: dbt build, tests, swap in) | 24 hours | 26 hours |
@@ -46,7 +47,23 @@ number) must be distinct, the fields must be the same as in the last file, and
 the register must not have shrunk by over 5%. Organisation records are saved without their contact details (email, phone, postal address: `scripts/load/ofqual.js`), and the load drops them again. A failed check fails the run and
 saves nothing; a real change to the fields or size is accepted by running once
 with `OFQUAL_ACCEPT_CHANGES=1 npm run fetch:official -- ofqual`. By hand: `npm run fetch:official -- nomis` (or `api`,
-`statxplore`, `ons`, `ofqual`).
+`statxplore`, `ons`, `ofqual`, `advice`).
+
+`official-travel-advice` (decision 57; `scripts/load/travel-advice.js`, load step 51) keeps the Foreign
+Office's travel advice for every country from the GOV.UK Content API. A run asks for
+the index (one request, with the last run's ETag) and fetches only the countries
+whose `public_updated_at` is new or later (about 4 requests a second; the API's
+limit is 10). The saved files are in `RAREBIT_DATA/fcdo-travel-advice/` and the
+last index is in its `state.json`. A run with nothing new does not touch Snowflake;
+a run that fails leaves `state.json` as it was, so the next run tries again. Email
+addresses and phone numbers in the page text are taken out before the file is
+written and again when it is loaded (the load is `columns-removed`, no original
+staged). Checks that stop a run saving anything: the index lists fewer than 100
+countries or has shrunk by over 5% (accepted by running once with
+`TRAVEL_ADVICE_ACCEPT_CHANGES=1`), a repeated `content_id`, or a page that is not
+the one the index named. Daily for now (overdue after 30 hours); to become every 2
+hours before the Honest Guide goes live (`docs/ideas.md`). It shows as overdue
+until its first run.
 
 `transform-silver` (`scripts/transform-silver.js`) runs last in a tick
 and is in the `official` lock group, so it never runs while an official
@@ -199,7 +216,7 @@ file is loaded again (the load skips what hasn't changed):
 ## Seeing that a tick has finished
 
 The first tick after setting up runs every job that's overdue (up to all
-fourteen; the travel times alone take about an hour, so allow well over
+fifteen; the travel times alone take about an hour, so allow well over
 an hour in all). To follow it:
 
 - **WSL terminal** (Ubuntu): watch the jobs log. Each job writes a line as

@@ -19,6 +19,7 @@ puts it back.
     node test/db/meadow-board.mjs       # Meadow's pipeline board, as CRM_APP_USER (reads only)
     node test/ofqual-fetch.mjs          # the Ofqual register fetch: page size and the checks (fake pages, no network)
     node test/data-quality.mjs          # DMFs on the weekly schedule, stale results, tick connections per job (no Snowflake)
+    node test/travel-advice.mjs         # FCDO travel advice: fetch only what changed, contact details out, the load step, the schedule (fake API, no network)
     node test/official-partial.mjs      # official-* jobs: a failing step doesn't stop the others (no Snowflake)
     node test/uk-time.mjs               # UK time either side of the clocks changing
     test/stop-test-servers.py           # stops only those two servers

@@ -139,6 +139,19 @@ export const JOB_SCHEDULE = {
     lockHours: 3,
     timeoutMinutes: 60,
   },
+  // The Foreign Office's travel advice (decision 57; scripts/load/travel-advice.js):
+  // daily for now, so a day's change is in Snowflake the next day. Switch to every
+  // 2 hours before the Honest Guide goes live (docs/ideas.md). A run with nothing
+  // new is one request and does not touch Snowflake.
+  'official-travel-advice': {
+    label: 'Official data: Foreign Office travel advice',
+    short: 'Travel advice',
+    every: 24 * HOUR,
+    overdueAfter: 30 * HOUR,
+    lockGroup: 'official',
+    lockHours: 1,
+    timeoutMinutes: 30,
+  },
   // The silver layer (scripts/transform-silver.js): last, after any load,
   // and in the official lock group so it never runs while one is loading.
   'transform-silver': {
@@ -183,7 +196,7 @@ export const JOB_SCHEDULE = {
 }
 
 // The order a tick runs due jobs in, one at a time.
-export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-monthly', 'travel-monthly', 'transform-silver', 'reach-export', 'website-links']
+export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-travel-advice', 'official-monthly', 'travel-monthly', 'transform-silver', 'reach-export', 'website-links']
 
 // A failed or refused job isn't tried again sooner than this.
 export const RETRY_AFTER = HOUR

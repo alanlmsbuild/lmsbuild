@@ -48,6 +48,7 @@ export const JOB_RUNNERS = {
   'official-statxplore': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'statxplore', log }),
   'official-ons': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'ons', log }),
   'official-ofqual': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'ofqual', log }),
+  'official-travel-advice': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'advice', log }),
   'official-monthly': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'monthly', log }),
   // Travel times: fetch, convert, load and compute (scripts/travel/job.js), loading as DATA_LOAD_USER.
   'travel-monthly': async (connection, log) => (await import('./travel/job.js')).runJob({ log }),

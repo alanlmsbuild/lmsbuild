@@ -68,6 +68,8 @@
 //   48 BODS bus fares for South Yorkshire's operators (NeTEx) -> SHARED_DB.RAW
 //   49 Supertram's own fares, by hand -> SHARED_DB.RAW
 //   50 National Rail Data Portal fares feed, every line as published -> SHARED_DB.RAW
+// Foreign travel advice, decision 57 (sql/travel_advice_01_tables.sql; scripts/load/travel-advice.js):
+//   51 FCDO travel advice from the GOV.UK Content API, without email addresses and phone numbers -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -87,6 +89,7 @@ import { loadContent } from './load/content.js'
 import { officialSteps } from './load/official.js'
 import { officialSteps2 } from './load/official2.js'
 import { officialSteps3 } from './load/official3.js'
+import { adviceSteps } from './load/travel-advice.js'
 import { odsRows, csvLine, csvRecords, writeLines, zipEntry, zipNames } from './load/files.js'
 
 const RAREBIT_DATA = process.env.RAREBIT_DATA || '/mnt/c/Users/alanb/rarebit-data'
@@ -326,6 +329,8 @@ export const STEPS = {
   ...officialSteps(RAREBIT_DATA),
   ...officialSteps2(RAREBIT_DATA),
   ...officialSteps3(RAREBIT_DATA),
+  // Decision 57: the FCDO's foreign travel advice (scripts/load/travel-advice.js).
+  ...adviceSteps(RAREBIT_DATA),
 
   // ---------------------------------------------------------------- batch 7
   // Achievement rates for provider_benchmark, provider and national from the
