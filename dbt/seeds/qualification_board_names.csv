@@ -1,0 +1,27 @@
+board_acronym,card_family,display_name,note
+AQA,,AQA,
+ASDAN,,ASDAN,
+Ascentis,,Ascentis,
+Cambridge OCR,,OCR,
+City & Guilds,,City & Guilds,
+Gateway Qualifications,,Gateway Qualifications,
+Highfield,,Highfield,
+NCFE,,NCFE,
+NOCN,,NOCN,
+OCNLR,,OCN London,
+Open Awards,,Open Awards,
+Pearson,,Pearson,Default (BTEC and T Level)
+Pearson,GCSE,Pearson Edexcel,
+Pearson,AS level,Pearson Edexcel,
+Pearson,A level,Pearson Edexcel,
+Pearson,Extended Project,Pearson Edexcel,Proposed: the register titles say Pearson Edexcel
+Pearson,Functional Skills,Pearson Edexcel,Proposed: the register titles say Pearson Edexcel
+RSL,,RSL,
+TLM,,The Learning Machine,
+TQUK,,TQUK,
+UAL,,UAL,
+VTCT Skills,,VTCT Skills,
+WJEC,,WJEC,Default
+WJEC,GCSE,WJEC Eduqas,Proposed: the England brand; the register titles say WJEC Eduqas
+WJEC,AS level,WJEC Eduqas,Proposed: the England brand; the register titles say WJEC Eduqas
+WJEC,A level,WJEC Eduqas,Proposed: the England brand; the register titles say WJEC Eduqas

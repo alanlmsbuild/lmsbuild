@@ -51,6 +51,9 @@ models:
       providers:
         +database: SHARED_DB
         +schema: SILVER
+      qualifications:
+        +database: SHARED_DB
+        +schema: SILVER
     # Gold: the same tags, plus each table granted to the readers its model
     # names (meta.readers; macros/gold.sql).
     gold:

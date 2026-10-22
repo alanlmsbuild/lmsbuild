@@ -38,3 +38,94 @@ seeds:
         description: 'The pass or scheme it belongs to (Zoom, Zoom Beyond, YP, Megarider, Tram ...), blank for an ordinary ticket.'
       - name: note
         description: 'Anything a person checking the row wants to say.'
+
+  - name: qualification_subject_map
+    description: >-
+      Filled by hand and checked by a person, never generated: the subject
+      text read from a qualification's title (qualification_card.subject_raw,
+      e.g. "Combined Science: Trilogy") and the school subject it belongs
+      under on the cards (e.g. Science). Until a row is here the text read
+      from the title is used. One row so far: the BTEC Adult Social Care
+      Certificate.
+    config:
+      meta:
+        source: ofqual-register
+        licence: public-facts
+        attribution: none
+        refresh: by-hand
+        sensitivity: public
+      column_types:
+        subject_raw: varchar
+        subject: varchar
+        note: varchar
+    columns:
+      - name: subject_raw
+        description: 'The subject text as read from the title.'
+      - name: subject
+        description: 'The school subject it is shown under.'
+      - name: note
+        description: 'Anything a person checking the row wants to say.'
+
+  - name: qualification_board_names
+    description: >-
+      Filled by hand: how an awarding organisation is named on a card, by the
+      acronym the register uses (e.g. "Cambridge OCR" shown as "OCR"), for
+      one card family or, with the family blank, for all of them (Pearson is
+      "Pearson Edexcel" on GCSE, AS and A level cards, "Pearson" on BTEC).
+      A board with no row here shows the register's acronym. Rows marked
+      Proposed in the note are Rarebit's suggestion, still to be checked.
+    config:
+      meta:
+        source: ofqual-register
+        licence: public-facts
+        attribution: none
+        refresh: by-hand
+        sensitivity: public
+      column_types:
+        board_acronym: varchar
+        card_family: varchar
+        display_name: varchar
+        note: varchar
+    columns:
+      - name: board_acronym
+        description: 'The acronym as the register gives it.'
+      - name: card_family
+        description: 'The card family this name is for (GCSE, AS level, A level ...); blank for every family without a row of its own.'
+      - name: display_name
+        description: 'The name shown on a card.'
+      - name: note
+        description: 'Anything a person checking the row wants to say.'
+
+  - name: qualification_family_notes
+    description: >-
+      Written and checked by Rarebit, never generated: for each card family
+      and level, the plain-words level ("about GCSE standard") and the
+      "What is a BTEC?" style explanation, with who checked it and when.
+      Empty to start: a card with no row here shows no explanation.
+    config:
+      meta:
+        source: ofqual-register
+        licence: public-facts
+        attribution: none
+        refresh: by-hand
+        sensitivity: public
+      column_types:
+        card_family: varchar
+        level: varchar
+        plain_level: varchar
+        what_is_it: varchar
+        checked_by: varchar
+        checked_on: date
+    columns:
+      - name: card_family
+        description: 'GCSE, A level, AS level, T Level, Extended Project, Functional Skills or BTEC.'
+      - name: level
+        description: 'The level as the register gives it; empty when the note covers every level of the family.'
+      - name: plain_level
+        description: 'The level in plain words.'
+      - name: what_is_it
+        description: 'The plain explanation of what the qualification is.'
+      - name: checked_by
+        description: 'Who checked the wording.'
+      - name: checked_on
+        description: 'The date it was checked.'
