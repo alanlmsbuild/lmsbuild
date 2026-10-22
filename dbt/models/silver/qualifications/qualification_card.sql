@@ -3,7 +3,9 @@
 -- record of each QAN (RAW is add-only). card_family says which kind of card
 -- it is; on_cards is true for the seven families the options app explains
 -- (GCSE, A level, AS level, T Level, Extended Project, Functional Skills,
--- BTEC), Levels 1 to 3. The other vocational qualifications stay here but
+-- BTEC), Levels 1 to 3. Where the register lists one qualification twice
+-- (same title, board and level) both rows stay, duplicate_in_register is true
+-- on both, and only one has on_cards. The other vocational qualifications stay here but
 -- are not on the cards (docs/ideas.md).
 --
 -- The subject is read from the title (the register's sector subject area is
@@ -131,7 +133,14 @@ select
   qan,
   title,
   card_family,
-  card_family in ('GCSE', 'A level', 'AS level', 'T Level', 'Extended Project', 'Functional Skills', 'BTEC') as on_cards,
+  -- on_cards: one of the seven card families and, where the register lists the
+  -- same qualification twice (same title, board and level), the one shown:
+  -- the one with TQT filled in, then the most recently updated.
+  card_family in ('GCSE', 'A level', 'AS level', 'T Level', 'Extended Project', 'Functional Skills', 'BTEC')
+    and row_number() over (partition by lower(title), lower(board_acronym), level, card_family in ('GCSE', 'A level', 'AS level', 'T Level', 'Extended Project', 'Functional Skills', 'BTEC')
+                           order by (tqt is not null) desc, last_updated_date desc nulls last, qan) = 1 as on_cards,
+  card_family in ('GCSE', 'A level', 'AS level', 'T Level', 'Extended Project', 'Functional Skills', 'BTEC')
+    and count(*) over (partition by lower(title), lower(board_acronym), level) > 1 as duplicate_in_register,
   -- The specification is added only where two cards would share a name.
   stem || iff(specification_variant is not null and count(*) over (partition by lower(stem || suffix)) > 1, ' ' || specification_variant, '') || suffix as card_name,
   specification_variant,
