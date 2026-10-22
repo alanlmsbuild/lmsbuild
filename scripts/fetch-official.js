@@ -85,14 +85,22 @@ export const NOMIS_SETS = [
     select: 'date_name,geography_code,geography_name,geography_type,c2021_ind_88_name,measures_name,obs_value,obs_status_name' },
 ]
 
-export const EES_SETS = [
+// Key stage 4 performance (load:data step 17) is PAUSED from 22 October 2026:
+// DfE's version 2.0 changed the layout, the loader refuses the new header, and
+// the step failed on every run (the job retried each hour for nothing). The
+// two data sets and the step go back in when plan 3 (Key stage 4 v2 tables,
+// docs/ideas.md) is built: add KS4_EES_SETS to EES_SETS and 17 to
+// LOAD_STEPS.api. `npm run load:data -- 17` still runs it by hand.
+export const KS4_EES_SETS = [
   ['ks4-performance', '19e39901-a96c-be76-b9c2-6af54ae076d2'], ['ks4-performance', 'b3e19901-5d2b-b676-bb4c-e60937d74725'],
+].map(([dir, id]) => ({ dir, id }))
+export const EES_SETS = [
   ['destinations', '019d4f41-22d1-71b2-a1a7-f3b91026815b'], ['destinations', '019d4e73-6440-7523-b60c-bfab1ad4a30d'],
   ['apprenticeships', '1d419801-a90e-f970-9335-a13623faccbe'], ['apprenticeships', '1d419801-435d-c676-b428-1217e08290c3'],
 ].map(([dir, id]) => ({ dir, id }))
 
-// The load:data steps each kind feeds.
-export const LOAD_STEPS = { nomis: [14, 15, 26, 33], api: [17, 18, 19], statxplore: [24], ons: [25, 29], ofqual: [27], monthly: [34, 35, 36, 38] }
+// The load:data steps each kind feeds (api: 17, Key stage 4, is paused: see KS4_EES_SETS).
+export const LOAD_STEPS = { nomis: [14, 15, 26, 33], api: [18, 19], statxplore: [24], ons: [25, 29], ofqual: [27], monthly: [34, 35, 36, 38] }
 
 // ONS datasets published as spreadsheets: a new file only for a new edition.
 // The name is the file's own, with the edition added unless it's "current".
