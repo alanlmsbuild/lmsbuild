@@ -291,7 +291,8 @@ export class Loader {
     const lines = []
     for (const o of todo) {
       o.dir = `${spec.source}/${day(o.modified)}-${o.original.sha256.slice(0, 12)}`
-      o.originalPath = await this.put(spec.home, o.file, o.dir)
+      // stageOriginal: false keeps the original out of Snowflake (personal data; as GIAS).
+      o.originalPath = spec.stageOriginal === false ? null : await this.put(spec.home, o.file, o.dir)
       const rows = await spec.rows(o)
       o.rowsRead = rows.length
       for (const r of rows) lines.push(JSON.stringify({ sf: o.id, ...r }) + '\n')
@@ -311,8 +312,8 @@ export class Loader {
       for (const o of todo) {
         const rowsLoaded = counts[o.id] ?? 0
         if (rowsLoaded !== o.rowsRead) throw new Error(`${o.label}: read ${o.rowsRead} rows, loaded ${rowsLoaded}.`)
-        await this.insertSourceFile(spec.home, spec, { sourceFileId: o.id, name: path.basename(o.file), original: o.original, modified: o.modified, stageOriginal: true,
-          member: o.member, kind: 'converted', stagedPath, staged, rowsRead: o.rowsRead, rowsLoaded })
+        await this.insertSourceFile(spec.home, spec, { sourceFileId: o.id, name: path.basename(o.file), original: o.original, modified: o.modified, stageOriginal: spec.stageOriginal !== false,
+          member: o.member, kind: spec.kind ?? 'converted', removed: spec.removed, stagedPath, staged, rowsRead: o.rowsRead, rowsLoaded })
         results.push({ file: o.label, table: spec.table, rowsRead: o.rowsRead, rowsLoaded, sourceFileId: o.id })
       }
       await this.q('commit')

@@ -50,17 +50,32 @@ no key) into `SHARED_DB.RAW.OFQUAL_QUALIFICATION` and `OFQUAL_ORGANISATION`
 - The API has no published rate limit; Rarebit asks politely anyway (the
   whole register is 6 calls a week at 10,000 a page).
 
+## Fields Rarebit drops (decided 22 October 2026, Alan)
+
+The organisations records hold contact details: `contactEmail` (366 of 374;
+about 200 with a personal-looking name before the @), `phoneNumber` (all 374;
+41 mobile numbers) and a postal address (all 374; a small awarding
+organisation may be run from a home). Ofqual publishes them under the OGL, but
+**the OGL does not cover personal data**, Rarebit's standing rule is that no
+personal data is loaded, and Rarebit doesn't need them. So these eight fields
+are dropped from every organisation record before the file is saved, and again
+when it is loaded (`scripts/load/ofqual.js`):
+
+    contactEmail, phoneNumber,
+    addressLine1, addressLine2, addressCity, addressCounty, addressCountry, addressPostCode
+
+Kept: `name`, `legalName`, `acronym`, `recognitionNumber`, both regulators'
+statuses and dates (`ofqualOrganisationStatus`, `ofqualRecognisedOn`,
+`ofqualRecognisedTo`, `ofqualSurrenderedOn`, `ofqualWithdrawnOn`, and the
+`ccea…` five), `website`, `feesUrl`, `canonicalUrl` and `lastUpdatedDate`
+(18 fields). The bronze table is therefore the register without those fields,
+and its `SOURCE_FILE` rows say so (`COPYKIND = columns-removed`,
+`REMOVEDCOLUMNS`, original not staged), as GIAS does. The qualifications
+records hold no personal data and are kept whole. Data loaded before the
+change was cleaned by `sql/ofqual_01_remove_contact_details.sql`, and the
+saved files by `node scripts/strip-ofqual-contacts.js`.
+
 ## Open points
 
-- **The organisations records hold contact details**: `contactEmail` (366 of
-  374; about 200 have a personal-looking name before the @), `phoneNumber` (all
-  374; 41 are mobile numbers) and a postal address (all 374; some small
-  awarding organisations may be run from a home). These are published by
-  Ofqual under the OGL, but the licence does not cover personal data, and the
-  standing rule is that no personal data is loaded (CLAUDE.md). The bronze table
-  is tagged `SENSITIVITY = public`. To decide: leave them out of the
-  organisations file, or tag and mask them. See `docs/before-real-data.md`.
-  The qualifications records hold no personal data (organisation names and
-  links only).
 - Ofqual could be asked (via the developers' team above) whether it states any
   attribution it prefers, and the API's terms of use.

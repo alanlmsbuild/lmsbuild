@@ -29,6 +29,7 @@ import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import { SX_SETS, fetchStatXplore } from './load/statxplore.js'
+import { withoutPersonalFields } from './load/ofqual.js'
 
 const RAREBIT_DATA = process.env.RAREBIT_DATA || '/mnt/c/Users/alanb/rarebit-data'
 const NOMIS = 'https://www.nomisweb.co.uk/api/v01/dataset/'
@@ -148,6 +149,10 @@ export async function fetchOns(set, { root = RAREBIT_DATA, log = console.log } =
 //   - the register hasn't shrunk by more than OFQUAL_SHRINK_LIMIT
 // A real change that trips the last two is accepted by running once with
 // OFQUAL_ACCEPT_CHANGES=1.
+//
+// Organisation records are saved without their contact details (email, phone,
+// postal address: scripts/load/ofqual.js), and the last file is read the same
+// way, so one saved before that change still compares fine.
 export const OFQUAL_PAGE_LIMIT = 10000
 export const OFQUAL_SHRINK_LIMIT = 0.05
 const OFQUAL_KEYS = { Qualifications: 'qualificationNumber', Organisations: 'recognitionNumber' }
@@ -191,9 +196,10 @@ export async function fetchOfqual(what, { root = RAREBIT_DATA, log = console.log
     if (!d.results.length) break
     records.push(...d.results)
   }
+  if (what === 'Organisations') records.forEach((r, i) => { records[i] = withoutPersonalFields(r) })
   const previous = fs.readdirSync(dir).filter((n) => n.startsWith(`ofqual_${what.toLowerCase()}_`) && n.endsWith('.jsonl')).sort().at(-1)
   const previousText = previous ? fs.readFileSync(path.join(dir, previous), 'utf8') : null
-  const problems = ofqualProblems(what, records, count, previousText ? previousText.split('\n').filter(Boolean).map((l) => JSON.parse(l)) : null, { acceptChanges })
+  const problems = ofqualProblems(what, records, count, previousText ? previousText.split('\n').filter(Boolean).map((l) => (what === 'Organisations' ? withoutPersonalFields(JSON.parse(l)) : JSON.parse(l))) : null, { acceptChanges })
   if (problems.length) throw new Error(`Ofqual ${what}: not saved: ${problems.join('; ')}.${problems.some((p) => /^the (fields changed|register shrank)/.test(p)) ? ' (A real change: run once with OFQUAL_ACCEPT_CHANGES=1.)' : ''}`)
   const text = records.map((x) => JSON.stringify(x)).join('\n') + '\n'
   if (previousText === text) {

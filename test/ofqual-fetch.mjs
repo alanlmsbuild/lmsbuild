@@ -6,6 +6,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fetchOfqual, OFQUAL_PAGE_LIMIT, ofqualProblems } from '../scripts/fetch-official.js'
+import { officialSteps2 } from '../scripts/load/official2.js'
+import { OFQUAL_PERSONAL_FIELDS, withoutPersonalFields } from '../scripts/load/ofqual.js'
+import { stripSavedOrganisations } from '../scripts/strip-ofqual-contacts.js'
 
 let failures = 0
 const check = (label, ok, detail = '') => {
@@ -117,6 +120,67 @@ console.log('Format and size against the last file')
   check('organisations are keyed on the recognition number, and unchanged is clean', p.length === 0, p.join('; '))
   const q = ofqualProblems('Organisations', [{ recognitionNumber: 'RN1' }, { recognitionNumber: 'RN1' }], 2, null)
   check('  a repeated recognition number is caught', q.length === 1 && /1 repeated and 0 missing recognitionNumber/.test(q[0]), q.join('; '))
+}
+console.log('Organisations: contact details are dropped')
+const org = (n, extra = {}) => ({ name: `Awarding Org ${n}`, recognitionNumber: `RN${5000 + n}`, legalName: `Awarding Org ${n} Limited`, acronym: `AO${n}`, ofqualOrganisationStatus: 'Recognised',
+  ofqualRecognisedOn: '2021-12-09T12:10:23Z', cceaOrganisationStatus: 'Never been recognised', website: `https://ao${n}.example`, feesUrl: null, canonicalUrl: `https://register-api.example/api/Organisations/RN${5000 + n}`,
+  lastUpdatedDate: '2025-12-03T18:18:35Z', contactEmail: `person${n}@example.org`, phoneNumber: '07700 900123', addressLine1: '1 Some Lane', addressLine2: 'Hamlet', addressCity: 'Town', addressCounty: 'County', addressCountry: 'United Kingdom', addressPostCode: 'AB1 2CD', ...extra })
+const KEPT = ['name', 'recognitionNumber', 'legalName', 'acronym', 'ofqualOrganisationStatus', 'ofqualRecognisedOn', 'cceaOrganisationStatus', 'website', 'feesUrl', 'canonicalUrl', 'lastUpdatedDate']
+const orgApi = (records) => ({ getJson: async (url) => { const u = new URL(url); const page = Number(u.searchParams.get('page')); const limit = Number(u.searchParams.get('limit')); return { count: records.length, currentPage: page, limit, results: records.slice((page - 1) * limit, page * limit) } } })
+check('the fields dropped are the email, phone and the whole postal address', OFQUAL_PERSONAL_FIELDS.join() === 'contactEmail,phoneNumber,addressLine1,addressLine2,addressCity,addressCounty,addressCountry,addressPostCode')
+{
+  const r = withoutPersonalFields(org(1))
+  check('withoutPersonalFields keeps the rest and leaves the argument alone', KEPT.every((k) => k in r) && OFQUAL_PERSONAL_FIELDS.every((k) => !(k in r)) && 'contactEmail' in org(1) && Object.keys(r).length === KEPT.length, Object.keys(r).join())
+}
+{
+  const root = fresh('org-fetch')
+  const out = await fetchOfqual('Organisations', { root, log: quiet, ...orgApi([org(1), org(2), org(3)]) })
+  const text = fs.readFileSync(out, 'utf8')
+  const saved = text.split('\n').filter(Boolean).map((l) => JSON.parse(l))
+  check('organisations are saved without contact details', saved.length === 3 && saved.every((r) => OFQUAL_PERSONAL_FIELDS.every((k) => !(k in r))) && !/@example\.org|07700|Some Lane|AB1 2CD/.test(text))
+  check('  everything else is kept as published', saved.every((r, i) => KEPT.every((k) => r[k] === org(i + 1)[k])))
+}
+{
+  // The last file was saved before the change (still has the details): not a field change.
+  const root = fresh('org-prev')
+  fs.mkdirSync(path.join(root, 'ofqual'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'ofqual', 'ofqual_organisations_2026-10-21.jsonl'), [org(1), org(2)].map((r) => JSON.stringify(r)).join('\n') + '\n')
+  const out = await fetchOfqual('Organisations', { root, log: quiet, ...orgApi([org(1), org(2), org(3)]) })
+  check('a last file saved with the details does not trip the field check', out !== null)
+}
+{
+  const root = fresh('qual-untouched')
+  const q = register(5, { contactEmail: 'x@example.org', addressLine1: 'kept: qualifications are not touched' })
+  const out = await fetchOfqual('Qualifications', { root, log: quiet, getJson: api(q).getJson })
+  check('qualifications are not touched', /kept: qualifications are not touched/.test(fs.readFileSync(out, 'utf8')))
+}
+{
+  // The loader (step 27) drops them again from any file, and says so in SOURCE_FILE.
+  const R = fresh('org-load')
+  fs.mkdirSync(path.join(R, 'ofqual'), { recursive: true })
+  fs.writeFileSync(path.join(R, 'ofqual', 'ofqual_organisations_2026-10-13.jsonl'), [org(1), org(2)].map((r) => JSON.stringify(r)).join('\n') + '\n')
+  fs.writeFileSync(path.join(R, 'ofqual', 'ofqual_qualifications_2026-10-13.jsonl'), register(2).map((r) => JSON.stringify(r)).join('\n') + '\n')
+  const specs = []
+  const rowsOf = {}
+  const loader = { loadJsonLines: async (spec) => { specs.push(spec); rowsOf[spec.table] = await spec.rows(spec.originals[0]); return [] } }
+  await officialSteps2(R)[27].run(loader)
+  const orgs = specs.find((x) => x.table.endsWith('OFQUAL_ORGANISATION'))
+  const quals = specs.find((x) => x.table.endsWith('OFQUAL_QUALIFICATION'))
+  check('step 27: organisation rows lose the details on the way in', rowsOf[orgs.table].length === 2 && rowsOf[orgs.table].every((r) => OFQUAL_PERSONAL_FIELDS.every((k) => !(k in r.item)) && r.item.recognitionNumber), JSON.stringify(Object.keys(rowsOf[orgs.table][0].item)))
+  check('  SOURCE_FILE will say columns-removed, name them, and not stage the original', orgs.kind === 'columns-removed' && orgs.removed.join() === OFQUAL_PERSONAL_FIELDS.join() && orgs.stageOriginal === false)
+  check('  qualifications are loaded as they are, original staged', !quals.kind && !quals.removed && quals.stageOriginal !== false && rowsOf[quals.table][0].item.title)
+}
+{
+  const dirOld = fresh('org-clean')
+  const f = path.join(dirOld, 'ofqual_organisations_2026-10-13.jsonl')
+  fs.writeFileSync(f, [org(1), org(2)].map((r) => JSON.stringify(r)).join('\n') + '\n')
+  fs.writeFileSync(path.join(dirOld, 'ofqual_qualifications_2026-10-13.jsonl'), register(2, { contactEmail: 'untouched' }).map((r) => JSON.stringify(r)).join('\n') + '\n')
+  const when = new Date('2026-10-13T22:52:00Z')
+  fs.utimesSync(f, when, when)
+  const first = stripSavedOrganisations(dirOld)
+  const text = fs.readFileSync(f, 'utf8')
+  check('the saved-file cleaner removes the details from organisation files only', first.length === 1 && first[0].stripped === 2 && !/@example\.org|07700|AB1 2CD/.test(text) && /untouched/.test(fs.readFileSync(path.join(dirOld, 'ofqual_qualifications_2026-10-13.jsonl'), 'utf8')))
+  check('  keeps the file date, and is safe to run again', fs.statSync(f).mtime.getTime() === when.getTime() && stripSavedOrganisations(dirOld)[0].stripped === 0 && fs.readFileSync(f, 'utf8') === text)
 }
 console.log(failures ? `\n${failures} FAILED` : '\nAll passed')
 process.exit(failures ? 1 : 0)
