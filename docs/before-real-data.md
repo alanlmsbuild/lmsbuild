@@ -276,3 +276,8 @@ Alan's laptop starts it, so the jobs only run while the laptop is on.
   work, the kind of work and its risks, as the rules for employing young
   people require), and the screens need a filter that leaves out jobs that
   haven't passed it.
+
+## Ofqual register
+
+- **The organisations file holds contact details** (2026-10-22, Claude). `SHARED_DB.RAW.OFQUAL_ORGANISATION` (every awarding organisation, loaded since 13 October) has each organisation's contact email (366 of 374; about 200 with a personal-looking name before the @), phone number (all 374; 41 mobile) and postal address (all 374; some small awarding organisations may be run from a home). Ofqual publishes them under the Open Government Licence, which does not cover personal data, and the standing rule is that no personal data is loaded. The table is tagged `SENSITIVITY = public`. Decide before anything from it is shown or the table is read by an app: leave `contactEmail`, `phoneNumber` and the address lines out of the file the fetch saves (a change to the file, so bronze would no longer be the register as published), or keep them and tag and mask those fields. The qualifications file has none. The licence notes are in `docs/licences/ofqual-register-2026-10/`.
+
