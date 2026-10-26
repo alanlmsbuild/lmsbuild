@@ -46,23 +46,22 @@ step 51, the `official-travel-advice` job; decision 57).
   safety and security, regional risks, health, getting help and others),
   `public_updated_at`, `reviewed_at` and the rest. A country's page is added again
   each time it changes, so the history stays in Snowflake.
-- **Dropped: email addresses and phone numbers in the text.** The pages' text lists
-  contact details for embassies, ministries, hospitals and, for some countries,
-  **honorary consuls, who are individuals**. The OGL does not cover personal data and
-  Rarebit loads none (CLAUDE.md), so every email address (and every `mailto:` or
-  `tel:` link, whole) is replaced by `[email address removed]` and every phone number
-  of 7 to 15 digits by `[phone number removed]`, before the file is written
-  (`scripts/load/travel-advice.js`) and again when it is loaded. The load is recorded
-  as `columns-removed` in `SOURCE_FILE` and the original file is not staged, as for
-  GIAS and Ofqual's organisations.
-  - On the 226 pages read on 22 October 2026 that was **62 email addresses and 513
-    phone numbers**.
-  - **What this also removes.** Local emergency numbers of 7 digits or more, such as
-    an ambulance line written "011 2691111", go with the rest. Short numbers (999,
-    112, 211111 and the like) stay, as do dates, years, coordinates and figures with
-    thousands. The GOV.UK page, which we link to, has them all.
-  - **What it does not remove.** Names are not touched (only one page mentions an
-    honorary consul, with no name), nor postal addresses, nor website links.
+- **Dropped: email addresses in the text.** The pages' text lists contact
+  details for embassies, ministries, hospitals and, for some countries,
+  honorary consuls, who may be individuals. The OGL does not cover personal data
+  and Rarebit loads none (CLAUDE.md), so every email address (and every
+  `mailto:` link, whole) is replaced by `[email address removed]`, before the file
+  is written (`scripts/load/travel-advice.js`) and again when it is loaded. The
+  load is recorded as `columns-removed` in `SOURCE_FILE` and the original file is
+  not staged, as for GIAS and Ofqual's organisations. On the 226 pages read on
+  22 October 2026 that was **62 email addresses**, none left.
+- **Kept: phone numbers, as published** (decision of 26 October 2026; the first
+  version took them out too, 513 of them on the 226 pages). Embassy, hospital,
+  police and ambulance numbers are safety information, and only one page
+  mentions an honorary consul, with no name. So phone numbers, `tel:` links,
+  names, postal addresses and website links all stay as the FCDO wrote them.
+  If a page ever puts a private individual's number in the text, that is a case
+  for taking that number out then (and, as with the emails, the load records it).
 - **Links only: the map image and the PDF.** 68 of the 226 pages have an `image`
   (the FCDO's country map, a 430 x 540 JPEG on
   `assets.publishing.service.gov.uk`, stamped "© Crown Copyright 2023" on the
@@ -76,4 +75,4 @@ step 51, the `official-travel-advice` job; decision 57).
 
 `test/travel-advice.mjs` (fake API, no network): what is fetched and when, the
 checks that stop a bad index or page being saved, the rate limit and retries, the
-contact-detail rules (what goes, and what must stay) and the load step.
+email rules (what goes, and what must stay, phone numbers included) and the load step.

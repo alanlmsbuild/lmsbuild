@@ -69,7 +69,7 @@
 //   49 Supertram's own fares, by hand -> SHARED_DB.RAW
 //   50 National Rail Data Portal fares feed, every line as published -> SHARED_DB.RAW
 // Foreign travel advice, decision 57 (sql/travel_advice_01_tables.sql; scripts/load/travel-advice.js):
-//   51 FCDO travel advice from the GOV.UK Content API, without email addresses and phone numbers -> SHARED_DB.RAW
+//   51 FCDO travel advice from the GOV.UK Content API, without email addresses -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in

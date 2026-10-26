@@ -6,8 +6,8 @@
 --   SHARED_DB.RAW.FCDO_TRAVEL_ADVICE        a country's page from the GOV.UK
 --     Content API, as published, one row per country per change (add-only:
 --     a page that changes is added again, so the history stays). Email
---     addresses and phone numbers in the text are taken out before the
---     file is written and again when it is loaded.
+--     addresses in the text are taken out before the file is written and
+--     again when it is loaded; phone numbers stay as published.
 --   SHARED_DB.RAW.FCDO_TRAVEL_ADVICE_INDEX  the index's entry for each
 --     country (its dates and latest change note), added whenever the list
 --     or any date in it changes.
@@ -30,9 +30,9 @@ CREATE TABLE IF NOT EXISTS SHARED_DB.RAW.FCDO_TRAVEL_ADVICE (
   CONTENT_ID        VARCHAR COMMENT 'The page''s GOV.UK content_id: one per country, the same across versions.',
   COUNTRY_SLUG      VARCHAR COMMENT 'The country''s name as used in its address, e.g. laos.',
   PUBLIC_UPDATED_AT TIMESTAMP_TZ COMMENT 'When this version of the advice was made public (public_updated_at).',
-  ITEM              VARIANT      NOT NULL COMMENT 'The page as the Content API gives it: alert_status, change_description, change_history, parts and the rest, with email addresses and phone numbers in the text taken out. Image and PDF are links only.'
+  ITEM              VARIANT      NOT NULL COMMENT 'The page as the Content API gives it: alert_status, change_description, change_history, parts and the rest, with email addresses in the text taken out (phone numbers stay as published). Image and PDF are links only.'
 )
-COMMENT = 'Foreign travel advice (decision 57). The FCDO''s advice for each country, from the GOV.UK Content API, one JSON record per row, added each time a country''s page changes. Crown copyright, Open Government Licence v3.0. Email addresses and phone numbers in the text are not kept. Add-only.';
+COMMENT = 'Foreign travel advice (decision 57). The FCDO''s advice for each country, from the GOV.UK Content API, one JSON record per row, added each time a country''s page changes. Crown copyright, Open Government Licence v3.0. Email addresses in the text are not kept. Add-only.';
 
 CREATE TABLE IF NOT EXISTS SHARED_DB.RAW.FCDO_TRAVEL_ADVICE_INDEX (
   SOURCEFILEID      VARCHAR(36)  NOT NULL COMMENT 'The SOURCE_FILE row of the file.',
@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS SHARED_DB.RAW.FCDO_TRAVEL_ADVICE_INDEX (
   ITEM              VARIANT      NOT NULL COMMENT 'The index entry as the Content API gives it: the country, its change_description, withdrawn flag and links.'
 )
 COMMENT = 'Foreign travel advice (decision 57). The index of countries (links.children of /api/content/foreign-travel-advice), one row per country, added whenever the list or any date in it changes: shows when a country is added or dropped. Crown copyright, Open Government Licence v3.0. Add-only.';
+
+-- If the tables were made by the first version of this file (26 October 2026
+-- changed what the comments say: phone numbers are kept), these bring their
+-- comments up to date. Safe to run when they are already right.
+ALTER TABLE SHARED_DB.RAW.FCDO_TRAVEL_ADVICE SET COMMENT = 'Foreign travel advice (decision 57). The FCDO''s advice for each country, from the GOV.UK Content API, one JSON record per row, added each time a country''s page changes. Crown copyright, Open Government Licence v3.0. Email addresses in the text are not kept. Add-only.';
+ALTER TABLE SHARED_DB.RAW.FCDO_TRAVEL_ADVICE ALTER COLUMN ITEM COMMENT 'The page as the Content API gives it: alert_status, change_description, change_history, parts and the rest, with email addresses in the text taken out (phone numbers stay as published). Image and PDF are links only.';
 
 GRANT SELECT, INSERT ON TABLE SHARED_DB.RAW.FCDO_TRAVEL_ADVICE TO ROLE DATA_LOAD_ROLE;
 GRANT SELECT, INSERT ON TABLE SHARED_DB.RAW.FCDO_TRAVEL_ADVICE_INDEX TO ROLE DATA_LOAD_ROLE;

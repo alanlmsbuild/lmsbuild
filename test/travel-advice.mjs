@@ -7,7 +7,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ADVICE_DIR, ADVICE_INDEX_URL, ADVICE_REMOVED, EMAIL_TEXT, PHONE_TEXT, adviceSteps, fetchTravelAdvice, getAdviceJson, indexProblems, isPhoneNumber, pageProblems, withoutContactDetails, withoutContactText } from '../scripts/load/travel-advice.js'
+import { ADVICE_DIR, ADVICE_INDEX_URL, ADVICE_REMOVED, EMAIL_TEXT, adviceSteps, fetchTravelAdvice, getAdviceJson, indexProblems, pageProblems, withoutContactDetails, withoutContactText } from '../scripts/load/travel-advice.js'
 import { LOAD_STEPS, runJob } from '../scripts/fetch-official.js'
 import { JOB_ORDER, JOB_SCHEDULE } from '../server/jobSchedule.js'
 import { JOB_RUNNERS } from '../scripts/jobs.js'
@@ -24,32 +24,33 @@ const fresh = (name) => { const r = path.join(here, '.output', 'advice-test', na
 const fails = async (fn) => { try { await fn(); return null } catch (e) { return e.message } }
 
 // ---------------------------------------------------------------- contact details
+// Email addresses and mailto: links go; phone numbers (embassy and emergency
+// numbers are safety information), tel: links and everything else stay.
 const t = (s) => withoutContactText(s)
 check('an email address is taken out', t('Write to consul@example.org today') === `Write to ${EMAIL_TEXT} today`)
+check('several in one text, all of them', t('a@b.co or c.d+e@f.gov.uk') === `${EMAIL_TEXT} or ${EMAIL_TEXT}`)
 check('a mailto link goes whole', t('Email <a href="mailto:a.person@mail.example">a.person@mail.example</a> now') === `Email ${EMAIL_TEXT} now`)
-check('a tel link goes whole', t('Call <a href="tel:+441234567890">our line</a>') === `Call ${PHONE_TEXT}`)
-for (const n of ['+44 (0)20 7008 5000', '020 7008 1500', '+1 (264) 497 2551', '+ 1 (264) 497 2551', '(+44) (0)207 008 1500', '+243815566200', '(595 21) 446 608', '031 615 247', '+356 2134 0000', '0300 123 4567']) {
-  check(`phone number taken out: ${n}`, t(`Call ${n} for help`) === `Call ${PHONE_TEXT} for help`, t(`Call ${n} for help`))
+check('a mailto link whose text is not the address goes whole too', t('<a rel="external" href="mailto:hc@example.la">Contact the consul</a>.') === `${EMAIL_TEXT}.`)
+for (const n of ['+44 (0)20 7008 5000', '020 7008 1500', '+1 (264) 497 2551', '(+44) (0)207 008 1500', '+243815566200', '(595 21) 446 608', '031 615 247', '011 2691111', '999', '112', '211111']) {
+  check(`phone number kept as published: ${n}`, t(`Call ${n} for help`) === `Call ${n} for help`)
 }
-check('(24 hours) after a number is kept', t('+44 (0)20 7008 5000 (24 hours)') === `${PHONE_TEXT} (24 hours)`)
-check('a number and its trailing full stop', t('Phone 020 7008 1500.') === `Phone ${PHONE_TEXT}.`)
-for (const keep of ['Call 999 or 112', 'a population of 1 000 000 people', 'on 2026-10-22 it changed', 'from 2023 - 2024', 'at 50.84439, 6.123456', 'Dial 211111 in Windhoek', 'about 1,200,000 visitors', 'the 15/10/2026 notice']) {
-  check(`kept: ${keep}`, t(keep) === keep, t(keep))
-}
-const found = { emails: 0, phones: 0 }
+check('a tel: link is kept', t('Call <a href="tel:+441234567890">our line</a>') === 'Call <a href="tel:+441234567890">our line</a>')
+check('dates, years and figures are kept', t('on 2026-10-22, 2023 - 2024, 1 000 000 people, 50.84439') === 'on 2026-10-22, 2023 - 2024, 1 000 000 people, 50.84439')
+const found = { emails: 0 }
 const page = { content_id: '602e34bf-8222-4391-96d9-548dbe1e1799', public_updated_at: '2026-08-13T12:10:25+01:00', base_path: '/foreign-travel-advice/laos',
   details: { alert_status: ['avoid_all_but_essential_travel_to_parts'], country: { name: 'Laos', slug: 'laos' }, image: { url: 'https://assets.publishing.service.gov.uk/media/64391b7a773a8a0013ab2c63/map.jpg' },
     change_history: [{ note: 'Updated: call +856 21 413 601', public_timestamp: '2026-08-13T11:10:25Z' }],
     parts: [{ slug: 'getting-help', title: 'Getting help', body: '<p>Honorary consul: <a href="mailto:hc@example.la">hc@example.la</a>, 020 7008 1500. Emergency 999.</p>' }] } }
 const before = JSON.stringify(page)
 const cleaned = withoutContactDetails(page, found)
-check('contact details out of every text, counted', JSON.stringify(cleaned).includes('@') === false && found.emails === 1 && found.phones === 2, JSON.stringify(found))
+check('the email link goes whole, counted once', JSON.stringify(cleaned).includes('@') === false && found.emails === 1 && !('phones' in found), JSON.stringify(found))
+check('the phone numbers in the text and the change history stay', cleaned.details.parts[0].body.includes('020 7008 1500') && cleaned.details.parts[0].body.includes('Emergency 999') && cleaned.details.change_history[0].note === page.details.change_history[0].note)
 check('the record given is not changed', JSON.stringify(page) === before)
 check('links, ids, dates, alert_status and everything else are as published',
   cleaned.details.image.url === page.details.image.url && cleaned.content_id === page.content_id && cleaned.public_updated_at === page.public_updated_at
-  && cleaned.details.change_history[0].public_timestamp === '2026-08-13T11:10:25Z' && cleaned.details.alert_status[0] === 'avoid_all_but_essential_travel_to_parts' && cleaned.details.parts[0].body.includes('Emergency 999'))
+  && cleaned.details.change_history[0].public_timestamp === '2026-08-13T11:10:25Z' && cleaned.details.alert_status[0] === 'avoid_all_but_essential_travel_to_parts')
 check('taking them out twice changes nothing more', JSON.stringify(withoutContactDetails(cleaned)) === JSON.stringify(cleaned))
-check('isPhoneNumber: seven digits is the least', isPhoneNumber('123 4567') && !isPhoneNumber('12 3456'))
+check('what the load says it left out: email addresses only', JSON.stringify(ADVICE_REMOVED) === JSON.stringify(['email addresses in the page text']))
 
 // ---------------------------------------------------------------- the index and a page
 const child = (n, updated = '2026-10-01T10:00:00Z') => ({ content_id: `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`, base_path: `/foreign-travel-advice/c${n}`, public_updated_at: updated,
@@ -88,7 +89,7 @@ const savedIn = (root, prefix) => fs.readdirSync(path.join(root, ADVICE_DIR)).fi
   check('the first run fetches every country', a.pageCalls().length === 120 && path.basename(saved).startsWith('fcdo_pages_'))
   const pages = readLines(saved)
   check('every page is saved, in the index order', pages.length === 120 && pages[0].content_id === list[0].content_id)
-  check('and saved without email addresses or phone numbers', !JSON.stringify(pages).includes('@') && !/020 7008/.test(JSON.stringify(pages)) && JSON.stringify(pages).includes(EMAIL_TEXT))
+  check('and saved without email addresses, with the phone numbers as published', !JSON.stringify(pages).includes('@') && /020 7008 1500/.test(JSON.stringify(pages)) && JSON.stringify(pages).includes(EMAIL_TEXT))
   check('the index is saved too, one line per country', readLines(path.join(root, ADVICE_DIR, savedIn(root, 'fcdo_index_')[0])).length === 120)
   check('no file is left half written', savedIn(root, '').every((n) => !n.endsWith('.part')))
 
@@ -192,7 +193,7 @@ const savedIn = (root, prefix) => fs.readdirSync(path.join(root, ADVICE_DIR)).fi
   check('with the source, licence and the page', specs.every((s) => s.source === 'fcdo-travel-advice' && /Open Government Licence v3.0/.test(s.licence) && s.page === 'https://www.gov.uk/foreign-travel-advice'))
   check('each file only in its own table', specs[0].originals.length === 1 && /fcdo_pages_/.test(specs[0].originals[0].file) && specs[1].originals.length === 1 && /fcdo_index_/.test(specs[1].originals[0].file))
   const rows = await specs[0].rows(specs[0].originals[0])
-  check('rows are read with the contact details taken out again', rows.length === 1 && !JSON.stringify(rows).includes('@') && !/020 7008/.test(JSON.stringify(rows)) && rows[0].n === 1)
+  check('rows are read with the email addresses taken out again, the phone number kept', rows.length === 1 && !JSON.stringify(rows).includes('@') && /020 7008 1500/.test(JSON.stringify(rows)) && rows[0].n === 1)
   check('columns: content id, country, date, the whole page', ['LINENUMBER', 'CONTENT_ID', 'COUNTRY_SLUG', 'PUBLIC_UPDATED_AT', 'ITEM'].every((k) => k in specs[0].cols) && specs[0].cols.ITEM === '$1:item')
   const none = fresh('load-none')
   const empty = []

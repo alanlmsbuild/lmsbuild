@@ -10,8 +10,9 @@
 // countries, when that list or any date in it changed).
 //
 // What is kept: every page as the API gives it, except that email addresses
-// and phone numbers in its text are taken out (many are honorary consuls,
-// who are individuals). The map image and the PDF are kept as links only:
+// (and mailto: links) in its text are taken out. Phone numbers stay as
+// published: embassy and emergency numbers are safety information (26 October
+// 2026; before that they were taken out too). The map image and the PDF are kept as links only:
 // nothing is downloaded until FCDO confirms their licence in writing
 // (docs/licences/fcdo-travel-advice-2026-10/README.md).
 //
@@ -35,54 +36,25 @@ export const ADVICE_SHRINK_LIMIT = 0.05
 export const ADVICE_MIN_COUNTRIES = 100
 
 export const EMAIL_TEXT = '[email address removed]'
-export const PHONE_TEXT = '[phone number removed]'
 
 // ---------------------------------------------------------------- contact details
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g
-// A link made only to email or call: the whole link goes.
-const CONTACT_LINK = /<a\b[^>]*\bhref\s*=\s*["'](?:mailto|tel):[^"']*["'][^>]*>[\s\S]*?<\/a>/gi
-// A run of digits with the usual separators (spaces, dots, hyphens, and
-// brackets round a country or area code), not part of a word, a link or a
-// number with a decimal point; checked in isPhoneNumber.
-const DIGIT = String.raw`(?:\(\+?\d[\d ]{0,6}\)|\d)`
-export const PHONE_RE = new RegExp(String.raw`(?<![\w./@:#-])(?:\+\s?)?${DIGIT}(?:[ .\u00a0-]{0,2}${DIGIT})+(?![\w@]|\.\d)`, 'g')
+// A link made to send an email: the whole link goes. (A tel: link is kept.)
+const MAILTO_LINK = /<a\b[^>]*\bhref\s*=\s*["']mailto:[^"']*["'][^>]*>[\s\S]*?<\/a>/gi
 
-// Is this run of digits a telephone number, not a date, a year range, a
-// figure with thousands or a short number (999, 112, 1500)?
-export function isPhoneNumber(run) {
-  const digits = run.replace(/\D/g, '')
-  if (digits.length < 7 || digits.length > 15) return false
-  if (/^\d{4}-\d{2}-\d{2}/.test(run) || /^\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}$/.test(run)) return false
-  if (/^[1-9]\d{0,2}([\s\u00a0,]\d{3})+$/.test(run.trim())) return false // 1 000 000
-  if (/^\d{4}\s*-\s*\d{4}$/.test(run.trim())) return false // 2023 - 2024
-  if (/^\d+\.\d+$/.test(run.trim())) return false // a coordinate or figure, 50.84439
-  return true
-}
-
-// A piece of text without email addresses and phone numbers; `found` counts them.
-export function withoutContactText(text, found = { emails: 0, phones: 0 }) {
-  let s = text.replace(CONTACT_LINK, (m) => {
-    if (/href\s*=\s*["']mailto:/i.test(m)) found.emails++
-    else found.phones++
-    return /href\s*=\s*["']mailto:/i.test(m) ? EMAIL_TEXT : PHONE_TEXT
-  })
+// A piece of text without email addresses; `found` counts them.
+export function withoutContactText(text, found = { emails: 0 }) {
+  let s = text.replace(MAILTO_LINK, () => { found.emails++; return EMAIL_TEXT })
   s = s.replace(EMAIL, () => { found.emails++; return EMAIL_TEXT })
-  s = s.replace(PHONE_RE, (m) => {
-    // A trailing space, dot or hyphen is not part of the number.
-    const trimmed = m.replace(/[\s.\u00a0-]+$/, '')
-    if (!isPhoneNumber(trimmed)) return m
-    found.phones++
-    return PHONE_TEXT + m.slice(trimmed.length)
-  })
   return s
 }
 
 // A string that is a link or a path, an identifier or a date: left alone.
 const isLinkOrId = (s) => /^(https?:\/\/\S+|\/[\w\-./]*|[0-9a-f-]{36}|\d{4}-\d{2}-\d{2}T[\d:.]+(Z|[+-]\d{2}:\d{2})?)$/i.test(s.trim())
 
-// The record (any JSON) with email addresses and phone numbers taken out of
-// every piece of text; a new object. `found` counts what was taken out.
-export function withoutContactDetails(value, found = { emails: 0, phones: 0 }) {
+// The record (any JSON) with email addresses taken out of every piece of
+// text; a new object. `found` counts what was taken out.
+export function withoutContactDetails(value, found = { emails: 0 }) {
   if (typeof value === 'string') return isLinkOrId(value) ? value : withoutContactText(value, found)
   if (Array.isArray(value)) return value.map((v) => withoutContactDetails(v, found))
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withoutContactDetails(v, found)]))
@@ -90,7 +62,7 @@ export function withoutContactDetails(value, found = { emails: 0, phones: 0 }) {
 }
 
 // What the loader says it left out (SOURCE_FILE.REMOVEDCOLUMNS).
-export const ADVICE_REMOVED = ['email addresses in the page text', 'phone numbers in the page text']
+export const ADVICE_REMOVED = ['email addresses in the page text']
 
 // ---------------------------------------------------------------- fetching
 const instant = (s) => (s ? new Date(s).getTime() : NaN)
@@ -169,7 +141,7 @@ export async function fetchTravelAdvice({ root, log = console.log, getJson = get
   const indexChanged = children.length !== Object.keys(state.index).length || children.some((c) => instant(state.index[c.content_id]) !== instant(c.public_updated_at))
   const todo = children.filter((c) => instant(state.pages[c.content_id]) !== instant(c.public_updated_at) && !(instant(state.pages[c.content_id]) > instant(c.public_updated_at)))
 
-  const found = { emails: 0, phones: 0 }
+  const found = { emails: 0 }
   const pages = []
   for (const [i, child] of todo.entries()) {
     if (i) await new Promise((r) => setTimeout(r, pauseMs))
@@ -194,7 +166,7 @@ export async function fetchTravelAdvice({ root, log = console.log, getJson = get
   const pagesNow = { ...state.pages }
   for (const p of pages) pagesNow[p.content_id] = p.public_updated_at
   fs.writeFileSync(statePath, JSON.stringify({ etag: idx.etag ?? null, pages: pagesNow, index: indexNow }))
-  log(`  Travel advice: ${children.length} countries, ${pages.length} page(s) new or changed${pages.length ? ` (${found.emails} email addresses and ${found.phones} phone numbers taken out)` : ''}${indexChanged ? ', the index changed' : ''}`)
+  log(`  Travel advice: ${children.length} countries, ${pages.length} page(s) new or changed${pages.length ? ` (${found.emails} email addresses taken out)` : ''}${indexChanged ? ', the index changed' : ''}`)
   return saved
 }
 

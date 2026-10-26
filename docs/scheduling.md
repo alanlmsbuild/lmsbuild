@@ -56,8 +56,8 @@ whose `public_updated_at` is new or later (about 4 requests a second; the API's
 limit is 10). The saved files are in `RAREBIT_DATA/fcdo-travel-advice/` and the
 last index is in its `state.json`. A run with nothing new does not touch Snowflake;
 a run that fails leaves `state.json` as it was, so the next run tries again. Email
-addresses and phone numbers in the page text are taken out before the file is
-written and again when it is loaded (the load is `columns-removed`, no original
+addresses (and `mailto:` links) in the page text are taken out before the file is
+written and again when it is loaded; phone numbers stay as published (the load is `columns-removed`, no original
 staged). Checks that stop a run saving anything: the index lists fewer than 100
 countries or has shrunk by over 5% (accepted by running once with
 `TRAVEL_ADVICE_ACCEPT_CHANGES=1`), a repeated `content_id`, or a page that is not
