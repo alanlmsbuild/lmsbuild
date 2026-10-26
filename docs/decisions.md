@@ -154,23 +154,27 @@ Added 14 October 2026:
 - The tags are real Snowflake tags in SHARED_DB.GOVERNANCE (the account is
   Enterprise), made by `sql/silver_01_setup.sql`.
 
-Added 22 October 2026: clearing data out of Snowflake.
+Added 22 October 2026, corrected 26 October 2026: clearing data out of
+Snowflake.
 
 When a clean-up has to remove data we shouldn't hold (a column of personal
-data, a file), the table's old version must be gone too, not just the live
-rows:
+data, a file), the table's old version stays reachable for a while, not just
+the live rows:
 
-- Set the table's `DATA_RETENTION_TIME_IN_DAYS` to 0 **before** the update or
-  delete, and **keep it at 0** until a read of the old version
-  (`AT(OFFSET => -N)`, N reaching back before the change) returns an error.
-  Putting it back straight after the statement doesn't work: on 22 October
-  2026 the old version of `OFQUAL_ORGANISATION` was still reachable (748 rows)
-  when retention was restored immediately. Only then `UNSET` the parameter, as
-  its own later step, never as part of a Run All.
-- A permanent table still has Fail-safe for 7 days after that: Snowflake's own
-  copy, which we can't query or restore. So "gone from Snowflake" is about 7
-  days after Time Travel ends. Stage files have neither, and `REMOVE` is
-  immediate.
+- **Make the change and leave `DATA_RETENTION_TIME_IN_DAYS` as it is.**
+  Setting retention to 0 does not purge the old version: on 22 October 2026
+  retention was set to 0 before the update on `OFQUAL_ORGANISATION` and kept
+  there for about 3 hours, the old version (748 rows) was still reachable with
+  `AT(TIMESTAMP => a time before the update)`, and when retention was `UNSET`
+  it came back under the table's 1-day retention. So expect the old version to
+  stay reachable until the retention period ends (1 day here).
+- **Confirm with an `AT(TIMESTAMP => <a time before the change>)` read, once
+  the retention period has passed: it must error.** Note the time before
+  the change, since the read needs it.
+- A permanent table then has Fail-safe for 7 days: Snowflake's own copy, which
+  we can't query or restore. So "gone from Snowflake" is the retention period
+  plus 7 days (8 days for a table with 1 day's retention). Stage files have
+  neither, and `REMOVE` is immediate.
 - Remove the files in the load stage that hold the data (`LIST` the stage; the
   loader uploads originals and copies), clean the local copies, and keep the
   `SOURCE_FILE` rows true (`COPYKIND`, `REMOVEDCOLUMNS`, `ORIGINALSTAGED`, and
