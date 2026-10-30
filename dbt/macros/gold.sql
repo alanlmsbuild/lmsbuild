@@ -3,14 +3,29 @@
 
   apply_reader_grants: each gold table is granted to the readers its model
   names in meta.readers (database roles; scripts/gold-readers.js has the
-  same list and check:grants checks Snowflake keeps to it). Run as a
+  same list and check:grants checks Snowflake keeps to it), and every other
+  database role is revoked (30 October 2026: train fares kept Warren's and
+  Meadow's old grants). Run as a
   post-hook: the grant is made where the table was built (GOLD_STAGING by
   the daily job) and the swap carries it into GOLD.
 -#}
 {% macro apply_reader_grants() -%}
   {%- if execute -%}
-    {%- for reader in model.config.meta.get('readers', []) -%}
+    {%- set wanted = model.config.meta.get('readers', []) -%}
+    {%- for reader in wanted -%}
       {%- do run_query('grant select on table ' ~ this ~ ' to database role ' ~ reader) -%}
+    {%- endfor -%}
+    {#- The models keep the grants of the table they replace (copy_grants), so a
+        reader taken out of meta.readers would keep its access for ever: revoke
+        any database role that can read the table and is not named. -#}
+    {%- set names = wanted | map('replace', this.database ~ '.', '') | list -%}
+    {%- for row in run_query('show grants on table ' ~ this).rows -%}
+      {%- set g = {} -%}
+      {%- for k in row.keys() -%}{%- do g.update({k | lower: row[k]}) -%}{%- endfor -%}
+      {%- if g['granted_to'] == 'DATABASE_ROLE' and g['privilege'] == 'SELECT' and g['grantee_name'] not in names -%}
+        {%- do log('revoking ' ~ g['grantee_name'] ~ ' from ' ~ this, info=true) -%}
+        {%- do run_query('revoke select on table ' ~ this ~ ' from database role ' ~ this.database ~ '.' ~ g['grantee_name']) -%}
+      {%- endif -%}
     {%- endfor -%}
   {%- endif -%}
   select 1

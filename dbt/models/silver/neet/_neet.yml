@@ -1,0 +1,172 @@
+version: 2
+
+# NEET and participation age 16 to 17 by local authority, silver: SHARED_DB.SILVER.
+
+models:
+
+  - name: neet_feed
+    description: >-
+      Which NEET and participation file silver and gold are built from, when the release was published and the page it
+      came from. One row.
+    config:
+      meta:
+        source: neet-16-17
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Department for Education.'
+        refresh: yearly
+        sensitivity: public
+    columns:
+      - name: source_file_id
+        data_type: varchar
+        description: 'The SOURCE_FILE row of the file.'
+        data_tests:
+          - unique
+          - not_null
+      - name: published_on
+        data_type: date
+        description: 'The date the release was published, as the publisher states it.'
+      - name: source_url
+        data_type: varchar
+        description: 'The page it came from.'
+        data_tests:
+          - not_null
+      - name: downloaded_on
+        data_type: date
+        description: 'The day the file was downloaded.'
+        data_tests:
+          - not_null
+      - name: loaded_at
+        data_type: timestamp_ltz
+        description: 'When it was loaded into Snowflake.'
+        data_tests:
+          - not_null
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the source files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
+
+  - name: neet_participation
+    description: >-
+      NEET and activity not known, age 16 to 17, from the Department for Educations local authority management information,
+      2019 onwards: one row per area (local authority, region or England), year, age and group. Counts are averages of the
+      December, January and February returns. Each figure is kept as published (c: withheld, z: does not apply) beside
+      the number.
+    config:
+      meta:
+        source: neet-16-17
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Department for Education.'
+        refresh: yearly
+        sensitivity: public
+    columns:
+      - name: neet_key
+        data_type: varchar
+        description: 'A key made from the year, area, age and group.'
+        data_tests:
+          - unique
+          - not_null
+      - name: year
+        data_type: number(4,0)
+        description: 'The year of the March count (2019 to 2026).'
+        data_tests:
+          - not_null
+      - name: geographic_level
+        data_type: varchar
+        description: 'Local authority, Regional or National.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Local authority', 'Regional', 'National']
+      - name: country_code
+        data_type: varchar
+        description: 'The country code (England).'
+        data_tests:
+          - not_null
+      - name: region_code
+        data_type: varchar
+        description: 'The region code, for a region or a local authority.'
+      - name: region_name
+        data_type: varchar
+        description: 'The region name.'
+      - name: la_code
+        data_type: varchar
+        description: 'The local authority code (current), for a local authority.'
+      - name: old_la_code
+        data_type: varchar
+        description: 'The old three-digit local authority code.'
+      - name: la_name
+        data_type: varchar
+        description: 'The local authority name.'
+      - name: age
+        data_type: varchar
+        description: '16, 17 or 16 to 17 (academic age at 31 August).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['16', '17', '16 to 17']
+      - name: characteristic_grouping
+        data_type: varchar
+        description: 'Total, sex, ethnicity or SEND.'
+        data_tests:
+          - not_null
+      - name: characteristic
+        data_type: varchar
+        description: 'The group within it, e.g. Total, Female, white.'
+        data_tests:
+          - not_null
+      - name: cohort_published
+        data_type: varchar
+        description: 'The cohort number as published.'
+      - name: neet_count_published
+        data_type: varchar
+        description: 'The number NEET as published.'
+      - name: not_known_count_published
+        data_type: varchar
+        description: 'The number whose activity is not known as published.'
+      - name: neet_or_not_known_count_published
+        data_type: varchar
+        description: 'The number NEET or not known as published.'
+      - name: neet_percent_published
+        data_type: varchar
+        description: 'The NEET proportion as published.'
+      - name: not_known_percent_published
+        data_type: varchar
+        description: 'The not-known proportion as published.'
+      - name: neet_or_not_known_percent_published
+        data_type: varchar
+        description: 'The NEET or not-known proportion as published.'
+      - name: annual_change_published
+        data_type: varchar
+        description: 'The annual change in the NEET or not-known rate, percentage points, as published.'
+      - name: cohort
+        data_type: float
+        description: 'The cohort number (empty where withheld or not applicable).'
+      - name: neet_count
+        data_type: float
+        description: 'The number NEET.'
+      - name: not_known_count
+        data_type: float
+        description: 'The number whose activity is not known.'
+      - name: neet_or_not_known_count
+        data_type: float
+        description: 'The number NEET or not known.'
+      - name: neet_percent
+        data_type: float
+        description: 'The NEET proportion, a percentage.'
+      - name: not_known_percent
+        data_type: float
+        description: 'The activity-not-known proportion, a percentage.'
+      - name: neet_or_not_known_percent
+        data_type: float
+        description: 'The NEET or not-known proportion, a percentage.'
+      - name: annual_change_points
+        data_type: float
+        description: 'The annual change in the NEET or not-known rate, percentage points.'
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the source files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null

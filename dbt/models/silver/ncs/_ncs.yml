@@ -1,0 +1,256 @@
+version: 2
+
+# The National Careers Service course directory, silver: OPTIONS_DB.SILVER.
+
+models:
+
+  - name: ncs_feed
+    description: >-
+      Which National Careers Service course directory files silver and gold are built from, when they were published,
+      downloaded and loaded, and the stamp for the models. One row.
+    config:
+      meta:
+        source: ncs-course-directory,lars
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. National Careers Service course directory, Department for Education.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: course_file_id
+        data_type: varchar
+        description: 'The SOURCE_FILE row of the courses file.'
+        data_tests:
+          - unique
+          - not_null
+      - name: provider_file_id
+        data_type: varchar
+        description: 'The SOURCE_FILE row of the providers file.'
+        data_tests:
+          - not_null
+      - name: published_on
+        data_type: date
+        description: 'The date the publication page states (the day it was last updated).'
+      - name: source_url
+        data_type: varchar
+        description: 'The publication page.'
+        data_tests:
+          - not_null
+      - name: downloaded_on
+        data_type: date
+        description: 'The day the file was downloaded.'
+        data_tests:
+          - not_null
+      - name: loaded_at
+        data_type: timestamp_ltz
+        description: 'When the newest file was loaded into Snowflake.'
+        data_tests:
+          - not_null
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the source files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
+
+  - name: ncs_provider
+    description: >-
+      The course providers in the National Careers Service course directory, one row per UKPRN: name, trading name,
+      town, postcode and website as published. Contact addresses, telephone numbers and email addresses were left out
+      before loading.
+    config:
+      meta:
+        source: ncs-course-directory
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. National Careers Service course directory, Department for Education.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: ukprn
+        data_type: varchar
+        description: 'The providers UKPRN.'
+        data_tests:
+          - unique
+          - not_null
+      - name: provider_name
+        data_type: varchar
+        description: 'Its name as registered.'
+        data_tests:
+          - not_null
+      - name: trading_name
+        data_type: varchar
+        description: 'The name it trades under, where it has one.'
+      - name: town
+        data_type: varchar
+        description: 'Its town.'
+      - name: postcode
+        data_type: varchar
+        description: 'Its postcode.'
+      - name: website
+        data_type: varchar
+        description: 'Its website as published (blank where the file gave an email address).'
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the source files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
+
+  - name: ncs_course
+    description: >-
+      The live courses in the National Careers Service course directory, one row per course run at a venue. Codes are decoded with
+      the publications code tables; a code they do not define is kept with no label. Where the learning aim reference is in
+      LARS its title, level, sector subject area and awarding body are alongside. Contact details and free text were left out
+      before loading.
+    config:
+      meta:
+        source: ncs-course-directory,lars
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. National Careers Service course directory, Department for Education.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: course_run_id
+        data_type: varchar
+        description: 'The course runs ID in the directory.'
+        data_tests:
+          - unique
+          - not_null
+      - name: course_id
+        data_type: varchar
+        description: 'The courses ID (a course has one or more runs).'
+        data_tests:
+          - not_null
+      - name: provider_ukprn
+        data_type: varchar
+        description: 'The providers UKPRN.'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('ncs_provider')
+                field: ukprn
+              config:
+                severity: warn
+      - name: learn_aim_ref
+        data_type: varchar
+        description: 'The learning aim reference (LARS), where the course has one.'
+      - name: course_name
+        data_type: varchar
+        description: 'The courses name as the provider wrote it.'
+        data_tests:
+          - not_null
+      - name: delivery_mode
+        data_type: varchar
+        description: 'Classroom based, Online, Work based or Blended learning.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Classroom based', 'Online', 'Work based', 'Blended learning']
+      - name: study_mode
+        data_type: varchar
+        description: 'Full-time, Part-time or Flexible.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Full-time', 'Part-time', 'Flexible']
+      - name: attendance_pattern
+        data_type: varchar
+        description: 'Daytime, Evening, Weekend or Day or block release.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Daytime', 'Evening', 'Weekend', 'Day or block release']
+      - name: has_flexible_start
+        data_type: boolean
+        description: 'Whether it can start at any time (no fixed start date).'
+        data_tests:
+          - not_null
+      - name: start_date
+        data_type: date
+        description: 'Its start date, where it has a fixed one.'
+      - name: duration_value
+        data_type: number(10,0)
+        description: 'How long it lasts, in duration_unit.'
+      - name: duration_unit
+        data_type: varchar
+        description: 'days, weeks, months, years, hours or minutes.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['days', 'weeks', 'months', 'years', 'hours', 'minutes']
+      - name: cost
+        data_type: number(12,2)
+        description: 'The cost as published; the code tables do not state a unit. Empty where none is stated.'
+      - name: is_national
+        data_type: boolean
+        description: 'Whether the provider delivers it nationally.'
+        data_tests:
+          - not_null
+      - name: regions
+        data_type: varchar
+        description: 'The regions it is delivered in, as published.'
+      - name: venue_name
+        data_type: varchar
+        description: 'The venues name.'
+      - name: venue_town
+        data_type: varchar
+        description: 'The venues town.'
+      - name: venue_county
+        data_type: varchar
+        description: 'The venues county.'
+      - name: venue_postcode
+        data_type: varchar
+        description: 'The venues postcode (upper case, as published).'
+      - name: venue_postcode_compact
+        data_type: varchar
+        description: 'The same without the space, to join the postcode directory.'
+      - name: venue_latitude
+        data_type: float
+        description: 'The venues latitude.'
+      - name: venue_longitude
+        data_type: float
+        description: 'The venues longitude.'
+      - name: venue_website
+        data_type: varchar
+        description: 'The venues website (blank where the file gave an email address).'
+      - name: course_url
+        data_type: varchar
+        description: 'The course page (blank where the file gave an email address).'
+      - name: updated_on
+        data_type: date
+        description: 'When the provider last updated the course.'
+      - name: course_type_code
+        data_type: varchar
+        description: 'The courses type code as published.'
+      - name: course_type
+        data_type: varchar
+        description: 'Its type in words, for the codes 1 to 6 the code tables define (7, 8 and 9 have no label).'
+      - name: sector
+        data_type: varchar
+        description: 'The directorys sector code as published (filled for few courses).'
+      - name: education_level_code
+        data_type: varchar
+        description: 'The directorys level code as published (filled for few courses).'
+      - name: awarding_body
+        data_type: varchar
+        description: 'The awarding body as published.'
+      - name: lars_matched
+        data_type: boolean
+        description: 'Whether the learning aim reference is in LARS.'
+        data_tests:
+          - not_null
+      - name: lars_title
+        data_type: varchar
+        description: 'The learning aims title in LARS.'
+      - name: lars_level
+        data_type: varchar
+        description: 'Its level in LARS (notional NVQ level, version 2).'
+      - name: lars_subject_area
+        data_type: varchar
+        description: 'Its sector subject area (tier 2) in LARS.'
+      - name: lars_awarding_body
+        data_type: varchar
+        description: 'Its awarding body in LARS.'
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the source files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null

@@ -256,6 +256,43 @@ and limits: `docs/licences/oak-2026-10/README.md`. Decided 30 October 2026
   the fetch asks for those one at a time; all 2,919 open lessons now have a
   quiz (22 of them with no question left, every question having an image).
 
+## 58. National Careers Service course directory and NEET figures
+
+Two more data sets built to gold (30 October 2026, Alan's build day batch);
+stop at gold, no reader roles, no site changes.
+
+- **Course directory** (Department for Education, monthly, Open Government
+  Licence v3.0: `docs/licences/ncs-course-directory-2026-10/`). Load step 54
+  (`scripts/load/ncs.js`, `npm run fetch:official -- ncs`, by hand) puts the
+  live courses (102,861 runs) and providers (2,318) into
+  `OPTIONS_DB.RAW.NCS_COURSE` and `NCS_PROVIDER` (`sql/ncs_01_tables.sql`).
+  **No personal data:** the venue and provider email addresses, telephone
+  numbers and street addresses and four free-text columns (providers wrote
+  their own phone numbers and emails in them) are left out before loading, a
+  web address that is an email address is blanked, and a new column in the file
+  stops the load until it has been checked. Silver `ncs_feed`, `ncs_provider`,
+  `ncs_course` (OPTIONS_DB.SILVER) and gold `ncs_course_card` (provider, venue
+  postcode and local authority, level, subject, qualification, start dates,
+  study mode, joined to LARS on the learning aim reference: 97% of runs match;
+  level and subject come from LARS only) and `ncs_course_count` (courses by
+  local authority and level for "[Number] courses near you"; online and
+  national courses counted once under ONLINE_NATIONAL), gated on the latest
+  directory and LARS files (`ncs_reusable`).
+- **NEET** (Department for Education, Explore education statistics, Open
+  Government Licence v3.0: `docs/licences/neet-participation-2026-10/`). Already
+  in bronze since 13 October (load step 23, `SHARED_DB.RAW.NEET_16_17_*`, release
+  2025/26 published 2 July 2026, the whole series 2019 to 2026: every year on
+  Explore education statistics). Silver `neet_participation`, gold
+  `neet_la_year` (NEET, not-known and NEET-or-not-known rates by local
+  authority, region and England, year and age, with the published date, the
+  source link and the publisher's caution on every row), gated on the latest
+  file (`neet_reusable`). Years before 2019 are in an older GOV.UK publication,
+  not loaded.
+- **Grants.** `apply_reader_grants` now revokes any database role a gold model
+  does not name (the models keep the grants of the table they replace, so train
+  fares kept Warren's and Meadow's old ones): `sql/grants_02_train_fares.sql`
+  removes the existing ones once.
+
 ## 57. An Honest Guide to the World
 
 An Honest Guide to the World (22 October 2026). The gap year work grows into a

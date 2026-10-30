@@ -14,6 +14,9 @@
 //   npm run fetch:official -- oak       Oak National Academy's secondary curriculum, then the quizzes of
 //                                          its open lessons, filtered (scripts/load/oak.js, oak-quiz.js;
 //                                          needs OAK_API_KEY; monthly)
+//   npm run fetch:official -- ncs       National Careers Service course directory, the newest month's
+//                                          courses and providers, contact details left out
+//                                          (scripts/load/ncs.js; monthly; by hand)
 //   npm run fetch:official -- monthly   police.uk, APAR, NaPTAN, listed buildings,
 //                                          Wikidata places (batch 6, each only if new)
 //   add --no-load to fetch only
@@ -38,6 +41,7 @@ import { withoutPersonalFields } from './load/ofqual.js'
 import { fetchTravelAdvice } from './load/travel-advice.js'
 import { fetchOak } from './load/oak.js'
 import { fetchOakQuizzes } from './load/oak-quiz.js'
+import { fetchNcs } from './load/ncs.js'
 import { NOMIS_SETS, nomisFetched } from './load/nomis-sets.js'
 
 const RAREBIT_DATA = process.env.RAREBIT_DATA || '/mnt/c/Users/alanb/rarebit-data'
@@ -62,7 +66,7 @@ export const EES_SETS = [
 ].map(([dir, id]) => ({ dir, id }))
 
 // The load:data steps each kind feeds (api: 17, Key stage 4, is paused: see KS4_EES_SETS).
-export const LOAD_STEPS = { nomis: [14, 15, 26, 33], api: [18, 19], statxplore: [24], ons: [25, 29], ofqual: [27], advice: [51], oak: [52, 53], monthly: [34, 35, 36, 38] }
+export const LOAD_STEPS = { nomis: [14, 15, 26, 33], api: [18, 19], statxplore: [24], ons: [25, 29], ofqual: [27], advice: [51], oak: [52, 53], ncs: [54], monthly: [34, 35, 36, 38] }
 
 // ONS datasets published as spreadsheets: a new file only for a new edition.
 // The name is the file's own, with the edition added unless it's "current".
@@ -343,10 +347,10 @@ const setName = (set, i) => (typeof set === 'string' ? set : Array.isArray(set) 
 export async function runJob({ kind, load = true, log = console.log, deps = {} }) {
   const fetched = []
   const failed = []
-  const sets = { nomis: NOMIS_SETS, api: EES_SETS, statxplore: SX_SETS, ons: ONS_SETS, ofqual: ['Qualifications', 'Organisations'], advice: ['index'], oak: ['bulk', 'quizzes'], monthly: MONTHLY_FETCHES }[kind]
+  const sets = { nomis: NOMIS_SETS, api: EES_SETS, statxplore: SX_SETS, ons: ONS_SETS, ofqual: ['Qualifications', 'Organisations'], advice: ['index'], oak: ['bulk', 'quizzes'], ncs: ['files'], monthly: MONTHLY_FETCHES }[kind]
   const fetchOne = deps.fetchOne ?? { nomis: (s) => fetchNomis(s, { log }), api: (s) => fetchEes(s, { log }), statxplore: (s) => fetchStatXplore(s, { root: RAREBIT_DATA, log }),
     ons: (s) => fetchOns(s, { log }), ofqual: (s) => fetchOfqual(s, { log }), advice: () => fetchTravelAdvice({ root: RAREBIT_DATA, log }),
-    oak: async (part) => (part === 'bulk' ? (await fetchOak({ root: RAREBIT_DATA, log }))[0] : await fetchOakQuizzes({ root: RAREBIT_DATA, log })) ?? null, monthly: (f) => f({ log }) }[kind]
+    oak: async (part) => (part === 'bulk' ? (await fetchOak({ root: RAREBIT_DATA, log }))[0] : await fetchOakQuizzes({ root: RAREBIT_DATA, log })) ?? null, ncs: async () => (await fetchNcs({ root: RAREBIT_DATA, log }))[0] ?? null, monthly: (f) => f({ log }) }[kind]
   let attempts = 0
   for (const [i, set] of sets.entries()) {
     attempts++
@@ -391,7 +395,7 @@ export async function runJob({ kind, load = true, log = console.log, deps = {} }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const kind = process.argv[2]
   if (!LOAD_STEPS[kind]) {
-    console.error('Say nomis, api, statxplore, ons, ofqual, advice, oak or monthly: npm run fetch:official -- nomis')
+    console.error('Say nomis, api, statxplore, ons, ofqual, advice, oak, ncs or monthly: npm run fetch:official -- nomis')
     process.exit(1)
   }
   const result = await runJob({ kind, load: !process.argv.includes('--no-load') })

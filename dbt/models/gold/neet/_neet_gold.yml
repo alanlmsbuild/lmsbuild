@@ -1,0 +1,125 @@
+version: 2
+
+# NEET and participation age 16 to 17 by local authority, gold: SHARED_DB.GOLD. No reader role yet: the options app is
+# not changed (stop at gold).
+
+models:
+
+  - name: neet_la_year
+    description: >-
+      NEET and activity-not-known rates for 16 and 17 year olds by local authority and year (Department for Education local
+      authority management information), with the region and England rows to compare with. All young people, by age 16, age 17
+      and both. Every row says when the release was published and where it came from. A rate based on fewer than 10 young
+      people is hidden; one the publisher withheld says so.
+    config:
+      meta:
+        source: neet-16-17
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Department for Education.'
+        refresh: yearly
+        sensitivity: public
+    columns:
+      - name: neet_key
+        data_type: varchar
+        description: 'A key made from the year, area and age.'
+        data_tests:
+          - unique
+          - not_null
+      - name: year
+        data_type: number(4,0)
+        description: 'The year of the March count.'
+        data_tests:
+          - not_null
+      - name: geographic_level
+        data_type: varchar
+        description: 'Local authority, Regional or National.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Local authority', 'Regional', 'National']
+      - name: area_code
+        data_type: varchar
+        description: 'The local authority, region or country code.'
+        data_tests:
+          - not_null
+      - name: area_name
+        data_type: varchar
+        description: 'Its name.'
+        data_tests:
+          - not_null
+      - name: region_name
+        data_type: varchar
+        description: 'The region it is in (for a local authority).'
+      - name: age
+        data_type: varchar
+        description: '16, 17 or 16 to 17.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['16', '17', '16 to 17']
+      - name: cohort
+        data_type: float
+        description: 'The young people tracked (average over the three returns); empty where hidden.'
+      - name: neet_count
+        data_type: float
+        description: 'How many were NEET (average); empty where hidden.'
+      - name: neet_percent
+        data_type: float
+        description: 'The NEET rate, a percentage; empty where hidden.'
+      - name: neet_status
+        data_type: varchar
+        description: 'shown, or why it is hidden (fewer-than-10, withheld, too-few, unavailable); empty if it does not apply.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['shown', 'fewer-than-10', 'withheld', 'too-few', 'unavailable']
+      - name: not_known_percent
+        data_type: float
+        description: 'The activity-not-known rate, a percentage; empty where hidden.'
+      - name: not_known_status
+        data_type: varchar
+        description: 'shown, or why it is hidden.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['shown', 'fewer-than-10', 'withheld', 'too-few', 'unavailable']
+      - name: neet_or_not_known_percent
+        data_type: float
+        description: 'The NEET or not-known rate, a percentage; empty where hidden.'
+      - name: neet_or_not_known_status
+        data_type: varchar
+        description: 'shown, or why it is hidden.'
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['shown', 'fewer-than-10', 'withheld', 'too-few', 'unavailable']
+      - name: annual_change_points
+        data_type: float
+        description: 'The change in the NEET or not-known rate since the year before, percentage points.'
+      - name: caution
+        data_type: varchar
+        description: 'What to say beside the figures.'
+        data_tests:
+          - not_null
+      - name: published_on
+        data_type: date
+        description: 'The date the release was published.'
+        data_tests:
+          - not_null
+      - name: source_url
+        data_type: varchar
+        description: 'The page the figures came from.'
+        data_tests:
+          - not_null
+      - name: attribution
+        data_type: varchar
+        description: 'The attribution line to show with it.'
+        data_tests:
+          - not_null
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the source files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null

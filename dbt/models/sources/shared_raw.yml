@@ -108,6 +108,22 @@ sources:
         identifier: ASHE_OCCUPATION
         description: ASHE Tables 14 (UK) and 15 (work region) by SOC 2020, 2024 revised and 2025 provisional, one row per spreadsheet row; a files are the figures, b files their coefficients of variation.
 
+      - name: neet_16_17_by_characteristics
+        identifier: NEET_16_17_BY_CHARACTERISTICS
+        description: 'NEET and activity not known, age 16 to 17, by local authority, region and England, by age, sex, ethnic group and SEND, 2019 onwards, one row per measure (Department for Education, load:data step 23).'
+      - name: lars_learningdelivery
+        identifier: LARS_LEARNINGDELIVERY
+        description: 'LARS learning aims (qualifications), one row per learning aim reference. Columns named as in the file, mixed case.'
+      - name: lars_notionalnvqlevelv2
+        identifier: LARS_NOTIONALNVQLEVELV2
+        description: LARS lookup of notional NVQ level (version 2) to its description.
+      - name: lars_sectorsubjectareatier2
+        identifier: LARS_SECTORSUBJECTAREATIER2
+        description: LARS lookup of sector subject area (tier 2) to its description.
+      - name: lars_awardorgcode
+        identifier: LARS_AWARDORGCODE
+        description: LARS lookup of awarding organisation codes to names.
+
   # SHARED_DB.EXT: data kept up to date by the app's own imports (not files).
   - name: shared_ext
     database: SHARED_DB
@@ -203,3 +219,9 @@ sources:
       - name: oak_quiz
         identifier: OAK_QUIZ
         description: Oak National Academy starter and exit quizzes of the open lessons, questions with images left out (load:data step 53).
+      - name: ncs_course
+        identifier: NCS_COURSE
+        description: National Careers Service course directory, the live courses with regions and venues, one row per course run and venue; contact details and free text left out (load:data step 54).
+      - name: ncs_provider
+        identifier: NCS_PROVIDER
+        description: National Careers Service course directory, the live course providers, one row per UKPRN; addresses, telephone and email left out (load:data step 54).

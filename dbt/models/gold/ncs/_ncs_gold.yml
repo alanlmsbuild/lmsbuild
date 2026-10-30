@@ -1,0 +1,248 @@
+version: 2
+
+# The National Careers Service course directory, gold: OPTIONS_DB.GOLD. No reader role yet: the options app is
+# not changed (stop at gold).
+
+models:
+
+  - name: ncs_course_card
+    description: >-
+      A card for every live course run in the National Careers Service course directory (one row per course run at a venue):
+      provider, venue and postcode with its local authority, level, subject, qualification, start date or flexible start, study
+      mode and the course page. Level and subject come from LARS only, so a course with no LARS match has none.
+    config:
+      meta:
+        source: ncs-course-directory,lars,onspd
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. National Careers Service course directory, Department for Education.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: course_run_id
+        data_type: varchar
+        description: 'The course runs ID in the directory.'
+        data_tests:
+          - unique
+          - not_null
+      - name: course_id
+        data_type: varchar
+        description: 'The courses ID (a course has one or more runs).'
+        data_tests:
+          - not_null
+      - name: provider_ukprn
+        data_type: varchar
+        description: 'The providers UKPRN.'
+        data_tests:
+          - not_null
+      - name: provider_name
+        data_type: varchar
+        description: 'The providers name.'
+      - name: provider_trading_name
+        data_type: varchar
+        description: 'The name it trades under, where it has one.'
+      - name: course_name
+        data_type: varchar
+        description: 'The courses name as the provider wrote it.'
+        data_tests:
+          - not_null
+      - name: qualification
+        data_type: varchar
+        description: 'The qualification: the learning aims title in LARS, else the course name.'
+        data_tests:
+          - not_null
+      - name: learn_aim_ref
+        data_type: varchar
+        description: 'The learning aim reference (LARS), where the course has one.'
+      - name: awarding_body
+        data_type: varchar
+        description: 'The awarding body (the directorys, else LARS).'
+      - name: level
+        data_type: varchar
+        description: 'Its level (LARS notional NVQ level, version 2), where the aim is in LARS.'
+      - name: subject
+        data_type: varchar
+        description: 'Its sector subject area (LARS, tier 2), where the aim is in LARS.'
+      - name: course_type
+        data_type: varchar
+        description: 'Essential skills, T Level and so on, for the types the code tables define.'
+      - name: delivery_mode
+        data_type: varchar
+        description: 'Classroom based, Online, Work based or Blended learning.'
+      - name: study_mode
+        data_type: varchar
+        description: 'Full-time, Part-time or Flexible.'
+      - name: attendance_pattern
+        data_type: varchar
+        description: 'Daytime, Evening, Weekend or Day or block release.'
+      - name: start_date
+        data_type: date
+        description: 'Its start date, where it has a fixed one.'
+      - name: has_flexible_start
+        data_type: boolean
+        description: 'Whether it can start at any time.'
+        data_tests:
+          - not_null
+      - name: starts_text
+        data_type: varchar
+        description: 'Starts 5 January 2027, or Flexible start.'
+        data_tests:
+          - not_null
+      - name: duration_text
+        data_type: varchar
+        description: 'How long it lasts, e.g. 2 months.'
+      - name: cost
+        data_type: number(12,2)
+        description: 'The cost as published; the code tables do not state a unit.'
+      - name: venue_name
+        data_type: varchar
+        description: 'The venues name.'
+      - name: venue_town
+        data_type: varchar
+        description: 'The venues town.'
+      - name: venue_postcode
+        data_type: varchar
+        description: 'The venues postcode.'
+      - name: local_authority_code
+        data_type: varchar
+        description: 'The local authority the postcode is in.'
+      - name: local_authority_name
+        data_type: varchar
+        description: 'Its name.'
+      - name: venue_latitude
+        data_type: float
+        description: 'The venues latitude.'
+      - name: venue_longitude
+        data_type: float
+        description: 'The venues longitude.'
+      - name: is_national
+        data_type: boolean
+        description: 'Whether the provider delivers it nationally.'
+        data_tests:
+          - not_null
+      - name: regions
+        data_type: varchar
+        description: 'The regions it is delivered in, as published.'
+      - name: course_url
+        data_type: varchar
+        description: 'The course page.'
+      - name: venue_website
+        data_type: varchar
+        description: 'The venues website.'
+      - name: lars_matched
+        data_type: boolean
+        description: 'Whether the learning aim reference is in LARS.'
+        data_tests:
+          - not_null
+      - name: updated_on
+        data_type: date
+        description: 'When the provider last updated the course.'
+      - name: published_on
+        data_type: date
+        description: 'The date the publication page states.'
+      - name: source_url
+        data_type: varchar
+        description: 'The publication page.'
+        data_tests:
+          - not_null
+      - name: downloaded_on
+        data_type: date
+        description: 'The day the file was downloaded.'
+        data_tests:
+          - not_null
+      - name: attribution
+        data_type: varchar
+        description: 'The attribution line to show with it.'
+        data_tests:
+          - not_null
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the source files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
+
+  - name: ncs_course_count
+    description: >-
+      How many live courses there are in an area, by level: what [Number] courses near you reads. One row per area and level,
+      and an All levels row per area (do not add it to the level rows). Areas are the local authority a venue postcode is in;
+      courses with no venue (online, work-based, national) are counted once under ONLINE_NATIONAL, and venues whose postcode
+      is not in the postcode directory under UNPLACED.
+    config:
+      meta:
+        source: ncs-course-directory,lars,onspd
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. National Careers Service course directory, Department for Education.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: count_key
+        data_type: varchar
+        description: 'A key made from the area and level.'
+        data_tests:
+          - unique
+          - not_null
+      - name: area_type
+        data_type: varchar
+        description: 'local_authority, online_or_national or unplaced.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['local_authority', 'online_or_national', 'unplaced']
+      - name: area_code
+        data_type: varchar
+        description: 'The local authority code, ONLINE_NATIONAL or UNPLACED.'
+        data_tests:
+          - not_null
+      - name: area_name
+        data_type: varchar
+        description: 'The area in words.'
+        data_tests:
+          - not_null
+      - name: level
+        data_type: varchar
+        description: 'The level (LARS), Not stated, or All levels.'
+        data_tests:
+          - not_null
+      - name: level_order
+        data_type: number(4,0)
+        description: 'A number to sort levels by (All levels 0, then Entry Level up; others 99).'
+        data_tests:
+          - not_null
+      - name: is_all_levels
+        data_type: boolean
+        description: 'True for the All levels row of an area.'
+        data_tests:
+          - not_null
+      - name: courses
+        data_type: number(10,0)
+        description: 'How many different courses (counted once however many runs or venues).'
+        data_tests:
+          - not_null
+      - name: course_runs
+        data_type: number(10,0)
+        description: 'How many course runs.'
+        data_tests:
+          - not_null
+      - name: providers
+        data_type: number(10,0)
+        description: 'How many different providers.'
+        data_tests:
+          - not_null
+      - name: published_on
+        data_type: date
+        description: 'The date the publication page states.'
+      - name: source_url
+        data_type: varchar
+        description: 'The publication page.'
+        data_tests:
+          - not_null
+      - name: attribution
+        data_type: varchar
+        description: 'The attribution line to show with it.'
+        data_tests:
+          - not_null
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the source files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null

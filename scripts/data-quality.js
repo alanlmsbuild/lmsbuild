@@ -100,6 +100,13 @@ export const QUALITY = {
   'OPTIONS_DB.GOLD.OAK_SUBJECT_COVERAGE': [rows(15, 20), dupes('subject_slug')], // 17
   'OPTIONS_DB.GOLD.OAK_QUIZ_QUESTION_CARD': [rows(24_000, 34_000), dupes('question_key'), nulls('question')], // 28,027
   'OPTIONS_DB.GOLD.OAK_QUIZ_ANSWER_RESULT': [rows(80_000, 120_000), dupes('answer_key'), nulls('answer_text')], // 95,564
+  // The National Careers Service course directory and NEET figures (decision 58), 30 October 2026.
+  'OPTIONS_DB.SILVER.NCS_COURSE': [rows(80_000, 140_000), dupes('course_run_id'), nulls('course_name'), nulls('provider_ukprn')], // 102,861
+  'OPTIONS_DB.SILVER.NCS_PROVIDER': [rows(2_000, 3_200), dupes('ukprn'), nulls('provider_name')], // 2,312
+  'OPTIONS_DB.GOLD.NCS_COURSE_CARD': [rows(80_000, 140_000), dupes('course_run_id'), nulls('qualification'), nulls('provider_name')], // 102,861
+  'OPTIONS_DB.GOLD.NCS_COURSE_COUNT': [rows(1_500, 3_500), dupes('count_key'), nulls('area_name')], // 2,247
+  'SHARED_DB.SILVER.NEET_PARTICIPATION': [rows(25_000, 40_000), dupes('neet_key')], // 28,390
+  'SHARED_DB.GOLD.NEET_LA_YEAR': [rows(3_000, 5_000), dupes('neet_key'), nulls('published_on'), nulls('source_url')], // 3,891
   // Travel times (decision 19): every pair of South Yorkshire's 860 LSOAs, nothing over the 90-minute cap.
   'SHARED_DB.GOLD.TRAVEL_TIME': [rows(700_000, 760_000), dupes('travel_key'), nulls('summary'), most('transit_minutes_p75', 90), most('walk_minutes', 90),
     most('bus_minutes_p75', 90), most('rail_minutes_p75', 90), nulls('notes')], // 739,600

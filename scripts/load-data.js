@@ -94,6 +94,7 @@ import { officialSteps2 } from './load/official2.js'
 import { officialSteps3 } from './load/official3.js'
 import { adviceSteps } from './load/travel-advice.js'
 import { oakSteps } from './load/oak.js'
+import { ncsSteps } from './load/ncs.js'
 import { oakQuizSteps } from './load/oak-quiz.js'
 import { odsRows, csvLine, csvRecords, writeLines, zipEntry, zipNames } from './load/files.js'
 
@@ -338,6 +339,8 @@ export const STEPS = {
   ...adviceSteps(RAREBIT_DATA),
   // Decision 56: Oak National Academy's secondary curriculum (scripts/load/oak.js).
   ...oakSteps(RAREBIT_DATA),
+  // The National Careers Service course directory (step 54, scripts/load/ncs.js), 30 October 2026.
+  ...ncsSteps(RAREBIT_DATA),
   ...oakQuizSteps(RAREBIT_DATA),
 
   // ---------------------------------------------------------------- batch 7
