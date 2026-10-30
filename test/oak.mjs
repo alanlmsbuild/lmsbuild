@@ -262,5 +262,24 @@ const textAnswers = [{ type: 'text', content: 'a', distractor: true }, { type: '
   check('the API address, the image server and the key name are found (and .env is not read)', findOakCalls(dirty).length === 3 && findOakCalls(dirty).every((x) => !x.file.endsWith('.env')) && FORBIDDEN.length === 3)
 }
 
+// ---------------------------------------------------------------- silver and gold gate
+{
+  console.log('\nsilver and gold')
+  const dbt = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'dbt')
+  const macro = fs.readFileSync(path.join(dbt, 'macros', 'oak.sql'), 'utf8')
+  const gated = [...['oak_unit', 'oak_lesson', 'oak_quiz_question', 'oak_quiz_answer'].map((m) => `silver/oak/${m}.sql`),
+    ...['oak_lesson_card', 'oak_restricted_lesson_link', 'oak_unit_card', 'oak_subject_coverage', 'oak_quiz_question_card', 'oak_quiz_answer_result'].map((m) => `gold/oak/${m}.sql`)]
+  check('every Oak model but the feed copies the live table when nothing new is loaded (oak_reusable)',
+    gated.every((f) => /\{% set reuse = oak_reusable\(\) %\}/.test(fs.readFileSync(path.join(dbt, 'models', f), 'utf8')) && /oak_stamp\(\) \}\}::varchar as built_from/.test(fs.readFileSync(path.join(dbt, 'models', f), 'utf8'))))
+  const feed = fs.readFileSync(path.join(dbt, 'models', 'silver', 'oak', 'oak_feed.sql'), 'utf8')
+  check('the stamp is the latest files (per subject and table) and a parsing version, the same in the feed and the check',
+    /oak_files\(\)/.test(feed) && /\|v\d+/.test(feed) && (feed.match(/\|v\d+/) ?? [])[0] === (macro.match(/\|v\d+/) ?? [])[0])
+  check('the gate only applies to the staging build, and needs the live table to have built_from', /target\.name != 'staging'/.test(macro) && /COLUMN_NAME = 'BUILT_FROM'/.test(macro))
+  check('the latest file is taken per table and original name', /partition by TARGETTABLE, ORIGINALNAME order by LOADEDAT desc/.test(macro))
+  check('the attribution is Oak\'s words and the licence link is the OGL v3.0 page', /lesson by Oak National Academy licensed under Open Government Licence \(OGL\)/.test(macro) && /nationalarchives\.gov\.uk\/doc\/open-government-licence\/version\/3\//.test(macro))
+  const link = fs.readFileSync(path.join(dbt, 'models', 'gold', 'oak', 'oak_restricted_lesson_link.sql'), 'utf8')
+  check('the link-only rows carry only title, unit, exam board and the link (no outcome, keywords or text)', !/pupil_lesson_outcome|keywords|learning_points|teacher_tips|misconceptions|transcript/.test(link.replace(/^--.*$/gm, '')))
+}
+
 console.log(failures ? `\n${failures} FAILED` : '\nall passed')
 process.exit(failures ? 1 : 0)

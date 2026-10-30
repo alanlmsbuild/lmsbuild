@@ -194,3 +194,12 @@ sources:
       - name: leo_grad_cah3_subject
         identifier: LEO_GRAD_CAH3_SUBJECT
         description: LEO graduate outcomes by CAH3 subject; used here only for the CAH3 subject names.
+      - name: oak_unit
+        identifier: OAK_UNIT
+        description: Oak National Academy units of the 17 secondary sequences, one JSON record per row (decision 56, load:data step 52).
+      - name: oak_lesson
+        identifier: OAK_LESSON
+        description: Oak National Academy lessons, one JSON record per row; restricted lessons are titles only (decision 56, load:data step 52).
+      - name: oak_quiz
+        identifier: OAK_QUIZ
+        description: Oak National Academy starter and exit quizzes of the open lessons, questions with images left out (load:data step 53).

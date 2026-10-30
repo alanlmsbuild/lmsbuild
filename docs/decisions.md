@@ -240,6 +240,21 @@ and limits: `docs/licences/oak-2026-10/README.md`. Decided 30 October 2026
   2,841 quizzes (27,196 questions kept, 4,925 with images left out); 35
   SOURCE_FILE rows. The `official-oak` job (monthly) runs both steps; it is
   disabled like the others.
+- **Silver and gold built (30 October 2026, session 3).** Silver in
+  `OPTIONS_DB.SILVER` (`oak_feed`, `oak_unit`, `oak_lesson`, `oak_quiz_question`,
+  `oak_quiz_answer`) and gold in `OPTIONS_DB.GOLD` (`oak_lesson_card`,
+  `oak_restricted_lesson_link`, `oak_unit_card`, `oak_subject_coverage`,
+  `oak_quiz_question_card`, `oak_quiz_answer_result`), with no reader role: the
+  options app is not changed. The restricted lessons are link-only rows (title,
+  unit, exam board, Oak's page for the lesson), which is how the eight subjects
+  with no open lesson are seen. Every row carries Oak's attribution line and
+  the link to the OGL v3.0. Gated like the fares models (`oak_reusable`,
+  `dbt/macros/oak.sql`): a staging build copies the live table unless a newer
+  Oak file has been loaded; change `v2` in `oak_feed` and the macro when the
+  parsing changes. Quizzes: the per-year question lists leave out some key stage
+  4 lessons (history-secondary, design-technology-secondary: 78 lessons), so
+  the fetch asks for those one at a time; all 2,919 open lessons now have a
+  quiz (22 of them with no question left, every question having an image).
 
 ## 57. An Honest Guide to the World
 

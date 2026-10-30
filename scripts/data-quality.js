@@ -91,6 +91,15 @@ export const QUALITY = {
   'SHARED_DB.GOLD.AREA_PROFILE': [rows(350, 370), dupes('local_authority_code'), nulls('name')], // 361
   'SHARED_DB.GOLD.POSTCODE_AREA': [rows(2_600_000, 2_900_000), dupes('postcode_compact')], // 2,729,090
   'SHARED_DB.GOLD.PROVIDER_BENCHMARK': [rows(55_000, 85_000), dupes('benchmark_key'), honest()], // 68,061
+  // Oak National Academy (decision 56), 30 October 2026: units, lessons (open and link-only) and quizzes.
+  'OPTIONS_DB.SILVER.OAK_UNIT': [rows(1_300, 1_800), dupes('unit_key'), nulls('unit_title')], // 1,474
+  'OPTIONS_DB.SILVER.OAK_LESSON': [rows(7_500, 10_000), dupes('lesson_key'), nulls('lesson_title'), nulls('oak_url')], // 8,425
+  'OPTIONS_DB.GOLD.OAK_LESSON_CARD': [rows(2_500, 3_800), dupes('lesson_key'), nulls('attribution')], // 2,979
+  'OPTIONS_DB.GOLD.OAK_RESTRICTED_LESSON_LINK': [rows(4_500, 7_000), dupes('lesson_key'), nulls('oak_url'), nulls('attribution')], // 5,446
+  'OPTIONS_DB.GOLD.OAK_UNIT_CARD': [rows(1_300, 1_800), dupes('unit_key'), nulls('unit_title')], // 1,474
+  'OPTIONS_DB.GOLD.OAK_SUBJECT_COVERAGE': [rows(15, 20), dupes('subject_slug')], // 17
+  'OPTIONS_DB.GOLD.OAK_QUIZ_QUESTION_CARD': [rows(24_000, 34_000), dupes('question_key'), nulls('question')], // 28,027
+  'OPTIONS_DB.GOLD.OAK_QUIZ_ANSWER_RESULT': [rows(80_000, 120_000), dupes('answer_key'), nulls('answer_text')], // 95,564
   // Travel times (decision 19): every pair of South Yorkshire's 860 LSOAs, nothing over the 90-minute cap.
   'SHARED_DB.GOLD.TRAVEL_TIME': [rows(700_000, 760_000), dupes('travel_key'), nulls('summary'), most('transit_minutes_p75', 90), most('walk_minutes', 90),
     most('bus_minutes_p75', 90), most('rail_minutes_p75', 90), nulls('notes')], // 739,600

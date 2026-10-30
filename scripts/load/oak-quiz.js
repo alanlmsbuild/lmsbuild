@@ -130,6 +130,19 @@ export async function fetchOakQuizzes({ root, key = process.env.OAK_API_KEY, log
     }
   }
 
+  // Open lessons the sweep did not return (key stage 4 lessons of sequences the
+  // per-year list leaves out: history-secondary, design-technology-secondary) are
+  // asked for one at a time. A lesson with no quiz there either is left without one.
+  let single = 0
+  for (const slug of [...open].sort()) {
+    if (byLesson.has(slug)) continue
+    let quiz
+    try { quiz = await call(`/lessons/${slug}/quiz`) } catch (e) { if (/\b404\b/.test(String(e.message))) continue; throw e }
+    if (!quiz || (!quiz.starterQuiz?.length && !quiz.exitQuiz?.length)) continue
+    byLesson.set(slug, keptQuiz({ lessonSlug: slug, lessonTitle: null, starterQuiz: quiz.starterQuiz, exitQuiz: quiz.exitQuiz }))
+    single++
+  }
+
   // Oak's own check of the lessons we are about to keep: any it calls restricted is dropped.
   const slugs = [...byLesson.keys()].sort()
   let dropped = 0
@@ -143,7 +156,7 @@ export async function fetchOakQuizzes({ root, key = process.env.OAK_API_KEY, log
   const records = [...byLesson.values()].sort((a, b) => a.lessonSlug.localeCompare(b.lessonSlug))
   const questions = records.reduce((n, r) => n + r.starterQuiz.length + r.exitQuiz.length, 0)
   const left = records.reduce((n, r) => n + r.questionsLeftOut.starter + r.questionsLeftOut.exit, 0)
-  log(`  Oak quizzes: ${records.length} of ${open.size} open lessons, ${questions} questions kept, ${left} with images left out; ${requests} requests${differing ? `; ${differing} lessons had different quizzes in two sequences (first kept)` : ''}${dropped ? `; ${dropped} dropped as restricted by Oak's check` : ''}`)
+  log(`  Oak quizzes: ${records.length} of ${open.size} open lessons, ${questions} questions kept, ${left} with images left out; ${requests} requests${single ? `; ${single} fetched one at a time` : ""}${differing ? `; ${differing} lessons had different quizzes in two sequences (first kept)` : ''}${dropped ? `; ${dropped} dropped as restricted by Oak's check` : ''}`)
 
   const text = jsonLines(records)
   const file = path.join(dir, QUIZ_FILE)

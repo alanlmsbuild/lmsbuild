@@ -54,6 +54,9 @@ models:
       qualifications:
         +database: SHARED_DB
         +schema: SILVER
+      oak:
+        +database: OPTIONS_DB
+        +schema: SILVER
     # Gold: the same tags, plus each table granted to the readers its model
     # names (meta.readers; macros/gold.sql).
     gold:
@@ -69,6 +72,9 @@ models:
         +schema: GOLD
       providers:
         +database: SHARED_DB
+        +schema: GOLD
+      oak:
+        +database: OPTIONS_DB
         +schema: GOLD
 
 # Seeds (hand-checked lists the models join to): in SILVER, with the same

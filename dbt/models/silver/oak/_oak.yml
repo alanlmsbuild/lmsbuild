@@ -1,0 +1,379 @@
+version: 2
+
+# Oak National Academy's curriculum, silver (decision 56): OPTIONS_DB.SILVER.
+
+models:
+
+  - name: oak_feed
+    description: >-
+      Which Oak National Academy files silver and gold are built from (decision 56): how many
+      and when the newest was loaded. One row.
+    config:
+      meta:
+        source: oak-curriculum
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: files
+        data_type: number(10,0)
+        description: 'How many files: 17 of units, 17 of lessons and 1 of quizzes.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [35]
+                quote: false
+              config:
+                severity: warn
+      - name: loaded_at
+        data_type: timestamp_ltz
+        description: 'When the newest was loaded into Snowflake.'
+        data_tests:
+          - not_null
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the Oak files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
+
+  - name: oak_unit
+    description: >-
+      Oak National Academys secondary units (decision 56), one row per unit as a pathway, tier, exam
+      board and year teach it (a unit slug repeats across them). A unit with no open lesson has no
+      description or why-this-why-now text.
+    config:
+      meta:
+        source: oak-curriculum
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: unit_key
+        data_type: varchar
+        description: 'A key made from the sequence, unit slug, pathway, tier, exam board and year.'
+        data_tests:
+          - unique
+          - not_null
+      - name: sequence_slug
+        data_type: varchar
+        description: 'Oaks sequence, e.g. science-secondary.'
+        data_tests:
+          - not_null
+      - name: subject_slug
+        data_type: varchar
+        description: 'The subject: the sequence without -secondary.'
+        data_tests:
+          - not_null
+      - name: subject_title
+        data_type: varchar
+        description: 'The subject in words.'
+        data_tests:
+          - not_null
+      - name: child_subject
+        data_type: varchar
+        description: 'The part of the subject (e.g. Biology under science), where Oak gives one.'
+      - name: unit_slug
+        data_type: varchar
+        description: 'Oaks slug for the unit.'
+        data_tests:
+          - not_null
+      - name: unit_title
+        data_type: varchar
+        description: 'The units title.'
+        data_tests:
+          - not_null
+      - name: key_stage
+        data_type: varchar
+        description: 'ks3 or ks4.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['ks3', 'ks4']
+      - name: year
+        data_type: number(2,0)
+        description: 'The school year it is taught in, 7 to 11.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [7, 8, 9, 10, 11]
+                quote: false
+      - name: pathway
+        data_type: varchar
+        description: 'The pathway (e.g. core or gcse), where the subject has them.'
+      - name: tier
+        data_type: varchar
+        description: 'foundation or higher, where the unit has a tier.'
+      - name: exam_board_slug
+        data_type: varchar
+        description: 'The exam board slug (aqa, edexcel, ocr and so on) of a key stage 4 unit.'
+      - name: exam_board
+        data_type: varchar
+        description: 'The exam board in words.'
+      - name: description
+        data_type: varchar
+        description: 'What the unit covers; empty when it has no open lesson.'
+      - name: why_this_why_now
+        data_type: varchar
+        description: 'Why Oak teaches it here; empty when it has no open lesson.'
+      - name: has_open_lessons
+        data_type: boolean
+        description: 'Whether any of its lessons is open (not restricted).'
+        data_tests:
+          - not_null
+      - name: lesson_count
+        data_type: number(10,0)
+        description: 'How many lessons it lists.'
+        data_tests:
+          - not_null
+      - name: lesson_slugs
+        data_type: variant
+        description: 'The slugs of its lessons, in order, as a list.'
+      - name: oak_url
+        data_type: varchar
+        description: 'The unit on Oaks website.'
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the Oak files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
+
+  - name: oak_lesson
+    description: >-
+      Oak National Academys secondary lessons (decision 56), one row per lesson in a unit of a sequence and
+      exam board. A restricted lesson has its title, unit and exam board only; its link is the address Oaks
+      website gives every lesson. key_stages and years come from the units it sits in.
+    config:
+      meta:
+        source: oak-curriculum
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: lesson_key
+        data_type: varchar
+        description: 'A key made from the sequence, unit slug, lesson slug and exam board.'
+        data_tests:
+          - unique
+          - not_null
+      - name: lesson_slug
+        data_type: varchar
+        description: 'Oaks slug for the lesson.'
+        data_tests:
+          - not_null
+      - name: lesson_title
+        data_type: varchar
+        description: 'Its title.'
+        data_tests:
+          - not_null
+      - name: sequence_slug
+        data_type: varchar
+        description: 'Oaks sequence, e.g. science-secondary.'
+        data_tests:
+          - not_null
+      - name: subject_slug
+        data_type: varchar
+        description: 'The subject: the sequence without -secondary.'
+        data_tests:
+          - not_null
+      - name: subject_title
+        data_type: varchar
+        description: 'The subject in words.'
+        data_tests:
+          - not_null
+      - name: unit_slug
+        data_type: varchar
+        description: 'The slug of its unit.'
+        data_tests:
+          - not_null
+      - name: unit_title
+        data_type: varchar
+        description: 'Its units title.'
+        data_tests:
+          - not_null
+      - name: key_stages
+        data_type: varchar
+        description: 'The key stages of the units it sits in, e.g. ks3, ks4.'
+      - name: years
+        data_type: varchar
+        description: 'The school years of the units it sits in, e.g. 10, 11.'
+      - name: exam_board_slug
+        data_type: varchar
+        description: 'Its exam board slug, where it has one.'
+      - name: exam_board
+        data_type: varchar
+        description: 'Its exam board in words.'
+      - name: is_restricted
+        data_type: boolean
+        description: 'Whether it is restricted: Oaks own check does not call it ogl-compatible, or the flag is set. Title only.'
+        data_tests:
+          - not_null
+      - name: oak_url
+        data_type: varchar
+        description: 'The lesson on Oaks website.'
+        data_tests:
+          - not_null
+      - name: pupil_lesson_outcome
+        data_type: varchar
+        description: 'The outcome pupils are aimed at (open lessons).'
+      - name: keywords
+        data_type: variant
+        description: 'Keywords and what they mean (open lessons).'
+      - name: key_learning_points
+        data_type: variant
+        description: 'The key learning points (open lessons).'
+      - name: misconceptions
+        data_type: variant
+        description: 'Common misconceptions and responses (open lessons).'
+      - name: teacher_tips
+        data_type: variant
+        description: 'Tips for teachers (open lessons).'
+      - name: content_guidance
+        data_type: variant
+        description: 'Content guidance, where Oak gives any (open lessons).'
+      - name: supervision_level
+        data_type: varchar
+        description: 'Oaks supervision level, where it gives one (open lessons).'
+      - name: downloads_available
+        data_type: boolean
+        description: 'Whether Oak has downloads for it (open lessons).'
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the Oak files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
+
+  - name: oak_quiz_question
+    description: >-
+      The questions of Oak National Academys starter and exit quizzes (decision 56), one row per question, for the
+      open lessons. Questions with an image were left out before loading.
+    config:
+      meta:
+        source: oak-curriculum
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: question_key
+        data_type: varchar
+        description: 'A key made from the lesson, quiz and question number.'
+        data_tests:
+          - unique
+          - not_null
+      - name: lesson_slug
+        data_type: varchar
+        description: 'The lesson.'
+        data_tests:
+          - not_null
+      - name: quiz
+        data_type: varchar
+        description: 'starter or exit.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['starter', 'exit']
+      - name: question_number
+        data_type: number(10,0)
+        description: 'Its place in the quiz, from 1.'
+        data_tests:
+          - not_null
+      - name: question_type
+        data_type: varchar
+        description: 'multiple-choice, short-answer, order or match.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['multiple-choice', 'short-answer', 'order', 'match']
+      - name: question
+        data_type: varchar
+        description: 'The question as Oak writes it (markdown; a gap to fill is shown as a pair of curly brackets).'
+        data_tests:
+          - not_null
+      - name: answer_count
+        data_type: number(10,0)
+        description: 'How many answers it has.'
+        data_tests:
+          - not_null
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the Oak files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
+
+  - name: oak_quiz_answer
+    description: >-
+      The answers of Oak National Academys quiz questions (decision 56), one row per answer. multiple-choice: a choice
+      (is_correct false for a distractor). short-answer: one accepted answer. order: an item and its answer_order.
+      match: the item (answer_text) and what it matches (match_text).
+    config:
+      meta:
+        source: oak-curriculum
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
+        refresh: monthly
+        sensitivity: public
+    columns:
+      - name: answer_key
+        data_type: varchar
+        description: 'A key made from the lesson, quiz, question number and answer.'
+        data_tests:
+          - unique
+          - not_null
+      - name: question_key
+        data_type: varchar
+        description: 'Its question.'
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('oak_quiz_question')
+                field: question_key
+      - name: lesson_slug
+        data_type: varchar
+        description: 'The lesson.'
+        data_tests:
+          - not_null
+      - name: quiz
+        data_type: varchar
+        description: 'starter or exit.'
+        data_tests:
+          - not_null
+      - name: question_number
+        data_type: number(10,0)
+        description: 'The questions place in the quiz.'
+        data_tests:
+          - not_null
+      - name: answer_number
+        data_type: number(10,0)
+        description: 'The answers place in the list, from 1.'
+        data_tests:
+          - not_null
+      - name: answer_text
+        data_type: varchar
+        description: 'The answer, choice or item as Oak writes it.'
+        data_tests:
+          - not_null
+      - name: match_text
+        data_type: varchar
+        description: 'For a match question, what answer_text matches.'
+      - name: is_correct
+        data_type: boolean
+        description: 'False only for a multiple-choice distractor.'
+        data_tests:
+          - not_null
+      - name: answer_order
+        data_type: number(10,0)
+        description: 'For an order question, the items place in the right order.'
+      - name: built_from
+        data_type: varchar
+        description: 'What it was built from: the Oak files and the version of the parsing; the model is built again only when this changes.'
+        data_tests:
+          - not_null
