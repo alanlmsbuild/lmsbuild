@@ -153,6 +153,19 @@ export const JOB_SCHEDULE = {
     lockHours: 1,
     timeoutMinutes: 30,
   },
+  // Oak National Academy's secondary curriculum (decision 56; scripts/load/oak.js,
+  // oak-quiz.js): the bulk download of the 17 subjects, then the quizzes of the open
+  // lessons (about 300 API requests), filtered and loaded as DATA_LOAD_USER.
+  'official-oak': {
+    label: 'Official data: Oak National Academy lessons and quizzes',
+    short: 'Oak',
+    connectAs: 'loader',
+    every: 30 * 24 * HOUR,
+    overdueAfter: 32 * 24 * HOUR,
+    lockGroup: 'official',
+    lockHours: 3,
+    timeoutMinutes: 90,
+  },
   // The silver layer (scripts/transform-silver.js): last, after any load,
   // and in the official lock group so it never runs while one is loading.
   'transform-silver': {
@@ -197,7 +210,7 @@ export const JOB_SCHEDULE = {
 }
 
 // The order a tick runs due jobs in, one at a time.
-export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-travel-advice', 'official-monthly', 'travel-monthly', 'transform-silver', 'reach-export', 'website-links']
+export const JOB_ORDER = ['vacancies-full', 'vacancies-new', 'companies-refresh', 'skills', 'official-nomis', 'official-api', 'official-statxplore', 'official-ons', 'official-ofqual', 'official-travel-advice', 'official-oak', 'official-monthly', 'travel-monthly', 'transform-silver', 'reach-export', 'website-links']
 
 // A failed or refused job isn't tried again sooner than this.
 export const RETRY_AFTER = HOUR

@@ -144,6 +144,7 @@ a time, in this order (`server/jobSchedule.js`, `JOB_ORDER`):
 | `official-ons` | 7 days | ONS online job adverts, vacancies by industry |
 | `official-ofqual` | 7 days | Ofqual register |
 | `official-travel-advice` | 24 hours | Foreign Office travel advice (decision 57), only the countries that changed |
+| `official-oak` | 30 days | Oak National Academy lessons, units and quizzes (decision 56); restricted lessons as titles only |
 | `official-monthly` | 30 days | police.uk, provider register (APAR), NaPTAN, listed buildings, Wikidata places |
 | `travel-monthly` | 30 days | travel times (needs 5.5 GB free, so the dev servers must be stopped) |
 | `transform-silver` | 24 hours | dbt: silver and gold, tests, swap in |

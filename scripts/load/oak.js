@@ -5,8 +5,13 @@
 // (Quizzes are step 53, also filtered: scripts/load/oak-quiz.js.)
 //
 // The licence is the Open Government Licence v3.0 "except where otherwise
-// stated": Oak marks a lesson `restricted` when it contains third-party
-// content. What is kept, from Oak's own answer of 27 October 2026
+// stated": a lesson with third-party content is restricted. Oak says so in two
+// places that do NOT always agree: the bulk file's `restricted` flag (absent on
+// an open lesson) and Oak's own check (POST /lessons/check-restricted, "ogl-compatible"
+// or "restricted"). On 30 October 2026 the bulk file left the flag off all 179 lessons
+// of art that the check calls restricted. A lesson is therefore OPEN only if the
+// flag is not set AND the check says ogl-compatible; anything else, or no verdict,
+// is restricted. What is kept, from Oak's own answer of 27 October 2026
 // (docs/licences/emails-2026-10.md; the notes are in docs/licences/oak-2026-10/):
 //
 //   an open lesson (not restricted)   the whole record, transcript included
@@ -57,16 +62,29 @@ export const OAK_REMOVED = [
   'the description, prior knowledge, curriculum content and rationale of units that have only restricted lessons',
 ]
 
-// Oak marks a lesson restricted with `restricted: true`; it is left out of the
-// flag (undefined) on an open one. Anything that is not exactly false or absent is treated as restricted.
+// A lesson as the loader keeps it carries `restricted: true` or `false`. On the bulk
+// file's own lessons the flag is `true` or absent, and absent is not proof of open
+// (see above): anything that is not exactly false or absent is restricted here.
 export const isRestricted = (lesson) => !(lesson.restricted === undefined || lesson.restricted === false)
+export const OGL_COMPATIBLE = 'ogl-compatible'
 
 // ---------------------------------------------------------------- filtering
-const examBoardOf = (unit) => (unit?.examBoard ? { slug: unit.examBoard.slug ?? null, title: unit.examBoard.title ?? null } : null)
+const boardOf = (unit) => (unit?.examBoard ? { slug: unit.examBoard.slug ?? null, title: unit.examBoard.title ?? null } : null)
 
-// One lesson as it may be kept. `units` is a Map of unitSlug -> unit.
-export function keptLesson(lesson, sequenceSlug, units) {
-  const examBoard = examBoardOf(units.get(lesson.unitSlug))
+// unitSlug -> exam board, for the units with that slug (a unit can be listed twice, e.g. in the
+// GCSE and the Core pathway); null where they disagree or have none.
+export function boardsByUnit(units) {
+  const by = new Map()
+  for (const u of units) by.set(u.unitSlug, [...(by.get(u.unitSlug) ?? []), boardOf(u)])
+  return new Map([...by].map(([slug, boards]) => [slug, boards.every((b) => JSON.stringify(b) === JSON.stringify(boards[0])) ? boards[0] : null]))
+}
+
+// What makes a unit one unit: the same slug can be listed more than once, in different pathways, tiers, boards or years.
+export const unitKey = (u) => [u.unitSlug, u.pathwaySlug, u.tier?.tierSlug, u.examBoard?.slug, u.yearSlug].join('|')
+
+// One lesson as it may be kept. `boards` is a Map of unitSlug -> exam board (boardsByUnit).
+export function keptLesson(lesson, sequenceSlug, boards) {
+  const examBoard = boards.get(lesson.unitSlug) ?? null
   if (isRestricted(lesson)) {
     return { sequenceSlug, restricted: true, lessonSlug: lesson.lessonSlug, lessonTitle: lesson.lessonTitle, unitSlug: lesson.unitSlug, unitTitle: lesson.unitTitle, examBoard }
   }
@@ -82,8 +100,10 @@ export function keptUnit(unit, sequenceSlug, open) {
 }
 
 // The filtered lines of one subject's download (its JSON): { units, lessons,
-// counts }. Pure. Throws if the file isn't what the bulk schema describes.
-export function filterSequence(data, expectedSlug) {
+// counts }. `verdicts` is Oak's check for every lesson slug in it
+// ("ogl-compatible" or "restricted"); a lesson with no verdict is restricted.
+// Pure. Throws if the file isn't what the bulk schema describes.
+export function filterSequence(data, expectedSlug, verdicts = {}) {
   const problems = []
   if (!data || typeof data !== 'object') throw new Error('Oak: the download is not a JSON object.')
   if (expectedSlug && data.sequenceSlug !== expectedSlug) problems.push(`its sequenceSlug is ${data.sequenceSlug}, not ${expectedSlug}`)
@@ -92,30 +112,44 @@ export function filterSequence(data, expectedSlug) {
   if (problems.length) throw new Error(`Oak ${expectedSlug ?? data.sequenceSlug}: not saved: ${problems.join('; ')}.`)
   const sequenceSlug = data.sequenceSlug
 
-  const units = new Map()
+  const unitSlugs = new Set()
+  const unitKeys = new Set()
   for (const u of data.sequence) {
     if (!u.unitSlug || !u.unitTitle) problems.push('a unit has no slug or title')
-    else if (units.has(u.unitSlug)) problems.push(`unit ${u.unitSlug} is repeated`)
-    units.set(u.unitSlug, u)
+    else if (unitKeys.has(unitKey(u))) problems.push(`unit ${u.unitSlug} is repeated (same pathway, tier, exam board and year)`)
+    unitKeys.add(unitKey(u))
+    unitSlugs.add(u.unitSlug)
   }
-  const seen = new Set()
+  // A lesson listed twice for a unit (the unit is listed twice) must be the same lesson twice.
+  const lessons = []
+  const seen = new Map()
   for (const l of data.lessons) {
-    if (!l.lessonSlug || !l.lessonTitle || !l.unitSlug) problems.push('a lesson has no slug, title or unit')
-    else if (!units.has(l.unitSlug)) problems.push(`lesson ${l.lessonSlug}'s unit ${l.unitSlug} is not in the sequence`)
+    if (!l.lessonSlug || !l.lessonTitle || !l.unitSlug) { problems.push('a lesson has no slug, title or unit'); continue }
+    if (!unitSlugs.has(l.unitSlug)) problems.push(`lesson ${l.lessonSlug}'s unit ${l.unitSlug} is not in the sequence`)
     const key = `${l.unitSlug}|${l.lessonSlug}`
-    if (seen.has(key)) problems.push(`lesson ${l.lessonSlug} is repeated in unit ${l.unitSlug}`)
-    seen.add(key)
+    if (seen.has(key)) {
+      if (JSON.stringify(seen.get(key)) !== JSON.stringify(l)) problems.push(`lesson ${l.lessonSlug} is repeated in unit ${l.unitSlug} with different content`)
+      continue
+    }
+    seen.set(key, l)
+    lessons.push(l)
   }
   if (problems.length) throw new Error(`Oak ${sequenceSlug}: not saved: ${[...new Set(problems)].slice(0, 5).join('; ')}.`)
 
-  const lessons = data.lessons.map((l) => keptLesson(l, sequenceSlug, units))
-  const open = new Set(lessons.filter((l) => !l.restricted).map((l) => l.unitSlug))
+  const boards = boardsByUnit(data.sequence)
+  // Open only if the file does not flag it AND Oak's check says ogl-compatible.
+  const resolved = lessons.map((l) => ({ ...l, restricted: !isRestricted(l) && verdicts[l.lessonSlug] === OGL_COMPATIBLE ? false : true }))
+  const kept = resolved.map((l) => keptLesson(l, sequenceSlug, boards))
+  const open = new Set(kept.filter((l) => !l.restricted).map((l) => l.unitSlug))
   const keptUnits = data.sequence.map((u) => keptUnit(u, sequenceSlug, open))
   return {
     sequenceSlug,
     units: keptUnits,
-    lessons,
-    counts: { units: keptUnits.length, lessons: lessons.length, restricted: lessons.filter((l) => l.restricted).length, unitsWithoutOpenLessons: keptUnits.filter((u) => !u.hasOpenLessons).length },
+    lessons: kept,
+    counts: {
+      units: keptUnits.length, lessons: kept.length, restricted: kept.filter((l) => l.restricted).length, unitsWithoutOpenLessons: keptUnits.filter((u) => !u.hasOpenLessons).length,
+      restrictedOnlyByOaksCheck: lessons.filter((l, i) => !isRestricted(l) && resolved[i].restricted).length,
+    },
   }
 }
 
@@ -152,6 +186,34 @@ export function leaks(lessons, units) {
 // ---------------------------------------------------------------- fetching
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms))
 
+export const OAK_V0 = `${OAK_API}/v0`
+// GET (or POST) a JSON document from /api/v0. A 429 or a server error is tried
+// again. Returns { json, remaining }. The key is only in the request header.
+export async function oakJson(pathAndQuery, { key, body, request = fetch, tries = 4, sleep = sleepMs } = {}) {
+  if (!key) throw new Error('OAK_API_KEY is not set (server/.env).')
+  for (let t = 1; ; t++) {
+    const res = await request(`${OAK_V0}${pathAndQuery}`, { method: body ? 'POST' : 'GET', headers: { authorization: `Bearer ${key}`, 'user-agent': 'Rarebit data loader', ...(body ? { 'content-type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) })
+    if (res.ok) return { json: await res.json(), remaining: Number(res.headers.get('x-ratelimit-remaining')) }
+    if ((res.status === 429 || res.status >= 500) && t < tries) {
+      const wait = Number(res.headers.get('retry-after'))
+      await sleep(Number.isFinite(wait) && wait > 0 ? wait * 1000 : 5000 * t)
+      continue
+    }
+    throw new Error(`Oak ${pathAndQuery}: ${res.status} ${res.statusText}`)
+  }
+}
+
+// Oak's own verdict for a list of lessons: { slug: 'ogl-compatible' | 'restricted' }, 500 slugs a request.
+export async function checkRestricted(slugs, { key, api = oakJson } = {}) {
+  const verdicts = {}
+  const unique = [...new Set(slugs)]
+  for (let i = 0; i < unique.length; i += 500) {
+    const { json } = await api('/lessons/check-restricted', { key, body: { lessonSlugs: unique.slice(i, i + 500) } })
+    Object.assign(verdicts, json)
+  }
+  return verdicts
+}
+
 // POST /bulk for one subject-phase; the response (a zip) is streamed to `to`.
 // A 429 or a server error is tried again, after Retry-After if given. The key
 // is only ever in the request header.
@@ -186,7 +248,7 @@ const sha = (text) => crypto.createHash('sha256').update(text).digest('hex')
 // happens. Returns the files written (empty: nothing new).
 export const readBulkJson = async (zip, subject) => JSON.parse(await readText(await zipEntry(zip, `${subject}.json`)))
 
-export async function fetchOak({ root, key = process.env.OAK_API_KEY, subjects = OAK_SUBJECTS, log = console.log, download = downloadBulk, readJson = readBulkJson, pauseMs = 2000,
+export async function fetchOak({ root, key = process.env.OAK_API_KEY, subjects = OAK_SUBJECTS, log = console.log, download = downloadBulk, readJson = readBulkJson, check = checkRestricted, pauseMs = 2000,
   acceptChanges = process.env.OAK_ACCEPT_CHANGES === '1' } = {}) {
   const dir = path.join(root, OAK_DIR)
   fs.mkdirSync(dir, { recursive: true })
@@ -201,7 +263,8 @@ export async function fetchOak({ root, key = process.env.OAK_API_KEY, subjects =
       await download(subject, zip, { key })
       const data = await readJson(zip, subject)
       fs.rmSync(zip, { force: true })
-      const f = filterSequence(data, subject)
+      const verdicts = await check(data.lessons?.map((l) => l.lessonSlug) ?? [], { key })
+      const f = filterSequence(data, subject, verdicts)
       const found = leaks(f.lessons, f.units)
       if (found.length) throw new Error(`Oak ${subject}: not saved: ${found.slice(0, 3).join('; ')}.`)
       const was = state[subject]?.lessons
@@ -217,7 +280,7 @@ export async function fetchOak({ root, key = process.env.OAK_API_KEY, subjects =
         written.push(file)
       }
       state[subject] = f.counts
-      log(`  Oak ${subject}: ${f.counts.units} units, ${f.counts.lessons} lessons (${f.counts.restricted} restricted, kept as titles only)`)
+      log(`  Oak ${subject}: ${f.counts.units} units, ${f.counts.lessons} lessons (${f.counts.restricted} restricted, kept as titles only${f.counts.restrictedOnlyByOaksCheck ? `; ${f.counts.restrictedOnlyByOaksCheck} of them not flagged in the download, restricted by Oak's check` : ''})`)
     }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true })

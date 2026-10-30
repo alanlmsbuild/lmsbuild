@@ -19,6 +19,7 @@ runs when it's due, and every run, scheduled or by hand, is recorded in
 | `official-ons` (ONS: online job adverts, VACS02) | 7 days | 8 days |
 | `official-ofqual` (Ofqual register of qualifications) | 7 days | 8 days |
 | `official-travel-advice` (Foreign Office travel advice: the index, then only the countries that changed; one request when nothing has) | 24 hours | 30 hours |
+| `official-oak` (Oak National Academy: the 17 secondary subjects' lessons and units, then the open lessons' quizzes, filtered; about 300 API requests) | 30 days | 32 days |
 | `official-monthly` (police.uk, provider register, NaPTAN, listed buildings, Wikidata places) | 30 days | 32 days |
 | `travel-monthly` (travel times: Network Rail timetable, OpenStreetMap, rail GTFS, the four r5py runs; refuses to start with under 5.5 GB free, so it waits for the dev servers to be stopped) | 30 days | 32 days |
 | `transform-silver` (the silver layer: dbt build, tests, swap in) | 24 hours | 26 hours |
@@ -48,6 +49,17 @@ the register must not have shrunk by over 5%. Organisation records are saved wit
 saves nothing; a real change to the fields or size is accepted by running once
 with `OFQUAL_ACCEPT_CHANGES=1 npm run fetch:official -- ofqual`. By hand: `npm run fetch:official -- nomis` (or `api`,
 `statxplore`, `ons`, `ofqual`, `advice`).
+
+`official-oak` (decision 56; `scripts/load/oak.js` and `oak-quiz.js`, load steps 52 and 53) keeps
+Oak National Academy's secondary curriculum. It needs `OAK_API_KEY` in `server/.env` (1,000 requests
+an hour per key) and does 17 bulk requests (one per subject), then about 300 for the quizzes, stopping
+if fewer than 100 of the hour's requests are left. The raw download goes to a temporary folder and is
+deleted; only the filtered files are kept, in `RAREBIT_DATA/oak/`: a restricted lesson is its slug,
+title, unit and exam board only, a unit with no open lesson loses its text, and a quiz question with an
+image is left out. A subject whose file has not changed is skipped by its checksum, and lessons falling
+by more than 5% in a subject is refused (`OAK_ACCEPT_CHANGES=1` accepts a real change). Run by hand
+(`npm run fetch:official -- oak`, or `-- oak --no-load` to fetch only) while the scheduled jobs stay
+disabled. `npm run check:oak` fails if any app mentions Oak's API address, key or image server.
 
 `official-travel-advice` (decision 57; `scripts/load/travel-advice.js`, load step 51) keeps the Foreign
 Office's travel advice for every country from the GOV.UK Content API. A run asks for

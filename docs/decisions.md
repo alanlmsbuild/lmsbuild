@@ -228,6 +228,18 @@ and limits: `docs/licences/oak-2026-10/README.md`. Decided 30 October 2026
   in silver and gold.
 - **Silver and gold models are gated** like the National Rail fares models
   (decision 19): they are rebuilt only when a newer Oak file has been loaded.
+- **Found on the first real fetch (30 October 2026).** (1) The bulk file's
+  `restricted` flag is not reliable: it is `true` or absent, and Oak's
+  `POST /lessons/check-restricted` calls many unflagged lessons restricted (all
+  179 unflagged art lessons). A lesson is open only if the flag is not set
+  and Oak's check says `ogl-compatible`; anything else, or no verdict, is
+  restricted. (2) A unit slug can repeat across pathways (citizenship GCSE and
+  Core), so units are keyed by slug, pathway, tier, exam board and year;
+  identical duplicate lessons are deduped. (3) First load: 1,474 units, 8,425
+  lessons (5,446 restricted, 2,979 open lines for 2,919 distinct lessons) and
+  2,841 quizzes (27,196 questions kept, 4,925 with images left out); 35
+  SOURCE_FILE rows. The `official-oak` job (monthly) runs both steps; it is
+  disabled like the others.
 
 ## 57. An Honest Guide to the World
 

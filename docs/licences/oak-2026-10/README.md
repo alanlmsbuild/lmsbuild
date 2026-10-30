@@ -5,9 +5,11 @@ Checked 26 to 30 October 2026.
 - **Licence.** The Oak Curriculum API and bulk download are published under the Open
   Government Licence v3.0 "except where otherwise stated". Oak marks a lesson `restricted`
   when it contains third-party content (the bulk file's `restricted` flag; the API's
-  `check-restricted` endpoints say "restricted" or "ogl-compatible" and agreed on every
-  lesson sampled). About 40% of key stage 3 and 4 lessons are open (1,397 of 3,284 at key
-  stage 3, 1,527 of 4,871 at key stage 4). Art, English, French, geography, German, music,
+  `check-restricted` endpoints say "restricted" or "ogl-compatible"). The bulk flag
+  is NOT reliable (found 30 October): many unflagged lessons are restricted by Oak's
+  check, so Rarebit keeps a lesson open only if the flag is unset and the check says
+  "ogl-compatible". On that rule 2,919 distinct lessons are open (the full fetch of the 17
+  subjects has 8,425 lesson rows). Art, English, French, geography, German, music,
   religious education and Spanish have none.
 - **Attribution.** "A [subject] lesson by Oak National Academy licensed under Open Government
   Licence (OGL)" with a link to https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/

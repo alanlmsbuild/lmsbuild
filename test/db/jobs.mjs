@@ -161,8 +161,9 @@ try {
     // A job with no run in SHARED_DB.OPS.JOB_RUN yet is due (official-travel-advice before its first run):
     // it runs here as a fake, and what it adds to a tick is left out of the checks below.
     'official-travel-advice': fake('official-travel-advice', async () => ({ outcome: 'succeeded' })),
+    'official-oak': fake('official-oak', async () => ({ outcome: 'succeeded' })),
   }
-  const notNew = (xs) => xs.filter((x) => (x.job ?? x) !== 'official-travel-advice')
+  const notNew = (xs) => xs.filter((x) => !['official-travel-advice', 'official-oak'].includes(x.job ?? x))
   const rowsSince = async (t) => q(`select JOBRUNID, JOB, TRIGGEREDBY, HOST, OUTCOME, JOBRUNREF, ERROR, to_json(SUMMARY) as SUMMARY, FINISHEDAT is not null as FINISHED
     from SHARED_DB.OPS.JOB_RUN where STARTEDAT >= ?::timestamp_ltz order by STARTEDAT, JOB`, [iso(t)])
 
