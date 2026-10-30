@@ -191,6 +191,44 @@ the consent events as proof.
 
 Decisions 37 to 56 are recorded in the Rarebit plan on claude.ai.
 
+## 56. Oak National Academy's curriculum
+
+Rarebit keeps a copy of Oak National Academy's secondary (key stage 3 and 4)
+curriculum, from Oak's Curriculum API with Rarebit's key (`OAK_API_KEY`, in
+`server/.env` only), so the options app can say which lessons and units sit
+behind a subject and link a student to the lesson on Oak's website. Licence
+and limits: `docs/licences/oak-2026-10/README.md`. Decided 30 October 2026
+(Alan):
+
+- **Where.** Bronze tables `OPTIONS_DB.RAW.OAK_UNIT`, `OAK_LESSON` and
+  `OAK_QUIZ` (`sql/oak_01_tables.sql`), loaded by `load:data` steps 52 (units
+  and lessons) and 53 (quizzes), source `oak-curriculum`, licence `ogl-3`,
+  fetched by `npm run fetch:official -- oak` by hand while the scheduled jobs
+  stay disabled. Silver and gold follow (a later session) and stop at gold: no
+  change to the school leavers site.
+- **Restricted lessons are titles only.** A lesson Oak marks `restricted`
+  (third-party content) is stored as its slug and title, its unit's slug and
+  title and its exam board, and nothing else: Oak confirmed on 27 October 2026
+  that those are not restricted (`docs/licences/emails-2026-10.md`). Its quiz
+  is never fetched. A unit with only restricted lessons loses its description,
+  prior knowledge, curriculum content and rationale.
+- **Only the filtered copy is kept.** The bulk download is read from a
+  temporary folder, filtered and deleted; the filtered files are what is
+  staged (original of the SOURCE_FILE row, `columns-removed`) and loaded, and
+  the loader filters every line again.
+- **No quiz question with an image, for now.** Any question with an image on
+  the question or an answer is left out (and counted in the row), so no Oak
+  image address is stored.
+- **The app never calls Oak.** It reads our gold tables only; a check fails the
+  build if the app's source or output mentions `open-api.thenational.academy`,
+  `OAK_API_KEY` or `cloudinary-res.thenational.academy`. Ordinary links to
+  `www.thenational.academy` are allowed.
+- **Attribution** "A [subject] lesson by Oak National Academy licensed under
+  Open Government Licence (OGL)" with a link to the OGL v3.0, on every lesson
+  in silver and gold.
+- **Silver and gold models are gated** like the National Rail fares models
+  (decision 19): they are rebuilt only when a newer Oak file has been loaded.
+
 ## 57. An Honest Guide to the World
 
 An Honest Guide to the World (22 October 2026). The gap year work grows into a

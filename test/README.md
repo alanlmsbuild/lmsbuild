@@ -21,6 +21,7 @@ puts it back.
     node test/data-quality.mjs          # DMFs on the weekly schedule, stale results, tick connections per job (no Snowflake)
     node test/travel-advice.mjs         # FCDO travel advice: fetch only what changed, contact details out, the load step, the schedule (fake API, no network)
     node test/official-partial.mjs      # official-* jobs: a failing step doesn't stop the others (no Snowflake)
+    node test/oak.mjs                   # Oak: restricted lessons kept as titles only, the raw download never kept, load step 52 (fake download, no network)
     node test/rdg-gate.mjs              # the two heavy National Rail fares models are gated, so the daily build copies them (no Snowflake)
     node test/uk-time.mjs               # UK time either side of the clocks changing
     test/stop-test-servers.py           # stops only those two servers

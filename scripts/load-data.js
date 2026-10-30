@@ -70,6 +70,8 @@
 //   50 National Rail Data Portal fares feed, every line as published -> SHARED_DB.RAW
 // Foreign travel advice, decision 57 (sql/travel_advice_01_tables.sql; scripts/load/travel-advice.js):
 //   51 FCDO travel advice from the GOV.UK Content API, without email addresses -> SHARED_DB.RAW
+// Oak National Academy, decision 56 (sql/oak_01_tables.sql; scripts/load/oak.js):
+//   52 Oak units and lessons (bulk download; restricted lessons as titles only)  -> OPTIONS_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -90,6 +92,7 @@ import { officialSteps } from './load/official.js'
 import { officialSteps2 } from './load/official2.js'
 import { officialSteps3 } from './load/official3.js'
 import { adviceSteps } from './load/travel-advice.js'
+import { oakSteps } from './load/oak.js'
 import { odsRows, csvLine, csvRecords, writeLines, zipEntry, zipNames } from './load/files.js'
 
 const RAREBIT_DATA = process.env.RAREBIT_DATA || '/mnt/c/Users/alanb/rarebit-data'
@@ -331,6 +334,8 @@ export const STEPS = {
   ...officialSteps3(RAREBIT_DATA),
   // Decision 57: the FCDO's foreign travel advice (scripts/load/travel-advice.js).
   ...adviceSteps(RAREBIT_DATA),
+  // Decision 56: Oak National Academy's secondary curriculum (scripts/load/oak.js).
+  ...oakSteps(RAREBIT_DATA),
 
   // ---------------------------------------------------------------- batch 7
   // Achievement rates for provider_benchmark, provider and national from the
