@@ -52,7 +52,7 @@ select
        else '£' || to_varchar(price_min, 'FM990.00') || ' to £' || to_varchar(price_max, 'FM990.00') || ' depending on ticket' end::varchar as price_text,
   products::varchar as products,
   as_at::date as as_at,
-  ('As at ' || to_varchar(as_at, 'DD FMMonth YYYY') || ': check with the operator.')::varchar as caveat,
+  ('As at ' || {{ long_date('as_at') }} || ': check with the operator.')::varchar as caveat,
   'Tram fares are shown separately: see Supertram.'::varchar as tram_note,
   current_date()::date as built_on
 from grouped

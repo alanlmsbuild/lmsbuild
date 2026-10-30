@@ -3,7 +3,8 @@
 -- terms v3.0): one row per journey and kind of ticket. The adult fare in
 -- pounds exactly as the feed publishes it; where a journey has more than one
 -- route the price reads "£5.60 to £6.40 depending on route" with the routes
--- named. Nothing is averaged, rounded or summed, and train fares are never
+-- named in plain words (train_route_name; the feed's own names kept in
+-- routes_feed_text). Nothing is averaged, rounded or summed, and train fares are never
 -- added to bus or tram fares or to journey times. A kind of ticket the feed
 -- has never priced for the journey is not here (Off-Peak singles are not
 -- sold on most of these journeys); one the feed has priced but whose fares
@@ -24,11 +25,13 @@ priced as (
          min(iff(f.is_current, f.fare_pence, null)) as pence_min,
          max(iff(f.is_current, f.fare_pence, null)) as pence_max,
          count(distinct iff(f.is_current, f.route_code, null)) as routes,
-         listagg(distinct iff(f.is_current, coalesce(nullif(trim(r.description, ' .'), ''), 'route ' || f.route_code), null), '; ') within group (order by iff(f.is_current, coalesce(nullif(trim(r.description, ' .'), ''), 'route ' || f.route_code), null)) as route_names,
+         listagg(distinct iff(f.is_current, coalesce(n.display_name, nullif(trim(r.description, ' .'), ''), 'route ' || f.route_code), null), '; ') within group (order by iff(f.is_current, coalesce(n.display_name, nullif(trim(r.description, ' .'), ''), 'route ' || f.route_code), null)) as route_names,
+         listagg(distinct iff(f.is_current, coalesce(nullif(trim(r.description, ' .'), ''), 'route ' || f.route_code), null), '; ') within group (order by iff(f.is_current, coalesce(nullif(trim(r.description, ' .'), ''), 'route ' || f.route_code), null)) as route_feed_names,
          iff(count_if(f.start_date > current_date()) > 0, null, min(iff(f.is_current, f.end_date, null))) as valid_to,
          boolor_agg(iff(f.is_current, f.restriction_code is not null, false)) as restricted
   from fares f
   left join {{ ref('rdg_route') }} r on r.route_code = f.route_code
+  left join {{ ref('train_route_name') }} n on n.route_code = f.route_code
   group by f.journey_key, f.kind
 )
 select
@@ -45,9 +48,10 @@ select
        when p.pence_min = p.pence_max then '£' || to_varchar(p.pence_min / 100, 'FM990.00')
        else '£' || to_varchar(p.pence_min / 100, 'FM990.00') || ' to £' || to_varchar(p.pence_max / 100, 'FM990.00') || ' depending on route' end::varchar as price_text,
   iff(p.routes > 1, p.route_names, null)::varchar as routes_text,
+  iff(p.routes > 1, p.route_feed_names, null)::varchar as routes_feed_text,
   coalesce(p.restricted, false)::boolean as restricted,
   iff(p.valid_to < '2999-12-31'::date, p.valid_to, null)::date as valid_to,
-  ('Fares as published on ' || to_varchar(feed.published_on, 'DD FMMonth YYYY') || ': check on National Rail.')::varchar as caveat,
+  ('Fares as published on ' || {{ long_date('feed.published_on') }} || ': check on National Rail.')::varchar as caveat,
   feed.feed::varchar as feed,
   feed.published_on::date as published_on,
   current_date()::date as built_on

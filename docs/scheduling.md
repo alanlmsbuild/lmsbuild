@@ -105,6 +105,17 @@ not committed, so a new checkout needs it made). By hand:
 `npm run transform:silver` (recorded, as manual) or `npm run silver:build`
 (the same, not recorded).
 
+The National Rail fares (`rdg_*` silver, `train_fare` and `train_discount` gold; decision 19, phase C) are
+built from the latest `RJFAF` feed loaded into `SHARED_DB.RAW.RDG_FARES_LINE` by hand (about three feeds
+a year; the portal login, `load:data` step 50). Two of the models, `rdg_flow` and `rdg_fare`, read the
+whole flow file (8.5 million lines, a few minutes of warehouse time), so they are gated: each stores what
+it was built from (`built_from`: the feed, when it was loaded, the two seed lists it reads and a parsing
+version, `rdg_stamp` in `dbt/macros/rdg.sql`) and the daily build copies the live table (about 3 seconds
+each) unless that has changed. A new feed, a change to `train_journey` or `train_ticket_kind`, or a
+change to the parsing (raise `v1` in `rdg_stamp`) makes the next daily build parse again, once.
+`test/rdg-gate.mjs` checks the gate is in place. Gold `train_fare` is dated by the day it is built, so a
+fare that ends or starts is picked up by the next build with no new feed.
+
 `reach-export` (`scripts/reach/job.js`, gap 3 of docs/data-journey.md)
 follows `travel-monthly`: it is due only when a travel run has finished since
 the last export and `transform-silver` has then succeeded (so gold has the new

@@ -165,6 +165,34 @@ seeds:
       - name: to_label
         description: 'The second station as the page names it.'
         data_tests: [not_null]
+  - name: train_route_name
+    description: >-
+      Plain names for the fare routes the train fares panel can show (Rarebit's own list,
+      hand-checked): the feed names routes in 16 capital letters ("TPE ONLY", "NOT VIA
+      DONCASTR"), and this gives the words the page shows, with the feed's own name kept
+      beside each. Only the routes the listed journeys use are here; any other route shows
+      the feed's name as it is published. Route 01000 has no name in the feed (just a full stop).
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: by-hand
+        sensitivity: public
+      column_types:
+        route_code: varchar
+        feed_name: varchar
+        display_name: varchar
+    columns:
+      - name: route_code
+        description: 'The feed''s 5-character route code.'
+        data_tests: [unique, not_null]
+      - name: feed_name
+        description: 'The route''s name exactly as the feed publishes it.'
+        data_tests: [not_null]
+      - name: display_name
+        description: 'The name the page shows, in plain words.'
+        data_tests: [not_null]
   - name: train_ticket_kind
     description: >-
       The kinds of train ticket the fares panel shows, and the feed's ticket code for each

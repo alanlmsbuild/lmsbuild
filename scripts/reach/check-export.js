@@ -77,13 +77,27 @@ const fares = read('fares.json')
   try {
     const [b] = await execute(c2, `select count(*) as N, sum(price_min) as S from SHARED_DB.GOLD.BUS_FARE`)
     const [t] = await execute(c2, `select count(*) as N, sum(price_min) as S from SHARED_DB.GOLD.TRAM_FARE`)
+    const [tf] = await execute(c2, `select count(*) as N, sum(price_min) as S, count_if(price_min is null) as NONE, count(distinct journey_key) as J from SHARED_DB.GOLD.TRAIN_FARE`)
+    const [td] = await execute(c2, `select count(*) as N from SHARED_DB.GOLD.TRAIN_DISCOUNT`)
     const sum = (rows) => Math.round(rows.reduce((a, r) => a + r.min, 0) * 100) / 100
     check(fares.bus.length === Number(b.N) && sum(fares.bus) === Number(b.S), `fares.json: ${fares.bus.length} bus fares, as gold has them (sum of lowest prices ${sum(fares.bus)})`)
     check(fares.tram.length === Number(t.N) && sum(fares.tram) === Number(t.S), `fares.json: ${fares.tram.length} tram fares, as gold has them`)
+    check(fares.train.length === Number(tf.N) && fares.train.length > 0 && sum(fares.train.filter((f) => f.min !== null)) === Number(tf.S) && fares.train.filter((f) => f.min === null).length === Number(tf.NONE), `fares.json: ${fares.train.length} train fares, as gold has them (sum of lowest prices ${sum(fares.train.filter((f) => f.min !== null))})`)
+    check(new Set(fares.train.map((f) => f.journey)).size === Number(tf.J) && Number(tf.J) >= 13, `fares.json: train fares for ${tf.J} journeys, as gold has them`)
+    check(fares.train_discounts.length === Number(td.N) && fares.train_discounts.length > 0, `fares.json: ${fares.train_discounts.length} train discounts, as gold has them`)
   } finally {
     await destroy(c2)
   }
 }
+// Train fares: exactly as the feed publishes them. A priced row has a real price; one with none says so in
+// the one set of words; a range names its routes; every row says when the feed was published; discounts are
+// the feed's own percentages, with no price worked out from them.
+const priced = fares.train.filter((f) => f.min !== null)
+check(priced.every((f) => f.min > 0 && f.max >= f.min && /^£\d+\.\d\d( to £\d+\.\d\d depending on route)?$/.test(f.text) && (f.min === f.max || f.routes)), 'fares.json: every priced train fare has a real price, and a range names its routes')
+check(fares.train.filter((f) => f.min === null).every((f) => f.text === 'No current fare: check National Rail' && f.max === null), 'fares.json: a train fare with none in force says "No current fare: check National Rail"')
+check(fares.train.every((f) => /^Fares as published on \d{1,2} [A-Z][a-z]+ 20\d\d: check on National Rail\.$/.test(f.caveat) && f.from && f.to) && fares.train_feed && /^RJFAF\d+$/.test(fares.train_feed.feed), 'fares.json: every train fare says when the feed was published and to check on National Rail')
+check(fares.train_discounts.every((d) => ['child', 'saver-16-17', 'railcard-16-25'].includes(d.who) && d.percentage > 0 && d.percentage < 100 && /^[\d.]+% off the adult fare \(from the discount table\)$/.test(d.text) && !('price' in d)), 'fares.json: train discounts are the feed\'s percentages, with no price worked out')
+check(meta.attributions.some((a) => a.includes('Powered by National Rail Enquiries')), 'meta: "Powered by National Rail Enquiries" is in the attributions')
 const allFares = [...fares.bus, ...fares.tram]
 const cutoff = new Date(`${fares.built_on}T00:00:00Z`)
 cutoff.setUTCMonth(cutoff.getUTCMonth() - 12)

@@ -5,6 +5,12 @@
 -- current on the day it is built. A reversible flow (direction R) counts both
 -- ways. Only the places of the seed's stations are read from the 8.5 million
 -- lines of the file.
+-- It is parsed only when the feed (or the seeds it reads) has changed:
+-- otherwise the live table is copied (rdg_reusable, dbt/macros/rdg.sql).
+{% set reuse = rdg_reusable() %}
+{% if reuse %}
+select * from {{ reuse }}
+{% else %}
 with flows as (
   select
     substr(line, 3, 4) as origin_code,
@@ -32,10 +38,12 @@ select distinct
   f.direction::varchar as direction,
   f.toc::varchar as toc,
   f.start_date::date as start_date,
-  f.end_date::date as end_date
+  f.end_date::date as end_date,
+  {{ rdg_stamp() }}::varchar as built_from
 from flows f
 join {{ ref('rdg_place') }} po on po.place = f.origin_code
 join {{ ref('rdg_place') }} pd on pd.place = f.destination_code
 join {{ ref('train_journey') }} j
   on (po.crs = j.from_crs and pd.crs = j.to_crs)
   or (f.direction = 'R' and po.crs = j.to_crs and pd.crs = j.from_crs)
+{% endif %}

@@ -1,0 +1,7 @@
+route_code,feed_name,display_name
+00000,ANY PERMITTED,Any permitted route
+00083,NORTHERN ONLY,Northern trains only
+00085,TPE ONLY,TransPennine Express only
+00098,NOT VIA DONCASTR,Not via Doncaster
+00679,VIA MEADOWHALL,Via Meadowhall
+01000,.,Route not named in the feed

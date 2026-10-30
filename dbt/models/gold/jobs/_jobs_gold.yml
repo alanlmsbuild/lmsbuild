@@ -942,7 +942,10 @@ models:
         data_tests: [not_null]
       - name: routes_text
         data_type: varchar
-        description: 'When the price is a range, the routes it covers, named as the feed names them; otherwise empty.'
+        description: 'When the price is a range, the routes it covers in plain words (train_route_name; a route not on that list shows the feed''s name); otherwise empty.'
+      - name: routes_feed_text
+        data_type: varchar
+        description: 'The same routes named exactly as the feed names them; otherwise empty.'
       - name: restricted
         data_type: boolean
         description: 'True if any fare in force has a restriction code (time-of-day or train limits: check National Rail).'

@@ -18,8 +18,11 @@
 //   postcodes.json     live postcode -> LSOA index for the 860, by district
 //                      then the rest of the postcode, for a lookup that stays
 //                      on the device
-//   fares.json         typical bus and tram fares (gold bus_fare and tram_fare), the
-//                      fares panel's data: not tied to any area or journey
+//   fares.json         typical bus and tram fares (gold bus_fare and tram_fare) and
+//                      train fares and discounts between listed stations (gold
+//                      train_fare and train_discount, National Rail fares as
+//                      published), the fares panel's data: not tied to any area or
+//                      journey, and train fares are never added to the others
 //   places.json        dots: colleges and sixth forms (GIAS; special schools left
 //                      out) and universities
 //                      (Discover Uni) inside the 860 LSOAs, each with its LSOA
@@ -38,7 +41,7 @@ const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const OUT = path.join(REPO, 'data', 'reach', 'export')
 const MODES = ['walk', 'bus', 'train', 'train and bus']
 const GOLD = 'SHARED_DB.GOLD.TRAVEL_TIME'
-const ATTRIBUTION_TABLES = ['SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN', 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', 'SHARED_DB.RAW.ONSPD', 'OPTIONS_DB.RAW.GIAS_ESTABLISHMENT', 'OPTIONS_DB.RAW.DISCOVERUNI_LOCATION', 'SHARED_DB.RAW.HOCL_MSOA_NAME', 'SHARED_DB.RAW.COLLEGE_CAMPUS', 'SHARED_DB.RAW.BODS_FARES_DATASET', 'SHARED_DB.RAW.SUPERTRAM_FARE']
+const ATTRIBUTION_TABLES = ['SHARED_DB.RAW.TRAVEL_TIME_LSOA_RUN', 'SHARED_DB.RAW.ONS_LSOA_BOUNDARY', 'SHARED_DB.RAW.ONSPD', 'OPTIONS_DB.RAW.GIAS_ESTABLISHMENT', 'OPTIONS_DB.RAW.DISCOVERUNI_LOCATION', 'SHARED_DB.RAW.HOCL_MSOA_NAME', 'SHARED_DB.RAW.COLLEGE_CAMPUS', 'SHARED_DB.RAW.BODS_FARES_DATASET', 'SHARED_DB.RAW.SUPERTRAM_FARE', 'SHARED_DB.RAW.RDG_FARES_LINE']
 
 const write = (name, data) => {
   const file = path.join(OUT, name)
@@ -206,6 +209,9 @@ try {
   const busFares = await q(`select fare_key, operator_name, nocs, category, who, who_label, pass_name, price_min, price_max, price_text, products, to_varchar(as_at) as as_at, caveat, tram_note, to_varchar(built_on) as built_on
     from SHARED_DB.GOLD.BUS_FARE order by operator_name, who, category, pass_name`)
   const tramFares = await q(`select fare_key, ticket, category, who, who_label, price_min, price_max, price_text, bought, note, source_url, to_varchar(as_at) as as_at, caveat from SHARED_DB.GOLD.TRAM_FARE order by who, category, price_min`)
+  const trainFares = await q(`select fare_key, journey_key, from_label, to_label, kind, kind_label, price_min, price_max, price_text, routes_text, routes_feed_text, restricted, to_varchar(valid_to) as valid_to, caveat, feed, to_varchar(published_on) as published_on
+    from SHARED_DB.GOLD.TRAIN_FARE order by journey_key, sort_order`)
+  const trainDiscounts = await q(`select discount_key, who, who_label, kind, kind_label, percentage, discount_text from SHARED_DB.GOLD.TRAIN_DISCOUNT order by who, kind`)
   const num = (v) => (v === null ? null : Number(v))
   sizes.fares = write('fares.json', {
     built_on: busFares[0]?.BUILT_ON ?? null,
@@ -214,6 +220,10 @@ try {
       text: r.PRICE_TEXT, products: r.PRODUCTS, as_at: r.AS_AT, caveat: r.CAVEAT })),
     tram: tramFares.map((r) => ({ key: r.FARE_KEY, ticket: r.TICKET, category: r.CATEGORY, who: r.WHO, who_label: r.WHO_LABEL, min: num(r.PRICE_MIN), max: num(r.PRICE_MAX),
       text: r.PRICE_TEXT, bought: r.BOUGHT, note: r.NOTE, source_url: r.SOURCE_URL, as_at: r.AS_AT, caveat: r.CAVEAT })),
+    train_feed: trainFares[0] ? { feed: trainFares[0].FEED, published_on: trainFares[0].PUBLISHED_ON } : null,
+    train: trainFares.map((r) => ({ key: r.FARE_KEY, journey: r.JOURNEY_KEY, from: r.FROM_LABEL, to: r.TO_LABEL, kind: r.KIND, kind_label: r.KIND_LABEL, min: num(r.PRICE_MIN), max: num(r.PRICE_MAX),
+      text: r.PRICE_TEXT, routes: r.ROUTES_TEXT, routes_feed: r.ROUTES_FEED_TEXT, restricted: r.RESTRICTED, valid_to: r.VALID_TO, caveat: r.CAVEAT })),
+    train_discounts: trainDiscounts.map((r) => ({ key: r.DISCOUNT_KEY, who: r.WHO, who_label: r.WHO_LABEL, kind: r.KIND, kind_label: r.KIND_LABEL, percentage: num(r.PERCENTAGE), text: r.DISCOUNT_TEXT })),
   })
 
   // ---- meta
@@ -230,7 +240,7 @@ try {
   })
 
   const kb = (n) => `${(n / 1024).toFixed(0)} KB`
-  console.log(`fares.json ${kb(sizes.fares)} (${busFares.length} bus and ${tramFares.length} tram fares)`)
+  console.log(`fares.json ${kb(sizes.fares)} (${busFares.length} bus, ${tramFares.length} tram and ${trainFares.length} train fares, ${trainDiscounts.length} train discounts)`)
   console.log(`origins: ${origins.size} files, ${(sizes.origins / 1e6).toFixed(1)} MB in all (${kb(sizes.origins / origins.size)} each)`)
   console.log(`boundaries.json ${kb(sizes.boundaries)}; postcodes.json ${kb(sizes.postcodes)} (${pcRows.length.toLocaleString()} postcodes in ${Object.keys(postcodes).length} districts); places.json ${kb(sizes.places)} (${places.length} dots: ${JSON.stringify(dots)}; campuses ${JSON.stringify(campusStats)}; ${outside} GIAS and ${uniOutside} university locations outside the area left out); meta.json ${kb(sizes.meta)}`)
 } finally {

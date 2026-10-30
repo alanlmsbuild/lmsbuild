@@ -16,3 +16,9 @@ where price_min < price_max and routes_text is null
 union all
 select journey_key, 'journey with no fare rows' from {{ ref('train_journey') }}
 where journey_key not in (select journey_key from {{ ref('train_fare') }})
+union all
+select fare_key, 'range names a route that is not named in plain words or the feed' from {{ ref('train_fare') }}
+where price_min < price_max and (routes_text is null or routes_feed_text is null or routes_text = '')
+union all
+select fare_key, 'caveat date is not in words' from {{ ref('train_fare') }}
+where not regexp_like(caveat, '^Fares as published on [0-9]{1,2} [A-Z][a-z]+ 20[0-9]{2}: check on National Rail\\.$')

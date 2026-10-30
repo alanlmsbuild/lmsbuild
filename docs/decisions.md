@@ -83,7 +83,7 @@ independent schools are marked "Independent, charges fees". A place is
 25th percentile fits is listed as "possible if you catch the right
 departure" ("Over 90 minutes for most departures; about N min if you catch
 the right one" when the median is empty). Times are always a range, with
-"weekday morning, timetable as at <date>", "train fares not included" and
+"weekday morning, timetable as at <date>", "fares not included in these times" and
 "modes are estimated".
 
 College campuses (21 October 2026): GIAS holds one record for each of the four
@@ -124,13 +124,11 @@ Enquiries" (dot matrix screens). Rarebit credits in words with a link and no
 logo (the logo is NRE's trademark, which the licence doesn't cover), and asks
 NationalRailDatafeeds@raildeliverygroup.com to confirm words alone are
 acceptable (the guidelines allow alternatives and exemptions on request)
-before any train fare is shown publicly. RDG's fares data page (21 October 2026) says the fares data, "released three times each year", is available from the National Rail Data Portal "for use in proof of concept or development work"; whether a live public app is covered is unanswered (Alan has asked RDG), so the fares stay local only: loaded to bronze (`RDG_FARES_LINE`, load:data step 50, 24 files and 9.8 million lines of feed 924) and nothing built on them or shown. The specification, RSPS5045 ("Fares and associated data feed interface specification", version P-02-03 of 3 June 2025, rspaccreditation.org), is to be saved in `docs/licences/rsps5045/` and read before silver. No Usage Charging Document is
+before any train fare is shown publicly. RDG's fares data page (21 October 2026) said the fares data, "released three times each year", is available from the National Rail Data Portal "for use in proof of concept or development work", and asked whether a live public app was covered; until that was answered the fares stayed local only (loaded to bronze, `RDG_FARES_LINE`, load:data step 50, 24 files and 9.8 million lines of feed 924). **National Rail cleared the use on 27 October 2026** under the data feeds licence v3.0 (Alan's report; the emails of 23 and 27 October and Oak's of 27 October are to be saved as text in `docs/licences/` once pasted), so the fares are built and shown (30 October 2026, branch `train-fares`): silver `rdg_*` models and gold `train_fare` and `train_discount` from the specification RSPS5045 version P-02-04 of 22 April 2026 (saved in `docs/licences/rsps5045/`, newer than the P-02-03 first named here), read by `SHARED_DB.GOLD_SITE` only, exported in `fares.json` and shown on the reach page's fares panel. Shown as the terms require: the adult fare exactly as the feed publishes it (a range across routes where the feed has several, with the routes named: plain-words names for the routes from a hand-checked seed, `train_route_name`, the feed's own names kept beside them), the feed's date, "Fares as published on <date>: check on National Rail", discounts only as the percentages in the feed's own discount tables ("from the discount table", no discounted price worked out), "No current fare: check National Rail" with a link where a fare in the feed has ended, the words "Powered by National Rail Enquiries" linked to nationalrail.co.uk (no logo) in the panel and the attributions list, train fares never added to bus or tram fares or to journey times, and nothing that suggests National Rail backs Rarebit. The 13 station pairs are in the `train_journey` seed. Not done: the feed gives no flow-precedence rule (every fare in force is shown as a range), the non-derivable overrides are not applied, the restriction text is not decoded (only a "restrictions apply" flag), and a railcard discount is not shown on season tickets (Rarebit's choice). The two models that read the whole feed (8.5 million lines) are rebuilt only when a newer feed is loaded or the seeds change (`rdg_reusable` in `dbt/macros/rdg.sql`); otherwise the daily build copies the live table. No Usage Charging Document is
 published; our use (a few fares downloads a year, served from our own files)
 is far below any high volume. The LICENCE tag value is `nre-feeds-v3`
 (`sql/load_17_nre_licence_tag.sql`), separate from `nr-open` (Network Rail's
-own feeds, a different licensor). The plan for the fares themselves is in
-`docs/ideas.md` until the Developer Guidelines and the Usage Charging Document
-are saved.
+own feeds, a different licensor).
 
 ## 21. Governance built into Snowflake
 

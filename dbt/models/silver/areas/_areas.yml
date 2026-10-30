@@ -1218,7 +1218,10 @@ models:
         data_type: date
         description: 'Last date it applies (2999-12-31: no end date).'
         data_tests: [not_null]
-
+      - name: built_from
+        data_type: varchar
+        description: 'What this table was built from: the feed, when it was loaded, the seed lists and the version of the parsing (rdg_stamp). The daily build copies the table instead of parsing the feed again while this is unchanged.'
+        data_tests: [not_null]
   - name: rdg_fare
     description: >-
       The fares for the ticket kinds the panel shows (train_ticket_kind) on those flows, from the flow
@@ -1263,7 +1266,10 @@ models:
         data_type: date
         description: 'Last date it applies (2999-12-31: no end date).'
         data_tests: [not_null]
-
+      - name: built_from
+        data_type: varchar
+        description: 'What this table was built from: the feed, when it was loaded, the seed lists and the version of the parsing (rdg_stamp). The daily build copies the table instead of parsing the feed again while this is unchanged.'
+        data_tests: [not_null]
   - name: rdg_ticket_type
     description: >-
       The feed's ticket types (RSPS5045 4.6.2) for the ticket kinds the panel shows: each code's current
