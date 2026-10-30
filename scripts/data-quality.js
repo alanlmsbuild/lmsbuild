@@ -96,6 +96,9 @@ export const QUALITY = {
     most('bus_minutes_p75', 90), most('rail_minutes_p75', 90), nulls('notes')], // 739,600
   // Fares (decision 19 phase C): no price empty or zero (free reads "Free"), nothing shown over 12 months old.
   'SHARED_DB.GOLD.BUS_FARE': [rows(40, 300), dupes('fare_key'), nulls('price_text'), nulls('caveat'), ...fares()], // 90 (21 October 2026)
+  // Train fares (decision 19 phase C): one row per journey and kind of ticket, the discounts from the feed's tables.
+  'SHARED_DB.GOLD.TRAIN_FARE': [rows(40, 80), dupes('fare_key'), nulls('price_text'), nulls('caveat')], // 53 (30 October 2026)
+  'SHARED_DB.GOLD.TRAIN_DISCOUNT': [rows(8, 30), dupes('discount_key'), nulls('discount_text')], // 12
   'SHARED_DB.GOLD.TRAM_FARE': [rows(10, 40), dupes('fare_key'), nulls('price_text'), nulls('caveat'), ...fares()], // 16
 }
 // One weekly run (jobs are off most of the time and nothing changes between builds).

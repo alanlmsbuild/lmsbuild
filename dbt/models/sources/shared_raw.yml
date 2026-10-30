@@ -62,6 +62,9 @@ sources:
       - name: supertram_fare
         identifier: SUPERTRAM_FARE
         description: 'Supertram''s tickets and fares written down by hand from Travel South Yorkshire''s Supertram page, with the page and the date checked (load:data step 49).'
+      - name: rdg_fares_line
+        identifier: RDG_FARES_LINE
+        description: 'The National Rail Data Portal fares feed (RJFAF), every line of every file as published, with its file type (load:data step 50). Silver reads the latest feed through macros/rdg.sql.'
       - name: nr_schedule_extract
         identifier: NR_SCHEDULE_EXTRACT
         description: 'Network Rail SCHEDULE full extracts (CIF), one row per file with its HD header record (load:data step 44).'

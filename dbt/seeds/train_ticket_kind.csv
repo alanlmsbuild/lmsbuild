@@ -1,0 +1,8 @@
+ticket_code,kind,label,sort_order
+SDS,anytime-day-single,Anytime Day Single,1
+CDS,off-peak-day-single,Off-Peak Day Single,2
+SDR,anytime-day-return,Anytime Day Return,3
+CDR,off-peak-day-return,Off-Peak Day Return,4
+7DS,seven-day,7-day season,5
+SOR,anytime-return,Anytime Return,6
+SVR,off-peak-return,Off-Peak Return,7

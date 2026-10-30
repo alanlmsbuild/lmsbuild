@@ -6,9 +6,9 @@ Reads the newest data/fares/rdg/RJFAF*.ZIP and writes data/fares/rdg-slice/
 RJFAFnnn_slice.csv in the same shape as SHARED_DB.RAW.RDG_FARES_LINE's
 file_type and line columns (every line as published, none changed):
   LOC  every version of the seed stations' location records
-  FSC  the clusters those stations belong to
+  FSC  the clusters those stations (and their fare groups) belong to
   FFL  the flows between seed stations or their clusters, and those flows' fares
-  TTY, DIS, RLC, RCM  whole (a few thousand lines)
+  TTY, DIS, RLC, RCM  whole (a few thousand lines); RTE the route records
 Layouts: RSPS5045 P-02-04 (docs/licences/rsps5045/), sections 4.1, 4.2, 4.19.
 
   .venv-travel/bin/python scripts/fares/rdg_slice.py
@@ -33,6 +33,8 @@ def lines(ext):
 # 4.19.2 location record: type L at 2, NLC 37-40, CRS 57-59
 loc = [l for l in lines('LOC') if len(l) > 59 and l[1] == 'L' and l[56:59] in crs]
 nlcs = {l[36:40] for l in loc}
+# 4.19.2 fare group 70-75: flows can be set for the group the station belongs to
+nlcs |= {l[69:75].strip() for l in loc}
 missing = crs - {l[56:59] for l in loc}
 if missing:
     sys.exit(f'No location for CRS {sorted(missing)}')
@@ -57,7 +59,7 @@ n = 0
 with open(path, 'w', newline='', encoding='utf-8') as f:
     w = csv.writer(f)
     w.writerow(['file_type', 'line'])
-    for t, ls in (('LOC', loc), ('FSC', fsc), ('FFL', ffl), ('TTY', list(lines('TTY'))), ('DIS', list(lines('DIS'))), ('RLC', list(lines('RLC'))), ('RCM', list(lines('RCM')))):
+    for t, ls in (('LOC', loc), ('FSC', fsc), ('FFL', ffl), ('TTY', list(lines('TTY'))), ('DIS', list(lines('DIS'))), ('RLC', list(lines('RLC'))), ('RCM', list(lines('RCM'))), ('RTE', [l for l in lines('RTE') if len(l) > 7 and l[1] == 'R'])):
         for l in ls:
             w.writerow([t, l]); n += 1
         print(f'{t}: {len(ls):,} lines')

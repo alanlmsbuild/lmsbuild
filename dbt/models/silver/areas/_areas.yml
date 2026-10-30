@@ -1074,3 +1074,333 @@ models:
         data_type: varchar
         description: 'The SOURCE_FILE row of the load (SHARED_DB.RAW).'
         data_tests: [not_null]
+
+  - name: rdg_feed
+    description: >-
+      Which National Rail fares feed silver and gold are built from (decision 19, phase C): the latest
+      RJFAF zip loaded and the date its file was made on the National Rail Data Portal. One row.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: feed
+        data_type: varchar
+        description: 'The feeds name, RJFAF and its number.'
+        data_tests: [unique, not_null]
+      - name: published_on
+        data_type: date
+        description: 'The date the file was made on the National Rail Data Portal.'
+        data_tests: [not_null]
+      - name: loaded_at
+        data_type: timestamp_ltz
+        description: 'When it was loaded into Snowflake.'
+        data_tests: [not_null]
+
+  - name: rdg_station
+    description: >-
+      The stations in the train_journey seed, from the feed's locations file (RSPS5045 4.19.2): one
+      row per station, its current location record.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: crs
+        data_type: varchar
+        description: 'The stations 3-letter CRS code.'
+        data_tests: [unique, not_null]
+      - name: nlc
+        data_type: varchar
+        description: 'Its national location code: how the flow file names it.'
+        data_tests: [unique, not_null]
+      - name: fare_group
+        data_type: varchar
+        description: 'The location code of the fare group it belongs to for fares (its own code if none).'
+        data_tests: [not_null]
+      - name: description
+        data_type: varchar
+        description: 'The feeds name for it, in capitals.'
+        data_tests: [not_null]
+      - name: valid_from
+        data_type: date
+        description: 'First date the record applies.'
+        data_tests: [not_null]
+      - name: valid_to
+        data_type: date
+        description: 'Last date it applies (2999-12-31: no end date).'
+        data_tests: [not_null]
+
+  - name: rdg_place
+    description: >-
+      The codes a flow can name for each seed station (RSPS5045 4.1.2, 4.2.2 and 4.19.2): the station's
+      own code, its fare group and every station cluster either belongs to now. One row per station and code.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: crs
+        data_type: varchar
+        description: 'The stations CRS code.'
+        data_tests: [not_null]
+      - name: station_nlc
+        data_type: varchar
+        description: 'The stations own location code.'
+        data_tests: [not_null]
+      - name: place
+        data_type: varchar
+        description: 'A code a flow can name: the stations own, or a cluster it is in.'
+        data_tests: [not_null]
+      - name: is_station
+        data_type: boolean
+        description: 'True for the stations own code, false for a cluster.'
+        data_tests: [not_null]
+
+  - name: rdg_flow
+    description: >-
+      The adult flows (status 000) between the seed journeys' stations, from the flow file (RSPS5045
+      4.1.2): a fare-setting between two places over a route, with its dates. Every dated version,
+      past and future; gold takes the ones current on the day it is built. A reversible flow counts both ways.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: journey_key
+        data_type: varchar
+        description: 'The journey in train_journey.'
+        data_tests: [not_null]
+      - name: flow_id
+        data_type: varchar
+        description: 'The flows 7-character ID in the feed.'
+        data_tests: [not_null]
+      - name: origin_code
+        data_type: varchar
+        description: 'The flows origin: a station or cluster location code.'
+        data_tests: [not_null]
+      - name: destination_code
+        data_type: varchar
+        description: 'The flows destination: a station or cluster location code.'
+        data_tests: [not_null]
+      - name: route_code
+        data_type: varchar
+        description: 'The 5-digit route code (what the fare is valid by).'
+        data_tests: [not_null]
+      - name: usage_code
+        data_type: varchar
+        description: 'A: an actual fare set for the flow; G: made from two or more other flows.'
+        data_tests: [not_null]
+      - name: direction
+        data_type: varchar
+        description: 'S: the fare applies one way; R: both ways.'
+        data_tests: [not_null]
+      - name: toc
+        data_type: varchar
+        description: 'The fare TOC code of the train company setting the fares.'
+      - name: start_date
+        data_type: date
+        description: 'First date the flow applies.'
+        data_tests: [not_null]
+      - name: end_date
+        data_type: date
+        description: 'Last date it applies (2999-12-31: no end date).'
+        data_tests: [not_null]
+
+  - name: rdg_fare
+    description: >-
+      The fares for the ticket kinds the panel shows (train_ticket_kind) on those flows, from the flow
+      file's fare records (RSPS5045 4.1.3): the adult fare in pence exactly as published, with the dates of its
+      flow. One row per journey, flow and ticket.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: journey_key
+        data_type: varchar
+        description: 'The journey in train_journey.'
+        data_tests: [not_null]
+      - name: flow_id
+        data_type: varchar
+        description: 'The flows ID.'
+        data_tests: [not_null]
+      - name: route_code
+        data_type: varchar
+        description: 'The flows route code.'
+        data_tests: [not_null]
+      - name: ticket_code
+        data_type: varchar
+        description: 'The feeds 3-character ticket code.'
+        data_tests: [not_null]
+      - name: fare_pence
+        data_type: number(10,0)
+        description: 'The adult fare in pence, as published.'
+        data_tests: [not_null]
+      - name: restriction_code
+        data_type: varchar
+        description: 'The 2-character restriction code (what limits the ticket); empty if none.'
+      - name: start_date
+        data_type: date
+        description: 'First date the fare applies.'
+        data_tests: [not_null]
+      - name: end_date
+        data_type: date
+        description: 'Last date it applies (2999-12-31: no end date).'
+        data_tests: [not_null]
+
+  - name: rdg_ticket_type
+    description: >-
+      The feed's ticket types (RSPS5045 4.6.2) for the ticket kinds the panel shows: each code's current
+      record, with its discount category (which line of the discount tables applies to it).
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: ticket_code
+        data_type: varchar
+        description: 'The feeds 3-character ticket code.'
+        data_tests: [unique, not_null]
+      - name: description
+        data_type: varchar
+        description: 'The feeds description, in capitals.'
+        data_tests: [not_null]
+      - name: ticket_class
+        data_type: varchar
+        description: '1 first class, 2 standard.'
+        data_tests: [not_null]
+      - name: ticket_type
+        data_type: varchar
+        description: 'S single, R return, N season.'
+        data_tests: [not_null]
+      - name: discount_category
+        data_type: number(2,0)
+        description: 'Which line of the discount tables applies to it.'
+        data_tests: [not_null]
+      - name: valid_from
+        data_type: date
+        description: 'First date the record applies.'
+        data_tests: [not_null]
+      - name: valid_to
+        data_type: date
+        description: 'Last date it applies (2999-12-31: no end date).'
+        data_tests: [not_null]
+
+  - name: rdg_railcard
+    description: >-
+      The two railcards the panel mentions, from the feed's railcards file (RSPS5045 4.14.2): the 16-17
+      Saver (TSU) and the 16-25 Railcard (YNG), each with the status codes the discount tables use for its
+      adult and child fares. The current record of each.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: railcard_code
+        data_type: varchar
+        description: 'The 3-character railcard code.'
+        data_tests: [unique, not_null]
+      - name: description
+        data_type: varchar
+        description: 'The feeds name for it.'
+        data_tests: [not_null]
+      - name: adult_status
+        data_type: varchar
+        description: 'The status code for an adults fare with this railcard.'
+        data_tests: [not_null]
+      - name: child_status
+        data_type: varchar
+        description: 'The status code for a childs fare with this railcard.'
+        data_tests: [not_null]
+      - name: valid_from
+        data_type: date
+        description: 'First date the record applies.'
+        data_tests: [not_null]
+      - name: valid_to
+        data_type: date
+        description: 'Last date it applies (2999-12-31: no end date).'
+        data_tests: [not_null]
+
+  - name: rdg_status_discount
+    description: >-
+      The feed's status discounts (RSPS5045 4.16) for the child fare (status 001) and the two railcards'
+      statuses: for a status and a discount category, what the discount is. Indicator 0 is a plain percentage
+      off the adult fare; the other indicators (a flat fare, a maximum or a minimum applies, or none) are kept as
+      published and are not turned into percentages.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: status_code
+        data_type: varchar
+        description: 'The 3-character status code.'
+        data_tests: [not_null]
+      - name: description
+        data_type: varchar
+        description: 'The feeds short name for the status (ADULT, CHILD ...).'
+      - name: discount_category
+        data_type: number(2,0)
+        description: 'The discount category (1 to 20): a ticket type names the one that applies.'
+        data_tests: [not_null]
+      - name: indicator
+        data_type: varchar
+        description: '0: percentage off; X or N: no discount; F, M, H, L: a flat fare, maximum or minimum applies.'
+        data_tests: [not_null]
+      - name: percentage
+        data_type: number(4,1)
+        description: 'The percentage off the adult fare when the indicator is 0.'
+        data_tests: [not_null]
+
+  - name: rdg_route
+    description: >-
+      The feed's fare routes (RSPS5045 4.20.2): each route code's current record and its name.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: route_code
+        data_type: varchar
+        description: 'The 5-digit route code.'
+        data_tests: [unique, not_null]
+      - name: description
+        data_type: varchar
+        description: 'The feed''s name for the route, in capitals (ANY PERMITTED, VIA ...).'
+        data_tests: [not_null]
+      - name: valid_from
+        data_type: date
+        description: 'First date the record applies.'
+        data_tests: [not_null]
+      - name: valid_to
+        data_type: date
+        description: 'Last date it applies (2999-12-31: no end date).'
+        data_tests: [not_null]

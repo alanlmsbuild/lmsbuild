@@ -129,3 +129,71 @@ seeds:
         description: 'Who checked the wording.'
       - name: checked_on
         description: 'The date it was checked.'
+  - name: train_journey
+    description: >-
+      The 13 train journeys the reach page's fares panel covers (Rarebit's own list,
+      agreed with Alan on 28 October 2026): the 10 pairs among Sheffield, Meadowhall,
+      Rotherham Central, Barnsley and Doncaster, and Sheffield to Leeds, Manchester
+      Piccadilly and Chesterfield. Stations by their 3-letter CRS code (Barnsley is BNY).
+      A journey is a pair of stations, the same both ways.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: by-hand
+        sensitivity: public
+      column_types:
+        journey_key: varchar
+        from_crs: varchar
+        to_crs: varchar
+        from_label: varchar
+        to_label: varchar
+    columns:
+      - name: journey_key
+        description: 'Its key: the two CRS codes joined with -.'
+        data_tests: [unique, not_null]
+      - name: from_crs
+        description: 'The first station''s CRS code.'
+        data_tests: [not_null]
+      - name: to_crs
+        description: 'The second station''s CRS code.'
+        data_tests: [not_null]
+      - name: from_label
+        description: 'The first station as the page names it.'
+        data_tests: [not_null]
+      - name: to_label
+        description: 'The second station as the page names it.'
+        data_tests: [not_null]
+  - name: train_ticket_kind
+    description: >-
+      The kinds of train ticket the fares panel shows, and the feed's ticket code for each
+      (Rarebit's own list, checked against the feed's ticket types file): Anytime and
+      Off-Peak day singles and day returns, the Anytime and Off-Peak returns used on longer
+      journeys (Sheffield to Manchester), and the 7-day season. Anything else in the feed
+      (Advance, first class, rail rovers) is not shown.
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: by-hand
+        sensitivity: public
+      column_types:
+        ticket_code: varchar
+        kind: varchar
+        label: varchar
+        sort_order: number
+    columns:
+      - name: ticket_code
+        description: 'The feed''s 3-character ticket code.'
+        data_tests: [unique, not_null]
+      - name: kind
+        description: 'The kind of ticket, as a key.'
+        data_tests: [unique, not_null]
+      - name: label
+        description: 'The ticket''s name as the page shows it (the feed''s own name, in full words).'
+        data_tests: [not_null]
+      - name: sort_order
+        description: 'The order the page lists them in.'
+        data_tests: [not_null]
