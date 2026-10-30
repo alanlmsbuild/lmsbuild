@@ -1,0 +1,14 @@
+journey_key,from_crs,to_crs,from_label,to_label
+SHF-MHS,SHF,MHS,Sheffield,Meadowhall
+SHF-RMC,SHF,RMC,Sheffield,Rotherham Central
+SHF-BNY,SHF,BNY,Sheffield,Barnsley
+SHF-DON,SHF,DON,Sheffield,Doncaster
+MHS-RMC,MHS,RMC,Meadowhall,Rotherham Central
+MHS-BNY,MHS,BNY,Meadowhall,Barnsley
+MHS-DON,MHS,DON,Meadowhall,Doncaster
+RMC-BNY,RMC,BNY,Rotherham Central,Barnsley
+RMC-DON,RMC,DON,Rotherham Central,Doncaster
+BNY-DON,BNY,DON,Barnsley,Doncaster
+SHF-LDS,SHF,LDS,Sheffield,Leeds
+SHF-MAN,SHF,MAN,Sheffield,Manchester Piccadilly
+SHF-CHD,SHF,CHD,Sheffield,Chesterfield
