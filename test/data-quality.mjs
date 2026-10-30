@@ -87,7 +87,7 @@ const fake = (answer) => {
   check('a tick with every job due ran them all', ran.length > 0 && result.ran.length === ran.length, String(ran.length))
   check('  one connection of each kind, opened once', new Set(opened).size === opened.length && opened.includes('loader') && opened.includes('transform'), opened.join())
   check('  each run is recorded on its own kind of connection', ['loader', 'transform', 'app'].every((as) => startedOn(as) === expected(as)), JSON.stringify({ loader: startedOn('loader'), transform: startedOn('transform'), app: startedOn('app') }))
-  check('  the silver build, link check and official loads never use the app connection', ['transform-silver', 'website-links', 'reach-export', 'travel-monthly', 'official-api', 'vacancies-full'].every((j) => JOB_SCHEDULE[j].connectAs))
+  check('  the silver build, link check and official loads never use the app connection', ['transform-silver', 'website-links', 'reach-export', 'travel-monthly', 'official-api', 'official-travel-advice', 'vacancies-full'].every((j) => JOB_SCHEDULE[j].connectAs))
 }
 
 console.log(failures ? `\n${failures} failed` : '\nall passed')

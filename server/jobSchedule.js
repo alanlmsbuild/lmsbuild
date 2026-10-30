@@ -146,6 +146,7 @@ export const JOB_SCHEDULE = {
   'official-travel-advice': {
     label: 'Official data: Foreign Office travel advice',
     short: 'Travel advice',
+    connectAs: 'loader',
     every: 24 * HOUR,
     overdueAfter: 30 * HOUR,
     lockGroup: 'official',
