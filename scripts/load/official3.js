@@ -13,7 +13,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { csvLine, csvRecords, writeLines, zipEntry, zipNames } from './files.js'
-import { NOMIS_SETS } from '../fetch-official.js'
+import { NOMIS_SETS } from './nomis-sets.js'
 import { toCells } from './official2.js'
 
 const OGL = 'Open Government Licence v3.0'

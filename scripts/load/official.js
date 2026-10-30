@@ -20,7 +20,7 @@ import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import ExcelJS from 'exceljs'
 import { csvLine, writeLines, zipEntry, zipNames } from './files.js'
-import { nomisFetched } from '../fetch-official.js'
+import { nomisFetched } from './nomis-sets.js'
 
 const OGL = 'Open Government Licence v3.0'
 const OGL_ONS = 'Open Government Licence v3.0 (credit the Office for National Statistics)'

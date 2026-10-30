@@ -22,7 +22,7 @@ import { pipeline } from 'node:stream/promises'
 import ExcelJS from 'exceljs'
 import { SaxesParser } from 'saxes'
 import { csvLine, csvRecords, writeLines, zipEntry, zipNames } from './files.js'
-import { NOMIS_SETS } from '../fetch-official.js'
+import { NOMIS_SETS } from './nomis-sets.js'
 import { SX_SETS, sxFetched } from './statxplore.js'
 import { OFQUAL_PERSONAL_FIELDS, withoutPersonalFields } from './ofqual.js'
 

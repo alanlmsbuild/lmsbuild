@@ -58,5 +58,16 @@ const go = (bad, extra = {}) => {
   const { EES_SETS, KS4_EES_SETS } = await import('../scripts/fetch-official.js')
   check('Key stage 4 is not in the api job: no step 17, no ks4 data set', !LOAD_STEPS.api.includes(17) && !EES_SETS.some((s) => s.dir === 'ks4-performance') && KS4_EES_SETS.length === 2)
 }
+{
+  // fetch-official.js imports load-data.js (and so every load file) when it runs a load, so no load file may import it back:
+  // run from the command line that waited on itself forever (30 October 2026).
+  const { readdirSync, readFileSync } = await import('node:fs')
+  const dir = new URL('../scripts/load/', import.meta.url)
+  const back = readdirSync(dir).filter((f) => f.endsWith('.js') && /from '\.\.\/fetch-official\.js'/.test(readFileSync(new URL(f, dir), 'utf8')))
+  check('no load file imports fetch-official.js back', back.length === 0, back.join())
+  const { NOMIS_SETS, nomisFetched } = await import('../scripts/fetch-official.js')
+  const again = await import('../scripts/load/nomis-sets.js')
+  check('  the Nomis sets and nomisFetched are the same from either', again.NOMIS_SETS === NOMIS_SETS && again.nomisFetched === nomisFetched && NOMIS_SETS.length === 12)
+}
 console.log(failures ? `\n${failures} FAILED` : '\nAll passed')
 process.exit(failures ? 1 : 0)
