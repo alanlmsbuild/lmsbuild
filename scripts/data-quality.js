@@ -100,6 +100,8 @@ export const QUALITY = {
 }
 // One weekly run (jobs are off most of the time and nothing changes between builds).
 export const DMF_SCHEDULE = 'USING CRON 0 7 * * 1 Europe/London'
+// Snowflake reports a CRON schedule without its "USING CRON".
+const reported = (schedule) => schedule.replace(/^USING CRON /, '')
 // A result older than this is stale: the Monday run has not happened.
 export const STALE_DAYS = 8
 
@@ -186,7 +188,7 @@ export async function checkBindings(c) {
     for (const m of metrics) if (!have.some((b) => key(b.fn, b.on) === key(fnName(m), m.on))) problems.push(`${table}: ${m.fn}(${m.on.join(', ')}) is not attached`)
     for (const b of have) {
       if (!want.has(key(b.fn, b.on))) problems.push(`${table}: ${b.fn}(${b.on.join(', ')}) is attached but not in QUALITY`)
-      if (b.schedule !== DMF_SCHEDULE) problems.push(`${table}: ${b.fn} runs on "${b.schedule}", not "${DMF_SCHEDULE}"`)
+      if (b.schedule !== reported(DMF_SCHEDULE)) problems.push(`${table}: ${b.fn} runs on "${b.schedule}", not "${DMF_SCHEDULE}"`)
     }
     if (await tableExists(c, staged(table))) {
       const left = await bindings(c, staged(table))

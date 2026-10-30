@@ -5,7 +5,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { DMF_SCHEDULE, QUALITY, STALE_DAYS, latestResults, measure } from '../scripts/data-quality.js'
+import { DMF_SCHEDULE, QUALITY, STALE_DAYS, checkBindings, latestResults, measure } from '../scripts/data-quality.js'
 import { JOB_ORDER, JOB_SCHEDULE } from '../server/jobSchedule.js'
 import { tick } from '../scripts/jobs.js'
 
@@ -39,6 +39,17 @@ const fake = (answer) => {
   check('  nothing waits for a measurement', !/DATA_QUALITY_MONITORING/.test(all))
   check('  every metric is attached', summary.attached === Object.values(QUALITY).flat().length && summary.schedule === DMF_SCHEDULE, JSON.stringify(summary))
   check('  a binding left on a _STAGING table is dropped', summary.removed >= 1 && /alter table OPTIONS_DB\.SILVER_STAGING\.PROVIDER drop data metric function SNOWFLAKE\.CORE\.ROW_COUNT/.test(all))
+}
+
+// ---- bindings as Snowflake reports them
+{
+  const binding = (schedule) => ({ METRIC_DATABASE_NAME: 'SNOWFLAKE', METRIC_SCHEMA_NAME: 'CORE', METRIC_NAME: 'ROW_COUNT', REF_ARGUMENTS: '[]', SCHEDULE: schedule })
+  const problemsFor = async (schedule) => {
+    const c = fake((t) => (/DATA_METRIC_FUNCTION_REFERENCES/.test(t) ? [binding(schedule)] : /INFORMATION_SCHEMA\.TABLES/.test(t) ? [{ N: 0 }] : []))
+    return (await checkBindings(c)).filter((p) => /runs on/.test(p))
+  }
+  check('check:dmf accepts the schedule as Snowflake reports it (without USING CRON)', (await problemsFor('0 7 * * 1 Europe/London')).length === 0)
+  check('  and flags TRIGGER_ON_CHANGES', (await problemsFor('TRIGGER_ON_CHANGES')).length === Object.keys(QUALITY).length)
 }
 
 // ---- results
