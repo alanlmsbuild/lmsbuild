@@ -4,4 +4,4 @@ route_code,feed_name,display_name
 00085,TPE ONLY,TransPennine Express only
 00098,NOT VIA DONCASTR,Not via Doncaster
 00679,VIA MEADOWHALL,Via Meadowhall
-01000,.,Any route
+01000,.,Any route ({fare_setter} fare)

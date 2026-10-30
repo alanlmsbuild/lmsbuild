@@ -22,3 +22,6 @@ where price_min < price_max and (routes_text is null or routes_feed_text is null
 union all
 select fare_key, 'caveat date is not in words' from {{ ref('train_fare') }}
 where not regexp_like(caveat, '^Fares as published on [0-9]{1,2} [A-Z][a-z]+ 20[0-9]{2}: check on National Rail\\.$')
+union all
+select fare_key, 'route name still has its {fare_setter} placeholder' from {{ ref('train_fare') }}
+where routes_text like '%{%'

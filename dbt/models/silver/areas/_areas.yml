@@ -1270,6 +1270,30 @@ models:
         data_type: varchar
         description: 'What this table was built from: the feed, when it was loaded, the seed lists and the version of the parsing (rdg_stamp). The daily build copies the table instead of parsing the feed again while this is unchanged.'
         data_tests: [not_null]
+  - name: rdg_toc
+    description: >-
+      The feed's fare operators (RSPS5045 4.21.3): the code a flow carries for who is responsible for
+      its fares, the name the feed gives, and that name in ordinary capitals without "PTE".
+    config:
+      meta:
+        source: rdg-fares
+        licence: nre-feeds-v3
+        attribution: 'Powered by National Rail Enquiries (https://www.nationalrail.co.uk/). Fares as published by the Rail Delivery Group.'
+        refresh: quarterly
+        sensitivity: public
+    columns:
+      - name: fare_toc_id
+        data_type: varchar
+        description: 'The 3-character fare operator code a flow carries (PSY, SMR, TPE).'
+        data_tests: [unique, not_null]
+      - name: toc_name
+        data_type: varchar
+        description: 'The name exactly as the feed gives it, in capitals.'
+        data_tests: [not_null]
+      - name: toc_label
+        data_type: varchar
+        description: 'The name in ordinary capitals, without the feeds PTE.'
+        data_tests: [not_null]
   - name: rdg_ticket_type
     description: >-
       The feed's ticket types (RSPS5045 4.6.2) for the ticket kinds the panel shows: each code's current
