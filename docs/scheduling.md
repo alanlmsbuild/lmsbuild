@@ -59,24 +59,29 @@ run is recorded as failed and `SILVER` is left as it was; `SILVER_STAGING`
 keeps the failed build to look at. Its `OPS.JOB_RUN` summary has the
 models built and the tests passed, failed and warned (from dbt's
 `run_results.json`), the tables swapped, and on failure which step and
-which tests. After the swap it attaches Snowflake's data metric functions to 18 key
-tables: seven in `SILVER` (postcode, lsoa, local_authority, vacancy,
-vacancy_soc, provider, college_16_18: row counts, duplicates, nulls, and
-the vacancies' freshness) and eleven in `GOLD` (the institution, university
-course, vacancy, job outlook, area, postcode, provider benchmark and travel
-time tables: row counts, duplicate keys, nulls; on the four tables of
-figures our own `SHARED_DB.GOVERNANCE.SHOWN_BASE_UNDER_10`, the rows
-showing a figure based on fewer than 10 people, expected 0; on travel_time
-the longest times, expected at most the 90-minute cap). The travel times
+which tests. After the swap it attaches Snowflake's data metric functions to the 20 key
+tables of `SILVER` (7: postcode, lsoa, local_authority, vacancy,
+vacancy_soc, provider, college_16_18) and `GOLD` (13: the institution, university
+course, vacancy, job outlook, area, postcode, provider benchmark, travel
+time and bus and tram fare tables): row counts, duplicate keys, nulls, the vacancies'
+freshness; on the four tables of figures our own `SHARED_DB.GOVERNANCE.SHOWN_BASE_UNDER_10`,
+the rows showing a figure based on fewer than 10 people, expected 0; on travel_time
+the longest times, expected at most the 90-minute cap; on the fares tables no
+empty or zero price and nothing over 12 months old. The travel times
 themselves are computed by hand (`scripts/travel/README.md`, decision 19);
 the job only rebuilds their silver and gold from the latest run. Each has an
-expectation; the list and thresholds are in `scripts/data-quality.js`. It waits for one measurement of each (about 5
-minutes), then sets them to run only when a table changes, so each day's
-tables are measured once, complete and tested. The results show in each
-table's Data Quality tab in Snowsight and in the run's summary
-(`dataQuality`: measured, met, missed with values). A missed expectation
-is a warning, not a failure; a metric not measured within 15 minutes fails
-the run. `npm run check:dmf` checks they are all attached. It runs as
+expectation; the list and thresholds are in `scripts/data-quality.js`. They
+are attached to the live tables only (the bindings left on the `_STAGING`
+tables by the swap are dropped) on one weekly schedule, Mondays at 07:00 UK time
+(`sql/dmf_01_weekly_schedule.sql`): the job does not wait for a measurement,
+and no `TRIGGER_ON_CHANGES` (so no hidden dynamic tables). Snowflake measures
+whatever table is live then; a table swapped in since has no measurement
+until the next Monday. The results show in each table's Data Quality tab in
+Snowsight. The run's summary (`dataQuality`) says what was attached.
+`npm run check:dmf` checks they are all attached on that schedule, none in
+`_STAGING`, and reads the latest results: expectations missed (listed, a
+warning), tables not measured yet (listed), and any result older than
+8 days, which fails the check. It runs as
 `TRANSFORM_USER` on `TRANSFORM_WH`, from the dbt
 venv in the checkout (`.venv-dbt`, made as `dbt/requirements.txt` says;
 not committed, so a new checkout needs it made). By hand:

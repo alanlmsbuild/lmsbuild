@@ -6,25 +6,21 @@
 // A swapped-in table is new each day: dbt builds it from scratch in
 // SILVER_STAGING or GOLD_STAGING, and a swap moves a table's metric
 // bindings with it (tested 14 October 2026). So after the swap the SILVER
-// and GOLD tables have none, and the previous versions, now in the
-// _STAGING schemas, carry yesterday's. The job:
+// and GOLD tables have none, and the previous versions, now in the _STAGING
+// schemas, carry yesterday's. The job:
 //   0. makes the custom metrics if they aren't there (SHOWN_BASE_UNDER_10 and the two fares
 //      ones, below)
 //   1. removes the bindings from the _STAGING tables
-//   2. attaches every metric below to its table, each with its
-//      expectation, on a 5-minute schedule
-//   3. waits until every metric has a measurement taken after it was
-//      attached (about 5 minutes; at most WAIT_MINUTES)
-//   4. switches each table's schedule to TRIGGER_ON_CHANGES: no further
-//      runs until the table changes, so one measurement a day, always of a
-//      complete, tested table (a swap is not a change; tomorrow's table is
-//      a new one)
-//   5. reads each expectation's result (met or missed) for the job summary.
+//   2. attaches every metric below to its table (the live ones only), each
+//      with its expectation, on one weekly schedule (DMF_SCHEDULE: Mondays
+//      at 07:00 UK time; sql/dmf_01_weekly_schedule.sql). It does not wait:
+//      Snowflake measures at the next Monday 07:00, whatever table is live then.
 // Results show in Snowsight (each table's Data Quality tab) and in
-// SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_RESULTS().
+// SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_RESULTS(). They are read by check:dmf.
 //
-//   npm run check:dmf    every metric below is bound to its table, on
-//                        TRIGGER_ON_CHANGES, and the _STAGING tables have none
+//   npm run check:dmf    every metric below is bound to its table on DMF_SCHEDULE,
+//                        the _STAGING tables have none, and the latest results:
+//                        expectations missed, and results older than STALE_DAYS days
 
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -102,13 +98,14 @@ export const QUALITY = {
   'SHARED_DB.GOLD.BUS_FARE': [rows(40, 300), dupes('fare_key'), nulls('price_text'), nulls('caveat'), ...fares()], // 90 (21 October 2026)
   'SHARED_DB.GOLD.TRAM_FARE': [rows(10, 40), dupes('fare_key'), nulls('price_text'), nulls('caveat'), ...fares()], // 16
 }
-export const WAIT_MINUTES = 15
-const POLL_SECONDS = 30
+// One weekly run (jobs are off most of the time and nothing changes between builds).
+export const DMF_SCHEDULE = 'USING CRON 0 7 * * 1 Europe/London'
+// A result older than this is stale: the Monday run has not happened.
+export const STALE_DAYS = 8
 
 const staged = (table) => table.replace(/\.(SILVER|GOLD)\./, '.$1_STAGING.')
 const db = (table) => table.split('.')[0]
 const fnName = (m) => (m.fn.includes('.') ? m.fn : `SNOWFLAKE.CORE.${m.fn}`)
-const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms))
 // A list Snowflake returns as an array or as JSON text.
 const list = (x) => (Array.isArray(x) ? x : JSON.parse(x || '[]'))
 
@@ -125,9 +122,9 @@ async function tableExists(c, table) {
   return Number(r.N) > 0
 }
 
-// Steps 1 to 5. Returns the summary for OPS.JOB_RUN: metrics measured,
-// expectations met and missed (each missed one with its value).
-export async function measure(c, { log = console.log, waitMinutes = WAIT_MINUTES } = {}) {
+// Steps 0 to 2. Returns the summary for OPS.JOB_RUN: what was done. The
+// measurements come later (check:dmf reads them).
+export async function measure(c, { log = console.log } = {}) {
   // 0. The custom metrics.
   await execute(c, CREATE_SHOWN_BASE_UNDER)
   for (const create of CREATE_FARE_METRICS) await execute(c, create)
@@ -140,50 +137,45 @@ export async function measure(c, { log = console.log, waitMinutes = WAIT_MINUTES
       removed++
     }
   }
-  // 2. Attach, on a 5-minute schedule. A binding already there (a run
+  // 2. Attach, on the weekly schedule. A binding already there (a run
   // stopped half way) is left as it is.
-  const attachedAt = new Date()
   let attached = 0
   for (const [table, metrics] of Object.entries(QUALITY)) {
     const have = new Set((await bindings(c, table)).map((b) => `${b.fn}(${b.on.join(',')})`.toUpperCase()))
-    await execute(c, `alter table ${table} set DATA_METRIC_SCHEDULE = '5 MINUTE'`)
+    await execute(c, `alter table ${table} set DATA_METRIC_SCHEDULE = '${DMF_SCHEDULE}'`)
     for (const m of metrics) {
       if (have.has(`${fnName(m)}(${m.on.join(',')})`.toUpperCase())) continue
       await execute(c, `alter table ${table} add data metric function ${fnName(m)} on (${m.on.join(', ')}) expectation ${m.name} (${m.expect})`)
       attached++
     }
   }
-  log(`data quality: ${removed} old bindings removed from the _STAGING schemas; ${attached} metrics attached to ${Object.keys(QUALITY).length} SILVER and GOLD tables; waiting for their first measurement`)
-  // 3. Wait for a measurement of every expectation after attachedAt.
-  const expected = Object.values(QUALITY).flat().length
-  const deadline = Date.now() + waitMinutes * 60_000
-  let results = []
-  for (;;) {
-    results = []
-    for (const table of Object.keys(QUALITY)) {
-      const rows = await execute(c, `select METRIC_NAME, ARGUMENT_NAMES, VALUE, EXPECTATION_NAME, EXPECTATION_EXPRESSION, EXPECTATION_VIOLATED, MEASUREMENT_TIME
-        from table(SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS(REF_ENTITY_NAME => ?, REF_ENTITY_DOMAIN => 'TABLE'))
-        where MEASUREMENT_TIME >= ?::timestamp_ltz
-        qualify row_number() over (partition by EXPECTATION_NAME order by MEASUREMENT_TIME desc) = 1`, [table, attachedAt.toISOString()])
-      results.push(...rows.map((r) => ({ table, ...r })))
-    }
-    if (results.length >= expected || Date.now() > deadline) break
-    await sleep(POLL_SECONDS * 1000)
-  }
-  // 4. No more runs until the table changes.
-  for (const table of Object.keys(QUALITY)) await execute(c, `alter table ${table} set DATA_METRIC_SCHEDULE = 'TRIGGER_ON_CHANGES'`)
-  // 5. The summary.
-  const measuredNames = new Set(results.map((r) => `${r.table}|${r.EXPECTATION_NAME}`))
-  const notMeasured = Object.entries(QUALITY).flatMap(([table, ms]) => ms.filter((m) => !measuredNames.has(`${table}|${m.name}`)).map((m) => `${table.split('.').at(-1)}.${m.name}`))
-  const missed = results.filter((r) => r.EXPECTATION_VIOLATED).map((r) => ({
-    table: r.table.split('.').at(-1), metric: r.METRIC_NAME, column: list(r.ARGUMENT_NAMES).join(',') || null, value: Number(r.VALUE), expectation: r.EXPECTATION_EXPRESSION,
-  }))
-  const summary = { tables: Object.keys(QUALITY).length, metrics: expected, measured: results.length, met: results.length - missed.length, missed, notMeasured, waitedSeconds: Math.round((Date.now() - attachedAt.getTime()) / 1000) }
-  log(`data quality: ${summary.measured} of ${expected} measured, ${summary.met} expectations met, ${missed.length} missed${missed.length ? `: ${missed.map((m) => `${m.table} ${m.metric}${m.column ? `(${m.column})` : ''} = ${m.value} (${m.expectation})`).join('; ')}` : ''}${notMeasured.length ? `; not measured in ${waitMinutes} minutes: ${notMeasured.join(', ')}` : ''}`)
+  const summary = { tables: Object.keys(QUALITY).length, metrics: Object.values(QUALITY).flat().length, attached, removed, schedule: DMF_SCHEDULE }
+  log(`data quality: ${removed} old bindings removed from the _STAGING schemas; ${attached} metrics attached to ${summary.tables} SILVER and GOLD tables, measured on ${DMF_SCHEDULE}`)
   return summary
 }
 
-// check:dmf - every metric bound to its table on TRIGGER_ON_CHANGES,
+// The latest measurement of every expectation (any time), with the ones
+// missed, the ones never measured (a table swapped in since the last
+// Monday run has none yet) and the ones older than STALE_DAYS days.
+export async function latestResults(c, { now = Date.now() } = {}) {
+  const results = []
+  for (const table of Object.keys(QUALITY)) {
+    const rows = await execute(c, `select METRIC_NAME, ARGUMENT_NAMES, VALUE, EXPECTATION_NAME, EXPECTATION_EXPRESSION, EXPECTATION_VIOLATED, MEASUREMENT_TIME
+      from table(SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_EXPECTATION_STATUS(REF_ENTITY_NAME => ?, REF_ENTITY_DOMAIN => 'TABLE'))
+      qualify row_number() over (partition by EXPECTATION_NAME order by MEASUREMENT_TIME desc) = 1`, [table])
+    results.push(...rows.map((r) => ({ table, ...r })))
+  }
+  const measuredNames = new Set(results.map((r) => `${r.table}|${r.EXPECTATION_NAME}`))
+  const notMeasured = Object.entries(QUALITY).flatMap(([table, ms]) => ms.filter((m) => !measuredNames.has(`${table}|${m.name}`)).map((m) => `${table.split('.').at(-1)}.${m.name}`))
+  const stale = results.filter((r) => now - new Date(r.MEASUREMENT_TIME).getTime() > STALE_DAYS * 86_400_000)
+    .map((r) => `${r.table.split('.').at(-1)}.${r.EXPECTATION_NAME} (${new Date(r.MEASUREMENT_TIME).toISOString().slice(0, 10)})`)
+  const missed = results.filter((r) => r.EXPECTATION_VIOLATED).map((r) => ({
+    table: r.table.split('.').at(-1), metric: r.METRIC_NAME, column: list(r.ARGUMENT_NAMES).join(',') || null, value: Number(r.VALUE), expectation: r.EXPECTATION_EXPRESSION,
+  }))
+  return { measured: results.length, met: results.length - missed.length, missed, notMeasured, stale }
+}
+
+// check:dmf - every metric bound to its table on DMF_SCHEDULE,
 // nothing else bound there, and nothing bound in the _STAGING schemas.
 export async function checkBindings(c) {
   const problems = []
@@ -194,7 +186,7 @@ export async function checkBindings(c) {
     for (const m of metrics) if (!have.some((b) => key(b.fn, b.on) === key(fnName(m), m.on))) problems.push(`${table}: ${m.fn}(${m.on.join(', ')}) is not attached`)
     for (const b of have) {
       if (!want.has(key(b.fn, b.on))) problems.push(`${table}: ${b.fn}(${b.on.join(', ')}) is attached but not in QUALITY`)
-      if (b.schedule !== 'TRIGGER_ON_CHANGES') problems.push(`${table}: ${b.fn} runs on "${b.schedule}", not TRIGGER_ON_CHANGES`)
+      if (b.schedule !== DMF_SCHEDULE) problems.push(`${table}: ${b.fn} runs on "${b.schedule}", not "${DMF_SCHEDULE}"`)
     }
     if (await tableExists(c, staged(table))) {
       const left = await bindings(c, staged(table))
@@ -207,12 +199,18 @@ export async function checkBindings(c) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const c = await connect({ as: 'transform', timeoutMs: 30000 })
   let problems
+  let latest
   try {
     problems = await checkBindings(c)
+    latest = await latestResults(c)
   } finally {
     await destroy(c)
   }
+  for (const s of latest.stale) problems.push(`result older than ${STALE_DAYS} days: ${s}`)
   for (const p of problems) console.log(`FAIL ${p}`)
-  console.log(problems.length ? `\n${problems.length} problem(s).` : `${Object.values(QUALITY).flat().length} data metric functions on ${Object.keys(QUALITY).length} SILVER and GOLD tables, all attached on TRIGGER_ON_CHANGES; none left in the _STAGING schemas.`)
+  for (const m of latest.missed) console.log(`MISSED ${m.table} ${m.metric}${m.column ? `(${m.column})` : ''} = ${m.value} (${m.expectation})`)
+  if (latest.notMeasured.length) console.log(`not measured yet (${latest.notMeasured.length}; a table swapped in since the last ${DMF_SCHEDULE} run has none): ${latest.notMeasured.join(', ')}`)
+  console.log(`${latest.measured} expectations measured, ${latest.met} met, ${latest.missed.length} missed.`)
+  console.log(problems.length ? `\n${problems.length} problem(s).` : `${Object.values(QUALITY).flat().length} data metric functions on ${Object.keys(QUALITY).length} SILVER and GOLD tables, all attached on ${DMF_SCHEDULE}; none left in the _STAGING schemas.`)
   process.exit(problems.length ? 1 : 0)
 }

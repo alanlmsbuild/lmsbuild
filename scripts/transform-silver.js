@@ -13,11 +13,10 @@
 //                  across schemas)
 //   5. check:tags  SILVER itself
 //   6. data quality: Snowflake's data metric functions attached to the key
-//                  SILVER and GOLD tables and measured once
-//                  (scripts/data-quality.js; on gold, also the honesty
-//                  rules' SHOWN_BASE_UNDER_10);
-//                  results in the summary (dataQuality), a missed
-//                  expectation logged as a warning
+//                  SILVER and GOLD tables (scripts/data-quality.js; on gold,
+//                  also the honesty rules' SHOWN_BASE_UNDER_10), measured
+//                  weekly by Snowflake; the summary (dataQuality) says what
+//                  was attached; npm run check:dmf reads the results
 //
 // If 1, 2 or 3 fails, SILVER is not touched: the job is recorded as failed
 // with the counts, and SILVER_STAGING keeps the failed build to look at.
@@ -138,10 +137,9 @@ export async function runJob({ log = console.log } = {}) {
   log(`transform-silver: ${lastLines(silverTags.out, 1)}`)
 
   // 6. The data metric functions (scripts/data-quality.js): attached to the
-  // new SILVER and GOLD tables, measured once, results in the summary. A
-  // missed expectation is a warning (the tables have passed their dbt
-  // tests); failing to
-  // attach or measure fails the run.
+  // new SILVER and GOLD tables on their weekly schedule. Snowflake measures
+  // them later (check:dmf reads the results), so the run does not wait.
+  // Failing to attach fails the run.
   const dq = await connect({ as: 'transform', timeoutMs: 30000 })
   try {
     done.dataQuality = await measure(dq, { log })
@@ -150,10 +148,6 @@ export async function runJob({ log = console.log } = {}) {
   } finally {
     await destroy(dq)
   }
-  if (done.dataQuality.notMeasured.length) {
-    return { outcome: 'failed', error: `SILVER swapped and checked, but ${done.dataQuality.notMeasured.length} data metric(s) were not measured in time.`, summary: { ...done, step: 'data quality' } }
-  }
-  if (done.dataQuality.missed.length) log(`transform-silver: WARNING ${done.dataQuality.missed.length} data quality expectation(s) missed (listed in the summary)`)
   return { outcome: 'succeeded', summary: done }
 }
 

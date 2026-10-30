@@ -41,7 +41,8 @@ export const JOB_RUNNERS = {
   'companies-refresh': async (connection, log) => (await import('./refresh-companies.js')).runJob({ connection, log }),
   skills: async (connection, log) => (await import('./import-skills.js')).runJob({ connection, log }),
   // These load as DATA_LOAD_USER with their own connection (and their own
-  // load-* rows in JOB_RUN); the app's connection only records the run.
+  // load-* rows in JOB_RUN); the connection passed in only records the run
+  // (as the loader, JOB_SCHEDULE connectAs).
   'official-nomis': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'nomis', log }),
   'official-api': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'api', log }),
   'official-statxplore': async (connection, log) => (await import('./fetch-official.js')).runJob({ kind: 'statxplore', log }),
@@ -70,20 +71,23 @@ export async function tick({
   log = makeLog('jobs'),
 } = {}) {
   const done = { ran: [], seeded: false, connected: false }
-  let connection = null
-  const db = async () => {
-    if (!connection) {
-      connection = await openConnection()
+  // One connection per kind, opened when first needed: a job's run is
+  // recorded as the user whose warehouse the job wakes anyway
+  // (JOB_SCHEDULE connectAs), so the bookkeeping doesn't wake CAPTURE_WH too.
+  const connections = new Map()
+  const db = async (as) => {
+    if (!connections.has(as)) {
+      connections.set(as, await openConnection(as ? { as } : undefined))
       done.connected = true
     }
-    return connection
+    return connections.get(as)
   }
   try {
     // A job missing from the state file: fill it in from SHARED_DB.OPS.JOB_RUN first,
     // so a new machine doesn't rerun everything.
     let state = readState(stateFile)
     if (JOB_ORDER.some((j) => !state.jobs[j])) {
-      state = seedState(state, await execute(await db(), SEED_QUERY))
+      state = seedState(state, await execute(await db('loader'), SEED_QUERY))
       writeState(state, stateFile)
       done.seeded = true
     }
@@ -91,7 +95,7 @@ export async function tick({
       // Read again each time: the job before may have covered this one.
       if (!isDue(job, readState(stateFile), now())) continue
       const result = await recordRun({
-        connection: await db(),
+        connection: await db(JOB_SCHEDULE[job].connectAs),
         job,
         triggeredBy: 'schedule',
         run: (c, jobRunId) => runners[job](c, log, jobRunId),
@@ -106,7 +110,7 @@ export async function tick({
     if (err instanceof JobTimeout) done.stopped = err.message
     else throw err
   } finally {
-    if (connection) await closeConnection(connection)
+    for (const connection of connections.values()) await closeConnection(connection)
   }
   return done
 }

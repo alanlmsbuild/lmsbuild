@@ -215,3 +215,19 @@ To remove it later: make ACCOUNTADMIN the owner of the LARS tables, grant
 ILR_APP_ROLE what the app and the LARS import need, then revoke the role
 from SYSADMIN and take the exception out.
 
+
+## Recorded 30 October 2026: data metric functions weekly, bookkeeping on the job's warehouse
+
+Cost cuts (proposal A of 22 October). The data metric functions (decision 21)
+are attached to the live SILVER and GOLD tables only, on one weekly schedule
+(`USING CRON 0 7 * * 1 Europe/London`, `sql/dmf_01_weekly_schedule.sql`): no
+5-minute schedule, no `TRIGGER_ON_CHANGES` (which keeps a hidden dynamic table
+per table), no waiting loop in the transform job. Jobs are off most of the time
+and nothing changes between builds. `npm run check:dmf` reads the latest
+results and fails on any older than 8 days. A table swapped in since the last
+Monday run has no measurement until the next one.
+
+Each job's run is recorded in `OPS.JOB_RUN` on the connection of the user
+whose warehouse the job wakes anyway (`connectAs` in `server/jobSchedule.js`:
+loader or transform), so `CAPTURE_WH` is not woken as well. Companies House
+and Skills England still use the app's connection.

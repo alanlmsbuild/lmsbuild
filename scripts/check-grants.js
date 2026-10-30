@@ -353,7 +353,7 @@ export function transformGrantProblems(grants, userRoles, holders) {
         (name === 'SHARED_DB.OPS.JOB_RUN' && ['SELECT', 'INSERT', 'UPDATE'].includes(privilege))
     } else if (on === 'DYNAMIC_TABLE' || on === 'MATERIALIZED_VIEW') {
       // Snowflake makes one of these, named by an ID, for each table whose
-      // data metric functions run on TRIGGER_ON_CHANGES (a dynamic table,
+      // data metric functions ran on TRIGGER_ON_CHANGES (until sql/dmf_01_weekly_schedule.sql; a dynamic table,
       // seen 14 October 2026), and a materialized view for each table with
       // our own metric, SHOWN_BASE_UNDER_10 (seen 15 October 2026; hidden
       // from SHOW; scripts/data-quality.js). Each is owned by the table's

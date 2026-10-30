@@ -6,6 +6,10 @@
 //   label, short  its name, and a shorter one for the managers' tile
 //   every         run when the last success started longer ago than this
 //   overdueAfter  managers see it as overdue after this (every + slack)
+//   connectAs     the connection that records the run in JOB_RUN: 'loader' or
+//                 'transform', the user whose warehouse the job wakes anyway, so
+//                 the bookkeeping doesn't wake CAPTURE_WH as well. Left out: the
+//                 app's own connection (the job uses it itself)
 //   lockGroup     jobs that must never overlap each other
 //   lockHours     an open run older than this no longer blocks (it didn't
 //                 finish: the laptop slept or was shut down)
@@ -22,6 +26,7 @@ export const JOB_SCHEDULE = {
   'vacancies-full': {
     label: 'Vacancies: every advert',
     short: 'Adverts, all',
+    connectAs: 'loader',
     every: 24 * HOUR,
     overdueAfter: 26 * HOUR,
     lockGroup: 'vacancies',
@@ -31,6 +36,7 @@ export const JOB_SCHEDULE = {
   'vacancies-new': {
     label: 'Vacancies: new adverts',
     short: 'Adverts, new',
+    connectAs: 'loader',
     every: 2 * HOUR,
     overdueAfter: 3 * HOUR,
     lockGroup: 'vacancies',
@@ -62,6 +68,7 @@ export const JOB_SCHEDULE = {
   'official-nomis': {
     label: 'Official data: claimant count and pay by area (Nomis)',
     short: 'Nomis',
+    connectAs: 'loader',
     every: 7 * 24 * HOUR,
     overdueAfter: 8 * 24 * HOUR,
     lockGroup: 'official',
@@ -71,6 +78,7 @@ export const JOB_SCHEDULE = {
   'official-api': {
     label: 'Official data: key stage 4, destinations, apprenticeships (DfE)',
     short: 'DfE statistics',
+    connectAs: 'loader',
     every: 7 * 24 * HOUR,
     overdueAfter: 8 * 24 * HOUR,
     lockGroup: 'official',
@@ -80,6 +88,7 @@ export const JOB_SCHEDULE = {
   'official-statxplore': {
     label: 'Official data: Universal Credit, Work and Health Programme (Stat-Xplore)',
     short: 'Stat-Xplore',
+    connectAs: 'loader',
     every: 7 * 24 * HOUR,
     overdueAfter: 8 * 24 * HOUR,
     lockGroup: 'official',
@@ -89,6 +98,7 @@ export const JOB_SCHEDULE = {
   'official-ons': {
     label: 'Official data: online job adverts, vacancies by industry (ONS)',
     short: 'ONS',
+    connectAs: 'loader',
     every: 7 * 24 * HOUR,
     overdueAfter: 8 * 24 * HOUR,
     lockGroup: 'official',
@@ -98,6 +108,7 @@ export const JOB_SCHEDULE = {
   'official-monthly': {
     label: 'Official data: police.uk, provider register, NaPTAN, listed buildings, Wikidata',
     short: 'Monthly data',
+    connectAs: 'loader',
     every: 30 * 24 * HOUR,
     overdueAfter: 32 * 24 * HOUR,
     lockGroup: 'official',
@@ -111,6 +122,7 @@ export const JOB_SCHEDULE = {
   'travel-monthly': {
     label: 'Travel times: bus, tram and train (South Yorkshire)',
     short: 'Travel times',
+    connectAs: 'loader',
     every: 30 * 24 * HOUR,
     overdueAfter: 32 * 24 * HOUR,
     lockGroup: 'travel',
@@ -120,6 +132,7 @@ export const JOB_SCHEDULE = {
   'official-ofqual': {
     label: 'Official data: Ofqual register of qualifications',
     short: 'Ofqual',
+    connectAs: 'loader',
     every: 7 * 24 * HOUR,
     overdueAfter: 8 * 24 * HOUR,
     lockGroup: 'official',
@@ -131,6 +144,7 @@ export const JOB_SCHEDULE = {
   'transform-silver': {
     label: 'Silver layer: build, test and swap in (dbt)',
     short: 'Silver',
+    connectAs: 'transform',
     every: 24 * HOUR,
     overdueAfter: 26 * HOUR,
     lockGroup: 'official',
@@ -145,6 +159,7 @@ export const JOB_SCHEDULE = {
   'reach-export': {
     label: 'Reach map: export, check and copy to the site',
     short: 'Reach map',
+    connectAs: 'transform',
     every: 24 * HOUR,
     overdueAfter: 34 * 24 * HOUR,
     lockGroup: 'official',
@@ -158,6 +173,7 @@ export const JOB_SCHEDULE = {
   'website-links': {
     label: 'Website links: a seventh checked each day',
     short: 'Links',
+    connectAs: 'transform',
     every: 24 * HOUR,
     overdueAfter: 26 * HOUR,
     lockGroup: 'links',
