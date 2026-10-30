@@ -171,7 +171,7 @@ seeds:
       hand-checked): the feed names routes in 16 capital letters ("TPE ONLY", "NOT VIA
       DONCASTR"), and this gives the words the page shows, with the feed's own name kept
       beside each. Only the routes the listed journeys use are here; any other route shows
-      the feed's name as it is published. Route 01000 has no name in the feed (just a full stop).
+      the feed's name as it is published. Route 01000 has no name in the feed (just a full stop): it excludes only Southsea Hoverport, so it is shown as "Any route" (approved by Alan, 30 October 2026).
     config:
       meta:
         source: rdg-fares
