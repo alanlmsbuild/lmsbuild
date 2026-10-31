@@ -222,7 +222,7 @@ models:
         description: 'The courses type code as published.'
       - name: course_type
         data_type: varchar
-        description: 'Its type in words, for the codes 1 to 6 the code tables define (7, 8 and 9 have no label).'
+        description: 'Its type in words, for the codes 1 to 6 the code tables define (7, 8 and 9 are not on the code tables page and read "[Unlabelled type 7]" and so on).'
       - name: sector
         data_type: varchar
         description: 'The directorys sector code as published (filled for few courses).'

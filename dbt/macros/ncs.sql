@@ -95,5 +95,6 @@
 {%- endmacro %}
 {% macro ncs_course_type(c) -%}
   case {{ c }} when '1' then 'Essential skills' when '2' then 'T Level' when '3' then 'Higher Technical Qualification' when '4' then 'Free Courses for Jobs'
-    when '5' then 'Multiply' when '6' then 'Skills Bootcamp' end
+    when '5' then 'Multiply' when '6' then 'Skills Bootcamp'
+    when '7' then '[Unlabelled type 7]' when '8' then '[Unlabelled type 8]' when '9' then '[Unlabelled type 9]' end
 {%- endmacro %}

@@ -29,27 +29,15 @@ REVOKE SELECT ON TABLE SHARED_DB.GOLD_STAGING.TRAIN_DISCOUNT FROM DATABASE ROLE 
 
 -- 1. Who can read the live train fares table. Expected: 2 rows, GOLD_SITE
 --    (SELECT) and TRANSFORM_ROLE (OWNERSHIP).
-SHOW GRANTS ON TABLE SHARED_DB.GOLD.TRAIN_FARE;
-SELECT "grantee_name", "privilege"
-FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
-ORDER BY "grantee_name";
+SHOW GRANTS ON TABLE SHARED_DB.GOLD.TRAIN_FARE ->> SELECT "grantee_name", "privilege" FROM $1 ORDER BY 1;
 
 -- 2. The same for the discounts table. Expected: the same 2 rows.
-SHOW GRANTS ON TABLE SHARED_DB.GOLD.TRAIN_DISCOUNT;
-SELECT "grantee_name", "privilege"
-FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
-ORDER BY "grantee_name";
+SHOW GRANTS ON TABLE SHARED_DB.GOLD.TRAIN_DISCOUNT ->> SELECT "grantee_name", "privilege" FROM $1 ORDER BY 1;
 
 -- 3. The staging copies, which a swap brings back. Expected: the same 2 rows
 --    for each.
-SHOW GRANTS ON TABLE SHARED_DB.GOLD_STAGING.TRAIN_FARE;
-SELECT "grantee_name", "privilege"
-FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
-ORDER BY "grantee_name";
+SHOW GRANTS ON TABLE SHARED_DB.GOLD_STAGING.TRAIN_FARE ->> SELECT "grantee_name", "privilege" FROM $1 ORDER BY 1;
 
-SHOW GRANTS ON TABLE SHARED_DB.GOLD_STAGING.TRAIN_DISCOUNT;
-SELECT "grantee_name", "privilege"
-FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))
-ORDER BY "grantee_name";
+SHOW GRANTS ON TABLE SHARED_DB.GOLD_STAGING.TRAIN_DISCOUNT ->> SELECT "grantee_name", "privilege" FROM $1 ORDER BY 1;
 
 -- 4. Then run npm run check:grants. Expected: no FAIL lines.
