@@ -1,7 +1,6 @@
 version: 2
 
-# The National Careers Service course directory, gold: OPTIONS_DB.GOLD. No reader role yet: the options app is
-# not changed (stop at gold).
+# The National Careers Service course directory, gold: OPTIONS_DB.GOLD. Read by the school leavers site's export (database role OPTIONS_DB.GOLD_SITE).
 
 models:
 
@@ -17,6 +16,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. National Careers Service course directory, Department for Education.'
         refresh: monthly
         sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
     columns:
       - name: course_run_id
         data_type: varchar
@@ -173,6 +173,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. National Careers Service course directory, Department for Education.'
         refresh: monthly
         sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
     columns:
       - name: count_key
         data_type: varchar

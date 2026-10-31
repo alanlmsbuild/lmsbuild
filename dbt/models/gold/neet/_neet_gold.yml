@@ -1,7 +1,6 @@
 version: 2
 
-# NEET and participation age 16 to 17 by local authority, gold: SHARED_DB.GOLD. No reader role yet: the options app is
-# not changed (stop at gold).
+# NEET and participation age 16 to 17 by local authority, gold: SHARED_DB.GOLD. Read by the school leavers site's export (database role SHARED_DB.GOLD_SITE).
 
 models:
 
@@ -18,6 +17,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Department for Education.'
         refresh: yearly
         sensitivity: public
+        readers: ['SHARED_DB.GOLD_SITE']
     columns:
       - name: neet_key
         data_type: varchar
