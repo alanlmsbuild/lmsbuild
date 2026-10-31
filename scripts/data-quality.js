@@ -107,6 +107,12 @@ export const QUALITY = {
   'OPTIONS_DB.GOLD.NCS_COURSE_COUNT': [rows(1_500, 3_500), dupes('count_key'), nulls('area_name')], // 2,247
   'SHARED_DB.SILVER.NEET_PARTICIPATION': [rows(25_000, 40_000), dupes('neet_key')], // 28,390
   'SHARED_DB.GOLD.NEET_LA_YEAR': [rows(3_000, 5_000), dupes('neet_key'), nulls('published_on'), nulls('source_url')], // 3,891
+  // Local authority code changes and the district to county lookup (31 October 2026).
+  'SHARED_DB.SILVER.LOCAL_AUTHORITY_COUNTY': [rows(350, 370), dupes('local_authority_code'), nulls('county_code'), nulls('county_name')], // 361
+  'SHARED_DB.SILVER.LOCAL_AUTHORITY_CODE_CHANGE': [rows(90, 130), nulls('old_code'), nulls('new_code'), nulls('change_date')], // 108
+  'SHARED_DB.SILVER.LOCAL_AUTHORITY_CODE_CURRENT': [rows(15, 30), dupes('old_code'), nulls('current_code')], // 20
+  'SHARED_DB.GOLD.LOCAL_AUTHORITY_CODE_LOOKUP': [rows(90, 130), nulls('old_code'), nulls('new_code'), nulls('attribution')], // 108
+  'SHARED_DB.GOLD.NEET_AREA_FOR_LA': [rows(350, 370), dupes('local_authority_code'), nulls('basis'), nulls('attribution')], // 361: 132 own, 164 county, 65 none
   // Travel times (decision 19): every pair of South Yorkshire's 860 LSOAs, nothing over the 90-minute cap.
   'SHARED_DB.GOLD.TRAVEL_TIME': [rows(700_000, 760_000), dupes('travel_key'), nulls('summary'), most('transit_minutes_p75', 90), most('walk_minutes', 90),
     most('bus_minutes_p75', 90), most('rail_minutes_p75', 90), nulls('notes')], // 739,600

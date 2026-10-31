@@ -1,7 +1,6 @@
 version: 2
 
-# Oak National Academy's curriculum, gold (decision 56): OPTIONS_DB.GOLD. No reader role yet: the
-# options app is not changed (stop at gold).
+# Oak National Academy's curriculum, gold (decision 56): OPTIONS_DB.GOLD. Read by the school leavers site's export (database role OPTIONS_DB.GOLD_SITE).
 
 models:
 
@@ -17,6 +16,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
         refresh: monthly
         sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
     columns:
       - name: lesson_key
         data_type: varchar
@@ -138,6 +138,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
         refresh: monthly
         sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
     columns:
       - name: lesson_key
         data_type: varchar
@@ -229,6 +230,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
         refresh: monthly
         sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
     columns:
       - name: unit_key
         data_type: varchar
@@ -337,6 +339,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
         refresh: monthly
         sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
     columns:
       - name: subject_slug
         data_type: varchar
@@ -416,6 +419,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
         refresh: monthly
         sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
     columns:
       - name: question_key
         data_type: varchar
@@ -500,6 +504,7 @@ models:
         attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Lessons by Oak National Academy.'
         refresh: monthly
         sensitivity: public
+        readers: ['OPTIONS_DB.GOLD_SITE']
     columns:
       - name: answer_key
         data_type: varchar

@@ -13,5 +13,5 @@ select
   PAGEURL::varchar as source_url,
   to_date(ORIGINALMODIFIEDAT)::date as downloaded_on,
   LOADEDAT::timestamp_ltz as loaded_at,
-  (md5(SOURCEFILEID) || '|v1')::varchar as built_from
+  (md5(SOURCEFILEID) || '|v2')::varchar as built_from
 from c

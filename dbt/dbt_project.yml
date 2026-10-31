@@ -88,6 +88,9 @@ models:
       neet:
         +database: SHARED_DB
         +schema: GOLD
+      areas:
+        +database: SHARED_DB
+        +schema: GOLD
 
 # Seeds (hand-checked lists the models join to): in SILVER, with the same
 # tags as a model (from the seed's .yml meta).

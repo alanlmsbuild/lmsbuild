@@ -49,6 +49,19 @@ function createConnection(as) {
       privateKeyPath: process.env.TRANSFORM_PRIVATE_KEY_PATH,
     })
   }
+  if (as === 'site-export') {
+    // The school leavers site's build-time export (sql/site_export_01.sql):
+    // reads GOLD through the two GOLD_SITE database roles and nothing else.
+    if (!process.env.SITE_EXPORT_PRIVATE_KEY_PATH) throw new Error('SITE_EXPORT_PRIVATE_KEY_PATH is not set in server/.env.')
+    return snowflake.createConnection({
+      account: process.env.SNOWFLAKE_ACCOUNT,
+      username: process.env.SITE_EXPORT_USERNAME || 'SITE_EXPORT_USER',
+      role: 'SITE_EXPORT_ROLE',
+      warehouse: 'SITE_EXPORT_WH',
+      authenticator: 'SNOWFLAKE_JWT',
+      privateKeyPath: process.env.SITE_EXPORT_PRIVATE_KEY_PATH,
+    })
+  }
   if (as) throw new Error(`Unknown connection: ${as}`)
   return snowflake.createConnection({
     account: process.env.SNOWFLAKE_ACCOUNT,
@@ -73,7 +86,7 @@ export const CONNECT_TIMEOUT_MS = Number(process.env.DB_CONNECT_TIMEOUT_MS) || 1
 export class ConnectTimeoutError extends Error {}
 
 // as: 'loader' opens the session as the data loaders' user, 'crm' as the
-// CRM's, 'transform' as dbt's, instead of Warren and Burrow's.
+// CRM's, 'transform' as dbt's, 'site-export' as the site's build-time export, instead of Warren and Burrow's.
 export function connect({ timeoutMs = CONNECT_TIMEOUT_MS, as } = {}) {
   return new Promise((resolve, reject) => {
     const connection = createConnection(as)

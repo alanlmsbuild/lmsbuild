@@ -72,7 +72,7 @@
 {%- endmacro %}
 
 {% macro neet_stamp_now() -%}
-  (select md5(listagg(f.SOURCEFILEID, ',') within group (order by f.SOURCEFILEID)) || '|v1' from {{ neet_files() }} f)
+  (select md5(listagg(f.SOURCEFILEID, ',') within group (order by f.SOURCEFILEID)) || '|v2' from {{ neet_files() }} f)
 {%- endmacro %}
 
 {% macro neet_reusable() -%}

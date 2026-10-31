@@ -1434,3 +1434,156 @@ models:
         data_type: date
         description: 'Last date it applies (2999-12-31: no end date).'
         data_tests: [not_null]
+
+  - name: local_authority_code_change
+    description: >-
+      Every change of a local authority's code in the ONS Code History Database since the codes were reissued in 2009 (England, Wales,
+      Scotland, Northern Ireland): the old code, the new one, the order and date, and the kind of change (recoded, boundary_change, merged,
+      split). line_up is true only where the new code is the same authority continuing; a merge or a split never lines up. Rebuilt from the
+      latest file loaded.
+    config:
+      meta:
+        source: ons-code-history
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: old_code
+        data_type: varchar
+        description: 'The code the authority had.'
+        data_tests: [not_null]
+      - name: old_name
+        data_type: varchar
+        description: 'Its name then.'
+        data_tests: [not_null]
+      - name: new_code
+        data_type: varchar
+        description: 'The code it has since.'
+        data_tests: [not_null]
+      - name: new_name
+        data_type: varchar
+        description: 'Its name since.'
+        data_tests: [not_null]
+      - name: area_kind
+        data_type: varchar
+        description: 'The ONS kind of area: E06 unitary, E07 district, E08 metropolitan district, E09 London borough, W06 Welsh unitary, S12 Scottish council area, N09 Northern Ireland district.'
+        data_tests: [not_null]
+      - name: order_id
+        data_type: varchar
+        description: 'The statutory instrument that made the change.'
+        data_tests: [not_null]
+      - name: order_title
+        data_type: varchar
+        description: 'Its title.'
+        data_tests: [not_null]
+      - name: change_date
+        data_type: date
+        description: 'The date the change took effect.'
+        data_tests: [not_null]
+      - name: relationship
+        data_type: varchar
+        description: 'recoded (one code for one), boundary_change (an order moved a boundary), merged (several became one) or split (one became several).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['recoded', 'boundary_change', 'merged', 'split']
+      - name: line_up
+        data_type: boolean
+        description: 'True where the new code is the same authority continuing (same name, recoded or boundary_change). Only then may figures under the old code be shown under the new one.'
+        data_tests: [not_null]
+      - name: successors
+        data_type: number
+        description: 'How many new codes the old code became in this order.'
+      - name: predecessors
+        data_type: number
+        description: 'How many old codes the new code came from in this order.'
+      - name: source_file_id
+        data_type: varchar
+        description: 'The SOURCE_FILE row of the file it came from.'
+        data_tests: [not_null]
+
+  - name: local_authority_code_current
+    description: >-
+      Today's code for every local authority code that has been replaced and still lines up with an authority that exists, so a figure
+      published under an old code is shown under today's council. Follows only the changes that line up, through as many as it took.
+      A merged or split authority has no row. boundary_changed_on is the date of the latest boundary change on the way: figures before
+      that date are for the old boundary.
+    config:
+      meta:
+        source: ons-code-history
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: old_code
+        data_type: varchar
+        description: 'A code an authority used to have.'
+        data_tests:
+          - unique
+          - not_null
+      - name: current_code
+        data_type: varchar
+        description: 'The code the same authority has today.'
+        data_tests:
+          - not_null
+          - in_area_lookup:
+              arguments:
+                area_type: local_authority
+      - name: current_name
+        data_type: varchar
+        description: 'Its name today.'
+        data_tests: [not_null]
+      - name: changes
+        data_type: number
+        description: 'How many changes of code it took.'
+        data_tests: [not_null]
+      - name: last_changed_on
+        data_type: date
+        description: 'The date of the last change.'
+        data_tests: [not_null]
+      - name: boundary_changed_on
+        data_type: date
+        description: 'The date of the latest change of boundary on the way, if there was one.'
+
+  - name: local_authority_county
+    description: >-
+      The county each local authority district is in (ONS Local Authority District to County and Unitary Authority lookup, April 2025):
+      one row per district in the UK. A unitary authority has itself as county_code and is not two_tier. Used to point a district at the
+      county council whose figures cover it where a measure is published for counties and not for districts (NEET).
+    config:
+      meta:
+        source: ons-lad-county
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: local_authority_code
+        data_type: varchar
+        description: 'The district or unitary authority, e.g. E07000008 (Cambridge).'
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+      - name: local_authority_name
+        data_type: varchar
+        description: 'Its name.'
+        data_tests: [not_null]
+      - name: county_code
+        data_type: varchar
+        description: 'The county it is in (E10...), or its own code where it is a unitary authority.'
+        data_tests: [not_null]
+      - name: county_name
+        data_type: varchar
+        description: 'That county or unitary authority''s name, e.g. Cambridgeshire.'
+        data_tests: [not_null]
+      - name: two_tier
+        data_type: boolean
+        description: 'True where the district is inside a county (its county code is not its own).'
+        data_tests: [not_null]
