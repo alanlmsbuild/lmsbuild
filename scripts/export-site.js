@@ -17,7 +17,8 @@
 //   apprenticeships.json   adverts by local authority and level, and the
 //                          lengths advertised by level (vacancy_card)
 //   courses.json           courses by local authority and level (ncs_course_count),
-//                          and the fees listed for Access to Higher Education
+//                          and every fee listed for Access to Higher Education
+//                          (each one, as listed: none hidden or estimated)
 //   universities.json      providers (and their courses by local authority)
 //   compare/<la>.json      the institutions in each local authority, with their
 //                          Ofsted and latest 16 to 18 results
@@ -120,14 +121,15 @@ try {
     else a.levels[r.LEVEL] = num(r.COURSES)
   }
   const online = cc.find((r) => r.AREA_TYPE === 'online_or_national' && r.IS_ALL_LEVELS)
-  const access = await q('access', `select local_authority_code, count(*) listings, count_if(cost > 0) with_cost, count_if(cost is null or cost = 0) no_cost, min(iff(cost > 0, cost, null)) lowest, max(cost) highest
+  const access = await q('access', `select local_authority_code, count(*) listings, count_if(cost > 0) with_cost, count_if(cost is null or cost = 0) no_cost, min(iff(cost > 0, cost, null)) lowest, max(cost) highest,
+      array_sort(array_agg(iff(cost > 0, cost, null))) fees
     from OPTIONS_DB.GOLD.NCS_COURSE_CARD where qualification ilike '%access to higher education%' and local_authority_code is not null group by 1`)
   counts.NCS_COURSE_CARD_ACCESS = access.length
   write('courses.json', {
     credit: CREDITS.courses, publishedOn: iso(cc[0]?.PUBLISHED_ON), sourceUrl: cc[0]?.SOURCE_URL,
     online: online ? { courses: num(online.COURSES), providers: num(online.PROVIDERS) } : null,
     byArea: courseAreas,
-    accessFees: Object.fromEntries(access.map((r) => [r.LOCAL_AUTHORITY_CODE, drop({ listings: num(r.LISTINGS), withCost: num(r.WITH_COST), noCost: num(r.NO_COST), lowest: num(r.LOWEST), highest: num(r.HIGHEST) })])),
+    accessFees: Object.fromEntries(access.map((r) => [r.LOCAL_AUTHORITY_CODE, drop({ listings: num(r.LISTINGS), withCost: num(r.WITH_COST), noCost: num(r.NO_COST), lowest: num(r.LOWEST), highest: num(r.HIGHEST), fees: (parse(r.FEES) ?? []).map(Number) })])),
   })
 
   // ---- universities (university_course_card)
