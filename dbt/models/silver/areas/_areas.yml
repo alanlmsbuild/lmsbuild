@@ -1547,3 +1547,43 @@ models:
       - name: boundary_changed_on
         data_type: date
         description: 'The date of the latest change of boundary on the way, if there was one.'
+
+  - name: local_authority_county
+    description: >-
+      The county each local authority district is in (ONS Local Authority District to County and Unitary Authority lookup, April 2025):
+      one row per district in the UK. A unitary authority has itself as county_code and is not two_tier. Used to point a district at the
+      county council whose figures cover it where a measure is published for counties and not for districts (NEET).
+    config:
+      meta:
+        source: ons-lad-county
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+    columns:
+      - name: local_authority_code
+        data_type: varchar
+        description: 'The district or unitary authority, e.g. E07000008 (Cambridge).'
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('local_authority')
+                field: local_authority_code
+      - name: local_authority_name
+        data_type: varchar
+        description: 'Its name.'
+        data_tests: [not_null]
+      - name: county_code
+        data_type: varchar
+        description: 'The county it is in (E10...), or its own code where it is a unitary authority.'
+        data_tests: [not_null]
+      - name: county_name
+        data_type: varchar
+        description: 'That county or unitary authority''s name, e.g. Cambridgeshire.'
+        data_tests: [not_null]
+      - name: two_tier
+        data_type: boolean
+        description: 'True where the district is inside a county (its county code is not its own).'
+        data_tests: [not_null]

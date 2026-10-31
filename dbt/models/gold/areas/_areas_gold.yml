@@ -75,3 +75,53 @@ models:
         data_type: varchar
         description: 'The credit the licence asks for.'
         data_tests: [not_null]
+
+  - name: neet_area_for_la
+    description: >-
+      Which NEET figures answer for each local authority. NEET is published for unitary authorities and county councils, not for the
+      districts inside a county, so a district is pointed at its county council's rows (ONS district to county lookup) with a sentence
+      saying so. The county's figure is shown as published and is never shared out to the district or estimated for it.
+    config:
+      meta:
+        source: ons-lad-county
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_SITE']
+    columns:
+      - name: local_authority_code
+        data_type: varchar
+        description: 'The local authority (district, unitary authority, borough, Welsh, Scottish or Northern Irish council).'
+        data_tests:
+          - unique
+          - not_null
+      - name: local_authority_name
+        data_type: varchar
+        description: 'Its name.'
+        data_tests: [not_null]
+      - name: basis
+        data_type: varchar
+        description: 'own: it has NEET rows of its own. county: its county council''s rows answer. none: no NEET rows (outside England, or no rows for its county in this release).'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['own', 'county', 'none']
+      - name: neet_area_code
+        data_type: varchar
+        description: 'The area_code to read in neet_la_year (it matches area_code or current_area_code there). Empty where basis is none.'
+      - name: neet_area_name
+        data_type: varchar
+        description: 'That area''s name in neet_la_year.'
+      - name: figure_note
+        data_type: varchar
+        description: 'The sentence to show with the figure when basis is county, e.g. "This figure is for Cambridgeshire County Council. NEET figures aren''t published for Cambridge on its own."; the reason when basis is none. Empty when basis is own.'
+      - name: source_url
+        data_type: varchar
+        description: 'Where the lookup comes from.'
+        data_tests: [not_null]
+      - name: attribution
+        data_type: varchar
+        description: 'The credit the licence asks for.'
+        data_tests: [not_null]

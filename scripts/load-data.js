@@ -97,6 +97,7 @@ import { adviceSteps } from './load/travel-advice.js'
 import { oakSteps } from './load/oak.js'
 import { ncsSteps } from './load/ncs.js'
 import { chdSteps } from './load/ons-chd.js'
+import { ladCountySteps } from './load/ons-lad-county.js'
 import { oakQuizSteps } from './load/oak-quiz.js'
 import { odsRows, csvLine, csvRecords, writeLines, zipEntry, zipNames } from './load/files.js'
 
@@ -345,6 +346,8 @@ export const STEPS = {
   ...ncsSteps(RAREBIT_DATA),
   // The ONS Code History Database: changes of area codes (step 55, scripts/load/ons-chd.js), 31 October 2026.
   ...chdSteps(RAREBIT_DATA),
+  // The ONS district to county lookup (step 56, scripts/load/ons-lad-county.js), 31 October 2026.
+  ...ladCountySteps(RAREBIT_DATA),
   ...oakQuizSteps(RAREBIT_DATA),
 
   // ---------------------------------------------------------------- batch 7

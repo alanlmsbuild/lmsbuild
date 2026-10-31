@@ -126,6 +126,9 @@ sources:
       - name: ons_code_change
         identifier: ONS_CODE_CHANGE
         description: ONS Code History Database, the Changes table, one row per change of a statistical geography's code (load:data step 55).
+      - name: ons_lad_county
+        identifier: ONS_LAD_COUNTY
+        description: ONS Local Authority District to County and Unitary Authority lookup, one row per district (load:data step 56).
 
   # SHARED_DB.EXT: data kept up to date by the app's own imports (not files).
 

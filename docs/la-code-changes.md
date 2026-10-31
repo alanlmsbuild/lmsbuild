@@ -128,3 +128,19 @@ with, with a note. One row per order.
 3. `npm run transform:silver` (builds the two silver models, the gold lookup and `neet_la_year`).
 4. Then `npm run export:site` can carry the lookup to the site's `data/site/` when a page needs
    NEET (no page does yet).
+
+## District to county (31 October 2026)
+
+NEET is published for upper-tier councils, so the 166 English districts have no row of their own.
+`SHARED_DB.RAW.ONS_LAD_COUNTY` (load step 56, `sql/ons_lad_county_01_tables.sql`, **not run**) holds
+the ONS "Local Authority District to County and Unitary Authority (April 2025) Lookup in the UK
+(V2)" (361 rows; licence notes in `docs/licences/ons-lad-county-2025-04/`). Silver
+`local_authority_county` has one row per district; gold `neet_area_for_la` (read by
+`SHARED_DB.GOLD_SITE`) says for each live authority which NEET rows answer: `own`, `county` (with
+the sentence "This figure is for Cambridgeshire County Council. NEET figures aren't published for
+Cambridge on its own.") or `none` (outside England, or a county with no rows in this release, with
+the reason). The county's figure is read as published; nothing is shared out or estimated.
+
+To run, after `sql/ons_chd_01_tables.sql`: paste `sql/ons_lad_county_01_tables.sql` as ACCOUNTADMIN,
+`npm run load:data -- 56`, `npm run transform:silver`, then grant the new gold table to
+`SHARED_DB.GOLD_SITE` (the gold grants step) and `npm run export:site` when a page needs it.
