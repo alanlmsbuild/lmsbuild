@@ -27,6 +27,12 @@ select
   n.geographic_level::varchar as geographic_level,
   coalesce(n.la_code, n.region_code, n.country_code)::varchar as area_code,
   coalesce(n.la_name, n.region_name, 'England')::varchar as area_name,
+  coalesce(c.current_code, coalesce(n.la_code, n.region_code, n.country_code))::varchar as current_area_code,
+  case
+    when c.old_code is not null then 'Published under the code ' || c.old_code || ', now ' || c.current_code || ' (' || c.current_name || ').'
+      || iff(c.boundary_changed_on is not null, ' Its boundary changed on ' || c.boundary_changed_on::varchar || ', so figures before then are for the old boundary.', '')
+    when m.old_code is not null then 'This authority was merged into ' || m.new_name || ' on ' || m.change_date::varchar || '. Its figures are not combined with that authority''s.'
+  end::varchar as code_change_note,
   n.region_name::varchar as region_name,
   n.age::varchar as age,
   case when n.neet_c = 'shown' then n.cohort end::float as cohort,
@@ -45,5 +51,12 @@ select
   {{ neet_stamp() }}::varchar as built_from
 from n
 cross join {{ ref('neet_feed') }} f
+left join {{ ref('local_authority_code_current') }} c on c.old_code = n.la_code
+left join (
+  select old_code, min(new_name) as new_name, min(change_date) as change_date
+  from {{ ref('local_authority_code_change') }}
+  where relationship in ('merged', 'split') and not line_up
+  group by old_code
+) m on m.old_code = n.la_code and c.old_code is null
 where n.age in ('16', '17', '16 to 17')
 {% endif %}

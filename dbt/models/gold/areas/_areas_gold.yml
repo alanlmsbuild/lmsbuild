@@ -1,0 +1,77 @@
+version: 2
+
+# Local authority code changes, gold: SHARED_DB.GOLD. Read by the school leavers site's export (database role SHARED_DB.GOLD_SITE).
+
+models:
+
+  - name: local_authority_code_lookup
+    description: >-
+      The changes of local authority codes since 2009 (ONS Code History Database), for showing figures published under an old code under
+      today's councils. One row per change, with the kind of change, whether the new code is the same authority continuing, and today's
+      code where it is. A merge or a split has no current code.
+    config:
+      meta:
+        source: ons-code-history
+        licence: ogl-3
+        attribution: 'Contains public sector information licensed under the Open Government Licence v3.0. Source: Office for National Statistics, licensed under the Open Government Licence v3.0.'
+        refresh: by-hand
+        sensitivity: public
+        readers: ['SHARED_DB.GOLD_SITE']
+    columns:
+      - name: old_code
+        data_type: varchar
+        description: 'The code the authority had.'
+        data_tests: [not_null]
+      - name: old_name
+        data_type: varchar
+        description: 'Its name then.'
+        data_tests: [not_null]
+      - name: new_code
+        data_type: varchar
+        description: 'The code it has since.'
+        data_tests: [not_null]
+      - name: new_name
+        data_type: varchar
+        description: 'Its name since.'
+        data_tests: [not_null]
+      - name: order_id
+        data_type: varchar
+        description: 'The statutory instrument that made the change.'
+        data_tests: [not_null]
+      - name: order_title
+        data_type: varchar
+        description: 'Its title.'
+        data_tests: [not_null]
+      - name: change_date
+        data_type: date
+        description: 'The date the change took effect.'
+        data_tests: [not_null]
+      - name: relationship
+        data_type: varchar
+        description: 'recoded, boundary_change, merged or split.'
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['recoded', 'boundary_change', 'merged', 'split']
+      - name: line_up
+        data_type: boolean
+        description: 'True where the new code is the same authority continuing.'
+        data_tests: [not_null]
+      - name: current_code
+        data_type: varchar
+        description: 'The code the same authority has today, where it lines up. Empty for a merge or a split.'
+      - name: current_name
+        data_type: varchar
+        description: 'Its name today.'
+      - name: boundary_changed_on
+        data_type: date
+        description: 'The date of the latest change of boundary on the way to today''s code, if there was one: figures before then are for the old boundary.'
+      - name: source_url
+        data_type: varchar
+        description: 'Where the Code History Database comes from.'
+        data_tests: [not_null]
+      - name: attribution
+        data_type: varchar
+        description: 'The credit the licence asks for.'
+        data_tests: [not_null]

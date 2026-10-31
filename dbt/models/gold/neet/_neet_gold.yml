@@ -48,6 +48,14 @@ models:
         description: 'Its name.'
         data_tests:
           - not_null
+      - name: current_area_code
+        data_type: varchar
+        description: 'Today''s code for the same authority (ONS Code History Database): the published code, unless the authority has been recoded and still lines up. Use this to put every year under today''s council. A merged authority keeps the code it was published with.'
+        data_tests:
+          - not_null
+      - name: code_change_note
+        data_type: varchar
+        description: 'Said when the published code is not today''s: the old and new code, and the date of any change of boundary (figures before it are for the old boundary); or that the authority merged into another and its figures are not combined. Empty otherwise.'
       - name: region_name
         data_type: varchar
         description: 'The region it is in (for a local authority).'

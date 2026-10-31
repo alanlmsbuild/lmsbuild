@@ -73,6 +73,7 @@
 // Oak National Academy, decision 56 (sql/oak_01_tables.sql; scripts/load/oak.js):
 //   52 Oak units and lessons (bulk download; restricted lessons as titles only)  -> OPTIONS_DB.RAW
 //   53 Oak quizzes of the open lessons (API; questions with images left out)    -> OPTIONS_DB.RAW
+//   55 ONS Code History Database: changes of area codes (Changes.csv)             -> SHARED_DB.RAW
 //
 // Where the downloads are: RAREBIT_DATA (default /mnt/c/Users/alanb/
 // rarebit-data); the API files the school leavers app cached in
@@ -95,6 +96,7 @@ import { officialSteps3 } from './load/official3.js'
 import { adviceSteps } from './load/travel-advice.js'
 import { oakSteps } from './load/oak.js'
 import { ncsSteps } from './load/ncs.js'
+import { chdSteps } from './load/ons-chd.js'
 import { oakQuizSteps } from './load/oak-quiz.js'
 import { odsRows, csvLine, csvRecords, writeLines, zipEntry, zipNames } from './load/files.js'
 
@@ -341,6 +343,8 @@ export const STEPS = {
   ...oakSteps(RAREBIT_DATA),
   // The National Careers Service course directory (step 54, scripts/load/ncs.js), 30 October 2026.
   ...ncsSteps(RAREBIT_DATA),
+  // The ONS Code History Database: changes of area codes (step 55, scripts/load/ons-chd.js), 31 October 2026.
+  ...chdSteps(RAREBIT_DATA),
   ...oakQuizSteps(RAREBIT_DATA),
 
   // ---------------------------------------------------------------- batch 7
