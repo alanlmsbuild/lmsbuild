@@ -144,3 +144,10 @@ the reason). The county's figure is read as published; nothing is shared out or 
 To run, after `sql/ons_chd_01_tables.sql`: paste `sql/ons_lad_county_01_tables.sql` as ACCOUNTADMIN,
 `npm run load:data -- 56`, `npm run transform:silver`, then grant the new gold table to
 `SHARED_DB.GOLD_SITE` (the gold grants step) and `npm run export:site` when a page needs it.
+
+### Run on 31 October 2026
+
+Load steps 55 (640,599 rows) and 56 (361 rows) and `transform:silver` ran: 81 models built, 882 tests
+passed, none failed. The build granted `neet_area_for_la` to `SHARED_DB.GOLD_SITE` itself (the site
+export login reads it; `check:grants` passes, 1,498 checks). `neet_area_for_la` has 361 rows: 132
+`own`, 164 `county`, 65 `none`. Data quality entries added for the five new tables.
